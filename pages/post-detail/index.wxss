@@ -1,0 +1,115 @@
+.page {
+  min-height: 100vh;
+  padding-bottom: 120rpx;
+}
+
+.post-card {
+  margin: 24rpx;
+  padding: 24rpx;
+}
+
+.header {
+  margin-bottom: 16rpx;
+}
+
+.avatar {
+  width: 72rpx;
+  height: 72rpx;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #4A7AFF, #6B8FFF);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28rpx;
+}
+
+.info {
+  margin-left: 16rpx;
+  display: flex;
+  flex-direction: column;
+}
+
+.name {
+  font-size: 28rpx;
+  font-weight: 500;
+}
+
+.time {
+  font-size: 22rpx;
+}
+
+.content {
+  font-size: 30rpx;
+  line-height: 1.6;
+  margin-bottom: 16rpx;
+}
+
+.actions {
+  gap: 48rpx;
+  padding-top: 16rpx;
+  border-top: 1rpx solid #F5F7FA;
+}
+
+.action {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+  font-size: 26rpx;
+  color: #969799;
+}
+
+.comments {
+  margin: 0 24rpx;
+  padding: 24rpx;
+}
+
+.comments-title {
+  font-size: 28rpx;
+  font-weight: 500;
+  margin-bottom: 16rpx;
+}
+
+.comment-item {
+  padding: 16rpx 0;
+  border-bottom: 1rpx solid #F5F7FA;
+}
+
+.comment-name {
+  font-size: 26rpx;
+  color: #4A7AFF;
+  margin-right: 12rpx;
+}
+
+.comment-content {
+  font-size: 26rpx;
+  color: #323233;
+}
+
+.comment-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: #fff;
+  padding: 16rpx 24rpx;
+  padding-bottom: calc(16rpx + env(safe-area-inset-bottom));
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  border-top: 1rpx solid #EBEDF0;
+}
+
+.comment-input {
+  flex: 1;
+  background: #F5F7FA;
+  border-radius: 32rpx;
+  padding: 16rpx 24rpx;
+  font-size: 28rpx;
+}
+
+.send-btn {
+  color: #4A7AFF;
+  font-size: 28rpx;
+  white-space: nowrap;
+}

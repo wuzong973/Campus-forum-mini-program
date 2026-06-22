@@ -1,0 +1,11 @@
+<view class="service-grid" style="grid-template-columns: repeat({{columns}}, 1fr);">
+  <view class="service-item" wx:for="{{services}}" wx:key="id" data-item="{{item}}" bindtap="onTap">
+    <view class="icon-wrap">
+      <image class="service-icon-img" src="{{item.iconPath}}" mode="aspectFit" wx:if="{{item.iconPath}}"></image>
+      <text class="icon" wx:else>{{item.icon}}</text>
+      <view class="badge badge-recommend" wx:if="{{item.badge === '推荐'}}">{{item.badge}}</view>
+      <view class="badge badge-new" wx:if="{{item.badge === '新生'}}">{{item.badge}}</view>
+    </view>
+    <text class="name">{{item.name}}</text>
+  </view>
+</view>

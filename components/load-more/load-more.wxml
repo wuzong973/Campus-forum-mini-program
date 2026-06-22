@@ -1,0 +1,8 @@
+<view class="load-more">
+  <view class="loading-wrap" wx:if="{{loading}}">
+    <view class="loading-dot"></view>
+    <view class="loading-dot"></view>
+    <view class="loading-dot"></view>
+  </view>
+  <text class="load-text" wx:elif="{{!hasMore}}">{{noMoreText}}</text>
+</view>

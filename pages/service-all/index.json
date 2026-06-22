@@ -1,0 +1,6 @@
+{
+  "navigationBarTitleText": "全部校园服务",
+  "usingComponents": {
+    "service-grid": "/components/service-grid/service-grid"
+  }
+}

@@ -1,0 +1,60 @@
+<view class="page">
+  <view class="form card">
+    <view class="form-item">
+      <text class="label">课程名称</text>
+      <input class="input" placeholder="请输入课程名称" data-field="name" bindinput="onInput" value="{{name}}" />
+    </view>
+    <view class="form-item">
+      <text class="label">上课地点</text>
+      <input class="input" placeholder="请输入上课地点" data-field="location" bindinput="onInput" value="{{location}}" />
+    </view>
+    <view class="form-item">
+      <text class="label">授课教师</text>
+      <input class="input" placeholder="请输入教师姓名" data-field="teacher" bindinput="onInput" value="{{teacher}}" />
+    </view>
+    <view class="form-item">
+      <text class="label">上课星期</text>
+      <picker mode="selector" range="{{weekDays}}" value="{{weekDay}}" bindchange="onWeekDay">
+        <view class="picker-val">{{weekDays[weekDay]}}</view>
+      </picker>
+    </view>
+    <view class="form-item">
+      <text class="label">上课时间</text>
+      <view class="time-row">
+        <picker mode="time" value="{{startTime}}" bindchange="onStartTime">
+          <view class="picker-val">{{startTime}}</view>
+        </picker>
+        <text class="sep">至</text>
+        <picker mode="time" value="{{endTime}}" bindchange="onEndTime">
+          <view class="picker-val">{{endTime}}</view>
+        </picker>
+      </view>
+    </view>
+    <view class="form-item">
+      <text class="label">上课周数</text>
+      <view class="time-row">
+        <picker mode="selector" range="{{weeks}}" value="{{startWeek - 1}}" bindchange="onStartWeek">
+          <view class="picker-val">第{{startWeek}}周</view>
+        </picker>
+        <text class="sep">至</text>
+        <picker mode="selector" range="{{weeks}}" value="{{endWeek - 1}}" bindchange="onEndWeek">
+          <view class="picker-val">第{{endWeek}}周</view>
+        </picker>
+      </view>
+    </view>
+    <view class="form-item">
+      <text class="label">课程颜色</text>
+      <view class="color-list">
+        <view
+          class="color-dot {{selectedColor === item ? 'active' : ''}}"
+          wx:for="{{colors}}"
+          wx:key="*this"
+          style="background: {{item}};"
+          data-color="{{item}}"
+          bindtap="onColor"
+        ></view>
+      </view>
+    </view>
+  </view>
+  <button class="save-btn btn-primary" bindtap="onSave">保存</button>
+</view>

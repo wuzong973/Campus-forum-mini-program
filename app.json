@@ -1,0 +1,76 @@
+{
+  "pages": [
+    "pages/index/index",
+    "pages/service-all/index",
+    "pages/schedule/index",
+    "pages/schedule-add/index",
+    "pages/schedule-ocr/index",
+    "pages/errand/index",
+    "pages/errand-publish/index",
+    "pages/errand-order/index",
+    "pages/post-publish/index",
+    "pages/post-detail/index",
+    "pages/user/index",
+    "pages/settings/index",
+    "pages/agreement/index",
+    "pages/privacy/index",
+    "pages/security/index",
+    "pages/rules/index",
+    "pages/feedback/index",
+    "pages/help/index",
+    "pages/login/index",
+    "pages/search/index",
+    "pages/my-posts/index",
+    "pages/my-messages/index",
+    "pages/wallet/index",
+    "pages/webview/index",
+    "pages/logs/logs"
+  ],
+  "window": {
+    "navigationBarTextStyle": "white",
+    "navigationBarTitleText": "广轻工",
+    "navigationBarBackgroundColor": "#4A7AFF",
+    "backgroundColor": "#F5F7FA",
+    "backgroundTextStyle": "dark"
+  },
+  "tabBar": {
+    "color": "#969799",
+    "selectedColor": "#4A7AFF",
+    "backgroundColor": "#FFFFFF",
+    "borderStyle": "black",
+    "list": [
+      {
+        "pagePath": "pages/index/index",
+        "text": "首页",
+        "iconPath": "assets/tabbar/home.png",
+        "selectedIconPath": "assets/tabbar/home-active.png"
+      },
+      {
+        "pagePath": "pages/schedule/index",
+        "text": "课程表",
+        "iconPath": "assets/tabbar/schedule.png",
+        "selectedIconPath": "assets/tabbar/schedule-active.png"
+      },
+      {
+        "pagePath": "pages/errand/index",
+        "text": "代拿跑腿",
+        "iconPath": "assets/tabbar/errand.png",
+        "selectedIconPath": "assets/tabbar/errand-active.png"
+      },
+      {
+        "pagePath": "pages/user/index",
+        "text": "我的",
+        "iconPath": "assets/tabbar/user.png",
+        "selectedIconPath": "assets/tabbar/user-active.png"
+      }
+    ]
+  },
+  "style": "v2",
+  "sitemapLocation": "sitemap.json",
+  "lazyCodeLoading": "requiredComponents",
+  "navigateToMiniProgramAppIdList": [
+    "wx4f4f74eaf4b7d100",
+    "wxe9f4a4df3ac90522",
+    "wx7b3c69b4b6b348d5"
+  ]
+}

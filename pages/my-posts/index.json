@@ -1,0 +1,7 @@
+{
+  "navigationBarTitleText": "我的帖子",
+  "usingComponents": {
+    "post-card": "/components/post-card/post-card",
+    "empty-state": "/components/empty-state/empty-state"
+  }
+}

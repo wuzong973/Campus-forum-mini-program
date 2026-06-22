@@ -1,0 +1,39 @@
+<view class="page">
+  <!-- 搜索框 -->
+  <view class="search-bar">
+    <view class="search-input-wrap">
+      <text class="search-icon">🔍</text>
+      <input class="search-input" placeholder="输入问题关键词" value="{{searchKey}}" bindinput="onSearchInput" />
+    </view>
+  </view>
+
+  <!-- 分类Tab -->
+  <scroll-view scroll-x class="category-tabs" enhanced show-scrollbar="{{false}}">
+    <view
+      class="category-tab {{activeCategory === index ? 'active' : ''}}"
+      wx:for="{{categories}}"
+      wx:key="name"
+      data-index="{{index}}"
+      bindtap="onCategoryTap"
+    >{{item.name}}</view>
+  </scroll-view>
+
+  <!-- 问题列表 -->
+  <view class="faq-list">
+    <view class="faq-item" wx:for="{{filteredFaqs}}" wx:key="id">
+      <view class="faq-question" bindtap="onToggleFaq" data-id="{{item.id}}">
+        <text class="faq-question-text">{{item.question}}</text>
+        <text class="faq-arrow {{item.expanded ? 'expanded' : ''}}">∨</text>
+      </view>
+      <view class="faq-answer {{item.expanded ? 'show' : ''}}">
+        <text class="faq-answer-text">{{item.answer}}</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 底部联系客服 -->
+  <view class="bottom-contact">
+    <text class="contact-hint">仍有问题？</text>
+    <button class="contact-btn" bindtap="onContactService">联系客服</button>
+  </view>
+</view>

@@ -1,0 +1,154 @@
+.page {
+  min-height: 100vh;
+  background: var(--bg);
+}
+
+.header {
+  padding-bottom: 48rpx;
+}
+
+.header-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 32rpx 24rpx;
+}
+
+.user-info {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+  transition: var(--transition-fast);
+}
+
+.user-info:active {
+  opacity: 0.85;
+}
+
+.avatar-img {
+  width: 120rpx;
+  height: 120rpx;
+  border-radius: 50%;
+  border: 4rpx solid rgba(255, 255, 255, 0.5);
+  flex-shrink: 0;
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.user-detail {
+  margin-left: 24rpx;
+  flex: 1;
+  min-width: 0;
+}
+
+.user-name-row {
+  display: flex;
+  align-items: center;
+  margin-bottom: 8rpx;
+}
+
+.user-name {
+  font-size: 34rpx;
+  color: #fff;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gender-icon-img {
+  width: 32rpx;
+  height: 32rpx;
+  margin-left: 12rpx;
+  flex-shrink: 0;
+}
+
+.user-school {
+  font-size: 24rpx;
+  color: rgba(255, 255, 255, 0.8);
+  line-height: 1.4;
+}
+
+.settings-icon {
+  width: 48rpx;
+  height: 48rpx;
+  flex-shrink: 0;
+  margin-left: 16rpx;
+  transition: var(--transition-fast);
+}
+
+.settings-icon:active {
+  transform: scale(0.9);
+  opacity: 0.85;
+}
+
+.shortcuts {
+  margin: -32rpx 24rpx 24rpx;
+  padding: 32rpx 0;
+  display: flex;
+  position: relative;
+  z-index: 2;
+  box-shadow: var(--shadow);
+}
+
+.shortcut-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  transition: var(--transition-fast);
+}
+
+.shortcut-item:active {
+  transform: scale(0.92);
+  opacity: 0.8;
+}
+
+.shortcut-icon-img {
+  width: 56rpx;
+  height: 56rpx;
+  margin-bottom: 12rpx;
+}
+
+.shortcut-name {
+  font-size: 24rpx;
+  color: var(--text-primary);
+  line-height: 1.4;
+}
+
+.menu {
+  margin: 0 24rpx;
+  padding: 0 24rpx;
+  box-shadow: var(--shadow-sm);
+}
+
+.menu-item {
+  padding: 28rpx 0;
+  border-bottom: 1rpx solid var(--divider);
+  transition: var(--transition-fast);
+}
+
+.menu-item:last-child {
+  border-bottom: none;
+}
+
+.menu-item:active {
+  background: var(--bg);
+  opacity: 0.85;
+}
+
+.menu-icon-img {
+  width: 40rpx;
+  height: 40rpx;
+  margin-right: 16rpx;
+}
+
+.menu-name {
+  font-size: 28rpx;
+  color: var(--text-primary);
+}
+
+.arrow {
+  color: var(--text-placeholder);
+  font-size: 28rpx;
+}

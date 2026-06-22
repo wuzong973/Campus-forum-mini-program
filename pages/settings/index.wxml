@@ -1,0 +1,172 @@
+<view class="page">
+  <!-- 账号设置 -->
+  <view class="section-title">账号设置</view>
+  <view class="card">
+    <view class="menu-item" bindtap="onEditAvatar">
+      <view class="menu-left">
+        <image class="menu-icon-img" src="/assets/icons/avatar.png" mode="aspectFit"></image>
+        <text class="menu-label">头像</text>
+      </view>
+      <view class="menu-right">
+        <image class="avatar-preview" src="{{userInfo.avatarUrl || '/assets/tabbar/user.png'}}" mode="aspectFill"></image>
+        <text class="arrow">></text>
+      </view>
+    </view>
+    <view class="menu-item" bindtap="onEditNickname">
+      <view class="menu-left">
+        <image class="menu-icon-img" src="/assets/icons/nickname.png" mode="aspectFit"></image>
+        <text class="menu-label">昵称</text>
+      </view>
+      <view class="menu-right">
+        <text class="menu-value {{!userInfo.nickName ? 'placeholder' : ''}}">{{userInfo.nickName || '昵称未命名'}}</text>
+        <text class="arrow">></text>
+      </view>
+    </view>
+    <view class="menu-item" bindtap="onEditGender">
+      <view class="menu-left">
+        <image class="menu-icon-img" src="/assets/icons/gender.png" mode="aspectFit"></image>
+        <text class="menu-label">性别</text>
+      </view>
+      <view class="menu-right">
+        <text class="menu-value">{{genderText}}</text>
+        <text class="arrow">></text>
+      </view>
+    </view>
+    <view class="menu-item">
+      <view class="menu-left">
+        <image class="menu-icon-img" src="/assets/icons/school.png" mode="aspectFit"></image>
+        <text class="menu-label">学校</text>
+      </view>
+      <view class="menu-right">
+        <text class="menu-value school-fixed">广轻工职业技术大学</text>
+      </view>
+    </view>
+    <view class="menu-item" bindtap="onEditCampus">
+      <view class="menu-left">
+        <image class="menu-icon-img" src="/assets/icons/campus.png" mode="aspectFit"></image>
+        <text class="menu-label">校区</text>
+      </view>
+      <view class="menu-right">
+        <text class="menu-value">{{userInfo.campus || '未设置'}}</text>
+        <text class="arrow">></text>
+      </view>
+    </view>
+    <view class="menu-item" bindtap="onEditPhone">
+      <view class="menu-left">
+        <image class="menu-icon-img" src="/assets/icons/phone.png" mode="aspectFit"></image>
+        <text class="menu-label">手机号码</text>
+      </view>
+      <view class="menu-right">
+        <text class="menu-value">{{userInfo.phone || '未绑定'}}</text>
+        <text class="arrow">></text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 关于 -->
+  <view class="section-title">关于</view>
+  <view class="card">
+    <view class="menu-item" bindtap="onUserAgreement">
+      <view class="menu-left">
+        <image class="menu-icon-img" src="/assets/icons/agreement.png" mode="aspectFit"></image>
+        <text class="menu-label">用户协议</text>
+      </view>
+      <view class="menu-right">
+        <text class="arrow">></text>
+      </view>
+    </view>
+    <view class="menu-item" bindtap="onPrivacyPolicy">
+      <view class="menu-left">
+        <image class="menu-icon-img" src="/assets/icons/privacy.png" mode="aspectFit"></image>
+        <text class="menu-label">隐私政策</text>
+      </view>
+      <view class="menu-right">
+        <text class="arrow">></text>
+      </view>
+    </view>
+    <view class="menu-item" bindtap="onVersionInfo">
+      <view class="menu-left">
+        <image class="menu-icon-img" src="/assets/icons/version.png" mode="aspectFit"></image>
+        <text class="menu-label">版本信息</text>
+      </view>
+      <view class="menu-right">
+        <text class="menu-value version">v1.1.28</text>
+        <text class="arrow">></text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 退出登录 -->
+  <view class="logout-btn" bindtap="onLogout">退出登录</view>
+
+  <!-- 头像来源选择弹窗 -->
+  <view class="modal-mask {{showAvatarSource ? 'show' : ''}}" bindtap="closeAvatarSource"></view>
+  <view class="modal-bottom {{showAvatarSource ? 'show' : ''}}">
+    <view class="modal-bottom-title">选择头像来源</view>
+    <view class="modal-bottom-item" bindtap="onChooseWechatAvatar">使用微信头像</view>
+    <view class="modal-bottom-item" bindtap="onChooseAlbumAvatar">从相册选择</view>
+    <view class="modal-bottom-cancel" bindtap="closeAvatarSource">取消</view>
+  </view>
+
+  <!-- 完善个人资料弹窗 -->
+  <view class="modal-mask {{showProfileModal ? 'show' : ''}}" bindtap="closeProfileModal"></view>
+  <view class="profile-modal {{showProfileModal ? 'show' : ''}}">
+    <view class="profile-modal-header">
+      <text class="profile-modal-title">完善个人资料</text>
+      <text class="profile-modal-close" bindtap="closeProfileModal">✕</text>
+    </view>
+
+    <scroll-view scroll-y class="profile-modal-body">
+      <!-- 头像 -->
+      <view class="profile-row avatar-row">
+        <text class="profile-label">头像</text>
+        <view class="avatar-edit-wrap" bindtap="onModalAvatarTap">
+          <image class="avatar-large" src="{{editAvatar || '/assets/tabbar/user.png'}}" mode="aspectFill"></image>
+          <view class="avatar-camera-icon">
+            <image class="camera-icon-img" src="/assets/icons/camera.png" mode="aspectFit"></image>
+          </view>
+        </view>
+      </view>
+
+      <!-- 昵称 -->
+      <view class="profile-row">
+        <text class="profile-label">昵称</text>
+        <input class="profile-input" placeholder="请输入昵称" value="{{editNickname}}" bindinput="onNicknameInput" />
+      </view>
+
+      <!-- 性别 -->
+      <view class="profile-row gender-row">
+        <text class="profile-label">性别</text>
+        <view class="gender-options">
+          <view class="gender-option {{editGender === 1 ? 'male-active' : 'male'}}" bindtap="onSelectGender" data-value="1">
+            <view class="gender-radio {{editGender === 1 ? 'radio-checked-male' : 'radio-unchecked'}}"></view>
+            <text class="gender-icon male-icon">♂</text>
+          </view>
+          <view class="gender-option {{editGender === 2 ? 'female-active' : 'female'}}" bindtap="onSelectGender" data-value="2">
+            <view class="gender-radio {{editGender === 2 ? 'radio-checked-female' : 'radio-unchecked'}}"></view>
+            <text class="gender-icon female-icon">♀</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- 学校（固定显示，不可编辑） -->
+      <view class="profile-row">
+        <text class="profile-label">学校</text>
+        <text class="profile-school-fixed">广轻工职业技术大学</text>
+      </view>
+
+      <!-- 校区 -->
+      <view class="profile-row campus-row">
+        <text class="profile-label">校区</text>
+        <view class="campus-options">
+          <view class="campus-tag {{editCampus === '广州校区' ? 'campus-active' : ''}}" bindtap="onSelectCampus" data-value="广州校区">广州校区</view>
+          <view class="campus-tag {{editCampus === '佛山校区' ? 'campus-active' : ''}}" bindtap="onSelectCampus" data-value="佛山校区">佛山校区</view>
+        </view>
+      </view>
+    </scroll-view>
+
+    <view class="profile-modal-footer">
+      <view class="confirm-btn" bindtap="onConfirmProfile">确定</view>
+    </view>
+  </view>
+</view>

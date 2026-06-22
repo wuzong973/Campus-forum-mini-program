@@ -1,0 +1,129 @@
+.post-card {
+  margin: 0 24rpx 24rpx;
+  padding: 24rpx;
+  background: var(--card-bg);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+  transition: var(--transition-fast);
+}
+
+.post-card:active {
+  transform: scale(0.99);
+  box-shadow: var(--shadow);
+}
+
+.post-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 16rpx;
+}
+
+.post-avatar {
+  width: 80rpx;
+  height: 80rpx;
+  border-radius: 50%;
+  margin-right: 16rpx;
+  background: var(--divider);
+}
+
+.post-user-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.post-user-row {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+}
+
+.post-nick {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gender-icon {
+  width: 28rpx;
+  height: 28rpx;
+  flex-shrink: 0;
+}
+
+.post-time {
+  font-size: 24rpx;
+  color: var(--text-tertiary);
+  margin-top: 4rpx;
+  line-height: 1.4;
+}
+
+.post-more {
+  font-size: 32rpx;
+  color: var(--text-tertiary);
+  padding: 8rpx 16rpx;
+}
+
+.post-content {
+  font-size: 28rpx;
+  line-height: 1.6;
+  letter-spacing: 0.2rpx;
+  color: var(--text-primary);
+  margin-bottom: 16rpx;
+  word-break: break-word;
+}
+
+.post-images {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8rpx;
+  margin-bottom: 16rpx;
+}
+
+.post-img {
+  width: 200rpx;
+  height: 200rpx;
+  border-radius: var(--radius-sm);
+}
+
+.post-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 16rpx;
+  border-top: 1rpx solid var(--divider);
+}
+
+.post-views {
+  font-size: 24rpx;
+  color: var(--text-tertiary);
+}
+
+.post-actions {
+  display: flex;
+  gap: 32rpx;
+}
+
+.action-btn {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+  padding: 8rpx;
+  margin: -8rpx;
+  transition: var(--transition-fast);
+}
+
+.action-btn:active {
+  transform: scale(0.88);
+}
+
+.action-icon {
+  width: 36rpx;
+  height: 36rpx;
+}
+
+.action-count {
+  font-size: 24rpx;
+  color: var(--text-tertiary);
+}

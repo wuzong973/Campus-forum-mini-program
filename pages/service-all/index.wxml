@@ -1,0 +1,6 @@
+<view class="page">
+  <view class="section card" wx:for="{{sections}}" wx:key="title">
+    <view class="section-title">{{item.title}}</view>
+    <service-grid services="{{item.items}}" columns="{{5}}" bind:tap="onServiceTap" />
+  </view>
+</view>

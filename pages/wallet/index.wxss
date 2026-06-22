@@ -1,0 +1,80 @@
+.page {
+  min-height: 100vh;
+  padding: 24rpx;
+}
+
+.balance-card {
+  border-radius: 16rpx;
+  padding: 48rpx 32rpx;
+  margin-bottom: 32rpx;
+}
+
+.balance-label {
+  color: rgba(255,255,255,0.8);
+  font-size: 26rpx;
+}
+
+.balance-value {
+  display: block;
+  color: #fff;
+  font-size: 72rpx;
+  font-weight: 700;
+  margin: 16rpx 0 32rpx;
+}
+
+.balance-actions {
+  display: flex;
+  gap: 24rpx;
+}
+
+.action-btn {
+  flex: 1;
+  background: #fff;
+  color: #4A7AFF;
+  border-radius: 40rpx;
+  font-size: 28rpx;
+  border: none;
+}
+
+.action-btn.outline {
+  background: transparent;
+  color: #fff;
+  border: 2rpx solid rgba(255,255,255,0.6);
+}
+
+.action-btn::after { border: none; }
+
+.section-title {
+  margin-bottom: 16rpx;
+}
+
+.record-list {
+  padding: 0 24rpx;
+}
+
+.record-item {
+  padding: 24rpx 0;
+  border-bottom: 1rpx solid #F5F7FA;
+}
+
+.record-title {
+  display: block;
+}
+
+.record-time {
+  display: block;
+  margin-top: 8rpx;
+}
+
+.record-amount {
+  font-size: 32rpx;
+  font-weight: 600;
+}
+
+.record-amount.income { color: #52C41A; }
+.record-amount.expense { color: #E64340; }
+
+.empty {
+  text-align: center;
+  padding: 48rpx;
+}

@@ -1,0 +1,47 @@
+<view class="page">
+  <!-- 顶部 Tab -->
+  <view class="top-tabs">
+    <view
+      class="top-tab pressable {{activeTab === index ? 'active' : ''}}"
+      wx:for="{{tabs}}"
+      wx:key="*this"
+      data-index="{{index}}"
+      bindtap="onTab"
+    >
+      <text>{{item}}</text>
+      <view class="tab-badge" wx:if="{{counts[index]}}">{{counts[index]}}</view>
+    </view>
+  </view>
+
+  <!-- 状态筛选 -->
+  <scroll-view class="filter-scroll" scroll-x enable-flex>
+    <view class="filter-list">
+      <view
+        class="filter-chip pressable {{activeStatus === index ? 'active' : ''}}"
+        wx:for="{{statusFilters}}"
+        wx:key="*this"
+        data-index="{{index}}"
+        bindtap="onStatusFilter"
+      >{{item}}</view>
+    </view>
+  </scroll-view>
+
+  <!-- 订单列表 -->
+  <view class="order-list">
+    <view wx:for="{{orders}}" wx:key="id" style="--i: {{index < 6 ? index : 0}};" class="anim-stagger">
+      <errand-card
+        order="{{item}}"
+        bind:accept="onAccept"
+        bind:finish="onFinish"
+        bind:contact="onContact"
+      />
+    </view>
+    <empty-state wx:if="{{orders.length === 0}}" text="{{emptyText}}" icon="📋" />
+  </view>
+
+  <!-- 底部发布入口 -->
+  <view class="bottom-entry pressable" bindtap="goPublish">
+    <text class="entry-icon">＋</text>
+    <text class="entry-text">发布新跑腿</text>
+  </view>
+</view>

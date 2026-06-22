@@ -1,0 +1,7 @@
+<view class="page">
+  <block wx:for="{{posts}}" wx:key="id">
+    <post-card post="{{item}}" />
+  </block>
+  <empty-state wx:if="{{!loading && posts.length === 0}}" text="还没有发布帖子" icon="📝" />
+  <view class="fab" bindtap="goPublish">+</view>
+</view>

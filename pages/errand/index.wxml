@@ -1,0 +1,103 @@
+<view class="page">
+  <!-- 自定义导航栏 -->
+  <view class="custom-nav" style="padding-top: {{statusBarHeight}}px;">
+    <view class="nav-content" style="height: {{navBarHeight}}px;">
+      <image class="nav-home-icon" src="/assets/icons/nav-home.png" mode="aspectFit" bindtap="goBack"></image>
+      <text class="nav-title">代拿跑腿</text>
+      <view class="nav-right-placeholder"></view>
+    </view>
+  </view>
+  <view class="nav-placeholder" style="height: {{statusBarHeight + navBarHeight}}px;"></view>
+
+  <!-- Banner：点击进入「递至·校园代拿」小程序 -->
+  <view class="activity-banner pressable" bindtap="onEnterErrandMini">
+    <text class="banner-text">试营业期间，派单打9折，接单服务费直降5%! 点击进入校园代拿 ></text>
+  </view>
+
+  <!-- 类型Tab -->
+  <view class="type-tabs">
+    <view
+      class="tab-item {{activeTab === index ? 'active' : ''}}"
+      wx:for="{{tabs}}"
+      wx:key="*this"
+      data-index="{{index}}"
+      bindtap="onTab"
+    >{{item}}</view>
+  </view>
+
+  <!-- 校区选择 -->
+  <view class="campus-selector">
+    <view
+      class="campus-btn {{activeCampus === index ? 'active' : ''}}"
+      wx:for="{{campuses}}"
+      wx:key="*this"
+      data-index="{{index}}"
+      bindtap="onCampusSelect"
+    >{{item}}</view>
+  </view>
+
+  <!-- 订单列表 -->
+  <view class="order-list">
+    <block wx:for="{{orders}}" wx:key="id">
+      <view class="order-card">
+        <view class="order-header">
+          <view class="order-status">
+            <view class="status-dot {{item.statusClass}}"></view>
+            <text class="status-text {{item.statusClass}}">{{item.status}}</text>
+          </view>
+          <text class="order-price">¥{{item.price}}</text>
+        </view>
+        <view class="order-location">
+          <image class="location-icon" src="/assets/icons/location.png" mode="aspectFit"></image>
+          <text class="location-text">送货：[{{item.campus}}] {{item.address}}</text>
+        </view>
+        <view class="order-tags">
+          <view class="tag" wx:if="{{item.itemCount}}">
+            <image class="tag-icon" src="/assets/icons/tag-list.png" mode="aspectFit"></image>
+            <text>共{{item.itemCount}}件快递，小件{{item.smallCount || 1}}件</text>
+          </view>
+          <view class="tag" wx:if="{{item.timeLimit}}">
+            <image class="tag-icon" src="/assets/icons/tag-clock.png" mode="aspectFit"></image>
+            <text>{{item.timeLimit}}</text>
+          </view>
+          <view class="tag" wx:if="{{item.genderReq}}">
+            <image class="tag-icon" src="/assets/icons/tag-person.png" mode="aspectFit"></image>
+            <text>{{item.genderReq}}</text>
+          </view>
+          <view class="tag" wx:if="{{item.noUpstairs}}">
+            <image class="tag-icon" src="/assets/icons/tag-house.png" mode="aspectFit"></image>
+            <text>不上楼</text>
+          </view>
+        </view>
+        <view class="order-footer">
+          <view class="order-type-tag">{{item.type}}</view>
+          <text class="order-time">{{item.publishTime}}</text>
+        </view>
+      </view>
+    </block>
+  </view>
+
+  <!-- 空状态 -->
+  <view class="empty-state" wx:if="{{orders.length === 0}}">
+    <view class="empty-icon-wrap">
+      <text class="empty-icon">⊖</text>
+    </view>
+    <text class="empty-text">没有更多数据啦~</text>
+  </view>
+
+  <!-- 底部Tabbar -->
+  <view class="sub-tabbar">
+    <view class="sub-tab {{subTab === 0 ? 'active' : ''}}" data-index="0" bindtap="onSubTab">
+      <image class="sub-icon" src="{{subTab === 0 ? '/assets/icons/subtab-home-active.png' : '/assets/icons/subtab-home.png'}}" mode="aspectFit"></image>
+      <text>接单大厅</text>
+    </view>
+    <view class="sub-tab {{subTab === 1 ? 'active' : ''}}" data-index="1" bindtap="onSubTab">
+      <image class="sub-icon" src="{{subTab === 1 ? '/assets/icons/subtab-publish-active.png' : '/assets/icons/subtab-publish.png'}}" mode="aspectFit"></image>
+      <text>发布跑腿</text>
+    </view>
+    <view class="sub-tab {{subTab === 2 ? 'active' : ''}}" data-index="2" bindtap="onSubTab">
+      <image class="sub-icon" src="{{subTab === 2 ? '/assets/icons/subtab-order-active.png' : '/assets/icons/subtab-order.png'}}" mode="aspectFit"></image>
+      <text>我的订单</text>
+    </view>
+  </view>
+</view>

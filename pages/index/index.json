@@ -1,0 +1,10 @@
+{
+  "navigationStyle": "custom",
+  "enablePullDownRefresh": true,
+  "usingComponents": {
+    "post-card": "/components/post-card/post-card",
+    "service-grid": "/components/service-grid/service-grid",
+    "load-more": "/components/load-more/load-more",
+    "empty-state": "/components/empty-state/empty-state"
+  }
+}

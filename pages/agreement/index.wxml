@@ -1,0 +1,92 @@
+<view class="page">
+  <view class="content">
+    <view class="title">校园小程序用户协议</view>
+    <view class="update-time">更新日期：2026年7月1日</view>
+    <view class="update-time">生效日期：2026年7月1日</view>
+
+    <view class="section">
+      <view class="section-title">一、总则</view>
+      <view class="section-content">
+        <text>1.1 本协议是您（以下简称"用户"）与校园小程序（以下简称"本平台"）之间关于使用本平台服务所订立的协议。</text>
+        <text>1.2 用户在使用本平台服务前，请务必仔细阅读并理解本协议的全部内容。一旦您开始使用本平台服务，即表示您已充分理解并同意本协议的全部内容。</text>
+      </view>
+    </view>
+
+    <view class="section">
+      <view class="section-title">二、服务内容</view>
+      <view class="section-content">
+        <text>2.1 本平台为在校学生提供校园生活服务，包括但不限于：课程表管理、代拿跑腿、校园论坛、失物招领等服务。</text>
+        <text>2.2 本平台有权根据业务发展需要，随时变更、中断或终止部分或全部服务，无需事先通知用户。</text>
+      </view>
+    </view>
+
+    <view class="section">
+      <view class="section-title">三、用户行为规范</view>
+      <view class="section-content">
+        <text>3.1 用户在使用本平台服务时，必须遵守中华人民共和国相关法律法规，不得利用本平台从事违法违规活动。</text>
+        <text>3.2 用户不得发布含有以下内容的信息：
+          （1）反对宪法所确定的基本原则的；
+          （2）危害国家安全，泄露国家秘密，颠覆国家政权，破坏国家统一的；
+          （3）损害国家荣誉和利益的；
+          （4）煽动民族仇恨、民族歧视，破坏民族团结的；
+          （5）破坏国家宗教政策，宣扬邪教和封建迷信的；
+          （6）散布谣言，扰乱社会秩序，破坏社会稳定的；
+          （7）散布淫秽、色情、赌博、暴力、凶杀、恐怖或者教唆犯罪的；
+          （8）侮辱或者诽谤他人，侵害他人合法权益的；
+          （9）含有法律、行政法规禁止的其他内容的。</text>
+        <text>3.3 用户应对其发布的内容负责，如因用户发布的内容引发纠纷，由用户自行承担全部责任。</text>
+      </view>
+    </view>
+
+    <view class="section">
+      <view class="section-title">四、账号管理</view>
+      <view class="section-content">
+        <text>4.1 用户在使用本平台服务时，需要使用微信账号登录。用户应妥善保管自己的账号信息，不得将账号转让、出售或出借给他人使用。</text>
+        <text>4.2 如发现账号被盗用，用户应立即通知本平台，本平台将协助用户处理相关事宜。</text>
+        <text>4.3 用户有权随时注销自己的账号，注销后本平台将删除该用户的所有个人信息。</text>
+      </view>
+    </view>
+
+    <view class="section">
+      <view class="section-title">五、知识产权</view>
+      <view class="section-content">
+        <text>5.1 本平台的所有内容，包括但不限于文字、图片、音频、视频、软件代码等，其知识产权均归本平台所有。</text>
+        <text>5.2 用户在使用本平台服务时发布的内容，其知识产权归用户所有，但用户同意授予本平台免费、非独家的使用权。</text>
+      </view>
+    </view>
+
+    <view class="section">
+      <view class="section-title">六、免责声明</view>
+      <view class="section-content">
+        <text>6.1 本平台不对因不可抗力或意外事件导致的服务中断或数据丢失承担责任。</text>
+        <text>6.2 本平台不对用户通过本平台发布的信息的真实性、准确性、合法性负责。</text>
+        <text>6.3 用户在使用本平台服务时，应自行判断并承担风险，本平台不对用户的任何损失承担责任。</text>
+      </view>
+    </view>
+
+    <view class="section">
+      <view class="section-title">七、协议修改</view>
+      <view class="section-content">
+        <text>7.1 本平台有权根据需要不时修改本协议，修改后的协议将在本平台公布，自公布之日起生效。</text>
+        <text>7.2 如用户不同意修改后的协议，有权停止使用本平台服务；如用户继续使用，则视为同意修改后的协议。</text>
+      </view>
+    </view>
+
+    <view class="section">
+      <view class="section-title">八、争议解决</view>
+      <view class="section-content">
+        <text>8.1 本协议的成立、生效、履行、解释及争议解决均适用中华人民共和国法律。</text>
+        <text>8.2 如用户与本平台发生争议，双方应友好协商解决；协商不成的，任何一方均可向本平台所在地有管辖权的人民法院提起诉讼。</text>
+      </view>
+    </view>
+
+    <view class="section">
+      <view class="section-title">九、联系方式</view>
+      <view class="section-content">
+        <text>如您对本协议有任何疑问，请通过以下方式联系我们：</text>
+        <text>邮箱：3181035374@qq.com</text>
+        <text>电话：19867363523</text>
+      </view>
+    </view>
+  </view>
+</view>

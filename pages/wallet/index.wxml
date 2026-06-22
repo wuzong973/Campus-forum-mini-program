@@ -1,0 +1,21 @@
+<view class="page">
+  <view class="balance-card gradient-nav">
+    <text class="balance-label">账户余额（元）</text>
+    <text class="balance-value">{{balance}}</text>
+    <view class="balance-actions">
+      <button class="action-btn" bindtap="onRecharge">充值</button>
+      <button class="action-btn outline" bindtap="onWithdraw">提现</button>
+    </view>
+  </view>
+  <view class="section-title text-h3">交易记录</view>
+  <view class="record-list card">
+    <view class="record-item flex-between" wx:for="{{records}}" wx:key="id">
+      <view>
+        <text class="record-title text-body">{{item.title}}</text>
+        <text class="record-time text-caption">{{item.time}}</text>
+      </view>
+      <text class="record-amount {{item.amount.indexOf('+') === 0 ? 'income' : 'expense'}}">{{item.amount}}</text>
+    </view>
+    <view class="empty text-caption" wx:if="{{records.length === 0}}">暂无交易记录</view>
+  </view>
+</view>

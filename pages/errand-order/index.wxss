@@ -1,0 +1,120 @@
+.page {
+  min-height: 100vh;
+  background: var(--bg);
+  padding-bottom: 160rpx;
+}
+
+/* 顶部 Tab */
+.top-tabs {
+  display: flex;
+  background: var(--card-bg);
+  padding: 0 24rpx;
+  border-bottom: 1rpx solid var(--divider);
+}
+
+.top-tab {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8rpx;
+  padding: 24rpx 0;
+  font-size: 30rpx;
+  color: var(--text-tertiary);
+  position: relative;
+  transition: var(--transition-fast);
+}
+
+.top-tab.active {
+  color: var(--primary);
+  font-weight: 600;
+}
+
+.top-tab.active::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 48rpx;
+  height: 4rpx;
+  background: var(--primary);
+  border-radius: 2rpx;
+}
+
+.tab-badge {
+  min-width: 32rpx;
+  height: 32rpx;
+  line-height: 32rpx;
+  padding: 0 8rpx;
+  border-radius: 16rpx;
+  background: var(--error);
+  color: #fff;
+  font-size: 20rpx;
+  text-align: center;
+}
+
+/* 状态筛选 */
+.filter-scroll {
+  white-space: nowrap;
+  padding: 20rpx 24rpx;
+}
+
+.filter-list {
+  display: inline-flex;
+  gap: 16rpx;
+}
+
+.filter-chip {
+  padding: 12rpx 28rpx;
+  background: var(--card-bg);
+  border-radius: var(--radius-pill);
+  font-size: 26rpx;
+  color: var(--text-secondary);
+  border: 2rpx solid var(--border);
+  transition: var(--transition-fast);
+}
+
+.filter-chip.active {
+  background: var(--primary);
+  color: #fff;
+  border-color: var(--primary);
+  font-weight: 500;
+}
+
+/* 订单列表 */
+.order-list {
+  padding-top: 8rpx;
+}
+
+/* 底部发布入口 */
+.bottom-entry {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: 40rpx;
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  background: var(--primary);
+  color: #fff;
+  padding: 24rpx 48rpx;
+  border-radius: var(--radius-pill);
+  box-shadow: var(--shadow-md);
+  z-index: 50;
+}
+
+.bottom-entry:active {
+  transform: translateX(-50%) scale(0.96);
+}
+
+.entry-icon {
+  font-size: 32rpx;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.entry-text {
+  font-size: 28rpx;
+  font-weight: 500;
+}

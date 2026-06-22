@@ -1,0 +1,121 @@
+<view class="page">
+  <!-- 自定义导航栏 -->
+  <view class="custom-nav gradient-nav" style="padding-top: {{statusBarHeight}}px;">
+    <view class="nav-content" style="height: {{navBarHeight}}px;">
+      <text class="nav-title">广轻工 <text class="nav-divider">|</text> 连接校园每一处</text>
+    </view>
+  </view>
+  <view class="nav-placeholder" style="height: {{statusBarHeight + navBarHeight}}px;"></view>
+
+  <scroll-view
+    class="scroll-container"
+    scroll-y
+    bindscroll="onContentScroll"
+    bindscrolltolower="onReachBottom"
+    lower-threshold="120"
+    scroll-top="{{scrollTop}}"
+    enhanced
+    show-scrollbar="{{false}}"
+  >
+    <!-- 轮播图 -->
+    <swiper class="banner-swiper" autoplay circular interval="4000" duration="500" indicator-dots indicator-color="rgba(255,255,255,0.5)" indicator-active-color="#ffffff">
+      <swiper-item wx:for="{{banners}}" wx:key="id">
+        <view class="banner-item pressable" data-link="{{item.link}}" bindtap="onBannerTap">
+          <image class="banner-img" src="{{item.image}}" mode="aspectFill" lazy-load></image>
+          <view class="banner-mask"></view>
+          <view class="banner-text">
+            <text class="banner-title">{{item.title}}</text>
+            <text class="banner-subtitle">{{item.subtitle}}</text>
+          </view>
+        </view>
+      </swiper-item>
+    </swiper>
+
+    <!-- 公告 -->
+    <view class="notice-bar">
+      <image class="notice-icon-img icon-sm" src="/assets/icons/notice.png" mode="aspectFit"></image>
+      <text class="notice-text">{{notice}}</text>
+    </view>
+
+    <!-- 校园服务 -->
+    <view class="section card anim-slide-up">
+      <view class="section-header flex-between">
+        <text class="section-title">校园服务</text>
+        <text class="section-more pressable" bindtap="goServiceAll">查看全部 ></text>
+      </view>
+      <service-grid services="{{services}}" columns="{{5}}" bind:tap="onServiceTap" />
+    </view>
+
+    <!-- 课程表卡片 -->
+    <view class="schedule-card card anim-slide-up">
+      <view class="schedule-header">
+        <text class="schedule-week">第41周 周五</text>
+        <text class="schedule-remain">剩余0节课</text>
+      </view>
+      <view class="schedule-empty">
+        <image class="schedule-empty-icon icon-xl" src="/assets/icons/tag-clock.png" mode="aspectFit"></image>
+        <text class="schedule-empty-text">今天是没有课程打扰的宁静时光~ 🌿</text>
+      </view>
+    </view>
+
+    <!-- 搜索与发布 -->
+    <view class="search-bar card anim-slide-up">
+      <view class="search-input pressable" bindtap="goSearch">
+        <image class="search-icon-img icon-xs" src="/assets/icons/search.png" mode="aspectFit"></image>
+        <text class="search-placeholder">搜索社区内容...</text>
+      </view>
+      <view class="search-action pressable" bindtap="onSearchAction">
+        <image class="search-action-icon icon-sm" src="{{isAtTop ? '/assets/icons/refresh.png' : '/assets/icons/scroll-top.png'}}" mode="aspectFit"></image>
+      </view>
+    </view>
+
+    <!-- 分类标签 -->
+    <scroll-view class="category-scroll" scroll-x enable-flex>
+      <view class="category-list">
+        <view
+          class="category-item pressable {{activeCategory === index ? 'active' : ''}}"
+          wx:for="{{categories}}"
+          wx:key="*this"
+          data-index="{{index}}"
+          bindtap="onCategoryTap"
+        >{{item}}</view>
+      </view>
+    </scroll-view>
+
+    <!-- 帖子列表 - 骨架屏 -->
+    <block wx:if="{{skeleton}}">
+      <view class="sk-card" wx:for="{{[1,2,3]}}" wx:key="*this">
+        <view class="sk-header">
+          <view class="sk-avatar skeleton"></view>
+          <view class="sk-user">
+            <view class="sk-line sk-name skeleton"></view>
+            <view class="sk-line sk-time skeleton"></view>
+          </view>
+        </view>
+        <view class="sk-line sk-content skeleton"></view>
+        <view class="sk-line sk-content-2 skeleton"></view>
+      </view>
+    </block>
+
+    <!-- 帖子列表 -->
+    <block wx:else>
+      <view wx:for="{{posts}}" wx:key="id" style="--i: {{index < 6 ? index : 0}};" class="anim-stagger">
+        <post-card post="{{item}}" />
+      </view>
+      <empty-state wx:if="{{posts.length === 0}}" text="暂无帖子" />
+      <load-more loading="{{loading}}" hasMore="{{hasMore}}" />
+    </block>
+  </scroll-view>
+
+  <!-- 浮动操作按钮 -->
+  <view class="float-actions {{showFloatBtns ? 'show' : ''}}">
+    <view class="float-btn pressable" bindtap="onScrollToTop">
+      <image class="float-btn-icon icon-md" src="/assets/icons/scroll-top.png" mode="aspectFit"></image>
+      <text class="float-btn-text">顶部</text>
+    </view>
+    <view class="float-btn float-btn-publish pressable" bindtap="goPublish">
+      <image class="float-btn-icon icon-md" src="/assets/icons/edit.png" mode="aspectFit"></image>
+      <text class="float-btn-text">发帖</text>
+    </view>
+  </view>
+</view>

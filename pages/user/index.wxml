@@ -1,0 +1,35 @@
+<view class="page">
+  <view class="header gradient-nav" style="padding-top: {{statusBarHeight}}px;">
+    <view class="header-content">
+      <view class="user-info" bindtap="goLogin">
+        <image class="avatar-img" src="{{isLogin && userInfo.avatarUrl ? userInfo.avatarUrl : '/assets/tabbar/user.png'}}" mode="aspectFill"></image>
+        <view class="user-detail">
+          <view class="user-name-row">
+            <text class="user-name">{{isLogin ? (userInfo.nickName || '昵称未命名') : '点击登录'}}</text>
+            <image class="gender-icon-img" wx:if="{{isLogin && userInfo.gender === 1}}" src="/assets/icons/gender-male.png" mode="aspectFit"></image>
+            <image class="gender-icon-img" wx:if="{{isLogin && userInfo.gender === 2}}" src="/assets/icons/gender-female.png" mode="aspectFit"></image>
+          </view>
+          <text class="user-school" wx:if="{{isLogin}}">{{userInfo.school || '广轻工职业技术大学'}} · {{userInfo.campus || '未设置校区'}}</text>
+        </view>
+      </view>
+      <image class="settings-icon" catchtap="goSettings" src="/assets/icons/settings.png" mode="aspectFit"></image>
+    </view>
+  </view>
+
+  <view class="shortcuts card">
+    <view class="shortcut-item" wx:for="{{shortcuts}}" wx:key="name" data-name="{{item.name}}" bindtap="onShortcut">
+      <image class="shortcut-icon-img" src="{{item.icon}}" mode="aspectFit"></image>
+      <text class="shortcut-name">{{item.name}}</text>
+    </view>
+  </view>
+
+  <view class="menu card">
+    <view class="menu-item flex-between" wx:for="{{menus}}" wx:key="name" data-name="{{item.name}}" bindtap="onMenuTap">
+      <view class="flex-row">
+        <image class="menu-icon-img" src="{{item.icon}}" mode="aspectFit"></image>
+        <text class="menu-name">{{item.name}}</text>
+      </view>
+      <text class="arrow">></text>
+    </view>
+  </view>
+</view>

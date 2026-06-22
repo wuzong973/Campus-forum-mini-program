@@ -1,0 +1,9 @@
+<view class="page">
+  <view class="logo-area">
+    <image class="logo" src="/assets/icons/school-logo.png" mode="aspectFit"></image>
+    <text class="app-name">广轻工</text>
+    <text class="slogan">轻轻松松过好每一天</text>
+  </view>
+  <button class="login-btn btn-primary" open-type="getPhoneNumber" bindgetphonenumber="onGetPhoneNumber" loading="{{loading}}">手机号快捷登录</button>
+  <text class="agreement">登录即表示同意《用户协议》和《隐私政策》</text>
+</view>

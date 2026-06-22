@@ -1,0 +1,140 @@
+.page {
+  min-height: 100vh;
+  background: #F5F7FA;
+  padding-bottom: 120rpx;
+}
+
+/* 搜索框 */
+.search-bar {
+  padding: 24rpx;
+}
+
+.search-input-wrap {
+  display: flex;
+  align-items: center;
+  background: #ffffff;
+  border-radius: 40rpx;
+  padding: 20rpx 32rpx;
+  box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.04);
+}
+
+.search-icon {
+  font-size: 28rpx;
+  margin-right: 16rpx;
+  color: #C8C9CC;
+}
+
+.search-input {
+  flex: 1;
+  font-size: 28rpx;
+  color: #323233;
+}
+
+/* 分类Tab */
+.category-tabs {
+  white-space: nowrap;
+  padding: 0 24rpx 20rpx;
+}
+
+.category-tab {
+  display: inline-block;
+  padding: 14rpx 32rpx;
+  font-size: 26rpx;
+  color: #646566;
+  background: #ffffff;
+  border-radius: 32rpx;
+  margin-right: 16rpx;
+  transition: all 0.3s ease;
+}
+
+.category-tab.active {
+  background: #4A7AFF;
+  color: #ffffff;
+  font-weight: 500;
+}
+
+/* FAQ列表 */
+.faq-list {
+  padding: 0 24rpx;
+}
+
+.faq-item {
+  background: #ffffff;
+  border-radius: 16rpx;
+  margin-bottom: 16rpx;
+  overflow: hidden;
+}
+
+.faq-question {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 32rpx;
+}
+
+.faq-question-text {
+  flex: 1;
+  font-size: 28rpx;
+  color: #323233;
+  line-height: 1.5;
+}
+
+.faq-arrow {
+  font-size: 28rpx;
+  color: #C8C9CC;
+  transition: transform 0.3s ease;
+  margin-left: 16rpx;
+  flex-shrink: 0;
+}
+
+.faq-arrow.expanded {
+  transform: rotate(180deg);
+}
+
+.faq-answer {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s ease, padding 0.3s ease;
+}
+
+.faq-answer.show {
+  max-height: 500rpx;
+  padding: 0 32rpx 32rpx;
+}
+
+.faq-answer-text {
+  font-size: 26rpx;
+  color: #646566;
+  line-height: 1.8;
+  display: block;
+}
+
+/* 底部联系客服 */
+.bottom-contact {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 40rpx 0;
+}
+
+.contact-hint {
+  font-size: 28rpx;
+  color: #969799;
+  margin-bottom: 20rpx;
+}
+
+.contact-btn {
+  width: 280rpx;
+  height: 80rpx;
+  line-height: 80rpx;
+  background: #4A7AFF;
+  color: #ffffff;
+  font-size: 30rpx;
+  border-radius: 40rpx;
+  border: none;
+  text-align: center;
+}
+
+.contact-btn::after {
+  border: none;
+}

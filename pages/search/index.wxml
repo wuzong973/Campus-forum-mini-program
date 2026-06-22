@@ -1,0 +1,14 @@
+<view class="page">
+  <view class="search-box">
+    <input class="search-input" placeholder="搜索社区内容..." value="{{keyword}}" bindinput="onInput" confirm-type="search" bindconfirm="onSearch" focus />
+    <text class="clear-btn" wx:if="{{keyword}}" bindtap="onClear">清除</text>
+    <view class="search-btn" bindtap="onSearch">搜索</view>
+  </view>
+
+  <block wx:if="{{searched}}">
+    <block wx:for="{{results}}" wx:key="id">
+      <post-card post="{{item}}" />
+    </block>
+    <empty-state wx:if="{{results.length === 0}}" text="未找到相关内容" />
+  </block>
+</view>

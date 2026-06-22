@@ -1,0 +1,22 @@
+<view class="page">
+  <!-- 提示条 -->
+  <view class="warning-bar">
+    <view class="warning-icon-wrap">
+      <text class="warning-icon">ⓘ</text>
+    </view>
+    <text class="warning-text">请妥善保管您的账号信息</text>
+  </view>
+
+  <!-- 注销账号卡片 -->
+  <view class="delete-card">
+    <view class="delete-header">
+      <text class="delete-title">注销账号</text>
+    </view>
+    <view class="delete-body">
+      <text class="delete-desc">请注意，一旦您注销账号，所有相关数据都将被永久删除且无法恢复。不过，在账号注销后的7天内，您仍有机会重新登录该账号，并按照提示操作以恢复账号。</text>
+    </view>
+    <view class="delete-btn-wrap">
+      <button class="delete-btn" bindtap="onDeleteAccount">申请注销账号</button>
+    </view>
+  </view>
+</view>

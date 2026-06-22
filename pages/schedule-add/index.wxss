@@ -1,0 +1,64 @@
+.page {
+  padding: 24rpx;
+  min-height: 100vh;
+}
+
+.form {
+  padding: 0 24rpx;
+}
+
+.form-item {
+  padding: 24rpx 0;
+  border-bottom: 1rpx solid #F5F7FA;
+}
+
+.label {
+  font-size: 28rpx;
+  color: #323233;
+  display: block;
+  margin-bottom: 16rpx;
+}
+
+.input {
+  font-size: 28rpx;
+  color: #323233;
+}
+
+.picker-val {
+  font-size: 28rpx;
+  color: #4A7AFF;
+}
+
+.time-row {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+}
+
+.sep {
+  color: #969799;
+  font-size: 26rpx;
+}
+
+.color-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24rpx;
+}
+
+.color-dot {
+  width: 56rpx;
+  height: 56rpx;
+  border-radius: 50%;
+  transition: all 0.3s ease-out;
+}
+
+.color-dot.active {
+  transform: scale(1.2);
+  box-shadow: 0 0 0 4rpx #fff, 0 0 0 8rpx currentColor;
+}
+
+.save-btn {
+  margin-top: 48rpx;
+  width: 90%;
+}

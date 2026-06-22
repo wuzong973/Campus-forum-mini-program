@@ -1,0 +1,51 @@
+<view class="page">
+  <!-- 提示条 -->
+  <view class="tip-bar">
+    <text class="tip-text">感谢您的反馈，我们会认真阅读每一条建议哒！</text>
+  </view>
+
+  <!-- 表单卡片 -->
+  <view class="form-card">
+    <!-- 反馈类型 -->
+    <view class="form-item">
+      <text class="form-label">反馈类型<text class="required">*</text></text>
+      <view class="form-select" bindtap="onSelectType">
+        <text class="{{feedbackType ? 'select-value' : 'select-placeholder'}}">{{feedbackType || '请选择反馈类型'}}</text>
+        <text class="select-arrow">›</text>
+      </view>
+    </view>
+
+    <!-- 反馈内容 -->
+    <view class="form-item">
+      <text class="form-label">反馈内容<text class="required">*</text></text>
+      <textarea class="form-textarea" placeholder="请详细描述您的反馈内容（至少10字）" value="{{feedbackContent}}" bindinput="onContentInput" maxlength="500" auto-height></textarea>
+      <text class="char-count {{feedbackContent.length >= 10 ? 'valid' : ''}}">{{feedbackContent.length}}/500</text>
+    </view>
+
+    <!-- 上传截图 -->
+    <view class="form-item">
+      <text class="form-label">上传截图</text>
+      <text class="form-hint">（帮助我们更好地理解您的反馈，最多4张）</text>
+      <view class="upload-area">
+        <view class="upload-item" wx:for="{{images}}" wx:key="*this">
+          <image class="upload-img" src="{{item}}" mode="aspectFill"></image>
+          <view class="upload-remove" data-index="{{index}}" bindtap="onRemoveImage">✕</view>
+        </view>
+        <view class="upload-add" wx:if="{{images.length < 4}}" bindtap="onChooseImage">
+          <text class="upload-plus">＋</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 联系方式 -->
+    <view class="form-item">
+      <text class="form-label">联系方式</text>
+      <input class="form-input" placeholder="请输入手机号/邮箱（选填）" value="{{contact}}" bindinput="onContactInput" />
+    </view>
+  </view>
+
+  <!-- 提交按钮 -->
+  <view class="submit-wrap">
+    <button class="submit-btn {{canSubmit ? 'active' : 'disabled'}}" bindtap="onSubmit">提交反馈</button>
+  </view>
+</view>

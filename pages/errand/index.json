@@ -1,0 +1,7 @@
+{
+  "navigationBarTitleText": "代拿跑腿",
+  "usingComponents": {
+    "errand-card": "/components/errand-card/errand-card",
+    "empty-state": "/components/empty-state/empty-state"
+  }
+}

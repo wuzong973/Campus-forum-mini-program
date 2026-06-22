@@ -1,0 +1,275 @@
+.page {
+  min-height: 100vh;
+  transition: background 0.3s ease-out;
+}
+
+.custom-nav {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+}
+
+.white-nav {
+  background: var(--card-bg);
+  border-bottom: 1rpx solid var(--border);
+}
+
+.nav-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24rpx;
+}
+
+.nav-left {
+  width: 60rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.nav-icon-img {
+  width: 44rpx;
+  height: 44rpx;
+}
+
+.nav-center {
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+}
+
+.nav-btn-wrap {
+  width: 48rpx;
+  height: 48rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: var(--transition-fast);
+}
+
+.nav-btn-wrap:active {
+  transform: scale(0.88);
+  opacity: 0.8;
+}
+
+.nav-ai-text {
+  font-size: 24rpx;
+  font-weight: 700;
+  color: var(--text-primary);
+  border: 2rpx solid var(--text-primary);
+  border-radius: 6rpx;
+  padding: 2rpx 6rpx;
+}
+
+.refresh-icon {
+  width: 40rpx;
+  height: 40rpx;
+}
+
+.week-text {
+  color: var(--text-primary);
+  font-size: 30rpx;
+  font-weight: 600;
+  margin-left: 8rpx;
+}
+
+.nav-right {
+  width: 60rpx;
+}
+
+/* 过期卡片 */
+.expired-card {
+  margin: 120rpx 48rpx;
+  padding: 80rpx 48rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+  background: #ffffff;
+  border-radius: 24rpx;
+  box-shadow: 0 4rpx 24rpx rgba(0, 0, 0, 0.06);
+}
+
+.stamp-wrap {
+  margin-bottom: 40rpx;
+}
+
+.stamp-box {
+  border: 4rpx dashed #c8c9cc;
+  border-radius: 12rpx;
+  padding: 20rpx 40rpx;
+  transform: rotate(-12deg);
+  position: relative;
+}
+
+.stamp-box::before {
+  content: "";
+  position: absolute;
+  top: -8rpx;
+  left: -8rpx;
+  right: -8rpx;
+  bottom: -8rpx;
+  border: 2rpx dashed #dcdee0;
+  border-radius: 16rpx;
+  transform: rotate(2deg);
+}
+
+.stamp-text {
+  font-size: 52rpx;
+  font-weight: 700;
+  color: #969799;
+  letter-spacing: 12rpx;
+}
+
+.expired-title {
+  font-size: 36rpx;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 16rpx;
+}
+
+.expired-desc {
+  font-size: 26rpx;
+  color: var(--text-tertiary);
+  text-align: center;
+  line-height: 1.6;
+  margin-bottom: 48rpx;
+  padding: 0 20rpx;
+}
+
+.modify-btn {
+  width: 320rpx;
+  height: 80rpx;
+  line-height: 80rpx;
+  background: var(--text-placeholder);
+  color: #ffffff;
+  font-size: 30rpx;
+  border-radius: var(--radius-pill);
+  border: none;
+  padding: 0;
+  text-align: center;
+  transition: var(--transition-fast);
+}
+
+.modify-btn:active {
+  transform: scale(0.97);
+  opacity: 0.85;
+}
+
+.modify-btn::after {
+  border: none;
+}
+
+/* 抽屉 */
+.drawer-mask {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.4);
+  z-index: 200;
+}
+
+.drawer {
+  position: fixed;
+  top: 0;
+  left: -560rpx;
+  width: 560rpx;
+  height: 100%;
+  background: #fff;
+  z-index: 201;
+  transition: left 0.3s ease-out;
+  padding-top: 120rpx;
+}
+
+.drawer.show {
+  left: 0;
+}
+
+.drawer-title {
+  font-size: 34rpx;
+  font-weight: 600;
+  padding: 24rpx 32rpx;
+  border-bottom: 1rpx solid #f5f7fa;
+}
+
+.drawer-item {
+  padding: 32rpx;
+  font-size: 28rpx;
+  color: var(--text-primary);
+  border-bottom: 1rpx solid var(--divider);
+  transition: var(--transition-fast);
+}
+
+.drawer-item:active {
+  background: var(--bg);
+  opacity: 0.85;
+}
+
+.drawer-item.back {
+  color: var(--primary);
+  margin-top: 32rpx;
+}
+
+.schedule-grid {
+  margin: 24rpx;
+  padding: 16rpx;
+  overflow-x: auto;
+}
+
+.grid-header, .grid-row {
+  display: flex;
+}
+
+.time-col {
+  width: 80rpx;
+  flex-shrink: 0;
+  font-size: 20rpx;
+  color: var(--text-tertiary);
+  padding: 8rpx 4rpx;
+}
+
+.day-col {
+  flex: 1;
+  min-width: 90rpx;
+  border: 1rpx solid var(--divider);
+  min-height: 80rpx;
+  padding: 4rpx;
+  font-size: 22rpx;
+  text-align: center;
+}
+
+.course-cell {
+  border-radius: 8rpx;
+  padding: 6rpx;
+  margin: 2rpx 0;
+  color: #fff;
+}
+
+.course-name {
+  display: block;
+  font-size: 20rpx;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.course-loc {
+  display: block;
+  font-size: 18rpx;
+  opacity: 0.85;
+}
+
+.empty-schedule {
+  text-align: center;
+  padding: 120rpx 48rpx;
+}
+
+.empty-text {
+  font-size: 28rpx;
+}

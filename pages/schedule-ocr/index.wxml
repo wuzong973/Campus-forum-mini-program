@@ -1,0 +1,26 @@
+<view class="page">
+  <view class="tips card">
+    <text class="tips-title">📌 识别提示</text>
+    <text class="tips-text">请上传清晰的课程表截图，确保文字完整可见。支持教务系统导出的课表图片。</text>
+  </view>
+
+  <view class="example card">
+    <view class="example-title">❌ 错误示例</view>
+    <view class="example-img-wrap bad">
+      <text class="example-label">模糊、倾斜、不完整</text>
+    </view>
+  </view>
+
+  <view class="example card">
+    <view class="example-title">✅ 正确示例</view>
+    <view class="example-img-wrap good">
+      <text class="example-label">完整、清晰、正向</text>
+    </view>
+  </view>
+
+  <view class="preview card" wx:if="{{imageUrl}}">
+    <image src="{{imageUrl}}" mode="widthFix" class="preview-img" />
+  </view>
+
+  <button class="upload-btn btn-primary" bindtap="onUpload">上传识别</button>
+</view>

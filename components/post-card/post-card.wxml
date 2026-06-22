@@ -1,0 +1,40 @@
+<view class="post-card" bindtap="onTap">
+  <!-- 头部：头像 + 用户名 + 性别 + 日期 -->
+  <view class="post-header">
+    <image class="post-avatar img-lazy" src="{{post.avatarUrl || '/assets/icons/avatar.png'}}" mode="aspectFill" lazy-load></image>
+    <view class="post-user-info">
+      <view class="post-user-row">
+        <text class="post-nick">{{post.nickName}}</text>
+        <image class="gender-icon" wx:if="{{post.gender === 'male'}}" src="/assets/icons/gender-male.png" mode="aspectFit"></image>
+        <image class="gender-icon" wx:if="{{post.gender === 'female'}}" src="/assets/icons/gender-female.png" mode="aspectFit"></image>
+      </view>
+      <text class="post-time">{{timeText}}</text>
+    </view>
+    <view class="post-more">···</view>
+  </view>
+
+  <!-- 内容 -->
+  <view class="post-content">{{post.content}}</view>
+
+  <!-- 图片 -->
+  <view class="post-images" wx:if="{{post.images && post.images.length}}">
+    <image wx:for="{{post.images}}" wx:key="*this" src="{{item}}" mode="aspectFill" class="post-img img-lazy" lazy-load show-menu-by-longpress="{{false}}" />
+  </view>
+
+  <!-- 底部：浏览量 + 操作按钮 -->
+  <view class="post-footer">
+    <text class="post-views">浏览 {{post.viewCount || 0}}</text>
+    <view class="post-actions">
+      <view class="action-btn" catchtap="onLike" data-id="{{post.id}}">
+        <image class="action-icon" src="{{post.isLiked ? '/assets/icons/heart.png' : '/assets/icons/heart-outline.png'}}" mode="aspectFit"></image>
+      </view>
+      <view class="action-btn" catchtap="onComment" data-id="{{post.id}}">
+        <image class="action-icon" src="/assets/icons/comment.png" mode="aspectFit"></image>
+        <text class="action-count" wx:if="{{post.commentCount > 0}}">{{post.commentCount}}</text>
+      </view>
+      <view class="action-btn" catchtap="onShare" data-id="{{post.id}}">
+        <image class="action-icon" src="/assets/icons/share.png" mode="aspectFit"></image>
+      </view>
+    </view>
+  </view>
+</view>

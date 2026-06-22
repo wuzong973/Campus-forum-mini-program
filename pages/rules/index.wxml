@@ -1,0 +1,26 @@
+<view class="page">
+  <!-- 提示卡片 -->
+  <view class="notice-card">
+    <view class="notice-header">
+      <text class="notice-icon">ⓘ</text>
+      <text class="notice-title">请大家细心阅读</text>
+    </view>
+    <text class="notice-desc">遵守以下规定可以确保您和其他用户获得更好的社区体验，违规内容将被处理。</text>
+  </view>
+
+  <!-- 规则列表 -->
+  <view class="rule-list">
+    <view class="rule-item" wx:for="{{rules}}" wx:key="id">
+      <view class="rule-header">
+        <text class="rule-icon {{item.iconClass}}">{{item.icon}}</text>
+        <text class="rule-title">{{item.title}}</text>
+      </view>
+      <text class="rule-desc">{{item.desc}}</text>
+    </view>
+  </view>
+
+  <!-- 底部按钮 -->
+  <view class="bottom-btn-wrap">
+    <button class="agree-btn" bindtap="onAgree">我已阅读并同意社区规定✓</button>
+  </view>
+</view>

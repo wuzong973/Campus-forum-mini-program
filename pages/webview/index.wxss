@@ -1,0 +1,8 @@
+.webview-empty {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  color: #969799;
+  font-size: 28rpx;
+}

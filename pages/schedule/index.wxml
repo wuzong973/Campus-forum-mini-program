@@ -1,0 +1,85 @@
+<view class="page" style="background: {{bgColor}};">
+  <view class="custom-nav white-nav" style="padding-top: {{statusBarHeight}}px;">
+    <view class="nav-content" style="height: {{navBarHeight}}px;">
+      <view class="nav-left" bindtap="toggleDrawer">
+        <image class="nav-icon-img" src="/assets/icons/menu.png" mode="aspectFit"></image>
+      </view>
+      <view class="nav-center">
+        <view class="nav-btn-wrap" bindtap="goAdd">
+          <image class="nav-icon-img" src="/assets/icons/plus.png" mode="aspectFit"></image>
+        </view>
+        <view class="nav-btn-wrap" bindtap="goOcr">
+          <text class="nav-ai-text">AI</text>
+        </view>
+        <view class="nav-btn-wrap" bindtap="onRefresh">
+          <image class="nav-icon-img refresh-icon" src="/assets/icons/refresh.png" mode="aspectFit"></image>
+        </view>
+        <text class="week-text">第{{currentWeek}}周</text>
+      </view>
+      <view class="nav-right"></view>
+    </view>
+  </view>
+  <view class="nav-placeholder" style="height: {{statusBarHeight + navBarHeight}}px;"></view>
+
+  <view class="expired-card card" wx:if="{{isExpired && courses.length === 0}}">
+    <view class="stamp-wrap">
+      <view class="stamp-box">
+        <text class="stamp-text">已过期</text>
+      </view>
+    </view>
+    <text class="expired-title">课表已过期</text>
+    <text class="expired-desc">当前学期已结束，请更新开学时间获取最新课表</text>
+    <button class="modify-btn" bindtap="goSetDate">去修改日期</button>
+  </view>
+
+  <!-- 课程表网格 -->
+  <view class="schedule-grid card" wx:if="{{courses.length > 0}}">
+    <view class="grid-header">
+      <view class="time-col"></view>
+      <view class="day-col" wx:for="{{weekDays}}" wx:key="*this" wx:if="{{!hideWeekend || index < 5}}">{{item}}</view>
+    </view>
+    <view class="grid-row" wx:for="{{timeSlots}}" wx:key="*this" wx:for-item="slot">
+      <view class="time-col text-small">{{slot}}</view>
+      <view class="day-col" wx:for="{{weekDays}}" wx:key="*this" wx:for-item="day" wx:for-index="dayIdx" wx:if="{{!hideWeekend || dayIdx < 5}}">
+        <view
+          class="course-cell"
+          wx:for="{{courses}}"
+          wx:key="id"
+          wx:for-item="course"
+          wx:if="{{course.weekDay === dayIdx + 1 && course.startTime === slot}}"
+          style="background: {{course.color || '#4A7AFF'}};"
+        >
+          <text class="course-name">{{course.name}}</text>
+          <text class="course-loc">{{course.location}}</text>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <view class="empty-schedule" wx:if="{{!isExpired && courses.length === 0}}">
+    <text class="empty-text text-secondary">暂无课程，点击上方 ＋ 添加课程</text>
+  </view>
+
+  <!-- 抽屉遮罩 -->
+  <view class="drawer-mask" wx:if="{{showDrawer}}" bindtap="closeDrawer"></view>
+  <view class="drawer {{showDrawer ? 'show' : ''}}">
+    <view class="drawer-title">课程设置</view>
+    <view class="drawer-item flex-between">
+      <text>隐藏周末</text>
+      <switch checked="{{hideWeekend}}" bindchange="onHideWeekend" color="#4A7AFF" />
+    </view>
+    <view class="drawer-item flex-between">
+      <text>开启首页课程表提醒</text>
+      <switch checked="{{reminder}}" bindchange="onReminder" color="#4A7AFF" />
+    </view>
+    <view class="drawer-item" bindtap="onBgColor">
+      <text>更改课表背景颜色</text>
+    </view>
+    <view class="drawer-item" bindtap="goSetDate">
+      <text>设置课程表开始日期</text>
+    </view>
+    <view class="drawer-item back" bindtap="closeDrawer">
+      <text>返回</text>
+    </view>
+  </view>
+</view>

@@ -1,0 +1,35 @@
+<view class="page" wx:if="{{post}}">
+  <view class="post-card card">
+    <view class="header flex-row">
+      <view class="avatar">{{post.nickName[0]}}</view>
+      <view class="info">
+        <text class="name">{{post.nickName}}</text>
+        <text class="time text-secondary">{{timeText}}</text>
+      </view>
+    </view>
+    <view class="content">{{post.content}}</view>
+    <view class="actions flex-row">
+      <view class="action" bindtap="onLike">
+        <image class="action-icon" src="{{post.isLiked ? '/assets/icons/heart.png' : '/assets/icons/heart-outline.png'}}" mode="aspectFit"></image>
+        <text>{{post.likeCount}}</text>
+      </view>
+      <view class="action">
+        <image class="action-icon" src="/assets/icons/comment.png" mode="aspectFit"></image>
+        <text>{{post.commentCount}}</text>
+      </view>
+    </view>
+  </view>
+
+  <view class="comments card">
+    <view class="comments-title">评论 ({{comments.length}})</view>
+    <view class="comment-item" wx:for="{{comments}}" wx:key="id">
+      <text class="comment-name">{{item.nickName}}</text>
+      <text class="comment-content">{{item.content}}</text>
+    </view>
+  </view>
+
+  <view class="comment-bar">
+    <input class="comment-input" placeholder="写评论..." value="{{commentText}}" bindinput="onCommentInput" />
+    <view class="send-btn" bindtap="onSendComment">发送</view>
+  </view>
+</view>
