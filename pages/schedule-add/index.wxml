@@ -1,4 +1,8 @@
-<view class="page">
+<view class="page page-enter">
+  <view class="hero-card">
+    <text class="hero-title">录入课程</text>
+    <text class="hero-desc">优先选择节次模板，课表显示会更整齐</text>
+  </view>
   <view class="form card">
     <view class="form-item">
       <text class="label">课程名称</text>
@@ -20,6 +24,15 @@
     </view>
     <view class="form-item">
       <text class="label">上课时间</text>
+      <view class="preset-list">
+        <view
+          class="preset-chip {{activePreset === index ? 'active' : ''}}"
+          wx:for="{{timePresets}}"
+          wx:key="label"
+          data-index="{{index}}"
+          bindtap="onPresetTap"
+        >{{item.label}}</view>
+      </view>
       <view class="time-row">
         <picker mode="time" value="{{startTime}}" bindchange="onStartTime">
           <view class="picker-val">{{startTime}}</view>

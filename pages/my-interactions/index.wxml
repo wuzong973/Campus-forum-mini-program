@@ -1,0 +1,20 @@
+<view class="page">
+  <view class="page-title">{{title}}</view>
+
+  <block wx:if="{{type === 'followed'}}">
+    <view class="user-card card" wx:for="{{list}}" wx:key="id" data-id="{{item.id}}" bindtap="openProfile">
+      <image class="user-avatar" src="{{item.avatarUrl || '/assets/icons/avatar.png'}}" mode="aspectFill"></image>
+      <view class="user-copy">
+        <text class="user-name">{{item.nickName || '校园用户'}}</text>
+        <text class="user-meta">{{item.campus || '广轻工'}} · {{item.major || '校园用户'}}</text>
+      </view>
+      <text class="arrow">></text>
+    </view>
+  </block>
+
+  <block wx:else>
+    <post-card wx:for="{{list}}" wx:key="id" post="{{item}}" />
+  </block>
+
+  <empty-state wx:if="{{!loading && list.length === 0}}" text="{{emptyText}}" />
+</view>

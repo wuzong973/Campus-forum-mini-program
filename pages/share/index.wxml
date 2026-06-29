@@ -1,0 +1,47 @@
+<view class="page">
+  <!-- 导航栏 -->
+  <view class="custom-nav white-nav" style="padding-top: {{statusBarHeight}}px;">
+    <view class="nav-content" style="height: {{navBarHeight}}px;">
+      <view class="nav-left" bindtap="onBack">
+        <text class="nav-back">←</text>
+      </view>
+      <view class="nav-center">
+        <text class="nav-title">转发帖子</text>
+      </view>
+      <view class="nav-right"></view>
+    </view>
+  </view>
+  <view class="nav-placeholder" style="height: {{statusBarHeight + navBarHeight}}px;"></view>
+
+  <!-- 原帖内容 -->
+  <view class="original-post card">
+    <view class="original-header">
+      <image class="original-avatar" src="{{originalPost.avatarUrl || '/assets/icons/avatar.png'}}" mode="aspectFill"></image>
+      <text class="original-nick">{{originalPost.nickName}}</text>
+    </view>
+    <view class="original-content">{{originalPost.content}}</view>
+    <view class="original-images" wx:if="{{originalPost.images && originalPost.images.length}}">
+      <image wx:for="{{originalPost.images}}" wx:key="*this" src="{{item}}" mode="aspectFill" class="original-img" />
+    </view>
+  </view>
+
+  <!-- 转发说明输入 -->
+  <view class="share-input-section card">
+    <text class="share-label">添加转发说明（可选）</text>
+    <textarea
+      class="share-textarea"
+      placeholder="说点什么..."
+      value="{{shareContent}}"
+      bindinput="onShareContentInput"
+      maxlength="200"
+    />
+    <view class="char-count">{{shareContent.length}}/200</view>
+  </view>
+
+  <!-- 转发按钮 -->
+  <view class="share-actions">
+    <button class="share-btn" bindtap="onShare" disabled="{{sharing}}">
+      <text>{{sharing ? '转发中...' : '转发'}}</text>
+    </button>
+  </view>
+</view>

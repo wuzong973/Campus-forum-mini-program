@@ -113,6 +113,82 @@ exports.getInfo = async (req, res) => {
   }
 };
 
+exports.getProfile = async (req, res) => {
+  const profileId = parseInt(req.params.id, 10);
+  const currentUserId = req.userId || 0;
+  if (!profileId) return fail(res, "用户不存在", 404);
+  try {
+    const [rows] = await pool.query(
+      `SELECT u.id, u.nick_name, u.avatar_url, u.student_id, u.is_verified, u.gender, u.campus,
+        IFNULL((SELECT COUNT(*) FROM forum_post p WHERE p.user_id = u.id AND p.status = 1), 0) AS post_count,
+        IFNULL((SELECT COUNT(*) FROM user_follow f WHERE f.followee_id = u.id), 0) AS follower_count,
+        IFNULL((SELECT COUNT(*) FROM user_follow f WHERE f.follower_id = u.id), 0) AS following_count,
+        IFNULL((SELECT SUM(p.like_count) FROM forum_post p WHERE p.user_id = u.id AND p.status = 1), 0) AS like_received,
+        IFNULL((SELECT 1 FROM user_follow f WHERE f.follower_id = ? AND f.followee_id = u.id), 0) AS is_followed
+       FROM sys_user u
+       WHERE u.id = ?`,
+      [currentUserId, profileId],
+    );
+    if (!rows.length) return fail(res, "用户不存在", 404);
+    const u = rows[0];
+    success(res, {
+      id: u.id,
+      nickName: u.nick_name,
+      avatarUrl: u.avatar_url,
+      studentId: u.student_id,
+      verified: !!u.is_verified,
+      gender: u.gender,
+      campus: u.campus,
+      major: u.is_verified ? "认证学生" : "校园用户",
+      signature: "该用户还没有填写签名...",
+      coverUrl: "/assets/banners/banner-community.png",
+      postCount: u.post_count,
+      followerCount: u.follower_count,
+      followingCount: u.following_count,
+      likeReceived: u.like_received,
+      isFollowed: !!u.is_followed,
+    });
+  } catch (e) {
+    fail(res, safeMessage(e), 500);
+  }
+};
+
+exports.getProfilePosts = async (req, res) => {
+  const profileId = parseInt(req.params.id, 10);
+  if (!profileId) return fail(res, "用户不存在", 404);
+  try {
+    const [rows] = await pool.query(
+      `SELECT p.*, u.nick_name, u.avatar_url, u.is_verified
+       FROM forum_post p
+       LEFT JOIN sys_user u ON p.user_id = u.id
+       WHERE p.user_id = ? AND p.status = 1
+       ORDER BY p.created_at DESC
+       LIMIT 30`,
+      [profileId],
+    );
+    success(res, {
+      list: rows.map((item) => ({
+        id: item.id,
+        userId: item.user_id,
+        nickName: item.nick_name,
+        avatarUrl: item.avatar_url,
+        verified: !!item.is_verified,
+        title: item.title || "",
+        category: item.category,
+        content: item.content,
+        images: item.images,
+        likeCount: item.like_count,
+        commentCount: item.comment_count,
+        favoriteCount: item.favorite_count,
+        shareCount: item.share_count || 0,
+        createdAt: item.created_at,
+      })),
+    });
+  } catch (e) {
+    fail(res, safeMessage(e), 500);
+  }
+};
+
 exports.updateInfo = async (req, res) => {
   const { nickName, avatarUrl, gender, campus, phone } = req.body;
   try {
@@ -165,6 +241,34 @@ exports.verify = async (req, res) => {
       [studentId, realName || "", req.userId],
     );
     success(res, null, "认证成功");
+  } catch (e) {
+    fail(res, safeMessage(e), 500);
+  }
+};
+
+exports.follow = async (req, res) => {
+  const followeeId = parseInt(req.params.id, 10);
+  if (!followeeId || followeeId === req.userId) return fail(res, "关注对象无效");
+  try {
+    await pool.query(
+      "INSERT IGNORE INTO user_follow (follower_id, followee_id) VALUES (?, ?)",
+      [req.userId, followeeId],
+    );
+    success(res, { followed: true });
+  } catch (e) {
+    fail(res, safeMessage(e), 500);
+  }
+};
+
+exports.unfollow = async (req, res) => {
+  const followeeId = parseInt(req.params.id, 10);
+  if (!followeeId || followeeId === req.userId) return fail(res, "关注对象无效");
+  try {
+    await pool.query(
+      "DELETE FROM user_follow WHERE follower_id = ? AND followee_id = ?",
+      [req.userId, followeeId],
+    );
+    success(res, { followed: false });
   } catch (e) {
     fail(res, safeMessage(e), 500);
   }

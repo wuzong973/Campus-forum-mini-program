@@ -1,0 +1,85 @@
+<view class="page">
+  <!-- 导航栏 -->
+  <view class="custom-nav white-nav" style="padding-top: {{statusBarHeight}}px;">
+    <view class="nav-content" style="height: {{navBarHeight}}px;">
+      <view class="nav-left" bindtap="onBack">
+        <text class="nav-back">←</text>
+      </view>
+      <view class="nav-center">
+        <text class="nav-title">{{peerNick}}</text>
+      </view>
+      <view class="nav-right"></view>
+    </view>
+  </view>
+  <view class="nav-placeholder" style="height: {{statusBarHeight + navBarHeight}}px;"></view>
+
+  <!-- 消息列表 -->
+  <scroll-view
+    class="message-list"
+    scroll-y
+    scroll-into-view="{{scrollToId}}"
+    scroll-with-animation
+    enhanced
+    show-scrollbar="{{false}}"
+    bindscrolltoupper="onLoadMore"
+    refresher-enabled
+    refresher-triggered="{{loadingMore}}"
+    bindrefresherrefresh="onRefresh"
+  >
+    <view class="load-more-tip" wx:if="{{hasMore}}">下拉加载更多</view>
+    <view class="load-more-tip" wx:if="{{!hasMore && messages.length > 0}}">没有更多消息了</view>
+
+    <view class="empty-tip" wx:if="{{messages.length === 0 && !loading}}">
+      <text>还没有消息，打个招呼吧~</text>
+    </view>
+
+    <view
+      wx:for="{{messages}}"
+      wx:key="id"
+      id="msg-{{item.id}}"
+      class="message-item {{item.isMine ? 'mine' : 'other'}}"
+    >
+      <image
+        class="msg-avatar"
+        src="{{item.isMine ? myAvatar : peerAvatar}}"
+        mode="aspectFill"
+        wx:if="{{!item.isMine}}"
+      ></image>
+      <view class="msg-bubble-wrap">
+        <view class="msg-bubble {{item.isMine ? 'bubble-mine' : 'bubble-other'}}">
+          <text class="msg-text">{{item.content}}</text>
+        </view>
+        <view class="msg-status" wx:if="{{item.isMine}}">
+          <text wx:if="{{item.status === 'sending'}}" class="status-sending">发送中</text>
+          <text wx:elif="{{item.status === 'failed'}}" class="status-failed" catchtap="onRetry" data-id="{{item.id}}" data-content="{{item.content}}">发送失败，点击重试</text>
+          <text wx:elif="{{item.status === 'read'}}" class="status-read">已读</text>
+          <text wx:elif="{{item.status === 'sent' || item.status === 'delivered'}}" class="status-sent">已送达</text>
+        </view>
+        <text class="msg-time">{{item.timeText}}</text>
+      </view>
+      <image
+        class="msg-avatar"
+        src="{{myAvatar}}"
+        mode="aspectFill"
+        wx:if="{{item.isMine}}"
+      ></image>
+    </view>
+  </scroll-view>
+
+  <!-- 底部输入栏 -->
+  <view class="input-bar">
+    <input
+      class="msg-input"
+      placeholder="发条消息..."
+      value="{{inputText}}"
+      bindinput="onInput"
+      bindconfirm="onSend"
+      confirm-type="send"
+      adjust-position
+      cursor-spacing="20"
+    />
+    <view class="send-btn {{inputText ? 'active' : ''}} {{sending ? 'sending' : ''}}" bindtap="onSend">
+      <text>{{sending ? '发送中' : '发送'}}</text>
+    </view>
+  </view>
+</view>

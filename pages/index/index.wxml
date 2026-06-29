@@ -18,23 +18,36 @@
     show-scrollbar="{{false}}"
   >
     <!-- 轮播图 -->
-    <swiper class="banner-swiper" autoplay circular interval="4000" duration="500" indicator-dots indicator-color="rgba(255,255,255,0.5)" indicator-active-color="#ffffff">
+    <swiper class="banner-swiper" autoplay circular interval="{{bannerInterval}}" duration="{{bannerDuration}}" bindchange="onBannerChange">
       <swiper-item wx:for="{{banners}}" wx:key="id">
         <view class="banner-item pressable" data-link="{{item.link}}" bindtap="onBannerTap">
           <image class="banner-img" src="{{item.image}}" mode="aspectFill" lazy-load></image>
           <view class="banner-mask"></view>
+          <view class="banner-accent" style="background: {{item.accent}};"></view>
           <view class="banner-text">
+            <text class="banner-tag" wx:if="{{item.tag}}">{{item.tag}}</text>
             <text class="banner-title">{{item.title}}</text>
             <text class="banner-subtitle">{{item.subtitle}}</text>
+            <view class="banner-cta">
+              <text class="banner-cta-text">立即查看</text>
+            </view>
           </view>
         </view>
       </swiper-item>
     </swiper>
+    <view class="banner-indicator">
+      <view
+        class="indicator-dot {{bannerCurrent === index ? 'active' : ''}}"
+        wx:for="{{banners}}"
+        wx:key="id"
+      ></view>
+    </view>
 
     <!-- 公告 -->
     <view class="notice-bar">
       <image class="notice-icon-img icon-sm" src="/assets/icons/notice.png" mode="aspectFit"></image>
       <text class="notice-text">{{notice}}</text>
+      <text class="notice-tail">更新中</text>
     </view>
 
     <!-- 校园服务 -->
@@ -47,14 +60,30 @@
     </view>
 
     <!-- 课程表卡片 -->
-    <view class="schedule-card card anim-slide-up">
+    <view class="schedule-card card anim-slide-up" bindtap="goSchedule">
       <view class="schedule-header">
-        <text class="schedule-week">第41周 周五</text>
-        <text class="schedule-remain">剩余0节课</text>
+        <text class="schedule-week">{{scheduleWeekText || '加载中...'}}</text>
+        <text class="schedule-remain">{{scheduleRemainText}}</text>
       </view>
-      <view class="schedule-empty">
+
+      <!-- 有课：列出今日课程 -->
+      <view class="schedule-list" wx:if="{{!scheduleEmpty && todayCourses.length > 0}}">
+        <view class="schedule-course-item" wx:for="{{todayCourses}}" wx:key="id">
+          <view class="course-time-dot" style="background: {{item.color || '#4A7AFF'}};"></view>
+          <view class="course-info">
+            <view class="course-info-row">
+              <text class="course-info-name">{{item.name}}</text>
+              <text class="course-info-time">{{item.startTime}}-{{item.endTime}}</text>
+            </view>
+            <text class="course-info-loc" wx:if="{{item.location}}">{{item.location}}</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- 无课：空状态 -->
+      <view class="schedule-empty" wx:if="{{scheduleEmpty}}">
         <image class="schedule-empty-icon icon-xl" src="/assets/icons/tag-clock.png" mode="aspectFit"></image>
-        <text class="schedule-empty-text">今天是没有课程打扰的宁静时光~ 🌿</text>
+        <text class="schedule-empty-text">今天是没有课程打扰的宁静时光~</text>
       </view>
     </view>
 
@@ -100,7 +129,7 @@
     <!-- 帖子列表 -->
     <block wx:else>
       <view wx:for="{{posts}}" wx:key="id" style="--i: {{index < 6 ? index : 0}};" class="anim-stagger">
-        <post-card post="{{item}}" />
+        <post-card post="{{item}}" bind:like="onPostLike" bind:favorite="onPostFavorite" bind:follow="onPostFollow" bind:close="onPostClose" />
       </view>
       <empty-state wx:if="{{posts.length === 0}}" text="暂无帖子" />
       <load-more loading="{{loading}}" hasMore="{{hasMore}}" />

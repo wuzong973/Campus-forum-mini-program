@@ -1,0 +1,109 @@
+<view class="page">
+  <!-- 顶部操作栏 -->
+  <view class="top-bar">
+    <text class="top-title">共 {{courses.length}} 门课程</text>
+    <view class="top-actions">
+      <text class="clear-btn" bindtap="onClearAll" wx:if="{{courses.length > 0}}">清空全部</text>
+      <view class="add-btn btn-primary" bindtap="onAdd">+ 添加课程</view>
+    </view>
+  </view>
+
+  <view class="tool-strip">
+    <view class="tool-chip" bindtap="onImport">导入</view>
+    <view class="tool-chip" bindtap="onExport">导出</view>
+    <view class="tool-chip" bindtap="onReminderOffset">提醒 {{reminderOffset}}分钟</view>
+  </view>
+
+  <view class="conflict-card" wx:if="{{conflictGroups.length}}">
+    <text class="conflict-title">检测到 {{conflictGroups.length}} 组课程冲突</text>
+    <text class="conflict-text" wx:for="{{conflictGroups}}" wx:key="*this">{{item[0]}} 与 {{item[1]}} 时间重叠</text>
+  </view>
+
+  <!-- 课程列表 -->
+  <view class="course-list" wx:if="{{courses.length > 0}}">
+    <view class="course-item" wx:for="{{courses}}" wx:key="id">
+      <view class="course-color-bar" style="background: {{item.color || '#4A7AFF'}};"></view>
+      <view class="course-info">
+        <text class="course-name">{{item.name}}</text>
+        <text class="course-meta" wx:if="{{item.teacher}}">{{item.teacher}} · </text>
+        <text class="course-meta" wx:if="{{item.location}}">{{item.location}} · </text>
+        <text class="course-meta">周{{item.weekDay}} {{item.startTime}}-{{item.endTime}}</text>
+        <text class="week-type">{{item.weekTypeLabel}}</text>
+      </view>
+      <view class="course-actions">
+        <text class="action-edit" catchtap="onEdit" data-index="{{index}}">编辑</text>
+        <text class="action-delete" catchtap="onDelete" data-index="{{index}}">删除</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 空状态 -->
+  <view class="empty-state" wx:if="{{courses.length === 0 && !showForm}}">
+    <text class="empty-icon">📋</text>
+    <text class="empty-text">暂无课程</text>
+    <text class="empty-desc">点击上方「+ 添加课程」开始录入</text>
+  </view>
+
+  <!-- 编辑表单弹窗 -->
+  <view class="form-mask" wx:if="{{showForm}}" bindtap="onCancel"></view>
+  <view class="form-panel {{showForm ? 'show' : ''}}">
+    <view class="form-header">
+      <text class="form-title">{{editingIndex >= 0 ? '编辑课程' : '添加课程'}}</text>
+      <text class="form-close" bindtap="onCancel">✕</text>
+    </view>
+
+    <view class="form-body">
+      <view class="form-row">
+        <text class="form-label">课程名 *</text>
+        <input class="form-input" placeholder="如：高等数学" value="{{form.name}}" data-field="name" bindinput="onFormInput" />
+      </view>
+      <view class="form-row">
+        <text class="form-label">教师</text>
+        <input class="form-input" placeholder="如：张教授" value="{{form.teacher}}" data-field="teacher" bindinput="onFormInput" />
+      </view>
+      <view class="form-row">
+        <text class="form-label">教室</text>
+        <input class="form-input" placeholder="如：A101" value="{{form.location}}" data-field="location" bindinput="onFormInput" />
+      </view>
+      <view class="form-row">
+        <text class="form-label">星期</text>
+        <picker mode="selector" range="{{weekDays}}" value="{{form.weekDay - 1}}" bindchange="onWeekDayChange">
+          <view class="form-picker">{{weekDays[form.weekDay - 1]}}</view>
+        </picker>
+      </view>
+      <view class="form-row">
+        <text class="form-label">开始时间</text>
+        <picker mode="time" value="{{form.startTime}}" bindchange="onStartTimeChange">
+          <view class="form-picker">{{form.startTime}}</view>
+        </picker>
+      </view>
+      <view class="form-row">
+        <text class="form-label">结束时间</text>
+        <picker mode="time" value="{{form.endTime}}" bindchange="onEndTimeChange">
+          <view class="form-picker">{{form.endTime}}</view>
+        </picker>
+      </view>
+      <view class="form-row">
+        <text class="form-label">起止周</text>
+        <view class="week-range">
+          <input class="form-input-sm" type="number" value="{{form.startWeek}}" data-field="startWeek" bindinput="onFormInput" />
+          <text class="week-sep">~</text>
+          <input class="form-input-sm" type="number" value="{{form.endWeek}}" data-field="endWeek" bindinput="onFormInput" />
+        </view>
+      </view>
+
+      <!-- 颜色选择 -->
+      <view class="form-row">
+        <text class="form-label">颜色</text>
+        <view class="color-picker">
+          <view class="color-dot {{form.color === item ? 'active' : ''}}" wx:for="{{colors}}" wx:key="*this" style="background: {{item}};" data-color="{{item}}" bindtap="onColorSelect"></view>
+        </view>
+      </view>
+    </view>
+
+    <view class="form-footer">
+      <button class="cancel-btn" bindtap="onCancel">取消</button>
+      <button class="save-btn btn-primary" bindtap="onSave">保存</button>
+    </view>
+  </view>
+</view>

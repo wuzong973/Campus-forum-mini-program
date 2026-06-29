@@ -22,6 +22,7 @@ const upload = multer({
 })
 
 exports.uploadMiddleware = upload.single('file')
+exports.uploadScheduleImageMiddleware = upload.single('image')
 
 exports.uploadImage = (req, res) => {
   if (!req.file) return fail(res, '未收到文件')

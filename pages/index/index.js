@@ -1,14 +1,19 @@
 const api = require('../../utils/api')
+const bannerUtil = require('../../utils/banner')
 
 const POSTS_CACHE_KEY = 'home_posts_cache'
 const POSTS_CACHE_TTL = 5 * 60 * 1000 // 5 分钟缓存
+const PENDING_POST_KEY = 'home_pending_post'
 
 Page({
   data: {
     statusBarHeight: 20,
     navBarHeight: 44,
     banners: [],
-    notice: '课程表智能识别功能，校园地图，社区聊天，常见小',
+    bannerCurrent: 0,
+    bannerInterval: 4200,
+    bannerDuration: 520,
+    notice: '课表 AI 识别、社区私信链路和校园服务导航已完成新一轮优化升级',
     services: [],
     categories: [],
     activeCategory: 0,
@@ -20,7 +25,13 @@ Page({
     skeleton: true,
     scrollTop: 0,
     isAtTop: true,
-    showFloatBtns: false
+    showFloatBtns: false,
+    scheduleCourses: [],
+    // 课表提醒
+    todayCourses: [],
+    scheduleWeekText: '',
+    scheduleRemainText: '',
+    scheduleEmpty: false
   },
 
   onLoad() {
@@ -31,15 +42,101 @@ Page({
     })
     this.loadStaticData()
     this.loadPosts(true)
+    this.loadTodaySchedule()
+  },
+
+  onShow() {
+    // 每次回到首页刷新课表（从课表页改了数据会同步）
+    this.loadTodaySchedule()
+    this.consumePendingPost()
+  },
+
+  consumePendingPost() {
+    const post = wx.getStorageSync(PENDING_POST_KEY)
+    if (!post || !post.id) return
+    wx.removeStorageSync(PENDING_POST_KEY)
+    const exists = this.data.posts.some((item) => item.id === post.id)
+    const posts = exists ? this.data.posts : [post].concat(this.data.posts)
+    this.setData({ posts, skeleton: false })
+    this.updateBanners()
+  },
+
+  // 加载当天课程
+  loadTodaySchedule() {
+    api.getScheduleList().then((courses) => {
+      this.setData({ scheduleCourses: courses || [] })
+      this.renderTodaySchedule(courses || [])
+      this.updateBanners()
+    })
+  },
+
+  renderTodaySchedule(courses) {
+    const app = getApp()
+    const config = app.globalData.scheduleConfig || {}
+    const startDate = new Date(config.startDate || '2025-09-01')
+    const now = new Date()
+    const diffDays = Math.floor((now - startDate) / 86400000)
+    const currentWeek = Math.max(1, Math.floor(diffDays / 7) + 1)
+    const weekDay = now.getDay() === 0 ? 7 : now.getDay() // 周日=7
+    const weekDayNames = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
+    const weekText = '第' + currentWeek + '周 ' + weekDayNames[now.getDay()]
+
+    const matchWeekType = (course) => {
+      if (!course.weekType || course.weekType === 'all') return true
+      if (course.weekType === 'odd') return currentWeek % 2 === 1
+      if (course.weekType === 'even') return currentWeek % 2 === 0
+      return true
+    }
+    const matchWeek = (course) => {
+      return (!course.startWeek || course.startWeek <= currentWeek) && (!course.endWeek || course.endWeek >= currentWeek)
+    }
+    const matchWeekDay = (course) => course.weekDay === weekDay
+
+    // 过滤出今天的课程（优先按周数 + 星期；若导入课表和当前周次不一致，则用星期兜底）
+    let todayCourses = courses.filter((c) => {
+      const matchWeekDay = c.weekDay === weekDay
+      return matchWeekDay && matchWeek(c) && matchWeekType(c)
+    })
+    if (!todayCourses.length) {
+      todayCourses = courses.filter((c) => matchWeekDay(c) && matchWeekType(c))
+    }
+
+    // 按开始时间排序
+    todayCourses.sort((a, b) => (a.startTime || '').localeCompare(b.startTime || ''))
+
+    // 判断剩余课程（未结束的）
+    const nowMinutes = now.getHours() * 60 + now.getMinutes()
+    const remainCourses = todayCourses.filter((c) => {
+      if (!c.endTime) return true
+      const [eh, em] = c.endTime.split(':').map(Number)
+      return eh * 60 + em > nowMinutes
+    })
+
+    this.setData({
+      todayCourses,
+      scheduleWeekText: weekText,
+      scheduleRemainText: '今日剩余' + remainCourses.length + '节课',
+      scheduleEmpty: todayCourses.length === 0
+    })
   },
 
   // 静态数据立即渲染，提升首屏速度
   loadStaticData() {
     const mock = require('../../utils/mock')
     this.setData({
-      banners: mock.banners,
       services: mock.homeServices,
-      categories: mock.categories
+      categories: mock.categories,
+      banners: bannerUtil.buildHomeBanners({ services: mock.homeServices })
+    })
+  },
+
+  updateBanners() {
+    this.setData({
+      banners: bannerUtil.buildHomeBanners({
+        courses: this.data.scheduleCourses,
+        posts: this.data.posts,
+        services: this.data.services
+      })
     })
   },
 
@@ -54,6 +151,7 @@ Page({
           hasMore: true,
           skeleton: false
         })
+        this.updateBanners()
         // 静默刷新，不显示骨架屏
         this.fetchPosts(1, true, true)
         return
@@ -76,6 +174,7 @@ Page({
         loading: false,
         skeleton: false
       })
+      this.updateBanners()
       // 首页数据写入本地缓存
       if (reset && category === '') {
         wx.setStorageSync(POSTS_CACHE_KEY, { list, ts: Date.now() })
@@ -122,15 +221,27 @@ Page({
   onBannerTap(e) {
     const link = e.currentTarget.dataset.link || ''
     wx.vibrateShort({ type: 'light' })
-    if (link.indexOf('errand') > -1) {
+    if (link.indexOf('/pages/post-detail/') === 0) {
+      wx.navigateTo({ url: link })
+    } else if (link.indexOf('errand') > -1) {
       wx.switchTab({ url: '/pages/errand/index' })
     } else if (link.indexOf('schedule') > -1) {
       wx.switchTab({ url: '/pages/schedule/index' })
+    } else if (link.indexOf('index') > -1) {
+      wx.switchTab({ url: '/pages/index/index' })
     }
+  },
+
+  onBannerChange(e) {
+    this.setData({ bannerCurrent: e.detail.current || 0 })
   },
 
   goServiceAll() {
     wx.navigateTo({ url: '/pages/service-all/index' })
+  },
+
+  goSchedule() {
+    wx.switchTab({ url: '/pages/schedule/index' })
   },
 
   onServiceTap(e) {
@@ -216,7 +327,7 @@ Page({
 
   goPublish() {
     const auth = require('../../utils/auth')
-    if (!auth.requireLogin('发帖需要先登录')) return
+    if (!auth.requirePublishReady()) return
     wx.navigateTo({ url: '/pages/post-publish/index' })
   },
 
@@ -225,6 +336,40 @@ Page({
     if (index === this.data.activeCategory) return
     this.setData({ activeCategory: index, page: 1, skeleton: true })
     this.fetchPosts(1, true, false)
+  },
+
+  onPostLike(e) {
+    const post = e.detail.post
+    if (!post) return
+    const posts = this.data.posts.map((item) => item.id === post.id ? Object.assign({}, item, {
+      isLiked: post.isLiked,
+      likeCount: post.likeCount
+    }) : item)
+    this.setData({ posts })
+  },
+
+  onPostFavorite(e) {
+    const post = e.detail.post
+    if (!post) return
+    const posts = this.data.posts.map((item) => item.id === post.id ? Object.assign({}, item, {
+      isFavorited: post.isFavorited,
+      favoriteCount: post.favoriteCount
+    }) : item)
+    this.setData({ posts })
+  },
+
+  onPostFollow(e) {
+    const post = e.detail.post
+    if (!post || !post.userId) return
+    const posts = this.data.posts.map((item) => item.userId === post.userId ? Object.assign({}, item, {
+      isFollowed: post.isFollowed
+    }) : item)
+    this.setData({ posts })
+  },
+
+  onPostClose(e) {
+    const postId = e.detail.postId
+    this.setData({ posts: this.data.posts.filter((item) => item.id !== postId) })
   },
 
   onPullDownRefresh() {

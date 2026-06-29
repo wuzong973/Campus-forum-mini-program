@@ -1,17 +1,35 @@
 const app = getApp()
+const messageStore = require('../../utils/messageStore')
+const api = require('../../utils/api')
 
 Page({
   data: {
     statusBarHeight: 20,
     userInfo: null,
     isLogin: false,
+    unreadCount: 0,
     shortcuts: [
       { icon: '/assets/icons/wallet.png', name: '钱包' },
       { icon: '/assets/icons/order.png', name: '订单' },
       { icon: '/assets/icons/post.png', name: '帖子' },
       { icon: '/assets/icons/message.png', name: '消息' }
     ],
+    interactionStats: {
+      liked: 0,
+      shared: 0,
+      commented: 0,
+      favorited: 0,
+      followed: 0
+    },
+    interactionShortcuts: [
+      { key: 'liked', icon: '/assets/icons/heart.png', name: '已点赞' },
+      { key: 'shared', icon: '/assets/icons/share.png', name: '已转发' },
+      { key: 'commented', icon: '/assets/icons/comment.png', name: '已评论' },
+      { key: 'favorited', icon: '/assets/icons/star.png', name: '已收藏' },
+      { key: 'followed', icon: '/assets/icons/avatar.png', name: '已关注' }
+    ],
     menus: [
+      { icon: '/assets/icons/edit.png', name: '编辑个人主页' },
       { icon: '/assets/icons/security.png', name: '账号安全' },
       { icon: '/assets/icons/rules.png', name: '社区规范' },
       { icon: '/assets/icons/service.png', name: '联系客服' },
@@ -19,6 +37,17 @@ Page({
       { icon: '/assets/icons/help.png', name: '常见问题' },
       { icon: '/assets/icons/about.png', name: '关于我们' }
     ]
+  },
+
+  onLoad() {
+    // 注册实时消息回调，更新消息红点
+    this.unsubscribe = messageStore.onMessage(() => {
+      this.setData({ unreadCount: messageStore.getUnreadTotal() })
+    })
+  },
+
+  onUnload() {
+    if (this.unsubscribe) this.unsubscribe()
   },
 
   onShow() {
@@ -30,8 +59,10 @@ Page({
     this.setData({
       statusBarHeight: app.globalData.statusBarHeight,
       userInfo,
-      isLogin: !!app.globalData.token
+      isLogin: !!app.globalData.token,
+      unreadCount: messageStore.getUnreadTotal()
     })
+    this.loadInteractionStats()
   },
 
   goLogin() {
@@ -48,6 +79,7 @@ Page({
     const name = e.currentTarget.dataset.name
     const routes = {
       '账号安全': '/pages/security/index',
+      '编辑个人主页': '/pages/profile-edit/index',
       '社区规范': '/pages/rules/index',
       '联系客服': '/pages/feedback/index',
       '用户反馈': '/pages/feedback/index',
@@ -76,5 +108,26 @@ Page({
     } else {
       wx.showToast({ title: name, icon: 'none' })
     }
+  },
+
+  loadInteractionStats() {
+    if (!this.data.isLogin) {
+      this.setData({
+        interactionStats: { liked: 0, shared: 0, commented: 0, favorited: 0, followed: 0 }
+      })
+      return
+    }
+    api.getMyInteractionStats().then((stats) => {
+      this.setData({ interactionStats: stats })
+    }).catch(() => {})
+  },
+
+  onInteractionShortcut(e) {
+    const key = e.currentTarget.dataset.key
+    if (!this.data.isLogin) {
+      wx.navigateTo({ url: '/pages/login/index' })
+      return
+    }
+    wx.navigateTo({ url: '/pages/my-interactions/index?type=' + key })
   }
 })

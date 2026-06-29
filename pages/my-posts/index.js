@@ -35,6 +35,7 @@ Page({
   },
 
   goPublish() {
+    if (!auth.requirePublishReady()) return
     wx.navigateTo({ url: '/pages/post-publish/index' })
   }
 })

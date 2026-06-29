@@ -26,6 +26,84 @@
   color: #4A7AFF;
 }
 
+/* 私信会话列表 */
+.conv-list {
+  margin-top: 8rpx;
+}
+
+.conv-item {
+  display: flex;
+  align-items: center;
+  padding: 24rpx;
+  margin-bottom: 16rpx;
+}
+
+.conv-avatar {
+  width: 88rpx;
+  height: 88rpx;
+  border-radius: 50%;
+  margin-right: 20rpx;
+  background: #f0f0f0;
+  flex-shrink: 0;
+}
+
+.conv-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.conv-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8rpx;
+}
+
+.conv-nick {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #1a1a1a;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 380rpx;
+}
+
+.conv-time {
+  font-size: 22rpx;
+  color: #bbbbbb;
+  flex-shrink: 0;
+}
+
+.conv-bottom {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.conv-last {
+  font-size: 26rpx;
+  color: #999999;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  margin-right: 16rpx;
+}
+
+.conv-badge {
+  min-width: 36rpx;
+  height: 36rpx;
+  line-height: 36rpx;
+  padding: 0 10rpx;
+  background: #FF4D4F;
+  border-radius: 18rpx;
+  color: #ffffff;
+  font-size: 22rpx;
+  text-align: center;
+  flex-shrink: 0;
+}
+
 .msg-item {
   padding: 24rpx;
   margin-bottom: 16rpx;

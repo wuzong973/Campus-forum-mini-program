@@ -1,40 +1,68 @@
 <view class="post-card" bindtap="onTap">
-  <!-- 头部：头像 + 用户名 + 性别 + 日期 -->
   <view class="post-header">
-    <image class="post-avatar img-lazy" src="{{post.avatarUrl || '/assets/icons/avatar.png'}}" mode="aspectFill" lazy-load></image>
+    <image class="post-avatar" src="{{post.avatarUrl || '/assets/icons/avatar.png'}}" mode="aspectFill" lazy-load catchtap="onAvatarTap"></image>
     <view class="post-user-info">
       <view class="post-user-row">
         <text class="post-nick">{{post.nickName}}</text>
-        <image class="gender-icon" wx:if="{{post.gender === 'male'}}" src="/assets/icons/gender-male.png" mode="aspectFit"></image>
-        <image class="gender-icon" wx:if="{{post.gender === 'female'}}" src="/assets/icons/gender-female.png" mode="aspectFit"></image>
+        <text class="verified-tag" wx:if="{{post.verified}}">认证</text>
       </view>
-      <text class="post-time">{{timeText}}</text>
+      <view class="post-sub-row">
+        <text class="post-category">{{post.category || '推荐'}}</text>
+        <text class="post-dot">·</text>
+        <text class="post-time">{{timeText}}</text>
+      </view>
+      <text class="post-meta">粉丝 {{formatCount(post.followerCount)}} · 发帖 {{formatCount(post.postCount)}}</text>
     </view>
-    <view class="post-more">···</view>
+    <view class="post-header-actions">
+      <view class="follow-btn {{post.isFollowed ? 'followed' : ''}}" catchtap="onFollow" wx:if="{{post.userId}}">
+        <text class="follow-text">{{post.isFollowed ? '已关注' : '+ 关注'}}</text>
+      </view>
+      <view class="close-btn" catchtap="onClose">
+        <image class="more-icon" src="/assets/icons/more.png" mode="aspectFit"></image>
+      </view>
+    </view>
   </view>
 
-  <!-- 内容 -->
-  <view class="post-content">{{post.content}}</view>
-
-  <!-- 图片 -->
-  <view class="post-images" wx:if="{{post.images && post.images.length}}">
-    <image wx:for="{{post.images}}" wx:key="*this" src="{{item}}" mode="aspectFill" class="post-img img-lazy" lazy-load show-menu-by-longpress="{{false}}" />
+  <view class="hot-badge" wx:if="{{post.isHot}}">
+    <text class="hot-badge-text">热帖</text>
   </view>
 
-  <!-- 底部：浏览量 + 操作按钮 -->
-  <view class="post-footer">
-    <text class="post-views">浏览 {{post.viewCount || 0}}</text>
-    <view class="post-actions">
-      <view class="action-btn" catchtap="onLike" data-id="{{post.id}}">
-        <image class="action-icon" src="{{post.isLiked ? '/assets/icons/heart.png' : '/assets/icons/heart-outline.png'}}" mode="aspectFit"></image>
-      </view>
-      <view class="action-btn" catchtap="onComment" data-id="{{post.id}}">
-        <image class="action-icon" src="/assets/icons/comment.png" mode="aspectFit"></image>
-        <text class="action-count" wx:if="{{post.commentCount > 0}}">{{post.commentCount}}</text>
-      </view>
-      <view class="action-btn" catchtap="onShare" data-id="{{post.id}}">
-        <image class="action-icon" src="/assets/icons/share.png" mode="aspectFit"></image>
-      </view>
+  <view class="post-title" wx:if="{{post.title}}">
+    <text class="post-title-text">{{post.title}}</text>
+  </view>
+
+  <view class="post-content">
+    <text class="post-content-text">{{displayContent}}</text>
+    <text class="post-full-text" wx:if="{{isLongContent}}" catchtap="onViewFull">全文</text>
+  </view>
+
+  <view class="post-images images-{{imageLayout}}" wx:if="{{previewImages.length}}">
+    <view class="post-img-wrap" wx:for="{{previewImages}}" wx:key="*this">
+      <image src="{{item}}" mode="aspectFill" class="post-img img-lazy" lazy-load></image>
+      <view class="image-count" wx:if="{{index === 2 && post.images.length > 3}}">+{{post.images.length - 3}}</view>
+    </view>
+  </view>
+
+  <view class="post-footer" wx:if="{{showFooter}}">
+    <view class="footer-action" catchtap="onComment">
+      <image class="footer-icon" src="/assets/icons/comment.png" mode="aspectFit"></image>
+      <text class="footer-count">{{post.commentCount || 0}}</text>
+    </view>
+    <view class="footer-action" catchtap="onMessageAuthor">
+      <image class="footer-icon" src="/assets/icons/message.png" mode="aspectFit"></image>
+      <text class="footer-count">主页</text>
+    </view>
+    <view class="footer-action {{post.isLiked ? 'liked' : ''}}" catchtap="onLike">
+      <image class="footer-icon" src="{{post.isLiked ? '/assets/icons/heart.png' : '/assets/icons/heart-outline.png'}}" mode="aspectFit"></image>
+      <text class="footer-count">{{post.likeCount || 0}}</text>
+    </view>
+    <view class="footer-action" catchtap="onShare">
+      <image class="footer-icon" src="/assets/icons/share.png" mode="aspectFit"></image>
+      <text class="footer-count">{{post.shareCount || 0}}</text>
+    </view>
+    <view class="footer-action {{post.isFavorited ? 'favorited' : ''}}" catchtap="onFavorite">
+      <image class="footer-icon" src="{{post.isFavorited ? '/assets/icons/star.png' : '/assets/icons/star-outline.png'}}" mode="aspectFit"></image>
+      <text class="footer-count">{{post.favoriteCount || 0}}</text>
     </view>
   </view>
 </view>

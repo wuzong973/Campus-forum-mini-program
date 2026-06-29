@@ -41,11 +41,19 @@ function chooseAndCompress(count) {
   return new Promise((resolve, reject) => {
     wx.chooseMedia({
       count: count || 9,
-      mediaType: ['image'],
+      mediaType: ['image', 'video'],
       sizeType: ['compressed'],
       success: async (res) => {
-        const paths = res.tempFiles.map((f) => f.tempFilePath)
-        const compressed = await compressImages(paths)
+        const files = res.tempFiles.map((f) => ({
+          type: f.fileType || f.type || 'image',
+          path: f.tempFilePath,
+          size: f.size || 0,
+          thumb: f.thumbTempFilePath || f.tempFilePath
+        }))
+        const compressed = await Promise.all(files.map(async (file) => {
+          if (file.type === 'video') return file
+          return Object.assign({}, file, { path: await compressImage(file.path) })
+        }))
         resolve(compressed)
       },
       fail: reject

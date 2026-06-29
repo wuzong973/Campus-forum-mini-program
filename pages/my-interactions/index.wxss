@@ -1,0 +1,55 @@
+.page {
+  min-height: 100vh;
+  background: #f4f6fa;
+  padding: 24rpx 0 48rpx;
+}
+
+.page-title {
+  margin: 0 24rpx 20rpx;
+  font-size: 34rpx;
+  font-weight: 700;
+  color: #1f2a44;
+}
+
+.user-card {
+  margin: 0 24rpx 20rpx;
+  padding: 24rpx;
+  display: flex;
+  align-items: center;
+}
+
+.user-avatar {
+  width: 84rpx;
+  height: 84rpx;
+  border-radius: 50%;
+  background: #eef2f8;
+  flex-shrink: 0;
+}
+
+.user-copy {
+  flex: 1;
+  min-width: 0;
+  margin-left: 18rpx;
+  display: flex;
+  flex-direction: column;
+  gap: 6rpx;
+}
+
+.user-name {
+  font-size: 30rpx;
+  font-weight: 700;
+  color: #1f2a44;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.user-meta {
+  font-size: 24rpx;
+  color: #8a94a6;
+}
+
+.arrow {
+  color: #c8c9cc;
+  font-size: 28rpx;
+}

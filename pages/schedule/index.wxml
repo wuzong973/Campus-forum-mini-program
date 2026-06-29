@@ -1,4 +1,5 @@
 <view class="page" style="background: {{bgColor}};">
+  <!-- 导航栏 -->
   <view class="custom-nav white-nav" style="padding-top: {{statusBarHeight}}px;">
     <view class="nav-content" style="height: {{navBarHeight}}px;">
       <view class="nav-left" bindtap="toggleDrawer">
@@ -21,6 +22,18 @@
   </view>
   <view class="nav-placeholder" style="height: {{statusBarHeight + navBarHeight}}px;"></view>
 
+  <!-- 周次信息条 -->
+  <view class="week-info-bar" wx:if="{{courses.length > 0}}">
+    <view class="week-info-left">
+      <text class="week-label">本周课表</text>
+      <text class="week-date">{{currentWeekText}}</text>
+    </view>
+    <view class="week-info-right">
+      <text class="course-count">共 {{courses.length}} 门</text>
+    </view>
+  </view>
+
+  <!-- 过期提示 -->
   <view class="expired-card card" wx:if="{{isExpired && courses.length === 0}}">
     <view class="stamp-wrap">
       <view class="stamp-box">
@@ -32,38 +45,74 @@
     <button class="modify-btn" bindtap="goSetDate">去修改日期</button>
   </view>
 
-  <!-- 课程表网格 -->
-  <view class="schedule-grid card" wx:if="{{courses.length > 0}}">
-    <view class="grid-header">
-      <view class="time-col"></view>
-      <view class="day-col" wx:for="{{weekDays}}" wx:key="*this" wx:if="{{!hideWeekend || index < 5}}">{{item}}</view>
-    </view>
-    <view class="grid-row" wx:for="{{timeSlots}}" wx:key="*this" wx:for-item="slot">
-      <view class="time-col text-small">{{slot}}</view>
-      <view class="day-col" wx:for="{{weekDays}}" wx:key="*this" wx:for-item="day" wx:for-index="dayIdx" wx:if="{{!hideWeekend || dayIdx < 5}}">
-        <view
-          class="course-cell"
-          wx:for="{{courses}}"
-          wx:key="id"
-          wx:for-item="course"
-          wx:if="{{course.weekDay === dayIdx + 1 && course.startTime === slot}}"
-          style="background: {{course.color || '#4A7AFF'}};"
-        >
-          <text class="course-name">{{course.name}}</text>
-          <text class="course-loc">{{course.location}}</text>
-        </view>
+  <!-- 课程表表格 -->
+  <view class="schedule-container" wx:if="{{courses.length > 0}}">
+    <scroll-view scroll-x class="schedule-scroll" enhanced show-scrollbar="{{false}}">
+      <view class="schedule-grid {{hideWeekend ? 'hide-weekend' : ''}}">
+        <block wx:for="{{gridItems}}" wx:key="id" wx:for-item="item">
+          <view
+            class="grid-item type-{{item.type}}"
+            style="grid-row-start: {{item.rowStart}}; grid-row-end: {{item.rowEnd}}; grid-column: {{item.col}};"
+          >
+            <text wx:if="{{item.type === 'header'}}" class="cell-text">{{item.text}}</text>
+            <text wx:if="{{item.type === 'period'}}" class="cell-text period-text">{{item.text}}</text>
+            <text wx:if="{{item.type === 'section'}}" class="cell-text section-text">{{item.text}}</text>
+            <view wx:if="{{item.type === 'time'}}" class="time-cell">
+              <text class="time-text">{{item.text}}</text>
+            </view>
+            <view wx:if="{{item.type === 'course'}}" class="course-content" style="{{item.courseStyle}}">
+              <text class="course-name">{{item.course.name}}</text>
+              <view class="course-tags">
+                <text class="course-tag">{{item.course.themeLabel}}</text>
+                <text class="course-tag week-tag" wx:if="{{item.course.weekTypeLabel}}">{{item.course.weekTypeLabel}}</text>
+              </view>
+              <text class="course-teacher" wx:if="{{item.course.teacher}}">{{item.course.teacher}}</text>
+              <text class="course-location {{item.locationClass}}" wx:if="{{item.course.location}}">{{item.course.location}}</text>
+            </view>
+          </view>
+        </block>
       </view>
-    </view>
+    </scroll-view>
   </view>
 
+  <!-- 空状态 -->
   <view class="empty-schedule" wx:if="{{!isExpired && courses.length === 0}}">
-    <text class="empty-text text-secondary">暂无课程，点击上方 ＋ 添加课程</text>
+    <view class="empty-icon-wrap">
+      <text class="empty-icon">📋</text>
+    </view>
+    <text class="empty-text">暂无课程</text>
+    <text class="empty-desc">点击上方 + 添加课程，或使用 AI 识别课表</text>
+  </view>
+
+  <!-- 图例说明 -->
+  <view class="legend-section" wx:if="{{courses.length > 0}}">
+    <view class="legend-title">课程类型图例</view>
+    <view class="legend-grid">
+      <view class="legend-item" wx:for="{{legendThemes}}" wx:key="key">
+        <view class="legend-color" style="background: {{item.color}};"></view>
+        <text class="legend-label">{{item.label}}</text>
+      </view>
+    </view>
+    <view class="legend-tip">
+      <text class="tip-icon">💡</text>
+      <text class="tip-text">课程卡片会按理论课、实训课、体育课等类型自动着色，左右滑动即可查看完整周课表。</text>
+    </view>
   </view>
 
   <!-- 抽屉遮罩 -->
   <view class="drawer-mask" wx:if="{{showDrawer}}" bindtap="closeDrawer"></view>
   <view class="drawer {{showDrawer ? 'show' : ''}}">
     <view class="drawer-title">课程设置</view>
+    <view class="drawer-item sync-item" bindtap="goSyncSchedule">
+      <view class="sync-icon-wrap">
+        <image class="sync-icon" src="/assets/icons/refresh.png" mode="aspectFit"></image>
+      </view>
+      <view class="sync-text">
+        <text class="sync-title">同步我的课表</text>
+        <text class="sync-desc">点击跳转教务系统</text>
+      </view>
+      <text class="sync-arrow">></text>
+    </view>
     <view class="drawer-item flex-between">
       <text>隐藏周末</text>
       <switch checked="{{hideWeekend}}" bindchange="onHideWeekend" color="#4A7AFF" />
@@ -77,6 +126,16 @@
     </view>
     <view class="drawer-item" bindtap="goSetDate">
       <text>设置课程表开始日期</text>
+    </view>
+    <view class="drawer-item edit-item" bindtap="onEditSchedule">
+      <view class="edit-icon-wrap">
+        <text class="edit-icon-text">✏️</text>
+      </view>
+      <view class="edit-text">
+        <text class="edit-title">清空/编辑课表</text>
+        <text class="edit-desc">管理已添加的课程</text>
+      </view>
+      <text class="edit-arrow">></text>
     </view>
     <view class="drawer-item back" bindtap="closeDrawer">
       <text>返回</text>

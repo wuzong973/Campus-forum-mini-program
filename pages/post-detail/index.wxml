@@ -1,35 +1,114 @@
 <view class="page" wx:if="{{post}}">
+  <!-- 导航栏 -->
+  <view class="custom-nav white-nav" style="padding-top: {{statusBarHeight}}px;">
+    <view class="nav-content" style="height: {{navBarHeight}}px;">
+      <view class="nav-left" bindtap="onBack">
+        <text class="nav-back">←</text>
+      </view>
+      <view class="nav-center">
+        <text class="nav-title">帖子详情</text>
+      </view>
+      <view class="nav-right"></view>
+    </view>
+  </view>
+  <view class="nav-placeholder" style="height: {{statusBarHeight + navBarHeight}}px;"></view>
+
+  <!-- 帖子内容 -->
   <view class="post-card card">
-    <view class="header flex-row">
-      <view class="avatar">{{post.nickName[0]}}</view>
-      <view class="info">
-        <text class="name">{{post.nickName}}</text>
-        <text class="time text-secondary">{{timeText}}</text>
+    <view class="post-header">
+      <image
+        class="post-avatar"
+        src="{{post.avatarUrl || '/assets/icons/avatar.png'}}"
+        mode="aspectFill"
+        catchtap="onAvatarTap"
+        data-userid="{{post.userId}}"
+        data-nick="{{post.nickName}}"
+        data-avatar="{{post.avatarUrl}}"
+      ></image>
+      <view class="post-user-info">
+        <text class="post-nick">{{post.nickName}}</text>
+        <text class="post-time">{{timeText}}</text>
       </view>
     </view>
-    <view class="content">{{post.content}}</view>
-    <view class="actions flex-row">
-      <view class="action" bindtap="onLike">
+    <view class="post-title" wx:if="{{post.title}}">{{post.title}}</view>
+    <view class="post-content">{{post.content}}</view>
+    <view class="post-images" wx:if="{{post.images && post.images.length}}">
+      <image wx:for="{{post.images}}" wx:key="*this" src="{{item}}" mode="aspectFill" class="post-img" />
+    </view>
+    <view class="post-stats">
+      <text class="stat-item">浏览 {{post.viewCount || 0}}</text>
+      <text class="stat-item">点赞 {{post.likeCount || 0}}</text>
+      <text class="stat-item">评论 {{post.commentCount || 0}}</text>
+      <text class="stat-item">转发 {{post.shareCount || 0}}</text>
+    </view>
+  </view>
+
+  <!-- 评论区 -->
+  <view class="comments-section card">
+    <view class="comments-header">
+      <text class="comments-title">评论 ({{comments.length}})</text>
+    </view>
+    <view class="comment-list">
+      <view class="comment-item" wx:for="{{comments}}" wx:key="id">
+        <image class="comment-avatar" src="{{item.avatarUrl || '/assets/icons/avatar.png'}}" mode="aspectFill"></image>
+        <view class="comment-content-wrap">
+          <view class="comment-header">
+            <text class="comment-nick">{{item.nickName}}</text>
+            <text class="comment-time">{{item.timeText}}</text>
+          </view>
+          <view class="comment-body">
+            <text class="comment-reply-to" wx:if="{{item.parentNickName}}">回复 {{item.parentNickName}}：</text>
+            <text class="comment-text">{{item.content}}</text>
+          </view>
+          <view class="comment-actions">
+            <text class="comment-action-btn" catchtap="onReplyComment" data-id="{{item.id}}" data-nick="{{item.nickName}}">回复</text>
+            <text class="comment-action-btn" wx:if="{{item.userId === currentUserId}}" catchtap="onEditComment" data-id="{{item.id}}" data-content="{{item.content}}">编辑</text>
+            <text class="comment-action-btn delete" wx:if="{{item.userId === currentUserId}}" catchtap="onDeleteComment" data-id="{{item.id}}">删除</text>
+          </view>
+        </view>
+      </view>
+      <view class="empty-comments" wx:if="{{comments.length === 0}}">
+        <text>暂无评论，快来抢沙发吧~</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 底部操作栏 -->
+  <view class="bottom-bar">
+    <view class="comment-input-wrap">
+      <input
+        class="comment-input"
+        placeholder="{{replyTo ? '回复 ' + replyToNick + '...' : '写评论...'}}"
+        value="{{commentText}}"
+        bindinput="onCommentInput"
+        bindfocus="onInputFocus"
+        bindblur="onInputBlur"
+      />
+      <view class="send-btn {{commentText ? 'active' : ''}}" bindtap="onSendComment">发送</view>
+    </view>
+    <view class="action-buttons">
+      <view class="action-btn {{post.isLiked ? 'liked' : ''}}" catchtap="onLike">
         <image class="action-icon" src="{{post.isLiked ? '/assets/icons/heart.png' : '/assets/icons/heart-outline.png'}}" mode="aspectFit"></image>
-        <text>{{post.likeCount}}</text>
+        <text class="action-count">{{post.likeCount || 0}}</text>
       </view>
-      <view class="action">
-        <image class="action-icon" src="/assets/icons/comment.png" mode="aspectFit"></image>
-        <text>{{post.commentCount}}</text>
+      <view class="action-btn" catchtap="onShare">
+        <image class="action-icon" src="/assets/icons/share.png" mode="aspectFit"></image>
+        <text class="action-count">{{post.shareCount || 0}}</text>
       </view>
     </view>
   </view>
 
-  <view class="comments card">
-    <view class="comments-title">评论 ({{comments.length}})</view>
-    <view class="comment-item" wx:for="{{comments}}" wx:key="id">
-      <text class="comment-name">{{item.nickName}}</text>
-      <text class="comment-content">{{item.content}}</text>
+  <!-- 编辑评论弹窗 -->
+  <view class="modal-mask" wx:if="{{showEditModal}}" bindtap="onCloseEditModal"></view>
+  <view class="edit-modal" wx:if="{{showEditModal}}">
+    <view class="modal-header">
+      <text class="modal-title">编辑评论</text>
+      <text class="modal-close" bindtap="onCloseEditModal">×</text>
     </view>
-  </view>
-
-  <view class="comment-bar">
-    <input class="comment-input" placeholder="写评论..." value="{{commentText}}" bindinput="onCommentInput" />
-    <view class="send-btn" bindtap="onSendComment">发送</view>
+    <textarea class="modal-textarea" value="{{editContent}}" bindinput="onEditContentInput" maxlength="200" />
+    <view class="modal-actions">
+      <button class="modal-btn cancel" bindtap="onCloseEditModal">取消</button>
+      <button class="modal-btn confirm" bindtap="onConfirmEdit">确定</button>
+    </view>
   </view>
 </view>

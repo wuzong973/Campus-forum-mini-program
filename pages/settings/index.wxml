@@ -103,7 +103,7 @@
   <view class="modal-mask {{showAvatarSource ? 'show' : ''}}" bindtap="closeAvatarSource"></view>
   <view class="modal-bottom {{showAvatarSource ? 'show' : ''}}">
     <view class="modal-bottom-title">选择头像来源</view>
-    <view class="modal-bottom-item" bindtap="onChooseWechatAvatar">使用微信头像</view>
+    <button class="modal-bottom-item avatar-source-btn" open-type="chooseAvatar" bindchooseavatar="onChooseWechatAvatar">使用微信头像</button>
     <view class="modal-bottom-item" bindtap="onChooseAlbumAvatar">从相册选择</view>
     <view class="modal-bottom-cancel" bindtap="closeAvatarSource">取消</view>
   </view>
@@ -131,7 +131,10 @@
       <!-- 昵称 -->
       <view class="profile-row">
         <text class="profile-label">昵称</text>
-        <input class="profile-input" placeholder="请输入昵称" value="{{editNickname}}" bindinput="onNicknameInput" />
+        <view class="nickname-edit">
+          <input class="profile-input" type="nickname" focus="{{nicknameFocus}}" placeholder="请输入昵称" value="{{editNickname}}" bindinput="onNicknameInput" />
+          <button class="wechat-fill-btn" bindtap="onUseWechatNickname">使用微信昵称</button>
+        </view>
       </view>
 
       <!-- 性别 -->

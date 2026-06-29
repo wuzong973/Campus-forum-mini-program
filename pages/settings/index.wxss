@@ -146,6 +146,18 @@
   border-top: 1rpx solid #f5f7fa;
 }
 
+.avatar-source-btn {
+  width: 100%;
+  line-height: 1.4;
+  background: #ffffff;
+  border-radius: 0;
+  border: none;
+}
+
+.avatar-source-btn::after {
+  border: none;
+}
+
 .modal-bottom-cancel {
   text-align: center;
   font-size: 30rpx;
@@ -229,6 +241,35 @@
   font-size: 30rpx;
   color: #323233;
   text-align: right;
+}
+
+.nickname-edit {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 16rpx;
+}
+
+.nickname-edit .profile-input {
+  min-width: 0;
+}
+
+.wechat-fill-btn {
+  flex-shrink: 0;
+  padding: 8rpx 16rpx;
+  border-radius: 999rpx;
+  background: #eef3ff;
+  color: #4a7aff;
+  font-size: 22rpx;
+  line-height: 1.4;
+  margin: 0;
+  border: none;
+}
+
+.wechat-fill-btn::after {
+  border: none;
 }
 
 .profile-school-fixed {

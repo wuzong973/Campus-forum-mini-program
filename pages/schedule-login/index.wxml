@@ -1,0 +1,27 @@
+<view class="page">
+  <view class="login-header">
+    <image class="school-logo" src="/assets/icons/avatar.png" mode="aspectFit"></image>
+    <text class="school-name">广轻工教务系统</text>
+    <text class="school-desc">输入账号密码同步课表</text>
+  </view>
+
+  <view class="form-card">
+    <view class="form-item">
+      <text class="form-label">学号</text>
+      <input class="form-input" placeholder="请输入学号" value="{{username}}" bindinput="onUsernameInput" />
+    </view>
+    <view class="form-item">
+      <text class="form-label">密码</text>
+      <input class="form-input" type="password" placeholder="请输入密码" value="{{password}}" bindinput="onPasswordInput" />
+    </view>
+  </view>
+
+  <button class="login-btn" bindtap="onLogin" loading="{{loading}}">同步课表</button>
+
+  <view class="tips">
+    <text class="tips-title">说明</text>
+    <text class="tips-text">1. 账号密码仅用于同步课表，不会存储</text>
+    <text class="tips-text">2. 同步成功后课表将自动导入</text>
+    <text class="tips-text">3. 如忘记密码请联系教务处</text>
+  </view>
+</view>

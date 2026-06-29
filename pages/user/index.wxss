@@ -1,17 +1,28 @@
 .page {
   min-height: 100vh;
-  background: var(--bg);
+  background: linear-gradient(180deg, #eef3ff 0%, #f4f6fa 360rpx, #f4f6fa 100%);
 }
 
 .header {
   padding-bottom: 48rpx;
+  border-radius: 0 0 36rpx 36rpx;
+}
+
+.header-cyan {
+  background:
+    radial-gradient(
+      circle at 12% 18%,
+      rgba(255, 255, 255, 0.35) 0,
+      rgba(255, 255, 255, 0) 180rpx
+    ),
+    linear-gradient(135deg, #6cb4ee 0%, #5ec4d4 50%, #4fd1c5 100%);
 }
 
 .header-content {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 32rpx 24rpx;
+  padding: 100rpx 28rpx 40rpx;
 }
 
 .user-info {
@@ -27,8 +38,8 @@
 }
 
 .avatar-img {
-  width: 120rpx;
-  height: 120rpx;
+  width: 128rpx;
+  height: 128rpx;
   border-radius: 50%;
   border: 4rpx solid rgba(255, 255, 255, 0.5);
   flex-shrink: 0;
@@ -48,7 +59,7 @@
 }
 
 .user-name {
-  font-size: 34rpx;
+  font-size: 36rpx;
   color: #fff;
   font-weight: 600;
   overflow: hidden;
@@ -69,26 +80,42 @@
   line-height: 1.4;
 }
 
-.settings-icon {
-  width: 48rpx;
-  height: 48rpx;
+.settings-wrap {
+  width: 72rpx;
+  height: 72rpx;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.18);
+  display: flex;
+  align-items: center;
+  justify-content: center;
   flex-shrink: 0;
   margin-left: 16rpx;
   transition: var(--transition-fast);
 }
 
-.settings-icon:active {
+.settings-wrap:active {
   transform: scale(0.9);
   opacity: 0.85;
 }
 
+.settings-icon {
+  width: 42rpx;
+  height: 42rpx;
+  filter: brightness(0) invert(1);
+}
+
 .shortcuts {
-  margin: -32rpx 24rpx 24rpx;
+  margin: 24rpx 24rpx 24rpx;
   padding: 32rpx 0;
   display: flex;
   position: relative;
   z-index: 2;
   box-shadow: var(--shadow);
+}
+
+.interaction-shortcuts {
+  margin-top: 0;
+  padding: 28rpx 0;
 }
 
 .shortcut-item {
@@ -105,9 +132,41 @@
 }
 
 .shortcut-icon-img {
-  width: 56rpx;
-  height: 56rpx;
+  width: 52rpx;
+  height: 52rpx;
   margin-bottom: 12rpx;
+}
+
+.shortcut-icon-wrap {
+  position: relative;
+  width: 86rpx;
+  height: 86rpx;
+  border-radius: 24rpx;
+  background: #f3f6ff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 12rpx;
+}
+
+.shortcut-badge {
+  position: absolute;
+  top: -8rpx;
+  right: -16rpx;
+  min-width: 32rpx;
+  height: 32rpx;
+  line-height: 32rpx;
+  padding: 0 8rpx;
+  background: #ff4d4f;
+  border-radius: 16rpx;
+  color: #ffffff;
+  font-size: 20rpx;
+  text-align: center;
+  border: 2rpx solid #ffffff;
+}
+
+.shortcut-badge.data-badge {
+  background: #4a7aff;
 }
 
 .shortcut-name {
@@ -138,8 +197,8 @@
 }
 
 .menu-icon-img {
-  width: 40rpx;
-  height: 40rpx;
+  width: 42rpx;
+  height: 42rpx;
   margin-right: 16rpx;
 }
 

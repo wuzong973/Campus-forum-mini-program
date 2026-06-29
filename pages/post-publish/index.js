@@ -2,6 +2,8 @@ const auth = require('../../utils/auth')
 const wechat = require('../../utils/wechat')
 const imageUtil = require('../../utils/image')
 const request = require('../../utils/request')
+const PUBLISH_DRAFT_KEY = 'post_publish_draft'
+const PENDING_POST_KEY = 'home_pending_post'
 
 Page({
   data: {
@@ -13,20 +15,47 @@ Page({
     title: '',
     content: '',
     images: [],
+    mediaList: [],
     canSubmit: false,
     showTagPicker: false,
-    submitting: false
+    submitting: false,
+    lastSubmitPayload: null,
+    submitError: ''
   },
 
   onLoad() {
     const app = getApp()
-    if (!auth.requireLogin('发帖需要先登录')) {
+    if (!auth.requirePublishReady()) {
       setTimeout(() => wx.navigateBack(), 500)
       return
     }
     this.setData({
       statusBarHeight: app.globalData.statusBarHeight,
       navBarHeight: app.globalData.navBarHeight
+    })
+    this.restoreDraft()
+  },
+
+  restoreDraft() {
+    const draft = wx.getStorageSync(PUBLISH_DRAFT_KEY)
+    if (!draft) return
+    this.setData({
+      title: draft.title || '',
+      content: draft.content || '',
+      categoryIndex: draft.categoryIndex === undefined ? -1 : draft.categoryIndex,
+      mediaList: draft.mediaList || [],
+      images: (draft.mediaList || []).map((item) => item.path),
+      canSubmit: !!(draft.content && draft.content.trim() && draft.categoryIndex >= 0)
+    })
+  },
+
+  saveDraft() {
+    wx.setStorageSync(PUBLISH_DRAFT_KEY, {
+      title: this.data.title,
+      content: this.data.content,
+      categoryIndex: this.data.categoryIndex,
+      mediaList: this.data.mediaList,
+      ts: Date.now()
     })
   },
 
@@ -36,6 +65,7 @@ Page({
 
   onTitleInput(e) {
     this.setData({ title: e.detail.value })
+    this.saveDraft()
   },
 
   onInput(e) {
@@ -44,6 +74,7 @@ Page({
       content,
       canSubmit: content.trim().length > 0 && this.data.categoryIndex >= 0
     })
+    this.saveDraft()
   },
 
   openTagPicker() {
@@ -65,22 +96,30 @@ Page({
       canSubmit: this.data.content.trim().length > 0 && categoryIndex >= 0,
       showTagPicker: false
     })
+    this.saveDraft()
   },
 
   onChooseImage() {
-    imageUtil.chooseAndCompress(9 - this.data.images.length).then((paths) => {
-      this.setData({ images: this.data.images.concat(paths) })
+    imageUtil.chooseAndCompress(9 - this.data.mediaList.length).then((files) => {
+      const mediaList = this.data.mediaList.concat(files)
+      this.setData({
+        mediaList,
+        images: mediaList.map((item) => item.path)
+      })
+      this.saveDraft()
     }).catch(() => {})
   },
 
   onRemoveImage(e) {
-    const images = this.data.images.slice()
-    images.splice(e.currentTarget.dataset.index, 1)
-    this.setData({ images })
+    const mediaList = this.data.mediaList.slice()
+    mediaList.splice(e.currentTarget.dataset.index, 1)
+    this.setData({ mediaList, images: mediaList.map((item) => item.path) })
+    this.saveDraft()
   },
 
   async onSubmit() {
     if (!this.data.canSubmit || this.data.submitting) return
+    if (!auth.requirePublishReady()) return
     const content = this.data.content.trim()
     if (!content) {
       wx.showToast({ title: '请输入内容', icon: 'none' })
@@ -96,23 +135,29 @@ Page({
 
     try {
       await wechat.checkContent(content)
-      let imageUrls = this.data.images
+      let imageUrls = this.data.mediaList.filter((item) => item.type !== 'video').map((item) => item.path)
+      const videoUrls = this.data.mediaList.filter((item) => item.type === 'video').map((item) => item.path)
       if (imageUrls.length && !request.USE_MOCK) {
         imageUrls = await wechat.uploadImages(imageUrls)
       }
+      const payload = {
+        title: this.data.title.trim(),
+        category: this.data.categories[this.data.categoryIndex],
+        content,
+        images: imageUrls,
+        videos: videoUrls
+      }
+      this.setData({ lastSubmitPayload: payload, submitError: '' })
       if (!request.USE_MOCK) {
-        await request.post('/post', {
-          category: this.data.categories[this.data.categoryIndex],
-          content: this.data.title ? this.data.title + '\n' + content : content,
-          images: imageUrls
-        }, true)
+        await request.post('/post', payload, true)
       } else {
         const mock = require('../../utils/mock')
-        mock.posts.unshift({
+        const newPost = {
           id: Date.now(),
-          userId: 0,
-          nickName: '我',
-          avatarUrl: '',
+          userId: (getApp().globalData.userInfo || {}).id || 0,
+          nickName: (getApp().globalData.userInfo || {}).nickName || '我',
+          avatarUrl: (getApp().globalData.userInfo || {}).avatarUrl || '',
+          title: this.data.title.trim(),
           category: this.data.categories[this.data.categoryIndex],
           content: content,
           images: imageUrls,
@@ -123,16 +168,25 @@ Page({
           isLiked: false,
           isFavorited: false,
           createdAt: new Date().toISOString()
-        })
+        }
+        mock.posts.unshift(newPost)
+        wx.setStorageSync(PENDING_POST_KEY, newPost)
       }
+      wx.removeStorageSync(PUBLISH_DRAFT_KEY)
       wx.hideLoading()
       wx.showToast({ title: '发布成功', icon: 'success' })
       setTimeout(() => wx.navigateBack(), 1200)
     } catch (e) {
       wx.hideLoading()
+      this.setData({ submitError: e.message || '发布失败，请稍后重试' })
       wx.showToast({ title: e.message || '发布失败', icon: 'none' })
     } finally {
       this.setData({ submitting: false })
     }
+  },
+
+  onRetrySubmit() {
+    if (this.data.submitting) return
+    this.onSubmit()
   }
 })

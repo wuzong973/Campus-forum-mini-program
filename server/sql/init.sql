@@ -25,12 +25,14 @@ CREATE TABLE IF NOT EXISTS sys_user (
 CREATE TABLE IF NOT EXISTS forum_post (
   id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   user_id INT UNSIGNED NOT NULL,
+  title VARCHAR(128) DEFAULT '',
   category VARCHAR(32) DEFAULT '日常生活',
   content TEXT NOT NULL,
   images JSON,
   like_count INT DEFAULT 0,
   comment_count INT DEFAULT 0,
   favorite_count INT DEFAULT 0,
+  share_count INT DEFAULT 0,
   status TINYINT(1) DEFAULT 1,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -136,6 +138,60 @@ CREATE TABLE IF NOT EXISTS forum_favorite (
   UNIQUE KEY uk_post_user (post_id, user_id)
 ) ENGINE=InnoDB;
 
+-- 11. 用户关注表
+CREATE TABLE IF NOT EXISTS user_follow (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  follower_id INT UNSIGNED NOT NULL,
+  followee_id INT UNSIGNED NOT NULL,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY uk_follow (follower_id, followee_id),
+  INDEX idx_followee (followee_id)
+) ENGINE=InnoDB;
+
+-- 12. 帖子转发表
+CREATE TABLE IF NOT EXISTS forum_share (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  user_id INT UNSIGNED NOT NULL,
+  post_id INT UNSIGNED NOT NULL,
+  share_content TEXT DEFAULT '',
+  parent_share_id INT UNSIGNED DEFAULT 0,
+  status TINYINT(1) DEFAULT 1,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_user (user_id),
+  INDEX idx_post (post_id)
+) ENGINE=InnoDB;
+
+-- 13. 私信会话表
+CREATE TABLE IF NOT EXISTS private_conversation (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  user_id INT UNSIGNED NOT NULL,
+  peer_id INT UNSIGNED NOT NULL,
+  last_message_id INT UNSIGNED DEFAULT NULL,
+  unread_count INT DEFAULT 0,
+  last_message_text VARCHAR(512) DEFAULT '',
+  last_message_time DATETIME DEFAULT NULL,
+  status TINYINT(1) DEFAULT 1,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY uk_user_peer (user_id, peer_id),
+  INDEX idx_peer (peer_id)
+) ENGINE=InnoDB;
+
+-- 14. 私信消息表
+CREATE TABLE IF NOT EXISTS private_message (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  conversation_id INT UNSIGNED NOT NULL,
+  sender_id INT UNSIGNED NOT NULL,
+  receiver_id INT UNSIGNED NOT NULL,
+  content TEXT NOT NULL,
+  msg_type VARCHAR(16) DEFAULT 'text',
+  status ENUM('sending','sent','delivered','read','failed') DEFAULT 'sent',
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_conversation (conversation_id),
+  INDEX idx_receiver (receiver_id, status),
+  INDEX idx_created (created_at)
+) ENGINE=InnoDB;
+
 -- 初始服务数据
 INSERT INTO service_category (name, sort_order) VALUES
 ('平台自研', 1), ('校园服务', 2), ('学习相关', 3), ('生活服务', 4), ('校园资讯', 5);
@@ -148,8 +204,7 @@ INSERT INTO service_item (category_id, name, icon, badge, sort_order) VALUES
 (2, '南校订水', '💧', '推荐', 2),
 (2, '校园卡', '💳', '', 3),
 (2, '宅印', '🖨️', '推荐', 4),
-(2, '雨课堂', '📚', '推荐', 5),
-(2, '校历', '📅', '新生', 6),
+(2, '校历', '📅', '新生', 5),
 (2, '北校订水', '💧', '推荐', 7),
 (2, '电脑义修', '💻', '推荐', 8),
 (2, '信息门户', '🏫', '推荐', 9),

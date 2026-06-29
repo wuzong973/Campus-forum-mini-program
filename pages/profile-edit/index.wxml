@@ -1,0 +1,56 @@
+<view class="page page-enter">
+  <view class="cover-preview" bindtap="chooseImage" data-field="coverUrl">
+    <image class="cover-img" src="{{coverUrl}}" mode="aspectFill"></image>
+    <view class="cover-mask"></view>
+    <text class="cover-text">更换主页背景</text>
+  </view>
+
+  <view class="profile-form card">
+    <view class="avatar-row">
+      <image class="avatar" src="{{avatarUrl || '/assets/icons/avatar.png'}}" mode="aspectFill" bindtap="chooseImage" data-field="avatarUrl"></image>
+      <view class="avatar-copy">
+        <text class="avatar-title">头像与公开资料</text>
+        <text class="avatar-desc">修改后会同步到对外个人主页</text>
+      </view>
+    </view>
+
+    <view class="form-item">
+      <text class="label">昵称</text>
+      <input class="input" value="{{nickName}}" maxlength="20" data-field="nickName" bindinput="onInput" />
+    </view>
+    <view class="form-item">
+      <text class="label">个人简介</text>
+      <textarea class="textarea" value="{{signature}}" maxlength="80" data-field="signature" bindinput="onInput" />
+    </view>
+    <view class="form-item">
+      <text class="label">社交账号</text>
+      <input class="input" value="{{socialAccount}}" placeholder="微信/QQ/社团主页等，可选" data-field="socialAccount" bindinput="onInput" />
+    </view>
+  </view>
+
+  <view class="module-card card">
+    <view class="module-title">主页模块与展示权限</view>
+    <view class="module-item" wx:for="{{modules}}" wx:key="key">
+      <view class="module-info">
+        <text class="module-label">{{item.label}}</text>
+        <text class="module-desc">可见后将在个人主页展示</text>
+      </view>
+      <view class="module-actions">
+        <text class="sort-btn" data-index="{{index}}" data-dir="up" bindtap="moveModule">上移</text>
+        <text class="sort-btn" data-index="{{index}}" data-dir="down" bindtap="moveModule">下移</text>
+        <switch checked="{{item.visible}}" data-index="{{index}}" bindchange="onToggleModule" color="#315CFF" />
+      </view>
+    </view>
+  </view>
+
+  <view class="preview-card card" wx:if="{{previewing}}">
+    <text class="preview-title">{{nickName || '校园用户'}}</text>
+    <text class="preview-desc">{{signature || '该用户还没有填写签名...'}}</text>
+  </view>
+
+  <view class="bottom-actions">
+    <button class="ghost-btn" bindtap="onRollback">回滚</button>
+    <button class="ghost-btn" bindtap="onPreview">预览</button>
+    <button class="save-btn" loading="{{saving}}" bindtap="onSave">保存</button>
+  </view>
+</view>

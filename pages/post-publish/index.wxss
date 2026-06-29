@@ -150,6 +150,17 @@
   font-size: 24rpx;
 }
 
+.media-type {
+  position: absolute;
+  left: 10rpx;
+  bottom: 10rpx;
+  padding: 4rpx 12rpx;
+  border-radius: 999rpx;
+  background: rgba(0, 0, 0, 0.54);
+  color: #ffffff;
+  font-size: 20rpx;
+}
+
 .add-image-box {
   width: 200rpx;
   height: 200rpx;
@@ -305,6 +316,26 @@
   padding-bottom: calc(20rpx + env(safe-area-inset-bottom));
   background: #f5f7fa;
   z-index: 50;
+}
+
+.submit-error {
+  position: fixed;
+  left: 24rpx;
+  right: 24rpx;
+  bottom: calc(116rpx + env(safe-area-inset-bottom));
+  padding: 16rpx 20rpx;
+  border-radius: 16rpx;
+  background: #fff1f0;
+  color: #cf1322;
+  font-size: 24rpx;
+  display: flex;
+  justify-content: space-between;
+  z-index: 60;
+}
+
+.retry-link {
+  color: var(--primary);
+  font-weight: 700;
 }
 
 .submit-btn {

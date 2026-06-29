@@ -1,5 +1,5 @@
-<view class="page">
-  <view class="header gradient-nav" style="padding-top: {{statusBarHeight}}px;">
+<view class="page page-enter">
+  <view class="header header-cyan" style="padding-top: {{statusBarHeight}}px;">
     <view class="header-content">
       <view class="user-info" bindtap="goLogin">
         <image class="avatar-img" src="{{isLogin && userInfo.avatarUrl ? userInfo.avatarUrl : '/assets/tabbar/user.png'}}" mode="aspectFill"></image>
@@ -12,13 +12,32 @@
           <text class="user-school" wx:if="{{isLogin}}">{{userInfo.school || '广轻工职业技术大学'}} · {{userInfo.campus || '未设置校区'}}</text>
         </view>
       </view>
-      <image class="settings-icon" catchtap="goSettings" src="/assets/icons/settings.png" mode="aspectFit"></image>
+      <view class="settings-wrap" catchtap="goSettings">
+        <image class="settings-icon" src="/assets/icons/settings.png" mode="aspectFit"></image>
+      </view>
     </view>
   </view>
 
-  <view class="shortcuts card">
+  <view class="shortcuts card glass-panel">
     <view class="shortcut-item" wx:for="{{shortcuts}}" wx:key="name" data-name="{{item.name}}" bindtap="onShortcut">
-      <image class="shortcut-icon-img" src="{{item.icon}}" mode="aspectFit"></image>
+      <view class="shortcut-icon-wrap">
+        <image class="shortcut-icon-img" src="{{item.icon}}" mode="aspectFit"></image>
+        <view class="shortcut-badge" wx:if="{{item.name === '消息' && unreadCount > 0}}">
+          <text>{{unreadCount > 99 ? '99+' : unreadCount}}</text>
+        </view>
+      </view>
+      <text class="shortcut-name">{{item.name}}</text>
+    </view>
+  </view>
+
+  <view class="shortcuts interaction-shortcuts card glass-panel">
+    <view class="shortcut-item" wx:for="{{interactionShortcuts}}" wx:key="key" data-key="{{item.key}}" bindtap="onInteractionShortcut">
+      <view class="shortcut-icon-wrap">
+        <image class="shortcut-icon-img" src="{{item.icon}}" mode="aspectFit"></image>
+        <view class="shortcut-badge data-badge" wx:if="{{interactionStats[item.key] > 0}}">
+          <text>{{interactionStats[item.key] > 99 ? '99+' : interactionStats[item.key]}}</text>
+        </view>
+      </view>
       <text class="shortcut-name">{{item.name}}</text>
     </view>
   </view>

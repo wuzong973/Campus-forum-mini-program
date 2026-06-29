@@ -11,7 +11,9 @@ exports.list = async (req, res) => {
   try {
     const [countRows] = await pool.query('SELECT COUNT(*) as total FROM forum_comment WHERE post_id = ? AND status = 1', [postId])
     const [rows] = await pool.query(
-      'SELECT c.*, u.nick_name, u.avatar_url FROM forum_comment c LEFT JOIN sys_user u ON c.user_id = u.id WHERE c.post_id = ? AND c.status = 1 ORDER BY c.created_at ASC LIMIT ? OFFSET ?',
+      `SELECT c.*, u.nick_name, u.avatar_url,
+        (SELECT nick_name FROM sys_user WHERE id = c.parent_id) AS parent_nick_name
+       FROM forum_comment c LEFT JOIN sys_user u ON c.user_id = u.id WHERE c.post_id = ? AND c.status = 1 ORDER BY c.created_at ASC LIMIT ? OFFSET ?`,
       [postId, pageSize, offset]
     )
     const total = countRows[0].total
@@ -33,6 +35,18 @@ exports.create = async (req, res) => {
     )
     await pool.query('UPDATE forum_post SET comment_count = comment_count + 1 WHERE id = ?', [postId])
     success(res, { id: result.insertId })
+  } catch (e) {
+    fail(res, safeMessage(e), 500)
+  }
+}
+
+exports.update = async (req, res) => {
+  const { content } = req.body
+  if (!content || !content.trim()) return fail(res, '内容不能为空')
+  try {
+    const [result] = await pool.query('UPDATE forum_comment SET content = ? WHERE id = ? AND user_id = ? AND status = 1', [content.trim(), req.params.id, req.userId])
+    if (!result.affectedRows) return fail(res, '无权编辑或评论不存在', 403)
+    success(res, null)
   } catch (e) {
     fail(res, safeMessage(e), 500)
   }

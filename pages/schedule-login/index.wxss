@@ -1,0 +1,109 @@
+.page {
+  min-height: 100vh;
+  background: var(--bg);
+  padding: 48rpx 32rpx;
+}
+
+.login-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 64rpx;
+  padding-top: 40rpx;
+}
+
+.school-logo {
+  width: 120rpx;
+  height: 120rpx;
+  border-radius: 50%;
+  background: var(--card-bg);
+  margin-bottom: 24rpx;
+  box-shadow: var(--shadow);
+}
+
+.school-name {
+  font-size: 36rpx;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 12rpx;
+}
+
+.school-desc {
+  font-size: 26rpx;
+  color: var(--text-tertiary);
+}
+
+.form-card {
+  background: var(--card-bg);
+  border-radius: var(--radius);
+  padding: 8rpx 32rpx;
+  box-shadow: var(--shadow-sm);
+}
+
+.form-item {
+  display: flex;
+  align-items: center;
+  padding: 28rpx 0;
+  border-bottom: 1rpx solid var(--divider);
+}
+
+.form-item:last-child {
+  border-bottom: none;
+}
+
+.form-label {
+  width: 120rpx;
+  font-size: 28rpx;
+  color: var(--text-primary);
+  flex-shrink: 0;
+}
+
+.form-input {
+  flex: 1;
+  font-size: 28rpx;
+  color: var(--text-primary);
+}
+
+.login-btn {
+  margin-top: 48rpx;
+  height: 88rpx;
+  line-height: 88rpx;
+  background: var(--primary);
+  color: #fff;
+  font-size: 32rpx;
+  font-weight: 600;
+  border-radius: var(--radius-pill);
+  border: none;
+  transition: var(--transition-fast);
+}
+
+.login-btn:active {
+  opacity: 0.85;
+  transform: scale(0.98);
+}
+
+.login-btn::after {
+  border: none;
+}
+
+.tips {
+  margin-top: 48rpx;
+  padding: 32rpx;
+  background: var(--card-bg);
+  border-radius: var(--radius);
+}
+
+.tips-title {
+  display: block;
+  font-size: 28rpx;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 16rpx;
+}
+
+.tips-text {
+  display: block;
+  font-size: 24rpx;
+  color: var(--text-tertiary);
+  line-height: 1.8;
+}

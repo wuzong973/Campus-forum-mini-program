@@ -1,4 +1,5 @@
 const auth = require('../../utils/auth')
+const PROFILE_EXT_KEY = 'profile_ext'
 
 Page({
   data: {
@@ -10,7 +11,8 @@ Page({
     editNickname: '',
     editGender: 1,
     editSchool: '广东轻工职业技术大学',
-    editCampus: ''
+    editCampus: '',
+    nicknameFocus: false
   },
 
   onShow() {
@@ -27,6 +29,12 @@ Page({
   onEditGender() { this.openProfileModal() },
   onEditSchool() { this.openProfileModal() },
   onEditCampus() { this.openProfileModal() },
+
+  onLoad(options) {
+    if (options && options.completeProfile) {
+      setTimeout(() => this.openProfileModal(), 300)
+    }
+  },
 
   openProfileModal() {
     const userInfo = getApp().globalData.userInfo || {}
@@ -56,7 +64,60 @@ Page({
     })
   },
 
-  onNicknameInput(e) { this.setData({ editNickname: e.detail.value }) },
+  onChooseWechatAvatar(e) {
+    const avatarUrl = e && e.detail && e.detail.avatarUrl
+    this.setData({ showAvatarSource: false })
+    if (avatarUrl) {
+      this.setData({ editAvatar: avatarUrl })
+      return
+    }
+    if (wx.getUserProfile) {
+      wx.getUserProfile({
+        desc: '用于同步微信头像到个人资料',
+        success: (res) => {
+          this.setData({ editAvatar: (res.userInfo || {}).avatarUrl || this.data.editAvatar })
+        },
+        fail: () => wx.showToast({ title: '未获取到微信头像', icon: 'none' })
+      })
+    } else {
+      wx.showToast({ title: '当前微信版本不支持', icon: 'none' })
+    }
+  },
+
+  isUsableWechatNickname(nickName) {
+    const value = (nickName || '').trim()
+    return !!value && value !== '微信用户' && value !== '用户' && value !== '校园用户'
+  },
+
+  promptNicknamePicker() {
+    this.setData({ nicknameFocus: false })
+    setTimeout(() => {
+      this.setData({ nicknameFocus: true })
+      wx.showToast({ title: '请在输入框中选择微信昵称', icon: 'none' })
+    }, 80)
+  },
+
+  onUseWechatNickname() {
+    if (!wx.getUserProfile) {
+      this.promptNicknamePicker()
+      return
+    }
+    wx.getUserProfile({
+      desc: '用于同步微信昵称到个人资料',
+      success: (res) => {
+        const nickName = (res.userInfo || {}).nickName
+        if (this.isUsableWechatNickname(nickName)) {
+          this.setData({ editNickname: nickName, nicknameFocus: false })
+          wx.showToast({ title: '微信昵称已填入', icon: 'success' })
+        } else {
+          this.promptNicknamePicker()
+        }
+      },
+      fail: () => this.promptNicknamePicker()
+    })
+  },
+
+  onNicknameInput(e) { this.setData({ editNickname: e.detail.value, nicknameFocus: false }) },
   onSelectGender(e) { this.setData({ editGender: parseInt(e.currentTarget.dataset.value, 10) }) },
   onSelectCampus(e) { this.setData({ editCampus: e.currentTarget.dataset.value }) },
 
@@ -71,6 +132,12 @@ Page({
     }
     auth.syncProfile(fields).then(() => {
       const genderMap = { 0: '未知', 1: '男', 2: '女' }
+      const oldExt = wx.getStorageSync(PROFILE_EXT_KEY) || {}
+      wx.setStorageSync(PROFILE_EXT_KEY, Object.assign({}, oldExt, {
+        nickName: editNickname,
+        avatarUrl: editAvatar,
+        campus: editCampus
+      }))
       this.setData({
         userInfo: getApp().globalData.userInfo,
         genderText: genderMap[editGender] || '男',

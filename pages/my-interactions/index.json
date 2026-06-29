@@ -1,0 +1,7 @@
+{
+  "navigationBarTitleText": "互动记录",
+  "usingComponents": {
+    "post-card": "/components/post-card/post-card",
+    "empty-state": "/components/empty-state/empty-state"
+  }
+}

@@ -1,0 +1,84 @@
+<view class="page" wx:if="{{profile}}">
+  <view class="hero" style="padding-top: {{statusBarHeight}}px;">
+    <image class="hero-cover" src="{{profile.coverUrl || '/assets/banners/banner-community.png'}}" mode="aspectFill"></image>
+    <view class="hero-mask"></view>
+    <view class="nav-bar" style="height: {{navBarHeight}}px;">
+      <view class="nav-back" bindtap="onBack">‹</view>
+      <text class="nav-title">校园主页</text>
+      <view class="nav-more">•••</view>
+    </view>
+    <view class="hero-service">校园社区</view>
+  </view>
+
+  <view class="profile-panel">
+    <view class="profile-main">
+      <image class="profile-avatar" src="{{profile.avatarUrl || '/assets/icons/avatar.png'}}" mode="aspectFill"></image>
+      <view class="profile-actions" wx:if="{{profile.id !== currentUserId}}">
+        <button class="follow-btn {{profile.isFollowed ? 'followed' : ''}}" bindtap="onFollow" loading="{{followLoading}}">
+          {{profile.isFollowed ? '已关注' : '+ 关注'}}
+        </button>
+        <button class="message-btn" bindtap="onMessage">
+          <image class="message-icon" src="/assets/icons/message.png" mode="aspectFit"></image>
+          <text>发私信</text>
+        </button>
+      </view>
+    </view>
+
+    <view class="profile-info">
+      <view class="profile-name-row">
+        <text class="profile-name">{{profile.nickName}}</text>
+        <text class="profile-verify" wx:if="{{profile.verified}}">Lv.4</text>
+      </view>
+      <view class="profile-meta-row">
+        <text class="profile-meta">ID {{profile.id}}</text>
+        <text class="profile-meta">{{profile.campus || '广轻工'}}</text>
+        <text class="profile-meta">{{profile.major || '校园用户'}}</text>
+      </view>
+      <view class="signature-row">
+        <text class="profile-signature">{{profile.signature || '该用户还没有填写签名...'}}</text>
+        <text class="about-link">关于Ta ›</text>
+      </view>
+    </view>
+
+    <view class="stats-row">
+      <view class="stat-item">
+        <text class="stat-num">{{profile.likeReceived || 0}}</text>
+        <text class="stat-label">获赞</text>
+      </view>
+      <view class="stat-item">
+        <text class="stat-num">{{profile.postCount || 0}}</text>
+        <text class="stat-label">帖子</text>
+      </view>
+      <view class="stat-item">
+        <text class="stat-num">{{profile.followingCount || 0}}</text>
+        <text class="stat-label">关注</text>
+      </view>
+      <view class="stat-item">
+        <text class="stat-num">{{profile.followerCount || 0}}</text>
+        <text class="stat-label">粉丝</text>
+      </view>
+    </view>
+  </view>
+
+  <view class="content-section">
+    <view class="profile-tabbar">
+      <view
+        class="profile-tab {{activeTab === index ? 'active' : ''}}"
+        wx:for="{{tabs}}"
+        wx:key="*this"
+        data-index="{{index}}"
+        bindtap="onTab"
+      >
+        <text>{{item}}{{index === 0 ? ' ' + posts.length : ''}}</text>
+      </view>
+    </view>
+
+    <view wx:if="{{activeTab === 0}}" wx:for="{{posts}}" wx:key="id">
+      <post-card post="{{item}}" showFooter="{{false}}" />
+    </view>
+
+    <empty-state wx:if="{{!loading && activeTab === 0 && posts.length === 0}}" text="还没有发布帖子" />
+    <empty-state wx:if="{{activeTab === 1}}" text="收藏内容暂未公开" />
+    <empty-state wx:if="{{activeTab === 2}}" text="关注列表暂未公开" />
+  </view>
+</view>

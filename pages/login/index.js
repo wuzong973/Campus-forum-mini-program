@@ -4,6 +4,13 @@ const auth = require("../../utils/auth");
 Page({
   data: { loading: false },
 
+  // 登录成功后的统一处理：建立 WebSocket + 同步未读数
+  _postLogin() {
+    try {
+      getApp().onLogin && getApp().onLogin();
+    } catch (e) {}
+  },
+
   onGetPhoneNumber(e) {
     const hasCode = !!(e.detail && e.detail.code);
     const isFail =
@@ -16,6 +23,7 @@ Page({
         .phoneLogin("")
         .then((user) => {
           auth.saveUser(user);
+          this._postLogin();
           wx.showToast({ title: "登录成功（模拟）", icon: "success" });
           const pages = getCurrentPages();
           if (pages.length > 1) {
@@ -51,6 +59,7 @@ Page({
       .phoneLogin(e.detail.code)
       .then((user) => {
         auth.saveUser(user);
+        this._postLogin();
         wx.showToast({ title: "登录成功", icon: "success" });
         const pages = getCurrentPages();
         if (pages.length > 1) {

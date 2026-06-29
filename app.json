@@ -5,11 +5,17 @@
     "pages/schedule/index",
     "pages/schedule-add/index",
     "pages/schedule-ocr/index",
+    "pages/schedule-login/index",
+    "pages/schedule-edit/index",
     "pages/errand/index",
     "pages/errand-publish/index",
     "pages/errand-order/index",
     "pages/post-publish/index",
     "pages/post-detail/index",
+    "pages/share/index",
+    "pages/chat/index",
+    "pages/profile/index",
+    "pages/profile-edit/index",
     "pages/user/index",
     "pages/settings/index",
     "pages/agreement/index",
@@ -21,6 +27,7 @@
     "pages/login/index",
     "pages/search/index",
     "pages/my-posts/index",
+    "pages/my-interactions/index",
     "pages/my-messages/index",
     "pages/wallet/index",
     "pages/webview/index",
@@ -71,6 +78,8 @@
   "navigateToMiniProgramAppIdList": [
     "wx4f4f74eaf4b7d100",
     "wxe9f4a4df3ac90522",
-    "wx7b3c69b4b6b348d5"
+    "wx7b3c69b4b6b348d5",
+    "wx2cd0769ebeb0d213",
+    "wxbe48d181d8d5762e"
   ]
 }

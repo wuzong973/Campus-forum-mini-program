@@ -1,5 +1,6 @@
 const request = require('./request')
 const mock = require('./mock')
+const scheduleUtils = require('./schedule')
 
 // 通用本地缓存：减少首屏请求，缓存命中时先返回再静默刷新
 function cacheGet(key, ttl) {
@@ -31,9 +32,13 @@ function withMock(apiCall, mockData) {
 
 function parseImages(images) {
   if (!images) return []
-  if (Array.isArray(images)) return images
+  if (Array.isArray(images)) {
+    return images
+      .map((item) => typeof item === 'string' ? item : (item.type === 'video' ? '' : item.url || item.path || ''))
+      .filter(Boolean)
+  }
   if (typeof images === 'string') {
-    try { return JSON.parse(images) } catch (e) { return [] }
+    try { return parseImages(JSON.parse(images)) } catch (e) { return [] }
   }
   return []
 }
@@ -44,6 +49,7 @@ function mapPost(r) {
     userId: r.userId || r.user_id,
     nickName: r.nickName || r.nick_name,
     avatarUrl: r.avatarUrl || r.avatar_url || '',
+    title: r.title || '',
     gender: r.gender,
     category: r.category,
     content: r.content,
@@ -52,10 +58,49 @@ function mapPost(r) {
     likeCount: r.likeCount || r.like_count || 0,
     commentCount: r.commentCount || r.comment_count || 0,
     favoriteCount: r.favoriteCount || r.favorite_count || 0,
+    shareCount: r.shareCount || r.share_count || 0,
+    verified: !!(r.verified || r.isVerified || r.is_verified),
+    followerCount: r.followerCount || r.follower_count || 0,
+    postCount: r.postCount || r.post_count || 0,
+    isFollowed: !!r.isFollowed,
+    isHot: !!r.isHot,
     isLiked: !!r.isLiked,
     isFavorited: !!r.isFavorited,
     createdAt: r.createdAt || r.created_at
   }
+}
+
+function getFollowIds() {
+  return wx.getStorageSync('follow_user_ids') || []
+}
+
+function setFollowIds(ids) {
+  wx.setStorageSync('follow_user_ids', ids)
+}
+
+function applyMockFollowState(post) {
+  const followIds = getFollowIds()
+  return Object.assign({}, post, { isFollowed: followIds.indexOf(post.userId) > -1 || !!post.isFollowed })
+}
+
+function mapMockPost(post) {
+  const mapped = mapPost(post)
+  return applyMockFollowState(mapped)
+}
+
+function buildMockProfile(userId) {
+  const uid = Number(userId)
+  const profile = mock.users.find((item) => item.id === uid) || mock.users[0]
+  const followIds = getFollowIds()
+  const userPosts = mock.posts.filter((item) => item.userId === profile.id).map(mapMockPost)
+  return Object.assign({}, profile, {
+    postCount: userPosts.length,
+    followingCount: profile.followingCount || 0,
+    followerCount: (profile.followerCount || 0) + (followIds.indexOf(profile.id) > -1 ? 1 : 0),
+    likeReceived: userPosts.reduce((sum, item) => sum + (item.likeCount || 0), 0),
+    isFollowed: followIds.indexOf(profile.id) > -1,
+    posts: userPosts
+  })
 }
 
 function getPostList(params) {
@@ -74,7 +119,7 @@ function getPostList(params) {
       }
       const start = (page - 1) * pageSize
       const slice = list.slice(start, start + pageSize)
-      return { list: slice, total: list.length, hasMore: start + pageSize < list.length }
+      return { list: slice.map(mapMockPost), total: list.length, hasMore: start + pageSize < list.length }
     }
   )
 }
@@ -82,7 +127,7 @@ function getPostList(params) {
 function getPostDetail(id) {
   return withMock(
     () => request.get('/post/' + id, {}, false).then((d) => d ? mapPost(d) : null),
-    () => mapPost(mock.posts.find((p) => p.id === Number(id)) || mock.posts[0])
+    () => mapMockPost(mock.posts.find((p) => p.id === Number(id)) || mock.posts[0])
   )
 }
 
@@ -114,9 +159,17 @@ function getErrandList(params) {
 
 function getScheduleList() {
   return withMock(
-    () => request.get('/schedule/list', {}, true).then((d) => d || []),
-    () => wx.getStorageSync('schedule_courses') || []
+    () => request.get('/schedule/list', {}, true).then((d) => (d || []).map((item, index) => scheduleUtils.normalizeCourse(item, index))),
+    () => (wx.getStorageSync('schedule_courses') || []).map((item, index) => scheduleUtils.normalizeCourse(item, index))
   )
+}
+
+function syncSchedule(username, password) {
+  return request.post('/schedule/sync', { username, password }, true)
+}
+
+function clearSchedule() {
+  return request.post('/schedule/clear', {}, true)
 }
 
 function getScheduleConfig() {
@@ -142,7 +195,127 @@ function getCommentList(postId) {
   )
 }
 
+function getUserProfile(userId) {
+  return withMock(
+    () => request.get('/user/profile/' + userId, {}, false),
+    () => buildMockProfile(userId)
+  )
+}
+
+function getUserPosts(userId) {
+  return withMock(
+    () => request.get('/user/profile/' + userId + '/posts', {}, false).then((d) => (d.list || []).map(mapPost)),
+    () => buildMockProfile(userId).posts
+  )
+}
+
+function followUser(userId) {
+  return withMock(
+    () => request.post('/user/follow/' + userId, {}, true),
+    () => {
+      const ids = getFollowIds()
+      if (ids.indexOf(Number(userId)) === -1) ids.push(Number(userId))
+      setFollowIds(ids)
+      return { followed: true }
+    }
+  )
+}
+
+function unfollowUser(userId) {
+  return withMock(
+    () => request.del('/user/follow/' + userId, {}, true),
+    () => {
+      const ids = getFollowIds().filter((id) => id !== Number(userId))
+      setFollowIds(ids)
+      return { followed: false }
+    }
+  )
+}
+
+function favoritePost(postId) {
+  return withMock(
+    () => request.post('/post/' + postId + '/favorite', {}, true),
+    () => ({ favorited: true })
+  )
+}
+
+function getMyInteractionStats() {
+  return withMock(
+    () => request.get('/user/interactions/stats', {}, true),
+    () => {
+      const posts = mock.posts || []
+      const comments = wx.getStorageSync('my_comment_records') || []
+      return {
+        liked: posts.filter((item) => item.isLiked).length || posts.filter((item) => (item.likeCount || 0) > 0).slice(0, 3).length,
+        shared: wx.getStorageSync('my_share_records') ? (wx.getStorageSync('my_share_records') || []).length : posts.filter((item) => (item.shareCount || 0) > 0).slice(0, 2).length,
+        commented: comments.length || posts.filter((item) => (item.commentCount || 0) > 0).slice(0, 4).length,
+        favorited: posts.filter((item) => item.isFavorited).length || posts.filter((item) => (item.favoriteCount || 0) > 0).slice(0, 3).length,
+        followed: (wx.getStorageSync('follow_user_ids') || []).length
+      }
+    }
+  )
+}
+
+function getMyInteractionList(type) {
+  return withMock(
+    () => request.get('/user/interactions/' + type, { page: 1, pageSize: 50 }, true),
+    () => {
+      const posts = mock.posts || []
+      const followIds = wx.getStorageSync('follow_user_ids') || []
+      if (type === 'followed') {
+        return {
+          list: mock.users.filter((item) => followIds.indexOf(item.id) > -1),
+          total: followIds.length
+        }
+      }
+      const countMap = {
+        liked: 'likeCount',
+        shared: 'shareCount',
+        commented: 'commentCount',
+        favorited: 'favoriteCount'
+      }
+      const flagMap = {
+        liked: 'isLiked',
+        favorited: 'isFavorited'
+      }
+      const countKey = countMap[type]
+      const flagKey = flagMap[type]
+      const list = posts.filter((item) => {
+        if (flagKey && item[flagKey]) return true
+        return countKey ? (item[countKey] || 0) > 0 : false
+      })
+      return { list, total: list.length }
+    }
+  )
+}
+
+function createShare(postId, content, parentShareId) {
+  return request.post('/share', { postId, content, parentShareId }, true)
+}
+
+function getShareList(postId) {
+  return request.get('/share/' + postId, { page: 1, pageSize: 20 }, false)
+}
+
 module.exports = {
-  withMock, mapPost, getPostList, getPostDetail, getServiceList,
-  getErrandList, getScheduleList, getScheduleConfig, getCommentList
+  withMock,
+  mapPost,
+  getPostList,
+  getPostDetail,
+  getServiceList,
+  getErrandList,
+  getScheduleList,
+  syncSchedule,
+  clearSchedule,
+  getScheduleConfig,
+  getCommentList,
+  getUserProfile,
+  getUserPosts,
+  followUser,
+  unfollowUser,
+  favoritePost,
+  getMyInteractionStats,
+  getMyInteractionList,
+  createShare,
+  getShareList
 }

@@ -3,6 +3,7 @@
   transition: background 0.3s ease-out;
 }
 
+/* ============ 导航栏 ============ */
 .custom-nav {
   position: fixed;
   top: 0;
@@ -14,6 +15,7 @@
 .white-nav {
   background: var(--card-bg);
   border-bottom: 1rpx solid var(--border);
+  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.03);
 }
 
 .nav-content {
@@ -56,7 +58,7 @@
 }
 
 .nav-ai-text {
-  font-size: 24rpx;
+  font-size: 22rpx;
   font-weight: 700;
   color: var(--text-primary);
   border: 2rpx solid var(--text-primary);
@@ -80,7 +82,46 @@
   width: 60rpx;
 }
 
-/* 过期卡片 */
+/* ============ 周次信息条 ============ */
+.week-info-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 24rpx 32rpx 16rpx;
+  background: rgba(255, 255, 255, 0.92);
+  margin: 0 24rpx;
+  margin-top: 24rpx;
+  border-radius: 20rpx 20rpx 0 0;
+  border-bottom: 1rpx solid rgba(235, 237, 240, 0.9);
+}
+
+.week-info-left {
+  display: flex;
+  flex-direction: column;
+  gap: 4rpx;
+}
+
+.week-label {
+  font-size: 32rpx;
+  font-weight: 700;
+  color: #323233;
+}
+
+.week-date {
+  font-size: 24rpx;
+  color: #969799;
+}
+
+.course-count {
+  font-size: 26rpx;
+  color: #4a7aff;
+  background: #e8f0ff;
+  padding: 8rpx 20rpx;
+  border-radius: 24rpx;
+  font-weight: 500;
+}
+
+/* ============ 过期卡片 ============ */
 .expired-card {
   margin: 120rpx 48rpx;
   padding: 80rpx 48rpx;
@@ -121,7 +162,7 @@
   font-size: 52rpx;
   font-weight: 700;
   color: #969799;
-  letter-spacing: 12rpx;
+  letter-spacing: 0;
 }
 
 .expired-title {
@@ -163,7 +204,7 @@
   border: none;
 }
 
-/* 抽屉 */
+/* ============ 抽屉 ============ */
 .drawer-mask {
   position: fixed;
   top: 0;
@@ -215,61 +256,365 @@
   margin-top: 32rpx;
 }
 
-.schedule-grid {
-  margin: 24rpx;
-  padding: 16rpx;
-  overflow-x: auto;
-}
-
-.grid-header, .grid-row {
+/* 同步课表项 */
+.sync-item {
   display: flex;
+  align-items: center;
+  padding: 24rpx 32rpx;
+  background: linear-gradient(135deg, #e8f0ff 0%, #f0f4ff 100%);
+  border-radius: var(--radius);
+  margin: 16rpx 24rpx;
+  border: none;
 }
 
-.time-col {
-  width: 80rpx;
+.sync-icon-wrap {
+  width: 72rpx;
+  height: 72rpx;
+  background: var(--primary);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 20rpx;
   flex-shrink: 0;
-  font-size: 20rpx;
-  color: var(--text-tertiary);
-  padding: 8rpx 4rpx;
 }
 
-.day-col {
+.sync-icon {
+  width: 36rpx;
+  height: 36rpx;
+  filter: brightness(0) invert(1);
+}
+
+.sync-text {
   flex: 1;
-  min-width: 90rpx;
-  border: 1rpx solid var(--divider);
-  min-height: 80rpx;
-  padding: 4rpx;
-  font-size: 22rpx;
-  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 4rpx;
 }
 
-.course-cell {
-  border-radius: 8rpx;
-  padding: 6rpx;
-  margin: 2rpx 0;
-  color: #fff;
+.sync-title {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: var(--text-primary);
 }
 
-.course-name {
-  display: block;
-  font-size: 20rpx;
-  font-weight: 500;
+.sync-desc {
+  font-size: 24rpx;
+  color: var(--text-tertiary);
+}
+
+.sync-arrow {
+  font-size: 32rpx;
+  color: var(--text-tertiary);
+  margin-left: 12rpx;
+}
+
+/* ============ 课表容器 ============ */
+.schedule-container {
+  margin: 0 24rpx 24rpx;
+  background: rgba(255, 255, 255, 0.94);
+  border-radius: 0 0 20rpx 20rpx;
   overflow: hidden;
-  text-overflow: ellipsis;
+  box-shadow: 0 10rpx 32rpx rgba(42, 66, 123, 0.08);
+}
+
+.schedule-scroll {
+  width: 100%;
   white-space: nowrap;
 }
 
-.course-loc {
-  display: block;
-  font-size: 18rpx;
-  opacity: 0.85;
+.schedule-grid {
+  display: grid;
+  grid-template-columns: 82rpx repeat(7, 112rpx);
+  grid-auto-rows: 112rpx;
+  gap: 4rpx;
+  background: #eef3fa;
+  padding: 8rpx 6rpx;
+  min-width: 906rpx;
+  border: none;
 }
 
-.empty-schedule {
+/* 隐藏周末：只显示 5 天 */
+.schedule-grid.hide-weekend {
+  grid-template-columns: 82rpx repeat(5, 112rpx);
+  min-width: 676rpx;
+}
+
+.grid-item {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22rpx;
+  background: rgba(255, 255, 255, 0.92);
+  overflow: hidden;
+  position: relative;
+  border: 1rpx solid rgba(228, 233, 242, 0.92);
+  border-radius: 14rpx;
+}
+
+.grid-item.type-header {
+  background: #eef3ff;
+  font-weight: 700;
+  color: #2c3b63;
+  font-size: 22rpx;
+  border: none;
+}
+
+.grid-item.type-period {
+  background: linear-gradient(180deg, #f8faff 0%, #eef3ff 100%);
+  font-weight: 700;
+  color: #5a6b97;
+  font-size: 24rpx;
+  border: none;
+}
+
+.period-text {
+  writing-mode: vertical-rl;
+  letter-spacing: 0;
+}
+
+.grid-item.type-section {
+  background: #f7f9fc;
+  color: #5e6678;
+  font-weight: 500;
+  font-size: 22rpx;
+  border: none;
+}
+
+.section-text {
+  font-size: 22rpx;
+}
+
+.grid-item.type-time {
+  background: #f7f9fc;
+  border: none;
+  border-radius: 10rpx;
+}
+
+.time-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 4rpx 2rpx;
+  box-sizing: border-box;
+}
+
+.time-text {
+  font-size: 17rpx;
+  color: #76809a;
   text-align: center;
-  padding: 120rpx 48rpx;
+  line-height: 1.22;
+  white-space: normal;
+  word-break: break-all;
+}
+
+.grid-item.type-empty {
+  background: rgba(255, 255, 255, 0.72);
+  border-style: dashed;
+}
+
+.grid-item.type-course {
+  color: #1f2a44;
+  align-items: stretch;
+  justify-content: stretch;
+  border-radius: 18rpx;
+  padding: 0;
+  box-sizing: border-box;
+  overflow: hidden;
+  position: relative;
+  border: none;
+  background: transparent;
+}
+
+.course-content {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-start;
+  width: 100%;
+  height: 100%;
+  text-align: left;
+  padding: 8rpx 8rpx 7rpx;
+  box-sizing: border-box;
+  overflow: hidden;
+  border: 2rpx solid transparent;
+  border-radius: 14rpx;
+  box-shadow: inset 0 0 0 1rpx rgba(255, 255, 255, 0.42);
+}
+
+.course-content .course-name {
+  font-size: 19rpx;
+  font-weight: 700;
+  word-break: break-all;
+  line-height: 1.25;
+  margin-bottom: 4rpx;
+  width: 100%;
+  color: #22304d;
+  white-space: normal;
+}
+
+.course-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4rpx;
+  margin-bottom: 4rpx;
+}
+
+.course-tag {
+  padding: 2rpx 6rpx;
+  border-radius: 999rpx;
+  background: rgba(255, 255, 255, 0.48);
+  color: #42526e;
+  font-size: 16rpx;
+  font-weight: 600;
+}
+
+.week-tag {
+  background: rgba(255, 255, 255, 0.72);
+  color: var(--primary);
+}
+
+.course-content .course-teacher,
+.course-content .course-location {
+  font-size: 17rpx;
+  word-break: break-all;
+  line-height: 1.25;
+  width: 100%;
+  white-space: normal;
+}
+
+.course-content .course-teacher {
+  color: #49566f;
+  margin-bottom: 4rpx;
+}
+
+.course-content .course-location {
+  font-weight: 700;
+  font-size: 18rpx;
+}
+
+/* 教室颜色 */
+.location-red {
+  color: #e53935 !important;
+}
+
+.location-purple {
+  color: #7b1fa2 !important;
+}
+
+.location-orange {
+  color: #f57c00 !important;
+}
+
+.location-blue {
+  color: #1976d2 !important;
+}
+
+.location-green {
+  color: #388e3c !important;
+}
+
+/* ============ 空状态 ============ */
+.empty-schedule {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 160rpx 48rpx;
+}
+
+.empty-icon-wrap {
+  width: 120rpx;
+  height: 120rpx;
+  background: #f0f4ff;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 32rpx;
+}
+
+.empty-icon {
+  font-size: 56rpx;
 }
 
 .empty-text {
-  font-size: 28rpx;
+  font-size: 32rpx;
+  font-weight: 600;
+  color: #323233;
+  margin-bottom: 12rpx;
+}
+
+.empty-desc {
+  font-size: 26rpx;
+  color: #969799;
+  text-align: center;
+}
+
+/* ============ 图例说明 ============ */
+.legend-section {
+  margin: 0 24rpx 48rpx;
+  padding: 32rpx 24rpx;
+  background: #fff;
+  border-radius: 20rpx;
+  box-shadow: 0 4rpx 24rpx rgba(0, 0, 0, 0.06);
+}
+
+.legend-title {
+  font-size: 26rpx;
+  font-weight: 600;
+  color: #646566;
+  margin-bottom: 20rpx;
+  padding-left: 12rpx;
+  border-left: 6rpx solid #4a7aff;
+}
+
+.legend-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20rpx;
+  margin-bottom: 24rpx;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+  background: #f7f8fa;
+  padding: 12rpx 20rpx;
+  border-radius: 8rpx;
+}
+
+.legend-color {
+  width: 24rpx;
+  height: 24rpx;
+  border-radius: 6rpx;
+  flex-shrink: 0;
+}
+
+.legend-label {
+  font-size: 22rpx;
+  color: #646566;
+}
+
+.legend-tip {
+  display: flex;
+  align-items: flex-start;
+  gap: 8rpx;
+  padding: 16rpx 20rpx;
+  background: #fff7e6;
+  border-radius: 12rpx;
+  border-left: 4rpx solid #faad14;
+}
+
+.tip-icon {
+  font-size: 24rpx;
+  flex-shrink: 0;
+}
+
+.tip-text {
+  font-size: 22rpx;
+  color: #8c7b5a;
+  line-height: 1.5;
 }

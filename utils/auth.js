@@ -26,6 +26,38 @@ function requireLogin(message) {
   return false
 }
 
+function getMissingProfileFields() {
+  const app = getAppSafe()
+  const user = (app && app.globalData.userInfo) || wx.getStorageSync('userInfo') || {}
+  const required = [
+    { key: 'avatarUrl', label: '头像' },
+    { key: 'nickName', label: '昵称' },
+    { key: 'campus', label: '校区' },
+    { key: 'gender', label: '性别' },
+    { key: 'phone', label: '手机号' }
+  ]
+  return required.filter((item) => {
+    const value = user[item.key]
+    if (item.key === 'gender') return value === undefined || value === null || value === 0 || value === ''
+    return !value
+  })
+}
+
+function requirePublishReady() {
+  if (!requireLogin('发帖需要先登录')) return false
+  const missing = getMissingProfileFields()
+  if (!missing.length) return true
+  wx.showModal({
+    title: '请完善个人信息',
+    content: '发帖前需先补充：' + missing.map((item) => item.label).join('、'),
+    confirmText: '去编辑',
+    success(res) {
+      if (res.confirm) wx.navigateTo({ url: '/pages/settings/index?completeProfile=1' })
+    }
+  })
+  return false
+}
+
 function saveUser(user) {
   const app = getAppSafe()
   if (!app) return
@@ -75,4 +107,4 @@ function syncProfile(fields) {
   })
 }
 
-module.exports = { isLoggedIn, requireLogin, saveUser, logout, syncProfile }
+module.exports = { isLoggedIn, requireLogin, requirePublishReady, getMissingProfileFields, saveUser, logout, syncProfile }

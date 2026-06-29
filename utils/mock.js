@@ -1,29 +1,126 @@
-const _IMG = 'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?image_size=landscape_16_9&prompt='
+const profileCovers = {
+  community: '/assets/banners/banner-community.png',
+  schedule: '/assets/banners/banner-schedule.png',
+  errand: '/assets/banners/banner-errand.png'
+}
+
 const banners = [
-  { id: 1, title: 'AI 智能课程表', subtitle: '拍照一键识别，告别手动录入', image: _IMG + 'flat%20vector%20illustration%20smartphone%20scanning%20university%20timetable%20paper%20with%20AI%20scan%20beam%2C%20calendar%20grid%20floating%20elements%2C%20blue%20%234A7AFF%20gradient%20background%2C%20minimal%20modern%20Chinese%20campus%20app%20banner%20style%2C%20clean%20UI%2C%20soft%20shadows', link: '/pages/schedule/index' },
-  { id: 2, title: '代拿跑腿', subtitle: '试营业期间派单 9 折，极速送达', image: _IMG + 'flat%20vector%20illustration%20courier%20running%20with%20delivery%20box%20and%20food%20bag%20on%20campus%2C%20orange%20to%20red%20%23FF8E53%20gradient%20background%2C%20motion%20lines%2C%20minimal%20modern%20Chinese%20campus%20app%20banner%20style%2C%20clean%20UI%2C%20soft%20shadows', link: '/pages/errand/index' },
-  { id: 3, title: '校园社区', subtitle: '分享生活日常，结识同好校友', image: _IMG + 'flat%20vector%20illustration%20college%20students%20chatting%20with%20speech%20bubbles%20and%20heart%20icons%2C%20purple%20%23722ED1%20gradient%20background%2C%20social%20connection%2C%20minimal%20modern%20Chinese%20campus%20app%20banner%20style%2C%20clean%20UI%2C%20soft%20shadows', link: '/pages/index/index' }
+  {
+    id: 1,
+    title: 'AI 课表助手',
+    subtitle: '上传课表截图，自动拆解课程并按类型着色',
+    tag: '学习效率',
+    image: profileCovers.schedule,
+    bg: 'linear-gradient(135deg, #4A7AFF 0%, #6B8FFF 100%)',
+    link: '/pages/schedule/index'
+  },
+  {
+    id: 2,
+    title: '校园即时互助',
+    subtitle: '课后取件、代拿跑腿、生活小事快速解决',
+    tag: '生活服务',
+    image: profileCovers.errand,
+    bg: 'linear-gradient(135deg, #FF8E53 0%, #FF6B6B 100%)',
+    link: '/pages/errand/index'
+  },
+  {
+    id: 3,
+    title: '有温度的校园社区',
+    subtitle: '发现同校同好，发帖互动并一键发起私信',
+    tag: '社区互动',
+    image: profileCovers.community,
+    bg: 'linear-gradient(135deg, #7A5AF8 0%, #9278FF 100%)',
+    link: '/pages/index/index'
+  }
+]
+
+const users = [
+  {
+    id: 1,
+    nickName: '广轻工登山社',
+    avatarUrl: '/assets/icons/avatar.png',
+    campus: '佛山校区',
+    major: '社团组织',
+    signature: '每周组织一次轻徒步，欢迎新手一起出发。',
+    coverUrl: profileCovers.community,
+    verified: true,
+    followerCount: 186,
+    followingCount: 32,
+    likeReceived: 921
+  },
+  {
+    id: 2,
+    nickName: '海盐汽水',
+    avatarUrl: '/assets/icons/avatar.png',
+    campus: '广州校区',
+    major: '数字媒体',
+    signature: '分享校园穿搭、摄影和一切能让人心情变好的瞬间。',
+    coverUrl: profileCovers.schedule,
+    verified: false,
+    followerCount: 89,
+    followingCount: 77,
+    likeReceived: 268
+  },
+  {
+    id: 3,
+    nickName: '旧书中转站',
+    avatarUrl: '/assets/icons/avatar.png',
+    campus: '佛山校区',
+    major: '图书互助',
+    signature: '专业课旧书、考证资料长期交换，欢迎留言。',
+    coverUrl: profileCovers.errand,
+    verified: true,
+    followerCount: 64,
+    followingCount: 15,
+    likeReceived: 131
+  },
+  {
+    id: 4,
+    nickName: '礼仪活动发布台',
+    avatarUrl: '/assets/icons/avatar.png',
+    campus: '广州校区',
+    major: '校园活动',
+    signature: '校内外活动招募、学时信息、彩排提醒统一发布。',
+    coverUrl: profileCovers.community,
+    verified: true,
+    followerCount: 120,
+    followingCount: 18,
+    likeReceived: 402
+  },
+  {
+    id: 5,
+    nickName: '深夜食堂观察员',
+    avatarUrl: '/assets/icons/avatar.png',
+    campus: '佛山校区',
+    major: '生活分享',
+    signature: '记录食堂、夜宵和每一次不想写作业的夜晚。',
+    coverUrl: profileCovers.schedule,
+    verified: false,
+    followerCount: 47,
+    followingCount: 53,
+    likeReceived: 96
+  }
 ]
 
 const homeServices = [
-  { id: 1, name: '二手闲置', icon: '🛒', badge: '推荐', link: '' },
-  { id: 2, name: '订水系统', icon: '💧', badge: '推荐', link: 'http://wx.dingbaoxiaoyuan.com/home' },
-  { id: 3, name: '校园卡', icon: '💳', badge: '', link: '' },
-  { id: 4, name: '宅印', icon: '🖨️', badge: '推荐', link: '' },
-  { id: 5, name: '雨课堂', icon: '📚', badge: '推荐', link: '' },
-  { id: 6, name: '校历', icon: '📅', badge: '新生', link: '' },
-  { id: 7, name: '电脑义修', icon: '💻', badge: '推荐', link: '' },
-  { id: 8, name: '信息门户', icon: '🏫', badge: '推荐', link: '' },
-  { id: 9, name: '校园网', icon: '📶', badge: '', link: '' }
+  { id: 1, name: '二手闲置', iconPath: '/assets/icons/svc-idle.png', badge: '推荐', link: '' },
+  { id: 2, name: '订水系统', iconPath: '/assets/icons/svc-water.png', badge: '推荐', link: 'http://wx.dingbaoxiaoyuan.com/home' },
+  { id: 3, name: '校园卡', iconPath: '/assets/icons/svc-card.png', badge: '', link: '' },
+  { id: 4, name: '宅印', iconPath: '/assets/icons/svc-print.png', badge: '推荐', link: '' },
+  { id: 5, name: '校历', iconPath: '/assets/icons/svc-calendar.png', badge: '新生', link: '' },
+  { id: 7, name: '自助购电', iconPath: '/assets/icons/svc-power.png', badge: '推荐', link: 'http://bd.bdfairy.cn' },
+  { id: 8, name: '零食店', iconPath: '/assets/icons/svc-snack.png', badge: '推荐', miniAppId: 'wx2cd0769ebeb0d213' },
+  { id: 9, name: '杂货店', iconPath: '/assets/icons/svc-store.png', badge: '推荐', miniAppId: 'wxbe48d181d8d5762e' },
+  { id: 10, name: '校园网', iconPath: '/assets/icons/svc-network.png', badge: '', link: '' }
 ]
 
 const allServiceSections = [
   {
     title: '平台自研',
     items: [
-      { id: 101, name: '代拿跑腿', icon: '🏃', iconPath: '/assets/icons/errand-home.png', badge: '推荐' },
-      { id: 102, name: '课程表', icon: '📋', iconPath: '/assets/icons/clipboard.png', badge: '推荐' },
-      { id: 103, name: '社区论坛', icon: '💬', iconPath: '/assets/icons/post.png', badge: '' }
+      { id: 101, name: '代拿跑腿', iconPath: '/assets/icons/svc-errand.png', badge: '推荐' },
+      { id: 102, name: '课程表', iconPath: '/assets/icons/svc-schedule.png', badge: '推荐' },
+      { id: 103, name: '社区论坛', iconPath: '/assets/icons/svc-community.png', badge: '' }
     ]
   },
   {
@@ -33,39 +130,149 @@ const allServiceSections = [
   {
     title: '学习相关',
     items: [
-      { id: 201, name: '图书馆', icon: '📖', badge: '' },
-      { id: 202, name: '选课系统', icon: '📝', badge: '' },
-      { id: 203, name: '成绩查询', icon: '📊', badge: '' },
-      { id: 204, name: '考试安排', icon: '✏️', badge: '' },
-      { id: 205, name: '教务系统', icon: '🎓', badge: '推荐', link: 'http://jw.gdip.edu.cn/jsxsd' }
+      { id: 201, name: '图书馆', iconPath: '/assets/icons/svc-library.png', badge: '' },
+      { id: 202, name: '选课系统', iconPath: '/assets/icons/svc-edit.png', badge: '' },
+      { id: 203, name: '成绩查询', iconPath: '/assets/icons/svc-grade.png', badge: '' },
+      { id: 204, name: '考试安排', iconPath: '/assets/icons/svc-exam.png', badge: '' },
+      { id: 205, name: '教务系统', iconPath: '/assets/icons/svc-edu.png', badge: '推荐', link: 'http://jw.gdip.edu.cn/jsxsd' }
     ]
   },
   {
     title: '生活服务',
     items: [
-      { id: 301, name: '食堂菜单', icon: '🍜', badge: '推荐', miniAppId: 'wx7b3c69b4b6b348d5' },
-      { id: 302, name: '校车时刻', icon: '🚌', badge: '' },
-      { id: 303, name: '失物招领', icon: '🔍', badge: '' },
-      { id: 304, name: '校园地图', icon: '️', badge: '新生' },
-      { id: 305, name: '乘车码', icon: '🚇', badge: '推荐', miniAppId: 'wxe9f4a4df3ac90522' }
+      { id: 301, name: '食堂菜单', iconPath: '/assets/icons/svc-canteen.png', badge: '推荐', miniAppId: 'wx7b3c69b4b6b348d5' },
+      { id: 302, name: '校车时刻', iconPath: '/assets/icons/svc-bus.png', badge: '' },
+      { id: 303, name: '失物招领', iconPath: '/assets/icons/svc-search.png', badge: '' },
+      { id: 304, name: '校园地图', iconPath: '/assets/icons/svc-map.png', badge: '新生' },
+      { id: 305, name: '乘车码', iconPath: '/assets/icons/svc-card.png', badge: '推荐', miniAppId: 'wxe9f4a4df3ac90522' }
     ]
   },
   {
     title: '校园资讯',
     items: [
-      { id: 401, name: '通知公告', icon: '📢', badge: '' }
+      { id: 401, name: '通知公告', iconPath: '/assets/icons/svc-notice.png', badge: '' }
     ]
   }
 ]
 
-const categories = ['全部帖子', '日常分享', '旧书交易', '日常生活', '吃瓜爆料', '打听求助', '二手']
+const categories = ['全部帖子', '推荐', '日常分享', '旧书交易', '校园活动', '打听求助', '二手']
 
 const posts = [
-  { id: 1, userId: 1, nickName: '青山', avatarUrl: '', gender: 'male', category: '日常分享', content: '线上兼职 每天210左右 一单一结 平时和假期都可以', images: [], viewCount: 6, likeCount: 0, commentCount: 0, favoriteCount: 0, isLiked: false, isFavorited: false, createdAt: '2026-06-11T10:30:00' },
-  { id: 2, userId: 2, nickName: '等春天', avatarUrl: '', gender: 'female', category: '日常分享', content: '现在到暑假都要人\n\n假都要人（主要负责线上事宜\n者暑假/课余时间都可以，\n天200左右，可保证收益\n291', images: [], viewCount: 4, likeCount: 0, commentCount: 0, favoriteCount: 0, isLiked: false, isFavorited: false, createdAt: '2026-06-11T09:15:00' },
-  { id: 3, userId: 3, nickName: '乐乐的大米', avatarUrl: '', gender: 'male', category: '旧书交易', content: '收栗娟老师的世界旅游地理，2本', images: [], viewCount: 11, likeCount: 1, commentCount: 0, favoriteCount: 0, isLiked: false, isFavorited: false, createdAt: '2026-06-10T20:00:00' },
-  { id: 4, userId: 4, nickName: 'hhhhhh_', avatarUrl: '', gender: 'female', category: '日常分享', content: '下周有一个校外礼仪活动，还缺6个女生，头发不能是浅色，正式活动是下周四（6月25日）下午2:30，周三下午3：00需要来彩排，外出车费学校报销，可以请公假，加学时（活动花了多少时间就加几个）\n感兴趣的同学可以联系我哦', images: [], viewCount: 245, likeCount: 0, commentCount: 0, favoriteCount: 0, isLiked: false, isFavorited: false, createdAt: '2026-06-10T15:39:00' },
-  { id: 5, userId: 5, nickName: '11', avatarUrl: '', gender: 'male', category: '日常分享', content: '谁偷了我的寿司', images: [], viewCount: 361, likeCount: 0, commentCount: 2, favoriteCount: 0, isLiked: false, isFavorited: false, createdAt: '2026-06-10T14:21:00' }
+  {
+    id: 1,
+    userId: 1,
+    nickName: '广轻工登山社',
+    avatarUrl: '/assets/icons/avatar.png',
+    category: '打听求助',
+    title: '万能的吧友，登山杖选碳纤还是铝合金？',
+    content: '最近准备去鼎湖山徒步，第一次认真买装备，预算在 150 左右。想问下大家更推荐全碳还是铝合金，主要担心耐用和重量之间怎么平衡。如果有你们正在用的型号，也欢迎直接甩链接或者使用体验。',
+    images: ['/assets/banners/banner-community.png', '/assets/banners/banner-schedule.png'],
+    viewCount: 2651,
+    likeCount: 396,
+    commentCount: 143,
+    favoriteCount: 88,
+    shareCount: 16,
+    isLiked: false,
+    isFavorited: false,
+    verified: true,
+    followerCount: 186,
+    postCount: 18,
+    isFollowed: false,
+    isHot: true,
+    createdAt: '2026-06-27T18:30:00'
+  },
+  {
+    id: 2,
+    userId: 2,
+    nickName: '海盐汽水',
+    avatarUrl: '/assets/icons/avatar.png',
+    category: '日常分享',
+    title: '阿根廷球衣这个配色真的很适合夏天',
+    content: '今天在校门口看到这件蓝白条真的很上镜，准备周末拍一组操场写真。顺便问下，有没有人想一起拼个摄影外拍？我可以负责修图和调色。',
+    images: ['/assets/banners/banner-community.png'],
+    viewCount: 1948,
+    likeCount: 651,
+    commentCount: 143,
+    favoriteCount: 126,
+    shareCount: 10,
+    isLiked: false,
+    isFavorited: false,
+    verified: false,
+    followerCount: 89,
+    postCount: 12,
+    isFollowed: true,
+    isHot: false,
+    createdAt: '2026-06-27T12:05:00'
+  },
+  {
+    id: 3,
+    userId: 4,
+    nickName: '礼仪活动发布台',
+    avatarUrl: '/assets/icons/avatar.png',
+    category: '校园活动',
+    title: '下周校外礼仪活动招募，还差 6 位女生',
+    content: '正式活动安排在下周四下午 2:30，周三 3:00 需要彩排，车费学校报销，可请公假并加学时。头发不能是浅色，着装需按统一要求准备，感兴趣的同学可以直接私信我了解细节。',
+    images: [],
+    viewCount: 721,
+    likeCount: 319,
+    commentCount: 108,
+    favoriteCount: 54,
+    shareCount: 8,
+    isLiked: false,
+    isFavorited: false,
+    verified: true,
+    followerCount: 120,
+    postCount: 24,
+    isFollowed: false,
+    isHot: false,
+    createdAt: '2026-06-26T16:20:00'
+  },
+  {
+    id: 4,
+    userId: 3,
+    nickName: '旧书中转站',
+    avatarUrl: '/assets/icons/avatar.png',
+    category: '旧书交易',
+    title: '收世界旅游地理和英语期末复习资料',
+    content: '优先收有笔记的教材，也可以交换我手里的机械制图参考书。佛山校区线下自提，有意向的同学留言或者私信都可以。',
+    images: ['/assets/banners/banner-schedule.png'],
+    viewCount: 418,
+    likeCount: 86,
+    commentCount: 27,
+    favoriteCount: 35,
+    shareCount: 4,
+    isLiked: false,
+    isFavorited: false,
+    verified: true,
+    followerCount: 64,
+    postCount: 9,
+    isFollowed: false,
+    isHot: false,
+    createdAt: '2026-06-25T20:10:00'
+  },
+  {
+    id: 5,
+    userId: 5,
+    nickName: '深夜食堂观察员',
+    avatarUrl: '/assets/icons/avatar.png',
+    category: '推荐',
+    title: '谁偷了我刚拿到的寿司外卖',
+    content: '明明取餐柜写着 3 号柜，打开只剩一张小票。想问下有没有同学拿错了，如果你正在图书馆附近看到一份鳗鱼寿司，请及时联系我，真的饿到要哭。',
+    images: [],
+    viewCount: 1103,
+    likeCount: 205,
+    commentCount: 52,
+    favoriteCount: 14,
+    shareCount: 6,
+    isLiked: false,
+    isFavorited: false,
+    verified: false,
+    followerCount: 47,
+    postCount: 6,
+    isFollowed: false,
+    isHot: false,
+    createdAt: '2026-06-24T21:38:00'
+  }
 ]
 
 const errandOrders = [
@@ -90,5 +297,15 @@ const myAcceptedOrders = [
 const courseColors = ['#4A7AFF', '#52C41A', '#FAAD14', '#FF4D4F', '#722ED1', '#13C2C2', '#EB2F96', '#FA8C16', '#2F54EB', '#A0D911', '#F759AB', '#36CFC9']
 
 module.exports = {
-  banners, homeServices, allServiceSections, categories, posts, errandOrders, myPublishedOrders, myAcceptedOrders, courseColors
+  profileCovers,
+  users,
+  banners,
+  homeServices,
+  allServiceSections,
+  categories,
+  posts,
+  errandOrders,
+  myPublishedOrders,
+  myAcceptedOrders,
+  courseColors
 }
