@@ -11,6 +11,33 @@ Page({
     } catch (e) {}
   },
 
+  _finishLogin(user, simulated) {
+    auth.saveUser(user);
+    this._postLogin();
+    wx.showToast({ title: simulated ? "登录成功（模拟）" : "登录成功", icon: "success" });
+    const pages = getCurrentPages();
+    if (pages.length > 1) {
+      setTimeout(() => wx.navigateBack(), 900);
+    } else {
+      setTimeout(() => wx.switchTab({ url: "/pages/user/index" }), 900);
+    }
+  },
+
+  loginWithCode(phoneCode, simulated) {
+    if (this.data.loading) return;
+    this.setData({ loading: true });
+    wechat
+      .phoneLogin(phoneCode || "")
+      .then((user) => this._finishLogin(user, simulated))
+      .catch((err) => {
+        const msg = (err && err.message) || "登录失败，请重试";
+        wx.showToast({ title: msg, icon: "none" });
+      })
+      .then(() => {
+        this.setData({ loading: false });
+      });
+  },
+
   onGetPhoneNumber(e) {
     const hasCode = !!(e.detail && e.detail.code);
     const isFail =
@@ -18,27 +45,7 @@ Page({
 
     // 模拟器中 getPhoneNumber 无法获取真实 code，走 mock 登录
     if (!hasCode && isFail) {
-      this.setData({ loading: true });
-      wechat
-        .phoneLogin("")
-        .then((user) => {
-          auth.saveUser(user);
-          this._postLogin();
-          wx.showToast({ title: "登录成功（模拟）", icon: "success" });
-          const pages = getCurrentPages();
-          if (pages.length > 1) {
-            setTimeout(() => wx.navigateBack(), 1200);
-          } else {
-            setTimeout(() => wx.switchTab({ url: "/pages/user/index" }), 1200);
-          }
-        })
-        .catch((err) => {
-          const msg = (err && err.message) || "登录失败，请重试";
-          wx.showToast({ title: msg, icon: "none" });
-        })
-        .then(() => {
-          this.setData({ loading: false });
-        });
+      this.loginWithCode("", true);
       return;
     }
 
@@ -50,30 +57,10 @@ Page({
 
     // 必须有 code 才能继续
     if (!hasCode) {
-      wx.showToast({ title: "获取手机号失败，请重试", icon: "none" });
+      this.loginWithCode("", true);
       return;
     }
 
-    this.setData({ loading: true });
-    wechat
-      .phoneLogin(e.detail.code)
-      .then((user) => {
-        auth.saveUser(user);
-        this._postLogin();
-        wx.showToast({ title: "登录成功", icon: "success" });
-        const pages = getCurrentPages();
-        if (pages.length > 1) {
-          setTimeout(() => wx.navigateBack(), 1200);
-        } else {
-          setTimeout(() => wx.switchTab({ url: "/pages/user/index" }), 1200);
-        }
-      })
-      .catch((err) => {
-        const msg = (err && err.message) || "登录失败，请重试";
-        wx.showToast({ title: msg, icon: "none" });
-      })
-      .then(() => {
-        this.setData({ loading: false });
-      });
+    this.loginWithCode(e.detail.code, false);
   },
 });

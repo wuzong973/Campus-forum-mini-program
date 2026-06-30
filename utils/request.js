@@ -1,38 +1,31 @@
-const app = getApp;
+const app = getApp
 
-const BASE_URL = "http://127.0.0.1:3000/api/v1";
-const USE_MOCK = true;
-const REQUEST_TIMEOUT = 15000;
+const BASE_URL = 'http://127.0.0.1:3000/api/v1'
+const USE_MOCK = true
+const REQUEST_TIMEOUT = 15000
 
 function getAppInstance() {
   try {
-    return app();
+    return app()
   } catch (e) {
-    return { globalData: { token: "" } };
+    return { globalData: { token: '' } }
   }
 }
 
 function request(options) {
-  const {
-    url,
-    method = "GET",
-    data = {},
-    needAuth = true,
-    silent = false,
-    showLoading = false,
-  } = options;
-  const inst = getAppInstance();
-  const header = { "Content-Type": "application/json" };
+  const { url, method = 'GET', data = {}, needAuth = true, silent = false, showLoading = false } = options
+  const inst = getAppInstance()
+  const header = { 'Content-Type': 'application/json' }
   if (needAuth && inst.globalData.token) {
-    header.Authorization = "Bearer " + inst.globalData.token;
+    header.Authorization = 'Bearer ' + inst.globalData.token
   }
-  if (showLoading) wx.showLoading({ title: "加载中...", mask: true });
+  if (showLoading) wx.showLoading({ title: '加载中...', mask: true })
 
   return new Promise((resolve, reject) => {
     const timer = setTimeout(() => {
-      if (showLoading) wx.hideLoading();
-      reject(new Error("请求超时"));
-    }, REQUEST_TIMEOUT);
+      if (showLoading) wx.hideLoading()
+      reject(new Error('请求超时'))
+    }, REQUEST_TIMEOUT)
 
     wx.request({
       url: BASE_URL + url,
@@ -40,56 +33,50 @@ function request(options) {
       data,
       header,
       success(res) {
-        clearTimeout(timer);
-        if (showLoading) wx.hideLoading();
+        clearTimeout(timer)
+        if (showLoading) wx.hideLoading()
         if (res.statusCode === 401) {
-          inst.globalData.token = "";
-          inst.globalData.userInfo = null;
-          wx.removeStorageSync("token");
-          wx.removeStorageSync("userInfo");
+          inst.globalData.token = ''
+          inst.globalData.userInfo = null
+          wx.removeStorageSync('token')
+          wx.removeStorageSync('userInfo')
           if (!silent) {
-            wx.showToast({ title: "登录已过期", icon: "none" });
-            wx.navigateTo({ url: "/pages/login/index" });
+            wx.showToast({ title: '登录已过期', icon: 'none' })
+            wx.navigateTo({ url: '/pages/login/index' })
           }
-          reject(new Error("未登录"));
-          return;
+          reject(new Error('未登录'))
+          return
         }
         if (res.statusCode >= 500) {
-          if (!silent) wx.showToast({ title: "服务器繁忙", icon: "none" });
-          reject(new Error("服务器错误"));
-          return;
+          if (!silent) wx.showToast({ title: '服务器繁忙', icon: 'none' })
+          reject(new Error('服务器错误'))
+          return
         }
         if (res.data && res.data.code === 200) {
-          resolve(res.data.data);
+          resolve(res.data.data)
         } else {
-          const msg = (res.data && res.data.message) || "请求失败";
-          if (!silent) wx.showToast({ title: msg, icon: "none" });
-          reject(new Error(msg));
+          const msg = (res.data && res.data.message) || '请求失败'
+          if (!silent) wx.showToast({ title: msg, icon: 'none' })
+          reject(new Error(msg))
         }
       },
       fail(err) {
-        clearTimeout(timer);
-        if (showLoading) wx.hideLoading();
+        clearTimeout(timer)
+        if (showLoading) wx.hideLoading()
         if (!silent && !USE_MOCK) {
-          wx.showToast({ title: "网络异常，请检查网络", icon: "none" });
+          wx.showToast({ title: '网络异常，请检查网络', icon: 'none' })
         }
-        reject(err);
-      },
-    });
-  });
+        reject(err)
+      }
+    })
+  })
 }
 
 module.exports = {
-  get: (url, data, needAuth, opts) =>
-    request({ url, method: "GET", data, needAuth, ...opts }),
-  post: (url, data, needAuth, opts) =>
-    request({ url, method: "POST", data, needAuth, ...opts }),
-  put: (url, data, needAuth, opts) =>
-    request({ url, method: "PUT", data, needAuth, ...opts }),
-  del: (url, data, needAuth, opts) =>
-    request({ url, method: "DELETE", data, needAuth, ...opts }),
-  delete: (url, data, needAuth, opts) =>
-    request({ url, method: "DELETE", data, needAuth, ...opts }),
+  get: (url, data, needAuth, opts) => request({ url, method: 'GET', data, needAuth, ...opts }),
+  post: (url, data, needAuth, opts) => request({ url, method: 'POST', data, needAuth, ...opts }),
+  put: (url, data, needAuth, opts) => request({ url, method: 'PUT', data, needAuth, ...opts }),
+  del: (url, data, needAuth, opts) => request({ url, method: 'DELETE', data, needAuth, ...opts }),
   BASE_URL,
-  USE_MOCK,
-};
+  USE_MOCK
+}

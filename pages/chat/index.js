@@ -17,7 +17,9 @@ Page({
     page: 1,
     loading: false,
     loadingMore: false,
-    sending: false
+    sending: false,
+    showEmojiPanel: false,
+    emojiList: ['😊', '😂', '❤️', '🎉', '😍', '😢', '💪', '🙏', '😎', '🥰', '😅', '😘', '👏', '🔥', '💯', '✨', '🎊', '😁', '🤣', '😜']
   },
 
   onLoad(options) {
@@ -263,5 +265,54 @@ Page({
 
   onBack() {
     wx.navigateBack()
+  },
+
+  onEmoji() {
+    this.setData({ showEmojiPanel: !this.data.showEmojiPanel })
+  },
+
+  onSelectEmoji(e) {
+    const emoji = e.currentTarget.dataset.emoji
+    this.setData({
+      inputText: this.data.inputText + emoji,
+      showEmojiPanel: false
+    })
+  },
+
+  onPreviewImage(e) {
+    const url = e.currentTarget.dataset.url
+    wx.previewImage({ current: url, urls: [url] })
+  },
+
+  onAddImage() {
+    wx.chooseMedia({
+      count: 1,
+      mediaType: ['image'],
+      sourceType: ['album', 'camera'],
+      success: (res) => {
+        const tempFilePath = res.tempFiles[0].tempFilePath
+        const app = getApp()
+        const currentUserId = (app.globalData.userInfo || {}).id || 0
+        if (!currentUserId) {
+          wx.navigateTo({ url: '/pages/login/index' })
+          return
+        }
+        const tempId = 'temp_' + Date.now()
+        const tempMsg = {
+          id: tempId,
+          content: '[图片]',
+          imageUrl: tempFilePath,
+          isMine: true,
+          senderId: currentUserId,
+          status: 'sent',
+          timeText: '刚刚',
+          createdAt: new Date().toISOString()
+        }
+        const messages = this.data.messages.concat([tempMsg])
+        this.setData({ messages })
+        this.scrollToBottom()
+        messageStore.appendCache(this.data.peerId, tempMsg)
+      }
+    })
   }
 })

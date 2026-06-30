@@ -1,9 +1,11 @@
 .post-card {
   margin: 0 24rpx 20rpx;
-  padding: 26rpx 24rpx 18rpx;
-  background: #ffffff;
-  border-radius: 18rpx;
-  box-shadow: 0 6rpx 22rpx rgba(30, 64, 175, 0.05);
+  padding: 28rpx 24rpx 20rpx;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.98), rgba(252,253,255,0.96));
+  border-radius: 24rpx;
+  box-shadow: 0 14rpx 34rpx rgba(30, 64, 175, 0.08);
+  border: 1rpx solid rgba(226, 234, 250, 0.9);
   transition: all 0.2s ease-out;
   position: relative;
 }
@@ -20,13 +22,14 @@
 }
 
 .post-avatar {
-  width: 76rpx;
-  height: 76rpx;
+  width: 82rpx;
+  height: 82rpx;
   border-radius: 50%;
   margin-right: 16rpx;
   background: #eef2f8;
   flex-shrink: 0;
-  border: 2rpx solid rgba(74, 122, 255, 0.08);
+  border: 4rpx solid #ffffff;
+  box-shadow: 0 8rpx 20rpx rgba(49, 92, 255, 0.16);
 }
 
 .post-user-info {
@@ -95,29 +98,6 @@
   flex-shrink: 0;
 }
 
-.follow-btn {
-  min-width: 128rpx;
-  height: 56rpx;
-  padding: 0 18rpx;
-  border: 1rpx solid rgba(74, 122, 255, 0.16);
-  border-radius: 999rpx;
-  background: rgba(74, 122, 255, 0.08);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.follow-btn.followed {
-  background: #f5f7fb;
-  border-color: rgba(150, 151, 153, 0.2);
-}
-
-.follow-text {
-  font-size: 22rpx;
-  color: #4A7AFF;
-  font-weight: 600;
-}
-
 .close-btn {
   width: 48rpx;
   height: 48rpx;
@@ -147,12 +127,28 @@
   color: #ffffff;
 }
 
+.pin-badge {
+  position: absolute;
+  top: 28rpx;
+  right: 96rpx;
+  padding: 6rpx 14rpx;
+  background: linear-gradient(135deg, #315cff, #12b8a6);
+  border-radius: 999rpx;
+  box-shadow: 0 8rpx 18rpx rgba(49, 92, 255, 0.18);
+}
+
+.pin-badge-text {
+  font-size: 20rpx;
+  font-weight: 700;
+  color: #ffffff;
+}
+
 .post-title {
   margin-bottom: 10rpx;
 }
 
 .post-title-text {
-  font-size: 31rpx;
+  font-size: 32rpx;
   font-weight: 700;
   color: var(--text-primary);
   line-height: 1.4;
@@ -167,7 +163,7 @@
 }
 
 .post-content-text {
-  font-size: 28rpx;
+  font-size: 27rpx;
   line-height: 1.55;
   color: #1f2329;
   word-break: break-word;
@@ -205,7 +201,7 @@
   position: relative;
   width: 100%;
   height: 184rpx;
-  border-radius: 14rpx;
+  border-radius: 18rpx;
   overflow: hidden;
   background: #edf1f6;
 }
@@ -240,38 +236,113 @@
 
 .post-footer {
   display: flex;
-  justify-content: space-around;
+  justify-content: space-between;
   align-items: center;
-  padding-top: 18rpx;
-  border-top: 1rpx solid rgba(235, 237, 240, 0.9);
+  padding: 18rpx 8rpx 0;
+  border-top: 1rpx solid rgba(235, 237, 240, 0.78);
 }
 
 .footer-action {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 8rpx;
-  min-width: 116rpx;
+  gap: 6rpx;
+  min-width: 104rpx;
   justify-content: center;
-  padding: 8rpx 12rpx;
-  border-radius: 20rpx;
+  padding: 10rpx 12rpx;
+  border-radius: 24rpx;
   transition: all 0.2s ease;
 }
 
 .footer-action:active {
   background: #f5f7fb;
+  transform: scale(0.94);
 }
 
 .footer-action.liked .footer-count {
   color: #FF4D4F;
 }
 
+.footer-action.favorited .footer-count {
+  color: #FAAD14;
+}
+
+.action-comment .footer-count {
+  color: #315CFF;
+}
+
+.action-share .footer-count {
+  color: #12B8A6;
+}
+
 .footer-icon {
-  width: 36rpx;
-  height: 36rpx;
+  width: 48rpx;
+  height: 48rpx;
 }
 
 .footer-count {
-  font-size: 24rpx;
+  font-size: 23rpx;
+  color: #8a94a6;
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+/* 热门评论条 */
+.top-comment-bar {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  margin-top: 16rpx;
+  padding: 16rpx 20rpx;
+  background: linear-gradient(135deg, #fff8f0 0%, #fff5f5 100%);
+  border: 1rpx solid #ffe4e0;
+  border-radius: 16rpx;
+}
+
+.top-comment-bar .top-comment-avatar {
+  width: 48rpx;
+  height: 48rpx;
+  border-radius: 50%;
+  background: #f0f0f0;
+  flex-shrink: 0;
+}
+
+.top-comment-bar .top-comment-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4rpx;
+}
+
+.top-comment-bar .top-comment-nick {
+  font-size: 22rpx;
+  font-weight: 600;
+  color: #1a1a1a;
+}
+
+.top-comment-bar .top-comment-content {
+  font-size: 22rpx;
   color: #666666;
-  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.top-comment-bar .top-comment-likes {
+  display: flex;
+  align-items: center;
+  gap: 4rpx;
+  flex-shrink: 0;
+}
+
+.top-comment-bar .top-comment-heart {
+  font-size: 24rpx;
+  color: #ff6b6b;
+}
+
+.top-comment-bar .top-comment-count {
+  font-size: 21rpx;
+  color: #ff6b6b;
+  font-weight: 700;
 }

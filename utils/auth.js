@@ -1,4 +1,5 @@
 const request = require('./request')
+const loginExpiry = require('./login-expiry')
 
 function getAppSafe() {
   try {
@@ -77,6 +78,8 @@ function saveUser(user) {
   }
   app.globalData.userInfo = info
   wx.setStorageSync('userInfo', info)
+  // 登录成功后记录活跃时间，启动 90 天时效计时
+  loginExpiry.recordActiveTime()
 }
 
 function logout() {

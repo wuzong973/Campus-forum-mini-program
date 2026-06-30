@@ -102,7 +102,7 @@
   height: 110rpx;
   background: #4a7aff;
   color: #ffffff;
-  font-size: 32rpx;
+  font-size: 28rpx;
   font-weight: 500;
   border-radius: 55rpx;
   border: none;
@@ -110,6 +110,7 @@
   align-items: center;
   justify-content: center;
   box-sizing: border-box;
+  white-space: nowrap;
 }
 
 .agree-btn::after {

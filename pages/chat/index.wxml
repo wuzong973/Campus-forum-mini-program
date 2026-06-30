@@ -46,8 +46,9 @@
         wx:if="{{!item.isMine}}"
       ></image>
       <view class="msg-bubble-wrap">
-        <view class="msg-bubble {{item.isMine ? 'bubble-mine' : 'bubble-other'}}">
-          <text class="msg-text">{{item.content}}</text>
+        <view class="msg-bubble {{item.isMine ? 'bubble-mine' : 'bubble-other'}} {{item.imageUrl ? 'bubble-image' : ''}}">
+          <image wx:if="{{item.imageUrl}}" class="msg-image" src="{{item.imageUrl}}" mode="aspectFill" bindtap="onPreviewImage" data-url="{{item.imageUrl}}"></image>
+          <text wx:else class="msg-text">{{item.content}}</text>
         </view>
         <view class="msg-status" wx:if="{{item.isMine}}">
           <text wx:if="{{item.status === 'sending'}}" class="status-sending">发送中</text>
@@ -68,18 +69,33 @@
 
   <!-- 底部输入栏 -->
   <view class="input-bar">
-    <input
-      class="msg-input"
-      placeholder="发条消息..."
-      value="{{inputText}}"
-      bindinput="onInput"
-      bindconfirm="onSend"
-      confirm-type="send"
-      adjust-position
-      cursor-spacing="20"
-    />
-    <view class="send-btn {{inputText ? 'active' : ''}} {{sending ? 'sending' : ''}}" bindtap="onSend">
-      <text>{{sending ? '发送中' : '发送'}}</text>
+    <view class="input-wrap">
+      <input
+        class="msg-input"
+        placeholder="写评论..."
+        value="{{inputText}}"
+        bindinput="onInput"
+        bindconfirm="onSend"
+        confirm-type="send"
+        adjust-position
+        cursor-spacing="20"
+      />
+      <view class="send-text {{inputText ? 'active' : ''}}" bindtap="onSend">{{sending ? '发送中' : '发送'}}</view>
+      <view class="emoji-btn" catchtap="onEmoji">
+        <text class="emoji-icon">😊</text>
+      </view>
+      <view class="plus-btn" catchtap="onAddImage">
+        <text class="plus-icon">+</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 表情面板 -->
+  <view class="emoji-panel {{showEmojiPanel ? 'show' : ''}}">
+    <view class="emoji-grid">
+      <view class="emoji-item" wx:for="{{emojiList}}" wx:key="*this" catchtap="onSelectEmoji" data-emoji="{{item}}">
+        <text>{{item}}</text>
+      </view>
     </view>
   </view>
 </view>

@@ -48,9 +48,19 @@ CREATE TABLE IF NOT EXISTS forum_comment (
   user_id INT UNSIGNED NOT NULL,
   content TEXT NOT NULL,
   parent_id INT UNSIGNED DEFAULT 0,
+  like_count INT DEFAULT 0,
   status TINYINT(1) DEFAULT 1,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   INDEX idx_post (post_id)
+) ENGINE=InnoDB;
+
+-- 评论点赞表
+CREATE TABLE IF NOT EXISTS forum_comment_like (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  comment_id INT UNSIGNED NOT NULL,
+  user_id INT UNSIGNED NOT NULL,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY uk_comment_user (comment_id, user_id)
 ) ENGINE=InnoDB;
 
 -- 4. 用户课程表
@@ -138,17 +148,7 @@ CREATE TABLE IF NOT EXISTS forum_favorite (
   UNIQUE KEY uk_post_user (post_id, user_id)
 ) ENGINE=InnoDB;
 
--- 11. 用户关注表
-CREATE TABLE IF NOT EXISTS user_follow (
-  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-  follower_id INT UNSIGNED NOT NULL,
-  followee_id INT UNSIGNED NOT NULL,
-  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-  UNIQUE KEY uk_follow (follower_id, followee_id),
-  INDEX idx_followee (followee_id)
-) ENGINE=InnoDB;
-
--- 12. 帖子转发表
+-- 11. 帖子转发表
 CREATE TABLE IF NOT EXISTS forum_share (
   id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   user_id INT UNSIGNED NOT NULL,

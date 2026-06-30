@@ -77,7 +77,7 @@
 
 .arrow {
   color: #c8c9cc;
-  font-size: 28rpx;
+  font-size: 0rpx;
 }
 
 .logout-btn {
@@ -257,7 +257,7 @@
 }
 
 .wechat-fill-btn {
-  flex-shrink: 0;
+  flex: 0 0 auto;
   padding: 8rpx 16rpx;
   border-radius: 999rpx;
   background: #eef3ff;
@@ -265,7 +265,7 @@
   font-size: 22rpx;
   line-height: 1.4;
   margin: 0;
-  border: none;
+  white-space: nowrap;
 }
 
 .wechat-fill-btn::after {

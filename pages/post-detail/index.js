@@ -17,18 +17,56 @@ Page({
     showEditModal: false,
     editContent: "",
     editCommentId: 0,
+    topLikedComment: null,
+    commentFocus: false,
+    showEmojiPanel: false,
+    commentImages: [],
+    keyboardHeight: 0,
+    pageHeight: 0,
+    bottomBarHeight: 120,
+    emojis: [
+      "😀",
+      "😂",
+      "😍",
+      "🥰",
+      "😎",
+      "😭",
+      "👍",
+      "👏",
+      "🙏",
+      "🔥",
+      "❤️",
+      "🎉",
+      "🤔",
+      "😋",
+      "😴",
+      "💪",
+      "🌟",
+      "📚",
+      "🏃",
+      "☕",
+    ],
   },
 
   onLoad(options) {
     const id = options.id;
     const app = getApp();
+    const sysInfo = wx.getSystemInfoSync();
+    const bottomBarHeight = 120;
     this.setData({
       statusBarHeight: app.globalData.statusBarHeight,
       navBarHeight: app.globalData.navBarHeight,
       currentUserId: (app.globalData.userInfo || {}).id || 0,
+      pageHeight: sysInfo.windowHeight - bottomBarHeight / 2,
+      bottomBarHeight,
     });
+    api.setCurrentPostId(id);
     this.loadPost(id);
     this.loadComments(id);
+    this.loadTopLikedComment(id);
+    if (options.comment === "1") {
+      setTimeout(() => this.setData({ commentFocus: true }), 450);
+    }
   },
 
   loadPost(id) {
@@ -53,12 +91,71 @@ Page({
         nickName: c.nick_name || c.nickName || "用户",
         avatarUrl: c.avatar_url || c.avatarUrl || "",
         content: c.content,
+        images: c.images || [],
         parentNickName: c.parent_nick_name || "",
         timeText: format.formatRelativeTime(c.created_at || c.createdAt),
         createdAt: c.created_at || c.createdAt,
+        likeCount: c.like_count || 0,
+        isLiked: !!c.is_liked,
       }));
       this.setData({ comments: list });
     });
+  },
+
+  loadTopLikedComment(postId) {
+    api
+      .getTopLikedComment(postId)
+      .then((comment) => {
+        if (comment) {
+          this.setData({
+            topLikedComment: {
+              id: comment.id,
+              userId: comment.user_id,
+              nickName: comment.nick_name || "用户",
+              avatarUrl: comment.avatar_url || "",
+              content: comment.content,
+              likeCount: comment.like_count || 0,
+            },
+          });
+        } else {
+          this.setData({ topLikedComment: null });
+        }
+      })
+      .catch(() => {
+        this.setData({ topLikedComment: null });
+      });
+  },
+
+  onLikeComment(e) {
+    if (!auth.requireLogin("点赞需要先登录")) return;
+    const commentId = e.currentTarget.dataset.id;
+    const comments = this.data.comments.map((c) => {
+      if (c.id === commentId) {
+        const liked = !c.isLiked;
+        return Object.assign({}, c, {
+          isLiked: liked,
+          likeCount: Math.max(0, (c.likeCount || 0) + (liked ? 1 : -1)),
+        });
+      }
+      return c;
+    });
+    this.setData({ comments });
+    api.likeComment(commentId).catch(() => {
+      // 回滚
+      const rollback = this.data.comments.map((c) => {
+        if (c.id === commentId) {
+          const liked = !c.isLiked;
+          return Object.assign({}, c, {
+            isLiked: liked,
+            likeCount: Math.max(0, (c.likeCount || 0) + (liked ? 1 : -1)),
+          });
+        }
+        return c;
+      });
+      this.setData({ comments: rollback });
+    });
+    // 刷新热门评论
+    this.loadTopLikedComment(this.data.post.id);
   },
 
   onBack() {
@@ -69,20 +166,26 @@ Page({
     this.setData({ commentText: e.detail.value });
   },
 
-  onInputFocus() {
-    // 输入框聚焦时的处理
+  onInputFocus(e) {
+    this.setData({
+      commentFocus: true,
+      showEmojiPanel: false,
+      keyboardHeight: (e.detail && e.detail.height) || 0,
+    });
   },
 
   onInputBlur() {
-    // 输入框失焦时的处理
+    this.setData({ commentFocus: false, keyboardHeight: 0 });
   },
 
   onSendComment() {
     if (!auth.requireLogin("评论需要先登录")) return;
     const text = this.data.commentText.trim();
-    if (!text) return;
+    if (!text && !this.data.commentImages.length) return;
     const postId = this.data.post.id;
     const parentId = this.data.replyTo || 0;
+    const images = this.data.commentImages.slice();
+    const content = text || "[图片]";
 
     if (request.USE_MOCK) {
       const key = "comments_" + postId;
@@ -92,7 +195,8 @@ Page({
         user_id: this.data.currentUserId,
         nick_name: (getApp().globalData.userInfo || {}).nickName || "我",
         avatar_url: (getApp().globalData.userInfo || {}).avatarUrl || "",
-        content: text,
+        content,
+        images,
         parent_id: parentId,
         created_at: new Date().toISOString(),
       };
@@ -109,12 +213,15 @@ Page({
             nickName: newComment.nick_name,
             avatarUrl: newComment.avatar_url,
             content: newComment.content,
+            images: newComment.images,
             parentNickName: this.data.replyToNick,
             timeText: "刚刚",
             createdAt: newComment.created_at,
           },
         ]),
         commentText: "",
+        commentImages: [],
+        showEmojiPanel: false,
         replyTo: null,
         replyToNick: "",
         post,
@@ -124,13 +231,15 @@ Page({
     }
 
     request
-      .post("/comment", { postId, content: text, parentId }, true)
+      .post("/comment", { postId, content, parentId, images }, true)
       .then(() => {
         const post = Object.assign({}, this.data.post, {
           commentCount: (this.data.post.commentCount || 0) + 1,
         });
         this.setData({
           commentText: "",
+          commentImages: [],
+          showEmojiPanel: false,
           replyTo: null,
           replyToNick: "",
           post,
@@ -149,7 +258,50 @@ Page({
     this.setData({
       replyTo: id,
       replyToNick: nick,
+      commentFocus: true,
     });
+  },
+
+  toggleEmojiPanel() {
+    if (!auth.requireLogin("评论需要先登录")) return;
+    this.setData({
+      showEmojiPanel: !this.data.showEmojiPanel,
+      commentFocus: false,
+      keyboardHeight: 0,
+    });
+  },
+
+  onEmojiTap(e) {
+    const emoji = e.currentTarget.dataset.emoji || "";
+    this.setData({
+      commentText: this.data.commentText + emoji,
+    });
+  },
+
+  onChooseCommentImage() {
+    if (!auth.requireLogin("评论需要先登录")) return;
+    wx.chooseMedia({
+      count: Math.max(1, 3 - this.data.commentImages.length),
+      mediaType: ["image"],
+      sourceType: ["album", "camera"],
+      sizeType: ["compressed"],
+      success: (res) => {
+        const paths = (res.tempFiles || [])
+          .map((item) => item.tempFilePath)
+          .filter(Boolean);
+        this.setData({
+          commentImages: this.data.commentImages.concat(paths).slice(0, 3),
+          showEmojiPanel: false,
+        });
+      },
+    });
+  },
+
+  onRemoveCommentImage(e) {
+    const index = e.currentTarget.dataset.index;
+    const commentImages = this.data.commentImages.slice();
+    commentImages.splice(index, 1);
+    this.setData({ commentImages });
   },
 
   onEditComment(e) {

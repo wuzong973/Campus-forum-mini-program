@@ -11,19 +11,20 @@
         <text class="post-dot">·</text>
         <text class="post-time">{{timeText}}</text>
       </view>
-      <text class="post-meta">粉丝 {{formatCount(post.followerCount)}} · 发帖 {{formatCount(post.postCount)}}</text>
+      
     </view>
     <view class="post-header-actions">
-      <view class="follow-btn {{post.isFollowed ? 'followed' : ''}}" catchtap="onFollow" wx:if="{{post.userId}}">
-        <text class="follow-text">{{post.isFollowed ? '已关注' : '+ 关注'}}</text>
-      </view>
       <view class="close-btn" catchtap="onClose">
         <image class="more-icon" src="/assets/icons/more.png" mode="aspectFit"></image>
       </view>
     </view>
   </view>
 
-  <view class="hot-badge" wx:if="{{post.isHot}}">
+  <view class="pin-badge" wx:if="{{post.isPinnedLocal}}">
+    <text class="pin-badge-text">置顶</text>
+  </view>
+
+  <view class="hot-badge" wx:if="{{post.isHot && !post.isPinnedLocal}}">
     <text class="hot-badge-text">热帖</text>
   </view>
 
@@ -44,25 +45,34 @@
   </view>
 
   <view class="post-footer" wx:if="{{showFooter}}">
-    <view class="footer-action" catchtap="onComment">
-      <image class="footer-icon" src="/assets/icons/comment.png" mode="aspectFit"></image>
-      <text class="footer-count">{{post.commentCount || 0}}</text>
-    </view>
-    <view class="footer-action" catchtap="onMessageAuthor">
-      <image class="footer-icon" src="/assets/icons/message.png" mode="aspectFit"></image>
-      <text class="footer-count">主页</text>
-    </view>
-    <view class="footer-action {{post.isLiked ? 'liked' : ''}}" catchtap="onLike">
+    <view class="footer-action {{post.isLiked ? 'liked' : ''}} action-like" catchtap="onLike">
       <image class="footer-icon" src="{{post.isLiked ? '/assets/icons/heart.png' : '/assets/icons/heart-outline.png'}}" mode="aspectFit"></image>
       <text class="footer-count">{{post.likeCount || 0}}</text>
     </view>
-    <view class="footer-action" catchtap="onShare">
+    <view class="footer-action action-comment" catchtap="onComment">
+      <image class="footer-icon" src="/assets/icons/comment.png" mode="aspectFit"></image>
+      <text class="footer-count">{{post.commentCount || 0}}</text>
+    </view>
+    <view class="footer-action {{post.isFavorited ? 'favorited' : ''}} action-favorite" catchtap="onFavorite">
+      <image class="footer-icon" src="{{post.isFavorited ? '/assets/icons/star.png' : '/assets/icons/star-outline.png'}}" mode="aspectFit"></image>
+      <text class="footer-count">{{post.favoriteCount || 0}}</text>
+    </view>
+    <view class="footer-action action-share" catchtap="onShare">
       <image class="footer-icon" src="/assets/icons/share.png" mode="aspectFit"></image>
       <text class="footer-count">{{post.shareCount || 0}}</text>
     </view>
-    <view class="footer-action {{post.isFavorited ? 'favorited' : ''}}" catchtap="onFavorite">
-      <image class="footer-icon" src="{{post.isFavorited ? '/assets/icons/star.png' : '/assets/icons/star-outline.png'}}" mode="aspectFit"></image>
-      <text class="footer-count">{{post.favoriteCount || 0}}</text>
+  </view>
+
+  <!-- 热门评论 -->
+  <view class="top-comment-bar" wx:if="{{topLikedComment}}" catchtap="onComment">
+    <image class="top-comment-avatar" src="{{topLikedComment.avatarUrl || '/assets/icons/avatar.png'}}" mode="aspectFill"></image>
+    <view class="top-comment-info">
+      <text class="top-comment-nick">{{topLikedComment.nickName}}</text>
+      <text class="top-comment-content">{{topLikedComment.content}}</text>
+    </view>
+    <view class="top-comment-likes">
+      <text class="top-comment-heart">❤</text>
+      <text class="top-comment-count">{{topLikedComment.likeCount}}</text>
     </view>
   </view>
 </view>

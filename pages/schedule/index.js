@@ -136,13 +136,43 @@ Page({
     const items = [];
     const dayCount = hideWeekend ? 5 : 7;
 
-    // 1. 表头行（row 1）
+    // 计算本周各天的日期
+    const config = app.globalData.scheduleConfig;
+    const startDate = new Date(config.startDate || "2025-09-01");
+    const weekStart = new Date(startDate.getTime() + (this.data.currentWeek - 1) * 7 * 86400000);
+    const dayDates = [];
+    for (let i = 0; i < dayCount; i++) {
+      const d = new Date(weekStart.getTime() + i * 86400000);
+      dayDates.push((d.getMonth() + 1) + "/" + d.getDate());
+    }
+
+    // 1. 日期行（row 1）
+    items.push({
+      id: "h-time-date",
+      type: "header-date",
+      text: "",
+      rowStart: 1,
+      rowEnd: 2,
+      col: 1,
+    });
+    for (let i = 0; i < dayCount; i++) {
+      items.push({
+        id: "h-date-" + i,
+        type: "header-date",
+        text: dayDates[i],
+        rowStart: 1,
+        rowEnd: 2,
+        col: i + 2,
+      });
+    }
+
+    // 2. 星期行（row 2）
     items.push({
       id: "h-time",
       type: "header",
       text: "时间",
-      rowStart: 1,
-      rowEnd: 2,
+      rowStart: 2,
+      rowEnd: 3,
       col: 1,
     });
     for (let i = 0; i < dayCount; i++) {
@@ -150,15 +180,15 @@ Page({
         id: "h-day-" + i,
         type: "header",
         text: WEEK_DAY_SHORT[i],
-        rowStart: 1,
-        rowEnd: 2,
+        rowStart: 2,
+        rowEnd: 3,
         col: i + 2,
       });
     }
 
-    // 2. 时间列（每行一个）
+    // 3. 时间列（每行一个）
     SECTIONS.forEach((s, idx) => {
-      const row = idx + 2; // row 1 是表头
+      const row = idx + 3; // row 1=日期, row 2=星期, 数据从 row 3 开始
       items.push({
         id: "time-" + idx,
         type: "time",
@@ -203,15 +233,15 @@ Page({
       }
     });
 
-    // 构建行偏移映射：originalRow -> gridRow (1-based, 1=表头)
-    // 表头占 row 1，数据从 row 2 开始
+    // 构建行偏移映射：originalRow -> gridRow (1-based, 1=日期行, 2=星期行)
+    // 表头占 row 1-2，数据从 row 3 开始
     const rowOffset = {};
     let offset = 0;
     for (let r = 0; r < SECTIONS.length; r++) {
-      rowOffset[r] = r + 2 + offset; // +2: 1 for header, 1 for 0-based to 1-based
+      rowOffset[r] = r + 3 + offset; // +3: 2 for header rows, 1 for 0-based to 1-based
       if (extraRows[r]) offset += extraRows[r];
     }
-    const totalGridRows = SECTIONS.length + 2 + offset; // +2 for header row
+    const totalGridRows = SECTIONS.length + 3 + offset; // +3 for 2 header rows
 
     // 更新午别跨行范围
     items.forEach((item) => {

@@ -1,7 +1,21 @@
 const messageStore = require('./utils/messageStore')
+const loginExpiry = require('./utils/login-expiry')
 
 App({
   onLaunch() {
+    // 1. 检查登录时效性（90 天未使用则清除登录凭证）
+    const expired = loginExpiry.checkLoginExpiry()
+    if (expired) {
+      wx.showModal({
+        title: '登录已过期',
+        content: '您已超过 90 天未使用小程序，为保障账号安全，请重新登录',
+        showCancel: false,
+        confirmText: '我知道了',
+        confirmColor: '#315CFF'
+      })
+    }
+
+    // 2. 重新读取 token（可能已被清理）
     const token = wx.getStorageSync('token')
     const userInfo = wx.getStorageSync('userInfo')
     const scheduleConfig = wx.getStorageSync('scheduleConfig')
@@ -25,7 +39,9 @@ App({
   },
 
   onShow() {
-    // 应用回到前台时重连 WebSocket 并同步未读数
+    // 应用回到前台时刷新活跃时间戳
+    loginExpiry.recordActiveTime()
+    // 重连 WebSocket 并同步未读数
     if (this.globalData.token) {
       messageStore.connect()
       messageStore.syncUnreadCount()

@@ -17,11 +17,10 @@ function mapPost(r, userId) {
     favoriteCount: r.favorite_count,
     shareCount: r.share_count || 0,
     verified: !!r.is_verified,
-    followerCount: r.follower_count || 0,
     postCount: r.post_count || 0,
     isLiked: !!r.isLiked,
     isFavorited: !!r.isFavorited,
-    createdAt: r.created_at
+    createdAt: r.created_at,
   };
 }
 
@@ -44,7 +43,6 @@ exports.list = async (req, res) => {
     );
     const [rows] = await pool.query(
       `SELECT p.*, u.nick_name, u.avatar_url, u.is_verified,
-        IFNULL((SELECT COUNT(*) FROM user_follow uf WHERE uf.followee_id = p.user_id), 0) AS follower_count,
         IFNULL((SELECT COUNT(*) FROM forum_post fp2 WHERE fp2.user_id = p.user_id AND fp2.status = 1), 0) AS post_count,
         IFNULL((SELECT 1 FROM forum_like l WHERE l.post_id = p.id AND l.user_id = ?), 0) AS isLiked,
         IFNULL((SELECT 1 FROM forum_favorite f WHERE f.post_id = p.id AND f.user_id = ?), 0) AS isFavorited
@@ -67,7 +65,6 @@ exports.detail = async (req, res) => {
   try {
     const [rows] = await pool.query(
       `SELECT p.*, u.nick_name, u.avatar_url, u.is_verified,
-        IFNULL((SELECT COUNT(*) FROM user_follow uf WHERE uf.followee_id = p.user_id), 0) AS follower_count,
         IFNULL((SELECT COUNT(*) FROM forum_post fp2 WHERE fp2.user_id = p.user_id AND fp2.status = 1), 0) AS post_count,
         IFNULL((SELECT 1 FROM forum_like l WHERE l.post_id = p.id AND l.user_id = ?), 0) AS isLiked,
         IFNULL((SELECT 1 FROM forum_favorite f WHERE f.post_id = p.id AND f.user_id = ?), 0) AS isFavorited
@@ -85,7 +82,9 @@ exports.create = async (req, res) => {
   const { title, category, content, images, videos } = req.body;
   if (!content || !content.trim()) return fail(res, "内容不能为空");
   try {
-    const media = (images || []).concat((videos || []).map((url) => ({ type: "video", url })));
+    const media = (images || []).concat(
+      (videos || []).map((url) => ({ type: "video", url })),
+    );
     const [result] = await pool.query(
       "INSERT INTO forum_post (user_id, title, category, content, images) VALUES (?, ?, ?, ?, ?)",
       [
@@ -197,12 +196,14 @@ exports.hot = async (req, res) => {
   try {
     const [rows] = await pool.query(
       `SELECT p.*, u.nick_name, u.avatar_url, u.is_verified,
-        IFNULL((SELECT COUNT(*) FROM user_follow uf WHERE uf.followee_id = p.user_id), 0) AS follower_count,
         IFNULL((SELECT COUNT(*) FROM forum_post fp2 WHERE fp2.user_id = p.user_id AND fp2.status = 1), 0) AS post_count
        FROM forum_post p LEFT JOIN sys_user u ON p.user_id = u.id
        WHERE p.status = 1 ORDER BY p.like_count DESC LIMIT 10`,
     );
-    success(res, rows.map((item) => mapPost(item, req.userId || 0)));
+    success(
+      res,
+      rows.map((item) => mapPost(item, req.userId || 0)),
+    );
   } catch (e) {
     fail(res, safeMessage(e), 500);
   }

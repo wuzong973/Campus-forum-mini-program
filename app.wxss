@@ -72,7 +72,7 @@ image {
 .gradient-nav {
   background:
     radial-gradient(circle at 12% 18%, rgba(255, 255, 255, 0.26) 0, rgba(255, 255, 255, 0) 180rpx),
-    linear-gradient(135deg, #315CFF 0%, #6A8BFF 58%, #12B8A6 100%);
+    linear-gradient(135deg, #7DD3C0 0%, #6ECFC0 58%, #5EC4D4 100%);
 }
 
 .text-primary { color: var(--text-primary); }

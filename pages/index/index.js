@@ -1,5 +1,7 @@
 const api = require('../../utils/api')
 const bannerUtil = require('../../utils/banner')
+const request = require('../../utils/request')
+const format = require('../../utils/format')
 
 const POSTS_CACHE_KEY = 'home_posts_cache'
 const POSTS_CACHE_TTL = 5 * 60 * 1000 // 5 分钟缓存
@@ -15,6 +17,7 @@ Page({
     bannerDuration: 520,
     notice: '课表 AI 识别、社区私信链路和校园服务导航已完成新一轮优化升级',
     services: [],
+    allServices: [],
     categories: [],
     activeCategory: 0,
     posts: [],
@@ -28,17 +31,33 @@ Page({
     showFloatBtns: false,
     scheduleCourses: [],
     // 课表提醒
+    reminderEnabled: false,
     todayCourses: [],
     scheduleWeekText: '',
     scheduleRemainText: '',
-    scheduleEmpty: false
+    scheduleEmpty: false,
+    commentSheetVisible: false,
+    commentSheetPost: null,
+    commentSheetComments: [],
+    commentSheetText: '',
+    commentSheetImages: [],
+    commentSheetLoading: false,
+    commentSheetEmojiVisible: false,
+    commentSheetFocus: false,
+    commentSheetEmojis: [
+      '😀', '😂', '😍', '🥰', '😎',
+      '😭', '👍', '👏', '🙏', '🔥',
+      '❤️', '🎉', '🥹', '😊', '😴',
+      '💪', '✨', '📚', '🏃', '☕'
+    ]
   },
 
   onLoad() {
     const app = getApp()
     this.setData({
       statusBarHeight: app.globalData.statusBarHeight,
-      navBarHeight: app.globalData.navBarHeight
+      navBarHeight: app.globalData.navBarHeight,
+      reminderEnabled: !!(app.globalData.scheduleConfig || {}).reminder
     })
     this.loadStaticData()
     this.loadPosts(true)
@@ -46,7 +65,12 @@ Page({
   },
 
   onShow() {
-    // 每次回到首页刷新课表（从课表页改了数据会同步）
+    // 每次回到首页刷新课表提醒开关状态和课表数据
+    const app = getApp()
+    const reminderEnabled = !!(app.globalData.scheduleConfig || {}).reminder
+    if (reminderEnabled !== this.data.reminderEnabled) {
+      this.setData({ reminderEnabled })
+    }
     this.loadTodaySchedule()
     this.consumePendingPost()
   },
@@ -123,8 +147,13 @@ Page({
   // 静态数据立即渲染，提升首屏速度
   loadStaticData() {
     const mock = require('../../utils/mock')
+    // 合并所有服务为一维数组
+    const allServices = mock.allServiceSections.reduce((acc, section) => {
+      return acc.concat(section.items || [])
+    }, [])
     this.setData({
       services: mock.homeServices,
+      allServices,
       categories: mock.categories,
       banners: bannerUtil.buildHomeBanners({ services: mock.homeServices })
     })
@@ -245,7 +274,8 @@ Page({
   },
 
   onServiceTap(e) {
-    const item = e.detail.item
+    const item = (e.detail && e.detail.item) || (e.currentTarget && e.currentTarget.dataset && e.currentTarget.dataset.item)
+    if (!item) return
     // 代拿跑腿：跳转到外部小程序「递至·校园代拿」
     if (item.name === '代拿跑腿') {
       this.openErrandMini()
@@ -358,13 +388,199 @@ Page({
     this.setData({ posts })
   },
 
-  onPostFollow(e) {
+  onPostPin(e) {
+    const postId = e.detail.postId
+    if (!postId) return
+    const posts = this.data.posts.slice()
+    const index = posts.findIndex((item) => item.id === postId)
+    if (index < 0) return
+    if (index === 0) {
+      wx.showToast({ title: '已经在一楼', icon: 'none' })
+      return
+    }
+    const pinned = Object.assign({}, posts[index], { isPinnedLocal: true })
+    posts.splice(index, 1)
+    posts.unshift(pinned)
+    this.setData({ posts, scrollTop: 0, isAtTop: true })
+    wx.setStorageSync(POSTS_CACHE_KEY, { list: posts, ts: Date.now() })
+    wx.vibrateShort({ type: 'light' })
+    wx.showToast({ title: '已置顶到一楼', icon: 'success' })
+  },
+
+  noop() {},
+
+  mapCommentItem(c) {
+    return {
+      id: c.id,
+      userId: c.user_id || c.userId,
+      nickName: c.nick_name || c.nickName || '校园用户',
+      avatarUrl: c.avatar_url || c.avatarUrl || '',
+      content: c.content || '',
+      images: c.images || [],
+      parentNickName: c.parent_nick_name || c.parentNickName || '',
+      timeText: c.timeText || format.formatRelativeTime(c.created_at || c.createdAt || new Date()),
+      createdAt: c.created_at || c.createdAt,
+      likeCount: c.like_count || c.likeCount || 0,
+      isLiked: !!(c.is_liked || c.isLiked)
+    }
+  },
+
+  onPostComment(e) {
     const post = e.detail.post
-    if (!post || !post.userId) return
-    const posts = this.data.posts.map((item) => item.userId === post.userId ? Object.assign({}, item, {
-      isFollowed: post.isFollowed
-    }) : item)
-    this.setData({ posts })
+    if (!post || !post.id) return
+    wx.vibrateShort({ type: 'light' })
+    this.setData({
+      commentSheetVisible: true,
+      commentSheetPost: post,
+      commentSheetComments: [],
+      commentSheetText: '',
+      commentSheetImages: [],
+      commentSheetEmojiVisible: false,
+      commentSheetFocus: true
+    })
+    this.loadCommentSheet(post.id)
+  },
+
+  loadCommentSheet(postId) {
+    this.setData({ commentSheetLoading: true })
+    api.getCommentList(postId).then((res) => {
+      const list = (res.list || []).map((item) => this.mapCommentItem(item))
+      this.setData({
+        commentSheetComments: list,
+        commentSheetLoading: false
+      })
+    }).catch(() => {
+      this.setData({ commentSheetLoading: false })
+      wx.showToast({ title: '评论加载失败', icon: 'none' })
+    })
+  },
+
+  closeCommentSheet() {
+    this.setData({
+      commentSheetVisible: false,
+      commentSheetEmojiVisible: false,
+      commentSheetFocus: false,
+      commentSheetText: '',
+      commentSheetImages: []
+    })
+  },
+
+  onSheetCommentInput(e) {
+    this.setData({ commentSheetText: e.detail.value })
+  },
+
+  toggleSheetEmojiPanel() {
+    this.setData({
+      commentSheetEmojiVisible: !this.data.commentSheetEmojiVisible,
+      commentSheetFocus: false
+    })
+  },
+
+  onSheetEmojiTap(e) {
+    const emoji = e.currentTarget.dataset.emoji || ''
+    this.setData({ commentSheetText: this.data.commentSheetText + emoji })
+  },
+
+  onSheetChooseImage() {
+    wx.chooseMedia({
+      count: Math.max(1, 3 - this.data.commentSheetImages.length),
+      mediaType: ['image'],
+      sourceType: ['album', 'camera'],
+      success: (res) => {
+        const files = (res.tempFiles || []).map((item) => item.tempFilePath)
+        this.setData({
+          commentSheetImages: this.data.commentSheetImages.concat(files).slice(0, 3),
+          commentSheetEmojiVisible: false
+        })
+      }
+    })
+  },
+
+  onSheetRemoveImage(e) {
+    const index = e.currentTarget.dataset.index
+    const images = this.data.commentSheetImages.slice()
+    images.splice(index, 1)
+    this.setData({ commentSheetImages: images })
+  },
+
+  updatePostCommentCount(postId, delta) {
+    let updatedPost = null
+    const posts = this.data.posts.map((item) => {
+      if (item.id !== postId) return item
+      updatedPost = Object.assign({}, item, {
+        commentCount: Math.max(0, (item.commentCount || 0) + delta)
+      })
+      return updatedPost
+    })
+    const patch = { posts }
+    if (updatedPost && this.data.commentSheetPost && this.data.commentSheetPost.id === postId) {
+      patch.commentSheetPost = updatedPost
+    }
+    this.setData(patch)
+    wx.setStorageSync(POSTS_CACHE_KEY, { list: posts, ts: Date.now() })
+  },
+
+  onSheetSendComment() {
+    const auth = require('../../utils/auth')
+    if (!auth.requireLogin('评论需要先登录')) return
+    const post = this.data.commentSheetPost
+    if (!post || !post.id) return
+    const text = (this.data.commentSheetText || '').trim()
+    const images = this.data.commentSheetImages.slice()
+    if (!text && !images.length) return
+
+    const postId = post.id
+    const content = text || '[图片]'
+    wx.showLoading({ title: '发送中...', mask: true })
+
+    const finish = (rawComment) => {
+      const comment = this.mapCommentItem(rawComment)
+      this.setData({
+        commentSheetComments: this.data.commentSheetComments.concat([comment]),
+        commentSheetText: '',
+        commentSheetImages: [],
+        commentSheetEmojiVisible: false,
+        commentSheetFocus: false
+      })
+      this.updatePostCommentCount(postId, 1)
+      wx.hideLoading()
+      wx.showToast({ title: '评论成功', icon: 'success' })
+    }
+
+    if (request.USE_MOCK) {
+      const user = (getApp().globalData || {}).userInfo || {}
+      const rawComment = {
+        id: Date.now(),
+        user_id: user.id || 0,
+        nick_name: user.nickName || '我',
+        avatar_url: user.avatarUrl || '',
+        content,
+        images,
+        created_at: new Date().toISOString(),
+        like_count: 0
+      }
+      const key = 'comments_' + postId
+      const stored = wx.getStorageSync(key) || []
+      stored.push(rawComment)
+      wx.setStorageSync(key, stored)
+      finish(rawComment)
+      return
+    }
+
+    request.post('/comment', { postId, content, parentId: 0, images }, true).then((res) => {
+      finish(res && res.data ? res.data : {
+        id: Date.now(),
+        user_id: ((getApp().globalData || {}).userInfo || {}).id || 0,
+        nick_name: ((getApp().globalData || {}).userInfo || {}).nickName || '我',
+        avatar_url: ((getApp().globalData || {}).userInfo || {}).avatarUrl || '',
+        content,
+        images,
+        created_at: new Date().toISOString()
+      })
+    }).catch((err) => {
+      wx.hideLoading()
+      wx.showToast({ title: (err && err.message) || '评论失败', icon: 'none' })
+    })
   },
 
   onPostClose(e) {

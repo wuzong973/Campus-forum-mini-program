@@ -2,7 +2,7 @@
   <view class="header header-cyan" style="padding-top: {{statusBarHeight}}px;">
     <view class="header-content">
       <view class="user-info" bindtap="goLogin">
-        <image class="avatar-img" src="{{isLogin && userInfo.avatarUrl ? userInfo.avatarUrl : '/assets/tabbar/user.png'}}" mode="aspectFill"></image>
+        <image class="avatar-img" src="{{isLogin && userInfo.avatarUrl ? userInfo.avatarUrl : '/assets/avatars/avatar-boy-1.png'}}" mode="aspectFill"></image>
         <view class="user-detail">
           <view class="user-name-row">
             <text class="user-name">{{isLogin ? (userInfo.nickName || '昵称未命名') : '点击登录'}}</text>

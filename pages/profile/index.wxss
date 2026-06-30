@@ -161,7 +161,6 @@
   padding-bottom: 12rpx;
 }
 
-.follow-btn,
 .message-btn {
   height: 64rpx;
   line-height: 64rpx;
@@ -171,19 +170,6 @@
   border: none;
   margin: 0;
   padding: 0 28rpx;
-}
-
-.follow-btn {
-  background: linear-gradient(135deg, #4A7AFF 0%, #5F8EFF 100%);
-  color: #fff;
-}
-
-.follow-btn.followed {
-  background: #eef2ff;
-  color: var(--primary);
-}
-
-.message-btn {
   background: #f7f4ff;
   color: #4d5b8c;
   display: flex;
@@ -196,7 +182,6 @@
   height: 28rpx;
 }
 
-.follow-btn::after,
 .message-btn::after {
   border: none;
 }

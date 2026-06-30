@@ -1,16 +1,34 @@
 .page {
-  padding: 24rpx;
+  padding: 24rpx 20rpx 48rpx;
   min-height: 100vh;
+  background:
+    radial-gradient(circle at 100% 0%, rgba(18, 184, 166, 0.16), transparent 300rpx),
+    linear-gradient(180deg, #eef4ff 0%, #f4f6fa 420rpx, #f4f6fa 100%);
 }
 
 .section {
   margin-bottom: 24rpx;
-  padding: 24rpx;
+  padding: 30rpx 22rpx 26rpx;
+  border-radius: 28rpx;
+  box-shadow: 0 16rpx 38rpx rgba(30, 64, 175, 0.08);
 }
 
 .section-title {
-  font-size: 30rpx;
-  font-weight: 600;
-  color: #323233;
-  margin-bottom: 16rpx;
+  font-size: 32rpx;
+  font-weight: 800;
+  color: #1f2a44;
+  margin-bottom: 18rpx;
+  padding-left: 16rpx;
+  position: relative;
+}
+
+.section-title::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 9rpx;
+  width: 6rpx;
+  height: 28rpx;
+  border-radius: 999rpx;
+  background: linear-gradient(180deg, #315CFF, #12B8A6);
 }

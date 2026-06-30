@@ -14,9 +14,6 @@
     <view class="profile-main">
       <image class="profile-avatar" src="{{profile.avatarUrl || '/assets/icons/avatar.png'}}" mode="aspectFill"></image>
       <view class="profile-actions" wx:if="{{profile.id !== currentUserId}}">
-        <button class="follow-btn {{profile.isFollowed ? 'followed' : ''}}" bindtap="onFollow" loading="{{followLoading}}">
-          {{profile.isFollowed ? '已关注' : '+ 关注'}}
-        </button>
         <button class="message-btn" bindtap="onMessage">
           <image class="message-icon" src="/assets/icons/message.png" mode="aspectFit"></image>
           <text>发私信</text>
@@ -27,12 +24,6 @@
     <view class="profile-info">
       <view class="profile-name-row">
         <text class="profile-name">{{profile.nickName}}</text>
-        <text class="profile-verify" wx:if="{{profile.verified}}">Lv.4</text>
-      </view>
-      <view class="profile-meta-row">
-        <text class="profile-meta">ID {{profile.id}}</text>
-        <text class="profile-meta">{{profile.campus || '广轻工'}}</text>
-        <text class="profile-meta">{{profile.major || '校园用户'}}</text>
       </view>
       <view class="signature-row">
         <text class="profile-signature">{{profile.signature || '该用户还没有填写签名...'}}</text>
@@ -48,14 +39,6 @@
       <view class="stat-item">
         <text class="stat-num">{{profile.postCount || 0}}</text>
         <text class="stat-label">帖子</text>
-      </view>
-      <view class="stat-item">
-        <text class="stat-num">{{profile.followingCount || 0}}</text>
-        <text class="stat-label">关注</text>
-      </view>
-      <view class="stat-item">
-        <text class="stat-num">{{profile.followerCount || 0}}</text>
-        <text class="stat-label">粉丝</text>
       </view>
     </view>
   </view>
@@ -79,6 +62,5 @@
 
     <empty-state wx:if="{{!loading && activeTab === 0 && posts.length === 0}}" text="还没有发布帖子" />
     <empty-state wx:if="{{activeTab === 1}}" text="收藏内容暂未公开" />
-    <empty-state wx:if="{{activeTab === 2}}" text="关注列表暂未公开" />
   </view>
 </view>

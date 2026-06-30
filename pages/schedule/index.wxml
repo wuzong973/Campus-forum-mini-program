@@ -60,12 +60,9 @@
             <view wx:if="{{item.type === 'time'}}" class="time-cell">
               <text class="time-text">{{item.text}}</text>
             </view>
-            <view wx:if="{{item.type === 'course'}}" class="course-content" style="{{item.courseStyle}}">
+            <view wx:if="{{item.type === 'course'}}" class="course-content">
               <text class="course-name">{{item.course.name}}</text>
-              <view class="course-tags">
-                <text class="course-tag">{{item.course.themeLabel}}</text>
-                <text class="course-tag week-tag" wx:if="{{item.course.weekTypeLabel}}">{{item.course.weekTypeLabel}}</text>
-              </view>
+              <view class="course-info-divider"></view>
               <text class="course-teacher" wx:if="{{item.course.teacher}}">{{item.course.teacher}}</text>
               <text class="course-location {{item.locationClass}}" wx:if="{{item.course.location}}">{{item.course.location}}</text>
             </view>
@@ -86,16 +83,28 @@
 
   <!-- 图例说明 -->
   <view class="legend-section" wx:if="{{courses.length > 0}}">
-    <view class="legend-title">课程类型图例</view>
+    <view class="legend-title">时段图例</view>
     <view class="legend-grid">
-      <view class="legend-item" wx:for="{{legendThemes}}" wx:key="key">
-        <view class="legend-color" style="background: {{item.color}};"></view>
-        <text class="legend-label">{{item.label}}</text>
+      <view class="legend-item">
+        <view class="legend-color period-morning"></view>
+        <text class="legend-label">上午课程</text>
+      </view>
+      <view class="legend-item">
+        <view class="legend-color period-noon"></view>
+        <text class="legend-label">午休时段</text>
+      </view>
+      <view class="legend-item">
+        <view class="legend-color period-afternoon"></view>
+        <text class="legend-label">下午课程</text>
+      </view>
+      <view class="legend-item">
+        <view class="legend-color period-evening"></view>
+        <text class="legend-label">晚上课程</text>
       </view>
     </view>
     <view class="legend-tip">
       <text class="tip-icon">💡</text>
-      <text class="tip-text">课程卡片会按理论课、实训课、体育课等类型自动着色，左右滑动即可查看完整周课表。</text>
+      <text class="tip-text">左右滑动查看完整课表，点击左侧菜单可同步教务系统课表</text>
     </view>
   </view>
 

@@ -68,14 +68,14 @@
 }
 
 .form-item {
-  padding: 22rpx 0;
+  padding: 28rpx 0;
   border-top: 1rpx solid #f0f2f6;
 }
 
 .label {
   display: block;
-  margin-bottom: 12rpx;
-  font-size: 26rpx;
+  margin-bottom: 16rpx;
+  font-size: 30rpx;
   font-weight: 700;
   color: var(--text-primary);
 }
@@ -85,16 +85,19 @@
   width: 100%;
   border-radius: 16rpx;
   background: #f7f9fc;
-  padding: 18rpx 20rpx;
-  font-size: 28rpx;
+  padding: 24rpx 24rpx;
+  font-size: 30rpx;
   color: var(--text-primary);
   box-sizing: border-box;
+  line-height: 1.6;
+  min-height: 88rpx;
 }
 
 .textarea {
-  min-height: 150rpx;
-  max-height: 220rpx;
-  line-height: 1.55;
+  min-height: 220rpx;
+  max-height: 320rpx;
+  line-height: 1.7;
+  padding: 24rpx 24rpx;
 }
 
 .module-title {
@@ -125,9 +128,10 @@
 
 .module-desc {
   display: block;
-  margin-top: 4rpx;
-  font-size: 22rpx;
+  margin-top: 6rpx;
+  font-size: 24rpx;
   color: var(--text-tertiary);
+  line-height: 1.4;
 }
 
 .module-actions {

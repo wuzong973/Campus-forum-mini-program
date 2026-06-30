@@ -16,7 +16,7 @@
 
     <view class="form-item">
       <text class="label">昵称</text>
-      <input class="input" value="{{nickName}}" maxlength="20" data-field="nickName" bindinput="onInput" />
+      <input class="input" value="{{nickName}}" maxlength="" data-field="nickName" bindinput="onInput" />
     </view>
     <view class="form-item">
       <text class="label">个人简介</text>

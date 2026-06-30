@@ -170,6 +170,8 @@ Page({
   onUserAgreement() { wx.navigateTo({ url: '/pages/agreement/index' }) },
   onPrivacyPolicy() { wx.navigateTo({ url: '/pages/privacy/index' }) },
   onVersionInfo() { wx.showToast({ title: '当前版本 v1.1.28', icon: 'none' }) },
+  onSecurity() { wx.navigateTo({ url: '/pages/security/index' }) },
+  onRules() { wx.navigateTo({ url: '/pages/rules/index' }) },
 
   onLogout() {
     wx.showModal({

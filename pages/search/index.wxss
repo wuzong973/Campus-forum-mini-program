@@ -12,10 +12,13 @@
 
 .search-input {
   flex: 1;
+  min-width: 0;
   background: #F5F7FA;
   border-radius: 32rpx;
   padding: 16rpx 24rpx;
   font-size: 28rpx;
+  line-height: 1.5;
+  min-height: 72rpx;
 }
 
 .clear-btn {

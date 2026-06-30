@@ -326,6 +326,7 @@
 .schedule-grid {
   display: grid;
   grid-template-columns: 82rpx repeat(7, 112rpx);
+  grid-template-rows: 52rpx 60rpx;
   grid-auto-rows: 112rpx;
   gap: 4rpx;
   background: #eef3fa;
@@ -358,6 +359,20 @@
   color: #2c3b63;
   font-size: 22rpx;
   border: none;
+}
+
+.grid-item.type-header-date {
+  background: #eef3ff;
+  color: #8a96b8;
+  font-size: 20rpx;
+  border: none;
+  grid-row-end: span 1;
+}
+
+.header-date-text {
+  font-size: 20rpx;
+  color: #8a96b8;
+  font-weight: 500;
 }
 
 .grid-item.type-period {

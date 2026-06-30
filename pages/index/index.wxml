@@ -1,4 +1,4 @@
-<view class="page">
+<view class="page page-enter">
   <!-- 自定义导航栏 -->
   <view class="custom-nav gradient-nav" style="padding-top: {{statusBarHeight}}px;">
     <view class="nav-content" style="height: {{navBarHeight}}px;">
@@ -50,17 +50,23 @@
       <text class="notice-tail">更新中</text>
     </view>
 
-    <!-- 校园服务 -->
+    <!-- 校园服务（两行展示） -->
     <view class="section card anim-slide-up">
-      <view class="section-header flex-between">
-        <text class="section-title">校园服务</text>
-        <text class="section-more pressable" bindtap="goServiceAll">查看全部 ></text>
-      </view>
-      <service-grid services="{{services}}" columns="{{5}}" bind:tap="onServiceTap" />
+      <scroll-view class="service-two-rows" scroll-x enable-flex show-scrollbar="{{false}}">
+        <view class="service-two-rows-track">
+        <view class="service-two-rows-item" wx:for="{{allServices}}" wx:key="id" data-item="{{item}}" bindtap="onServiceTap">
+          <view class="service-two-rows-icon">
+            <image class="service-two-rows-icon-img" src="{{item.iconPath}}" mode="aspectFit" wx:if="{{item.iconPath}}"></image>
+            <text class="service-two-rows-icon-text" wx:else>{{item.icon}}</text>
+          </view>
+          <text class="service-two-rows-name">{{item.name}}</text>
+        </view>
+        </view>
+      </scroll-view>
     </view>
 
-    <!-- 课程表卡片 -->
-    <view class="schedule-card card anim-slide-up" bindtap="goSchedule">
+    <!-- 课程表卡片（仅在开启"首页课程表提醒"时显示） -->
+    <view class="schedule-card card anim-slide-up" wx:if="{{reminderEnabled}}" bindtap="goSchedule">
       <view class="schedule-header">
         <text class="schedule-week">{{scheduleWeekText || '加载中...'}}</text>
         <text class="schedule-remain">{{scheduleRemainText}}</text>
@@ -129,7 +135,16 @@
     <!-- 帖子列表 -->
     <block wx:else>
       <view wx:for="{{posts}}" wx:key="id" style="--i: {{index < 6 ? index : 0}};" class="anim-stagger">
-        <post-card post="{{item}}" bind:like="onPostLike" bind:favorite="onPostFavorite" bind:follow="onPostFollow" bind:close="onPostClose" />
+        <post-card
+          post="{{item}}"
+          commentMode="sheet"
+          allowPin="{{true}}"
+          bind:like="onPostLike"
+          bind:favorite="onPostFavorite"
+          bind:comment="onPostComment"
+          bind:pin="onPostPin"
+          bind:close="onPostClose"
+        />
       </view>
       <empty-state wx:if="{{posts.length === 0}}" text="暂无帖子" />
       <load-more loading="{{loading}}" hasMore="{{hasMore}}" />
@@ -145,6 +160,65 @@
     <view class="float-btn float-btn-publish pressable" bindtap="goPublish">
       <image class="float-btn-icon icon-md" src="/assets/icons/edit.png" mode="aspectFit"></image>
       <text class="float-btn-text">发帖</text>
+    </view>
+  </view>
+
+  <view class="comment-sheet-mask" wx:if="{{commentSheetVisible}}" bindtap="closeCommentSheet"></view>
+  <view class="comment-sheet" wx:if="{{commentSheetVisible}}" catchtap="noop">
+    <view class="comment-sheet-handle"></view>
+    <view class="comment-sheet-header">
+      <text class="comment-sheet-title">评论 {{commentSheetComments.length || (commentSheetPost.commentCount || 0)}}</text>
+      <text class="comment-sheet-close" bindtap="closeCommentSheet">×</text>
+    </view>
+
+    <scroll-view class="comment-sheet-list" scroll-y enhanced show-scrollbar="{{false}}">
+      <view class="comment-sheet-loading" wx:if="{{commentSheetLoading}}">评论加载中...</view>
+      <view class="sheet-comment" wx:for="{{commentSheetComments}}" wx:key="id">
+        <image class="sheet-comment-avatar" src="{{item.avatarUrl || '/assets/icons/avatar.png'}}" mode="aspectFill"></image>
+        <view class="sheet-comment-main">
+          <view class="sheet-comment-meta">
+            <text class="sheet-comment-name">{{item.nickName}}</text>
+            <text class="sheet-comment-time">{{item.timeText}}</text>
+          </view>
+          <text class="sheet-comment-content">{{item.content}}</text>
+          <view class="sheet-comment-images" wx:if="{{item.images && item.images.length}}">
+            <image class="sheet-comment-image" wx:for="{{item.images}}" wx:for-item="img" wx:key="*this" src="{{img}}" mode="aspectFill"></image>
+          </view>
+        </view>
+        <view class="sheet-comment-like">
+          <image class="sheet-like-icon" src="/assets/icons/heart-outline.png" mode="aspectFit"></image>
+          <text class="sheet-like-count" wx:if="{{item.likeCount}}">{{item.likeCount}}</text>
+        </view>
+      </view>
+      <view class="comment-sheet-empty" wx:if="{{!commentSheetLoading && commentSheetComments.length === 0}}">
+        <text>还没有评论，来坐第一排</text>
+      </view>
+    </scroll-view>
+
+    <view class="sheet-preview-images" wx:if="{{commentSheetImages.length}}">
+      <view class="sheet-preview-item" wx:for="{{commentSheetImages}}" wx:key="*this">
+        <image class="sheet-preview-img" src="{{item}}" mode="aspectFill"></image>
+        <view class="sheet-preview-remove" data-index="{{index}}" catchtap="onSheetRemoveImage">×</view>
+      </view>
+    </view>
+
+    <view class="sheet-input-area">
+      <input
+        class="sheet-comment-input"
+        value="{{commentSheetText}}"
+        placeholder="发言要友善"
+        focus="{{commentSheetFocus}}"
+        cursor-spacing="24"
+        adjust-position="{{false}}"
+        bindinput="onSheetCommentInput"
+      />
+      <view class="sheet-send {{commentSheetText || commentSheetImages.length ? 'active' : ''}}" bindtap="onSheetSendComment">发送</view>
+      <view class="sheet-tool" catchtap="toggleSheetEmojiPanel">😊</view>
+      <view class="sheet-tool" catchtap="onSheetChooseImage">＋</view>
+    </view>
+
+    <view class="sheet-emoji-panel" wx:if="{{commentSheetEmojiVisible}}">
+      <view class="sheet-emoji-item" wx:for="{{commentSheetEmojis}}" wx:key="*this" data-emoji="{{item}}" catchtap="onSheetEmojiTap">{{item}}</view>
     </view>
   </view>
 </view>

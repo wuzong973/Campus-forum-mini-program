@@ -7,6 +7,8 @@ Component({
   properties: {
     post: { type: Object, value: {} },
     showFooter: { type: Boolean, value: true },
+    commentMode: { type: String, value: "detail" },
+    allowPin: { type: Boolean, value: false },
   },
   data: {
     timeText: "",
@@ -14,6 +16,7 @@ Component({
     isLongContent: false,
     previewImages: [],
     imageLayout: "none",
+    topLikedComment: null,
   },
   observers: {
     "post.createdAt, post.content, post.images": function (
@@ -28,6 +31,11 @@ Component({
       });
       this.processContent(content);
     },
+    "post.id": function (postId) {
+      if (postId) {
+        this.loadTopLikedComment(postId);
+      }
+    },
   },
   lifetimes: {
     attached() {
@@ -38,6 +46,10 @@ Component({
         imageLayout: this.getImageLayout(((post && post.images) || [])),
       });
       this.processContent(post && post.content);
+      if (post && post.id) {
+        api.setCurrentPostId(post.id);
+        this.loadTopLikedComment(post.id);
+      }
     },
   },
   methods: {
@@ -108,8 +120,12 @@ Component({
     },
 
     onComment() {
+      if (this.data.commentMode === "sheet") {
+        this.triggerEvent("comment", { post: this.data.post });
+        return;
+      }
       wx.navigateTo({
-        url: "/pages/post-detail/index?id=" + this.data.post.id,
+        url: "/pages/post-detail/index?id=" + this.data.post.id + "&comment=1",
       });
     },
 
@@ -155,26 +171,30 @@ Component({
       this.openProfile();
     },
 
-    onFollow() {
-      if (!auth.requireLogin("关注需要先登录")) return;
-      const post = Object.assign({}, this.data.post);
-      const currentUserId = ((getApp().globalData || {}).userInfo || {}).id;
-      if (post.userId === currentUserId) {
-        wx.showToast({ title: "不能关注自己", icon: "none" });
-        return;
-      }
-      const action = post.isFollowed ? api.unfollowUser : api.followUser;
-      post.isFollowed = !post.isFollowed;
-      this.setData({ post });
-      this.triggerEvent("follow", { post });
-      action(post.userId).catch(() => {
-        post.isFollowed = !post.isFollowed;
-        this.setData({ post });
-        this.triggerEvent("follow", { post });
+    openActionMenu() {
+      const canPin = this.data.allowPin;
+      const itemList = canPin
+        ? ["置顶帖子", "不感兴趣", "举报内容"]
+        : ["不感兴趣", "举报内容"];
+      wx.showActionSheet({
+        itemList,
+        success: (res) => {
+          if (canPin && res.tapIndex === 0) {
+            this.triggerEvent("pin", {
+              postId: this.data.post.id,
+              post: this.data.post,
+            });
+          } else if ((!canPin && res.tapIndex === 0) || (canPin && res.tapIndex === 1)) {
+            this.triggerEvent("close", { postId: this.data.post.id });
+          } else {
+            wx.showToast({ title: "已收到反馈", icon: "success" });
+          }
+        },
       });
     },
 
     onClose() {
+      return this.openActionMenu();
       wx.showActionSheet({
         itemList: ["不感兴趣", "举报内容"],
         success: (res) => {
@@ -190,6 +210,25 @@ Component({
     onViewFull() {
       wx.navigateTo({
         url: "/pages/post-detail/index?id=" + this.data.post.id,
+      });
+    },
+
+    loadTopLikedComment(postId) {
+      api.getTopLikedComment(postId).then((comment) => {
+        if (comment) {
+          this.setData({
+            topLikedComment: {
+              nickName: comment.nick_name || "用户",
+              avatarUrl: comment.avatar_url || "",
+              content: comment.content,
+              likeCount: comment.like_count || 0,
+            },
+          });
+        } else {
+          this.setData({ topLikedComment: null });
+        }
+      }).catch(() => {
+        this.setData({ topLikedComment: null });
       });
     },
   },

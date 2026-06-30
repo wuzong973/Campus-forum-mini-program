@@ -5,8 +5,7 @@ const TYPE_META = {
   liked: { title: '已点赞', empty: '还没有点赞过帖子' },
   shared: { title: '已转发', empty: '还没有转发过帖子' },
   commented: { title: '已评论', empty: '还没有评论过帖子' },
-  favorited: { title: '已收藏', empty: '还没有收藏过帖子' },
-  followed: { title: '已关注', empty: '还没有关注用户' }
+  favorited: { title: '已收藏', empty: '还没有收藏过帖子' }
 }
 
 Page({

@@ -11,8 +11,6 @@ router.get('/profile/:id', userController.getProfile)
 router.get('/profile/:id/posts', userController.getProfilePosts)
 router.put('/info', auth, userController.updateInfo)
 router.post('/verify', auth, userController.verify)
-router.post('/follow/:id', auth, userController.follow)
-router.delete('/follow/:id', auth, userController.unfollow)
 router.post('/upload/image', auth, uploadController.uploadMiddleware, uploadController.uploadImage)
 
 module.exports = router
