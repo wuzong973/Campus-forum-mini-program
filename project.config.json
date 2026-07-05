@@ -2,7 +2,12 @@
   "compileType": "miniprogram",
   "libVersion": "trial",
   "packOptions": {
-    "ignore": [],
+    "ignore": [
+      { "type": "folder", "value": "教务系统爬虫" },
+      { "type": "folder", "value": "server" },
+      { "type": "file", "value": "find_large.ps1" },
+      { "type": "file", "value": "generate_icons.py" }
+    ],
     "include": []
   },
   "setting": {

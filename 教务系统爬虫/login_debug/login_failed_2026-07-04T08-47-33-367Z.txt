@@ -1,0 +1,27 @@
+time=2026-07-04T08:47:33.367Z
+finalUrl=https://jw.gdipu.edu.cn/jsxsd/xk/LoginToXk
+status=200
+factorLength=0
+encodedLength=35
+
+URL: https://jw.gdipu.edu.cn
+Cookie header: acw_tc=2f73...22d9; SERVERID=***
+  - acw_tc@jw.gdipu.edu.cn/=2f73...22d9
+  - SERVERID@jw.gdipu.edu.cn/=***
+
+URL: https://jw.gdipu.edu.cn/Logon.do?method=logon
+Cookie header: acw_tc=2f73...22d9; SERVERID=***
+  - acw_tc@jw.gdipu.edu.cn/=2f73...22d9
+  - SERVERID@jw.gdipu.edu.cn/=***
+
+URL: https://jw.gdipu.edu.cn/jsxsd/xk/LoginToXk
+Cookie header: JSESSIONID=4E94...2941; acw_tc=2f73...22d9; SERVERID=***
+  - JSESSIONID@jw.gdipu.edu.cn/jsxsd=4E94...2941
+  - acw_tc@jw.gdipu.edu.cn/=2f73...22d9
+  - SERVERID@jw.gdipu.edu.cn/=***
+
+URL: https://jw.gdipu.edu.cn/jsxsd/framework/xsMain.jsp
+Cookie header: JSESSIONID=4E94...2941; acw_tc=2f73...22d9; SERVERID=***
+  - JSESSIONID@jw.gdipu.edu.cn/jsxsd=4E94...2941
+  - acw_tc@jw.gdipu.edu.cn/=2f73...22d9
+  - SERVERID@jw.gdipu.edu.cn/=***

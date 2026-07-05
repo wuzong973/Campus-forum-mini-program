@@ -1,5 +1,7 @@
 const path = require("path");
 const Module = require("module");
+const cheerio = require("cheerio");
+const qs = require("querystring");
 
 const SERVER_NODE_MODULES = path.resolve(__dirname, "..", "node_modules");
 if (!Module.globalPaths.includes(SERVER_NODE_MODULES)) {
@@ -36,6 +38,21 @@ const CHALLENGE_TTL_MS = clampNumber(
   30,
   600,
 ) * 1000;
+const INITIAL_SYNC_WEEKS = clampNumber(
+  process.env.JW_INITIAL_SYNC_WEEKS,
+  1,
+  1,
+  4,
+);
+const USE_SERVER_OCR = /^(1|true|yes|on)$/i.test(
+  String(process.env.JW_USE_OCR || "1"),
+);
+const FAST_SEMESTER_CONCURRENCY = clampNumber(
+  process.env.JW_FAST_SEMESTER_CONCURRENCY,
+  6,
+  1,
+  10,
+);
 
 const lastSyncByUser = new Map();
 const activeSyncUsers = new Set();
@@ -65,13 +82,15 @@ function inferCourseColor(name, location, startTime) {
 function buildCrawler(overrides = {}) {
   return new JwCrawler({
     verbose: false,
-    useOcr: true,
+    useOcr: USE_SERVER_OCR,
     captchaPath: null,
-    maxCaptchaAttempts: clampNumber(process.env.JW_CAPTCHA_ATTEMPTS, 3, 1, 6),
+    maxCaptchaAttempts: clampNumber(process.env.JW_CAPTCHA_ATTEMPTS, 1, 1, 3),
     minOcrConfidence: clampNumber(process.env.JW_OCR_MIN_CONFIDENCE, 0, 0, 100),
-    baseDelay: clampNumber(process.env.JW_BASE_DELAY_MS, 1200, 500, 5000),
-    jitter: clampNumber(process.env.JW_JITTER_MS, 500, 0, 2000),
-    timeout: clampNumber(process.env.JW_TIMEOUT_MS, 20000, 5000, 120000),
+    baseDelay: clampNumber(process.env.JW_BASE_DELAY_MS, 0, 0, 5000),
+    jitter: clampNumber(process.env.JW_JITTER_MS, 0, 0, 2000),
+    timeout: clampNumber(process.env.JW_TIMEOUT_MS, 8000, 3000, 120000),
+    maxRetries: clampNumber(process.env.JW_MAX_RETRIES, 0, 0, 3),
+    retryBackoffBase: clampNumber(process.env.JW_RETRY_BACKOFF_MS, 300, 0, 5000),
     ocrOptions: {
       langPath: CRAWLER_ROOT,
       cachePath: path.join(CRAWLER_ROOT, ".ocr-cache"),
@@ -83,24 +102,25 @@ function buildCrawler(overrides = {}) {
 
 async function loginCrawler(crawler, username, password) {
   const loginMode = String(process.env.JW_LOGIN_MODE || "direct").toLowerCase();
+  const useOcr = USE_SERVER_OCR;
 
   if (loginMode === "unified") {
-    return crawler.loginWithCaptcha(username, password, { useOcr: true });
+    return crawler.loginWithCaptcha(username, password, { useOcr });
   }
 
   if (loginMode === "auto") {
     try {
       return await crawler.loginWithCaptcha(username, password, {
-        useOcr: true,
+        useOcr,
       });
     } catch (error) {
       return crawler.loginJsxsdWithCaptcha(username, password, {
-        useOcr: true,
+        useOcr,
       });
     }
   }
 
-  return crawler.loginJsxsdWithCaptcha(username, password, { useOcr: true });
+  return crawler.loginJsxsdWithCaptcha(username, password, { useOcr });
 }
 
 function buildCourseKey(course) {
@@ -396,6 +416,121 @@ async function crawlSemesterWithCrawler(crawler, semesterStart, totalWeeks) {
   };
 }
 
+async function mapWithConcurrency(items, limit, mapper) {
+  const results = new Array(items.length);
+  let nextIndex = 0;
+  const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
+    while (nextIndex < items.length) {
+      const currentIndex = nextIndex;
+      nextIndex += 1;
+      results[currentIndex] = await mapper(items[currentIndex], currentIndex);
+    }
+  });
+  await Promise.all(workers);
+  return results;
+}
+
+async function crawlSemesterFastWithCrawler(crawler, semesterStart, totalWeeks) {
+  const dates = JwCrawler.generateWeekDates(semesterStart, totalWeeks);
+  const pageHtml = await crawler.getSchedulePage();
+  const $page = cheerio.load(pageHtml);
+  const sjmsValue = $page("#sjms").val();
+
+  if (!sjmsValue) {
+    throw new Error("无法从课表主页提取 sjmsValue，可能未登录或登录已过期");
+  }
+
+  const weeklyResults = await mapWithConcurrency(
+    dates,
+    FAST_SEMESTER_CONCURRENCY,
+    async (date, index) => {
+      const params = { rq: date, sjmsValue };
+      const res = await crawler.requestWithRetry(
+        () =>
+          crawler.instance.post(
+            "/jsxsd/framework/main_index_loadkb.jsp",
+            qs.stringify(params),
+            {
+              headers: {
+                "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+                Referer: `${crawler.options.baseURL}/jsxsd/framework/xsMain_new.jsp?t1=1`,
+                "X-Requested-With": "XMLHttpRequest",
+              },
+            },
+          ),
+        `课表数据 ${date}`,
+      );
+
+      return {
+        weekNumber: index + 1,
+        date,
+        courses: crawler.parseSchedule(res.data),
+      };
+    },
+  );
+
+  const courses = aggregateWeeklyCourses(weeklyResults);
+  return {
+    courses,
+    meta: {
+      semesterStart,
+      totalWeeks,
+      rawWeekCount: weeklyResults.length,
+      rawCourseCount: weeklyResults.reduce(
+        (sum, item) => sum + (item.courses || []).length,
+        0,
+      ),
+      fast: true,
+      concurrency: FAST_SEMESTER_CONCURRENCY,
+    },
+  };
+}
+
+function getCurrentWeekNumber(semesterStart, totalWeeks) {
+  const start = new Date(`${semesterStart}T00:00:00+08:00`);
+  if (Number.isNaN(start.getTime())) return 1;
+  const now = new Date();
+  const diffDays = Math.floor((now.getTime() - start.getTime()) / 86400000);
+  const week = Math.floor(diffDays / 7) + 1;
+  return Math.min(Math.max(week, 1), totalWeeks);
+}
+
+async function crawlInitialWeeksWithCrawler(crawler, semesterStart, totalWeeks) {
+  const dates = JwCrawler.generateWeekDates(semesterStart, totalWeeks);
+  const currentWeek = getCurrentWeekNumber(semesterStart, totalWeeks);
+  const startIndex = Math.max(0, currentWeek - 1);
+  const selected = dates
+    .map((date, index) => ({ date, weekNumber: index + 1 }))
+    .slice(startIndex, startIndex + INITIAL_SYNC_WEEKS);
+  const weeklyResults = [];
+
+  for (const item of selected) {
+    const html = await crawler.getScheduleRaw(item.date);
+    const courses = crawler.parseSchedule(html);
+    weeklyResults.push({
+      weekNumber: item.weekNumber,
+      date: item.date,
+      courses,
+    });
+  }
+
+  const courses = aggregateWeeklyCourses(weeklyResults);
+  return {
+    courses,
+    meta: {
+      semesterStart,
+      totalWeeks,
+      rawWeekCount: weeklyResults.length,
+      rawCourseCount: weeklyResults.reduce(
+        (sum, item) => sum + (item.courses || []).length,
+        0,
+      ),
+      partial: true,
+      currentWeek,
+    },
+  };
+}
+
 function normalizeSyncError(error) {
   const message = String((error && error.message) || "");
 
@@ -463,7 +598,7 @@ async function syncScheduleFromJw({
       throw makeCaptchaRequiredError(challenge);
     }
 
-    const result = await crawlSemesterWithCrawler(
+    const result = await crawlSemesterFastWithCrawler(
       crawler,
       semesterStart,
       DEFAULT_TOTAL_WEEKS,
@@ -509,7 +644,7 @@ async function submitScheduleCaptcha({ userId, challengeId, code }) {
     await submitChallengeLogin(challenge, captchaCode);
     const semesterStart =
       normalizeDate(challenge.scheduleStartDate) || DEFAULT_SEMESTER_START;
-    const result = await crawlSemesterWithCrawler(
+    const result = await crawlSemesterFastWithCrawler(
       challenge.crawler,
       semesterStart,
       DEFAULT_TOTAL_WEEKS,

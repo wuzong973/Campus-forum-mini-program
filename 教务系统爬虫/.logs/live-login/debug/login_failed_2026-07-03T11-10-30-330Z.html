@@ -1,0 +1,340 @@
+
+
+
+
+
+
+
+
+<html lang="zh-CN">
+<head>
+	<meta charset="utf-8">
+	<meta http-equiv="X-UA-Compatible" content="IE=edge">
+	<meta name="referrer" content="origin">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>登录</title>
+
+
+
+	<link rel="stylesheet" type="text/css" href="/jsxsd/css/reset.css">
+	<link rel="stylesheet" type="text/css" href="/jsxsd/css/style.css">
+	
+		<link href="/jsxsd/js/bootstrap/css/bootstrap.min.css" rel="stylesheet">
+	<script type="text/javascript" src="/jsxsd/js/bootstrap/js/bootstrap.min.js"></script>
+	<script type="text/javascript" src="/jsxsd/js/conwork.js"></script>
+	
+</head>
+<style>
+	.QRcodeSkip{
+		width: 80px;
+		height: 70px;
+		position: absolute;
+		visibility: inherit;
+		right: 17.5%;
+		cursor: pointer;
+	}
+	.QRcode{
+		width: 300px;
+		height: 300px;
+		position: absolute;
+		visibility: inherit;
+		right: 21%;
+		top: 30%;
+	}
+</style>
+
+<body class="login_bg">
+<div id="login_content">
+	<div class="login_logo">
+		<img class="img-responsive" src="/jsxsd/css/images/login_logo.png" >
+	</div>
+	<div class="login_box">
+		<div class="box_left">
+			
+			<img class="img-responsive" src="/jsxsd/css/images/login_icon.png" >
+			
+		</div>
+		<!-- 二维码跳转图片 -->
+		<div  class="QRcodeSkip" id="QRcodeSkip" style="display: none;"	>
+			<img onclick="QRcodeFun(1)" alt="加载失败" height="70" width="80" src="/jsxsd/css/images/showCode.png" >
+		</div>
+		<div class="box_right" style="">
+			<form action="/jsxsd/xk/LoginToXk" method="post" id="Form1" name="Form1" onsubmit="return submitForm1();">
+				<ul id="ul1" >
+					<li class="box_bt"><img class="img-responsive" src="/jsxsd/css/images/user_icon.png"  style="float:left;margin:8px 8px 0 0">用户登录</li>
+					<li class="input-group input_li">
+						<span class="input-group-addon"><i class="glyphicon glyphicon-user"></i></span>
+						<input type="text" class="form-control" id="userAccount" name="userAccount" placeholder="请输入账号" value="" autofocus>
+					</li>
+					<li class="input-group input_li">
+						<span class="input-group-addon" id="basic-addon1"><i class="glyphicon glyphicon-lock"></i></span>
+						<input type="password" class="form-control" id="userPassword" name="userPassword" autocomplete="new-password" placeholder="请输入密码" value="">
+					</li>
+					
+					
+					<li class="input-group input_li">
+						<ul>
+							<li class="no_padding col-sm-9">
+								<input type="text" class="form-control" id="RANDOMCODE" name="RANDOMCODE" placeholder="请输入验证码">&nbsp;&nbsp;
+							</li>
+							<li class="no_padding col-sm-3">
+								<img src="/jsxsd/verifycode.servlet" id="SafeCodeImg"  onclick="ReShowCode()" width="80px" height="40px" style="margin-left: 5px;" />
+							</li>
+						</ul>
+					</li>
+					
+					
+					<li class="input_li">
+						
+						<button type="submit" class="btn btn-primary login_btn" onclick="login()">登&nbsp;&nbsp;&nbsp;录</button>
+						
+					</li>
+					
+					
+					
+
+					<li class="input_li"  style="color: red; margin-bottom: 0;height: 10px;">
+						&nbsp;<font color="red">温馨提示：推荐使用IE9以上浏览器以及360极速模式。</font><br>
+
+					</li>
+					
+
+
+
+					<li class="input_li" id="showMsg" style="color: red; margin-bottom: 0;">
+						&nbsp;请先登录系统
+					</li>
+				</ul>
+				<!-- 二维码展示层 -->
+				<ul id="ul2" style="display: none;" >
+					<li class="box_bt">
+						<p class="u9" >APP下载
+							<span style="font-size: 13px;cursor: pointer;text-align: right;float: right;" onclick="QRcodeFun(2)" >
+				 					<img   alt="加载失败" height="13" width="13" src="/jsxsd/css/images/ret.png" >
+				 					返回登录
+			 					</span>
+						</p>
+					</li>
+					<li class="input_li" style="text-align: center;"  >
+						<center><img class="img-responsive" alt="加载失败" height="300" width="300" src="/jsxsd/css/images/codeFrame.png" ></center>
+					</li>
+					<li class="input_li" style=" margin-bottom: 0;height: 15.5px;">
+						<center>扫描二维码  下载APP</center>
+					</li>
+				</ul>
+				<input name="encoded" id="encoded" type="hidden" value=""/>
+				<input name="pwdstr1" id="pwdstr1" type="hidden" value=""/>
+				<input name="pwdstr2" id="pwdstr2" type="hidden" value=""/>
+			</form>
+			<div style="margin-left:auto;font-size:13px;color:red;white-space:nowrap;">&nbsp;本平台为互联网非涉密平台，严禁处理、传输国家秘密、工作秘密及敏感信息。</div>
+		</div>
+	</div>
+</div>
+
+<footer>Copyright © 2017.湖南强智科技发展有限公司</footer>
+
+<script type="text/javascript" src="/jsxsd/js/uasLogin.js"></script>
+<script type="text/javascript" src="/jsxsd/js/jqChart/js/jquery-1.11.1.min.js"></script>
+<script type="text/javascript" src="/jsxsd/js/bootstrap/js/bootstrap.min.js"></script>
+<script type="text/javascript" src="/jsxsd/js/conwork.js"></script>
+</body>
+  
+</html>
+<script language="javascript">
+	//辽宁石油化工大学个性化 增加跳转cas统一认证登录界面
+	function Opencaslog() {
+		window.location.href="/sso.jsp";
+	}
+	var userAccount = document.getElementById('userAccount'),
+			userPassword = document.getElementById('userPassword'),
+			check = document.getElementById('remember'),
+			localUser = localStorage.getItem('userAccount') || ''; //获取到user的值并保存
+	localPass = localStorage.getItem('userPassword') || ''; //获取到pwd的值并保存
+	userAccount.value = localUser;
+	userPassword.value = localPass;
+	if (localUser !== '' && localPass !== '') {
+		check.setAttribute('checked', '');
+	}
+	
+	function fn() {
+		if (check.checked) {
+			localStorage.setItem('userAccount', userAccount.value);
+			localStorage.setItem('userPassword', pass.value);
+		} else {
+			localStorage.setItem('userAccount', '');
+			localStorage.setItem('userPassword', '');
+		}
+	}
+	//是否启用APP下载二维码
+	
+	function ReShowCode(){
+		var SafeCodeImg = document.getElementById("SafeCodeImg");
+		var url="/jsxsd/verifycode.servlet?t="+Math.random();
+		SafeCodeImg.src = url;
+	}
+
+	function submitForm1(){
+		try{
+			debugger;
+			var xh = document.getElementById("userAccount").value;
+			var pwd = document.getElementById("userPassword").value;
+			if(xh==""){
+				alert("用户名不能为空！");
+				return false;
+			}
+			if(pwd==""){
+				alert("密码不能为空！");
+				return false;
+			}
+			var str1 = '';
+			var str2 = '' ;
+			for (let i = 0; i < pwd.length; i++) {
+				if(pwd.charAt(i)=='。'){
+					pwd = replaceStr(pwd,i,'.');
+					str1 += i+","
+				}else if(pwd.charAt(i)=='，'){
+					pwd = replaceStr(pwd,i,',');
+					str2 += i+","
+				}
+			}
+			document.getElementById("pwdstr1").value = str1;
+			document.getElementById("pwdstr2").value = str2;
+			var account = encodeInp(xh);
+			var passwd = encodeInp(pwd);
+
+			var encoded = account+"%%%"+passwd;
+			document.getElementById("encoded").value = encoded;
+			console.log(document.getElementById("Form1"));
+			//if(document.getElementById("Form1").jzmmid)
+			var jzmmid = document.getElementById("Form1").jzmmid;
+			document.getElementById("userPassword").value="";
+			return true;
+		}catch(e){
+			alert(e);
+			return false;
+		}
+	}
+
+	const replaceStr = (str, index, char) => {
+		return str.substring(0, index) + char + str.substring(index + 1);
+	}
+	/***
+	 *切换验证码
+	 **/
+	function QRcodeFun(type) {
+		if("1" == type ){
+			$("#ul1").hide();
+			$("#ul2").show();
+			$("#QRcodeSkip").hide();
+		}else{
+			$("#ul2").hide();
+			$("#ul1").show();
+			$("#QRcodeSkip").show();
+		}
+
+	}
+
+  function closeWechar(){
+	  $(".mmclass").css("display","");
+       var ul1 = $("#ul1");
+       var user = ul1.find("li").eq(1);
+       var pwd = ul1.find("li").eq(2);
+       user.css("display","");
+       pwd.css("display","");
+	  $("#userAccount").show();
+	  $("#userPassword").show();
+       var logonBtn = $("button[onclick='login()']");
+       //logonBtn.removeAttr("disabled");
+	  $("#login").show();
+       $("#bjkjdx_qrcode").css("display","none");
+        
+            var yzm = ul1.find("li").eq(4);
+            yzm.css("display","");
+        
+  }
+
+    var isCapital = -1;
+    jQuery(window).keyup(changeCapsLock);
+    jQuery('input[name=userPassword]').on('keyup', function(e){
+        if (e.keyCode==13){
+            login();
+        }
+        var lastVal = '';//声明一个空字符串
+        lastVal = jQuery(this).val().substr(getCursortPosition.call(this,this)-1, 1).charCodeAt(0);
+        var a2=String.fromCharCode(lastVal).toUpperCase().charCodeAt();//输入的字母大写对应的ascll值
+        if (e.keyCode >= 65 && e.keyCode <= 90) {
+            lastVal = jQuery(this).val().substr(getCursortPosition.call(this,this)-1, 1).charCodeAt(0);
+            if ((e.shiftKey&&(lastVal>=65&&lastVal<=90))||(lastVal>=65&&lastVal<=90)) {
+                if(e.shiftKey ){
+                    isCapital = 0;
+                }else{
+                    isCapital = 1;
+                }
+                tipsCapsLock3.call(this);
+            }else{
+                if(lastVal>90&&!(e.shiftKey)){
+                    isCapital = 0;
+                }else {
+                    isCapital = 1;
+                }
+                    tipsCapsLock4.call(this);
+            }
+        }else{
+            changeCapsLock.call(this, e);
+        }
+    });
+    function changeCapsLock(e){
+        e.stopPropagation();
+        if (e.keyCode != 20||(document.getElementById("userPassword").value.length==0)){
+            return;
+        }else{
+            switch(isCapital){
+                case -1:
+                    isCapital=1;
+                    tipsCapsLock.call(this,this);
+                    if (this !== window) tipsCapsLock.call(this);
+                    break;
+                case 0:
+                    isCapital = 1;
+                    tipsCapsLock.call(this,this);
+                    if (this !== window) tipsCapsLock.call(this);
+                    break;
+                case 1:
+                    isCapital = 0;
+                    tipsCapsLock2.call(this,this);
+                    if (this !== window) tipsCapsLock2.call(this);
+                    break;
+            }
+        }
+    }
+    function tipsCapsLock(){
+        document.getElementById("text2").innerText="";
+        document.getElementById("text1").innerText="大写锁定开启";
+    }
+    function tipsCapsLock2(){
+        document.getElementById("text1").innerText="";
+        document.getElementById("text2").innerText="小写锁定开启";
+    }
+    function tipsCapsLock3(){
+        document.getElementById("text2").innerText="";
+        document.getElementById("text1").innerText="当前输入为大写";
+    }
+    function tipsCapsLock4(){
+        document.getElementById("text1").innerText="";
+        document.getElementById("text2").innerText="当前输入为小写";
+    }
+
+
+    function getCursortPosition (ctrl) {
+        var CaretPos = 0;
+        if (document.selection) {
+            ctrl.focus();
+            var Sel = document.selection.createRange ();
+            Sel.moveStart('character', -ctrl.value.length);
+            CaretPos = Sel.text.length;
+        }
+        else if (ctrl.selectionStart || ctrl.selectionStart == '0')
+            CaretPos = ctrl.selectionStart;
+        return (CaretPos);
+    }
+</script>

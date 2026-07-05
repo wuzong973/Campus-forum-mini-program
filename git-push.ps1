@@ -4,8 +4,8 @@ Set-Location "d:\校园小程序第二版"
 git config user.name "wuzong973"
 git config user.email "wuzong973@users.noreply.github.com"
 
-# 添加所有文件
-git add .
+# 强制添加所有文件，包括被.gitignore忽略的
+git add -f .
 
 # 提交
 git commit -m "Initial commit: Campus forum mini program"

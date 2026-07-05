@@ -15,6 +15,8 @@ const DEFAULT_AMBIGUOUS_MAP = {
   g: '9',
 };
 
+const workerCache = new Map();
+
 function normalizeCaptchaText(text, length = 4, ambiguousMap = DEFAULT_AMBIGUOUS_MAP) {
   const raw = String(text || '')
     .toLowerCase()
@@ -97,6 +99,7 @@ async function recognizeCaptcha(input, options = {}) {
     minConfidence = 0,
     variants = true,
     verbose = false,
+    reuseWorker = true,
   } = options;
 
   const workerOptions = getLocalTesseractOptions(lang, options);
@@ -104,12 +107,23 @@ async function recognizeCaptcha(input, options = {}) {
     workerOptions.logger = (message) => console.log('[OCR]', message);
   }
 
-  const worker = await createWorker(lang, 1, workerOptions, {
-    load_system_dawg: '0',
-    load_freq_dawg: '0',
-    load_number_dawg: '0',
-    load_punc_dawg: '0',
+  const workerKey = JSON.stringify({
+    lang,
+    langPath: workerOptions.langPath || '',
+    cachePath: workerOptions.cachePath || '',
+    gzip: workerOptions.gzip,
   });
+
+  let worker = reuseWorker ? workerCache.get(workerKey) : null;
+  if (!worker) {
+    worker = await createWorker(lang, 1, workerOptions, {
+      load_system_dawg: '0',
+      load_freq_dawg: '0',
+      load_number_dawg: '0',
+      load_punc_dawg: '0',
+    });
+    if (reuseWorker) workerCache.set(workerKey, worker);
+  }
 
   try {
     await worker.setParameters({
@@ -147,8 +161,16 @@ async function recognizeCaptcha(input, options = {}) {
       candidates: results,
     };
   } finally {
-    await worker.terminate();
+    if (!reuseWorker) {
+      await worker.terminate();
+    }
   }
+}
+
+async function terminateCachedWorkers() {
+  const workers = Array.from(workerCache.values());
+  workerCache.clear();
+  await Promise.allSettled(workers.map(worker => worker.terminate()));
 }
 
 module.exports = {
@@ -158,6 +180,7 @@ module.exports = {
   getLocalTesseractOptions,
   normalizeCaptchaText,
   recognizeCaptcha,
+  terminateCachedWorkers,
 };
 
 if (require.main === module) {

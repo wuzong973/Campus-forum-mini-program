@@ -1,0 +1,42 @@
+{
+  "jar": {
+    "version": "tough-cookie@4.1.4",
+    "storeType": "MemoryCookieStore",
+    "rejectPublicSuffixes": true,
+    "enableLooseMode": false,
+    "allowSpecialUseDomain": true,
+    "prefixSecurity": "silent",
+    "cookies": [
+      {
+        "key": "acw_tc",
+        "value": "2f739ef917830774713758866e2c6386f63f77369e8cabeb1e1dd055ba6b67",
+        "maxAge": 1800,
+        "domain": "jw.gdipu.edu.cn",
+        "path": "/",
+        "httpOnly": true,
+        "hostOnly": true,
+        "creation": "2026-07-03T11:17:51.471Z",
+        "lastAccessed": "2026-07-03T11:17:51.491Z"
+      },
+      {
+        "key": "JSESSIONID",
+        "value": "ACE3646482B47E51D8561E901921FD49",
+        "domain": "jw.gdipu.edu.cn",
+        "path": "/jsxsd",
+        "httpOnly": true,
+        "hostOnly": true,
+        "creation": "2026-07-03T11:17:51.472Z",
+        "lastAccessed": "2026-07-03T11:17:51.491Z"
+      },
+      {
+        "key": "SERVERID",
+        "value": "121",
+        "domain": "jw.gdipu.edu.cn",
+        "path": "/",
+        "hostOnly": true,
+        "creation": "2026-07-03T11:17:51.472Z",
+        "lastAccessed": "2026-07-03T11:17:51.491Z"
+      }
+    ]
+  }
+}

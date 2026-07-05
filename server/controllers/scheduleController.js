@@ -349,6 +349,10 @@ exports.sync = async (req, res) => {
         totalWeeks: syncResult.meta.totalWeeks,
         rawWeekCount: syncResult.meta.rawWeekCount,
         rawCourseCount: syncResult.meta.rawCourseCount,
+        partial: !!syncResult.meta.partial,
+        currentWeek: syncResult.meta.currentWeek || null,
+        fast: !!syncResult.meta.fast,
+        concurrency: syncResult.meta.concurrency || null,
       },
       "同步成功",
     );
@@ -421,6 +425,10 @@ exports.syncCaptcha = async (req, res) => {
         totalWeeks: syncResult.meta.totalWeeks,
         rawWeekCount: syncResult.meta.rawWeekCount,
         rawCourseCount: syncResult.meta.rawCourseCount,
+        partial: !!syncResult.meta.partial,
+        currentWeek: syncResult.meta.currentWeek || null,
+        fast: !!syncResult.meta.fast,
+        concurrency: syncResult.meta.concurrency || null,
       },
       "同步成功",
     );

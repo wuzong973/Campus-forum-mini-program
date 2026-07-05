@@ -26,20 +26,20 @@ class JwCrawler {
       maxRedirects: options.maxRedirects || 5,
 
       // 请求超时（毫秒）
-      timeout: options.timeout || 15000,
+      timeout: options.timeout ?? 15000,
 
       // ========== 限流配置 ==========
       // 基础请求间隔（毫秒），每次请求后至少等待
-      baseDelay: options.baseDelay || 1500,
+      baseDelay: options.baseDelay ?? 1500,
 
       // 随机抖动范围（毫秒），实际延迟 = baseDelay + Math.random() * jitter
-      jitter: options.jitter || 800,
+      jitter: options.jitter ?? 800,
 
       // 最大重试次数（被限流或网络错误时）
-      maxRetries: options.maxRetries || 3,
+      maxRetries: options.maxRetries ?? 3,
 
       // 指数退避基数（毫秒），首次重试等待 baseDelay，第二次 baseDelay*2，第三次 baseDelay*4
-      retryBackoffBase: options.retryBackoffBase || 2000,
+      retryBackoffBase: options.retryBackoffBase ?? 2000,
 
       // 是否启用详细日志
       verbose: options.verbose !== undefined ? options.verbose : true,

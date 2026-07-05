@@ -1,6 +1,6 @@
 const app = getApp
 
-const BASE_URL = 'http://127.0.0.1:3000/api/v1'
+const BASE_URL = 'http://192.168.31.33:3000/api/v1'
 const USE_MOCK = true
 const REQUEST_TIMEOUT = 15000
 
@@ -19,7 +19,10 @@ function request(options) {
   if (needAuth && inst.globalData.token) {
     header.Authorization = 'Bearer ' + inst.globalData.token
   }
-  if (showLoading) wx.showLoading({ title: '加载中...', mask: true })
+  if (showLoading) {
+    const title = typeof showLoading === 'string' ? showLoading : '加载中...'
+    wx.showLoading({ title, mask: true })
+  }
 
   return new Promise((resolve, reject) => {
     const timer = setTimeout(() => {

@@ -193,21 +193,17 @@ function getScheduleList() {
 }
 
 function syncSchedule(username, password) {
-  return request.post(
-    "/schedule/sync",
-    { username, password },
-    true,
-    { showLoading: true, timeout: 120000 },
-  );
+  return request.post("/schedule/sync", { username, password }, true, {
+    showLoading: "加载中，可能需要一到两分钟时间，请耐心等候哦~~",
+    timeout: 120000,
+  });
 }
 
 function submitScheduleCaptcha(challengeId, code) {
-  return request.post(
-    "/schedule/sync/captcha",
-    { challengeId, code },
-    true,
-    { showLoading: true, timeout: 120000 },
-  );
+  return request.post("/schedule/sync/captcha", { challengeId, code }, true, {
+    showLoading: "加载中，可能需要一到两分钟时间，请耐心等候哦~~",
+    timeout: 120000,
+  });
 }
 
 function clearSchedule() {
@@ -226,11 +222,46 @@ function getScheduleConfig() {
 
 // Mock 评论数据（按点赞数降序，用于测试）
 const MOCK_COMMENTS = [
-  { id: 1, nick_name: "校园用户", content: "这件球衣真的很好看，求链接！", created_at: "2026-06-25T10:00:00", like_count: 28, is_liked: 0 },
-  { id: 2, nick_name: "校友", content: "同感+1", created_at: "2026-06-26T14:30:00", like_count: 15, is_liked: 0 },
-  { id: 3, nick_name: "校园用户", content: "拍照技术不错，求带！", created_at: "2026-06-27T09:15:00", like_count: 8, is_liked: 0 },
-  { id: 4, nick_name: "路人甲", content: "蓝白配色yyds", created_at: "2026-06-28T16:00:00", like_count: 3, is_liked: 0 },
-  { id: 5, nick_name: "校园用户", content: "1", created_at: "2026-06-29T08:00:00", like_count: 1, is_liked: 0 },
+  {
+    id: 1,
+    nick_name: "校园用户",
+    content: "这件球衣真的很好看，求链接！",
+    created_at: "2026-06-25T10:00:00",
+    like_count: 28,
+    is_liked: 0,
+  },
+  {
+    id: 2,
+    nick_name: "校友",
+    content: "同感+1",
+    created_at: "2026-06-26T14:30:00",
+    like_count: 15,
+    is_liked: 0,
+  },
+  {
+    id: 3,
+    nick_name: "校园用户",
+    content: "拍照技术不错，求带！",
+    created_at: "2026-06-27T09:15:00",
+    like_count: 8,
+    is_liked: 0,
+  },
+  {
+    id: 4,
+    nick_name: "路人甲",
+    content: "蓝白配色yyds",
+    created_at: "2026-06-28T16:00:00",
+    like_count: 3,
+    is_liked: 0,
+  },
+  {
+    id: 5,
+    nick_name: "校园用户",
+    content: "1",
+    created_at: "2026-06-29T08:00:00",
+    like_count: 1,
+    is_liked: 0,
+  },
 ];
 
 function getMockComments(postId) {
@@ -321,8 +352,12 @@ function getTopLikedComment(postId) {
 
 // 记录当前帖子ID，用于 mock 点赞时更新对应评论
 let _currentPostId = 0;
-function setCurrentPostId(id) { _currentPostId = id; }
-function getCurrentPostId() { return _currentPostId; }
+function setCurrentPostId(id) {
+  _currentPostId = id;
+}
+function getCurrentPostId() {
+  return _currentPostId;
+}
 
 function getUserProfile(userId) {
   return withMock(

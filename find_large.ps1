@@ -1,0 +1,1 @@
+Get-ChildItem -Path 'd:\校园小程序第二版' -Recurse -File | Where-Object { $_.FullName -notmatch '\\node_modules\\|\\\.git\\|\\server\\node_modules\\' } | Sort-Object Length -Descending | Select-Object -First 30 @{N='SizeKB';E={[math]::Round($_.Length/1KB,1)}}, FullName | Format-Table -AutoSize
