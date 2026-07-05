@@ -193,7 +193,21 @@ function getScheduleList() {
 }
 
 function syncSchedule(username, password) {
-  return request.post("/schedule/sync", { username, password }, true);
+  return request.post(
+    "/schedule/sync",
+    { username, password },
+    true,
+    { showLoading: true, timeout: 120000 },
+  );
+}
+
+function submitScheduleCaptcha(challengeId, code) {
+  return request.post(
+    "/schedule/sync/captcha",
+    { challengeId, code },
+    true,
+    { showLoading: true, timeout: 120000 },
+  );
 }
 
 function clearSchedule() {
@@ -409,6 +423,7 @@ module.exports = {
   getErrandList,
   getScheduleList,
   syncSchedule,
+  submitScheduleCaptcha,
   clearSchedule,
   getScheduleConfig,
   getCommentList,

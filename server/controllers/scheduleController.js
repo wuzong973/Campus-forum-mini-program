@@ -1,14 +1,19 @@
-const pool = require('../config/pool')
-const { success, fail } = require('../middleware/auth')
-const { safeMessage } = require('../utils/helpers')
+const pool = require("../config/pool");
+const { success, fail } = require("../middleware/auth");
+const { safeMessage } = require("../utils/helpers");
+const {
+  DEFAULT_SEMESTER_START,
+  syncScheduleFromJw,
+  submitScheduleCaptcha,
+} = require("../services/jwScheduleSyncService");
 
 function inferCourseColor(name, location, startTime) {
-  const text = String(name || '') + ' ' + String(location || '')
-  if (/军体|体育|操场/.test(text)) return '#52C41A'
-  if (/实验|第四实训楼|B\d{3}|制图/.test(text)) return '#FA8C16'
-  if (/晚训|晚自习/.test(text) || /^1[89]:/.test(startTime || '')) return '#EB2F96'
-  if (/班会|活动|讲座/.test(text)) return '#13C2C2'
-  return '#4A7AFF'
+  const text = String(name || "") + " " + String(location || "");
+  if (/军体|体育|操场/.test(text)) return "#52C41A";
+  if (/实验|第四实训楼|B\d{3}|制图/.test(text)) return "#FA8C16";
+  if (/晚训|晚自习/.test(text) || /^1[89]:/.test(startTime || "")) return "#EB2F96";
+  if (/班会|活动|讲座/.test(text)) return "#13C2C2";
+  return "#4A7AFF";
 }
 
 const SECTION_TIME = {
@@ -128,135 +133,349 @@ function parseOcrText(rawText) {
 
 exports.list = async (req, res) => {
   try {
-    const [rows] = await pool.query('SELECT * FROM user_schedule WHERE user_id = ? ORDER BY week_day, start_time', [req.userId])
-    success(res, rows)
+    const [rows] = await pool.query(
+      `SELECT
+        id,
+        user_id AS userId,
+        name,
+        location,
+        teacher,
+        week_day AS weekDay,
+        start_time AS startTime,
+        end_time AS endTime,
+        start_week AS startWeek,
+        end_week AS endWeek,
+        COALESCE(week_type, 'all') AS weekType,
+        color,
+        created_at AS createdAt,
+        updated_at AS updatedAt
+      FROM user_schedule
+      WHERE user_id = ?
+      ORDER BY week_day, start_time, start_week`,
+      [req.userId],
+    );
+    success(res, rows);
   } catch (e) {
-    fail(res, safeMessage(e), 500)
+    fail(res, safeMessage(e), 500);
   }
-}
+};
 
 exports.add = async (req, res) => {
-  const { name, location, teacher, weekDay, startTime, endTime, startWeek, endWeek, color } = req.body
-  if (!name) return fail(res, '课程名称不能为空')
+  const {
+    name,
+    location,
+    teacher,
+    weekDay,
+    startTime,
+    endTime,
+    startWeek,
+    endWeek,
+    weekType,
+    color,
+  } = req.body;
+  if (!name) return fail(res, "课程名称不能为空");
   try {
     const [result] = await pool.query(
-      'INSERT INTO user_schedule (user_id, name, location, teacher, week_day, start_time, end_time, start_week, end_week, color) VALUES (?,?,?,?,?,?,?,?,?,?)',
-      [req.userId, name, location, teacher, weekDay, startTime, endTime, startWeek, endWeek, color]
-    )
-    success(res, { id: result.insertId })
+      "INSERT INTO user_schedule (user_id, name, location, teacher, week_day, start_time, end_time, start_week, end_week, week_type, color) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+      [
+        req.userId,
+        name,
+        location,
+        teacher,
+        weekDay,
+        startTime,
+        endTime,
+        startWeek,
+        endWeek,
+        weekType || "all",
+        color,
+      ],
+    );
+    success(res, { id: result.insertId });
   } catch (e) {
-    fail(res, safeMessage(e), 500)
+    fail(res, safeMessage(e), 500);
   }
-}
+};
 
 exports.clear = async (req, res) => {
   try {
-    await pool.query('DELETE FROM user_schedule WHERE user_id = ?', [req.userId])
-    success(res, null)
+    await pool.query("DELETE FROM user_schedule WHERE user_id = ?", [req.userId]);
+    success(res, null);
   } catch (e) {
-    fail(res, safeMessage(e), 500)
+    fail(res, safeMessage(e), 500);
   }
-}
+};
 
 exports.ocr = async (req, res) => {
   try {
-    const rawText = String(req.body.rawText || req.body.text || '').trim()
-    let courses = []
-    const tips = []
+    const rawText = String(req.body.rawText || req.body.text || "").trim();
+    let courses = [];
+    const tips = [];
     if (rawText) {
-      courses = parseOcrText(rawText)
-      const lowConfidenceCount = courses.filter((item) => item.confidence < 70).length
-      if (lowConfidenceCount) tips.push(lowConfidenceCount + ' 门课程置信度偏低，请导入前人工核对')
+      courses = parseOcrText(rawText);
+      const lowConfidenceCount = courses.filter(
+        (item) => item.confidence < 70,
+      ).length;
+      if (lowConfidenceCount)
+        tips.push(lowConfidenceCount + " 门课程置信度偏低，请导入前人工核对");
     }
     if (!courses.length) {
       if (req.file && !rawText) {
-        tips.push('当前服务端未接入真实图片 OCR 引擎，仅保存了上传图片；请接入 OCR 文本结果后再调用该接口以获得稳定识别率')
+        tips.push(
+          "当前服务端未接入真实图片 OCR 引擎，仅保存了上传图片；请接入 OCR 文本结果后再调用该接口以获得稳定识别率",
+        );
       }
       courses = [
-        { name: '大学英语(下)', location: '1305', teacher: '周立平', weekDay: 1, startTime: '14:00', endTime: '17:10', startWeek: 1, endWeek: 16, color: '#4A7AFF', confidence: 60 },
-        { name: '机械制图', location: '第四实训楼B605', teacher: '艾雄', weekDay: 2, startTime: '14:00', endTime: '17:10', startWeek: 1, endWeek: 16, color: '#FA8C16', confidence: 60 },
-        { name: '军体课', location: '操场', teacher: '潘岐辉', weekDay: 3, startTime: '08:30', endTime: '09:55', startWeek: 1, endWeek: 16, color: '#52C41A', confidence: 60 }
-      ]
+        {
+          name: "大学英语(下)",
+          location: "1305",
+          teacher: "周立平",
+          weekDay: 1,
+          startTime: "14:00",
+          endTime: "17:10",
+          startWeek: 1,
+          endWeek: 16,
+          color: "#4A7AFF",
+          confidence: 60,
+        },
+        {
+          name: "机械制图",
+          location: "第四实训楼B605",
+          teacher: "艾雄",
+          weekDay: 2,
+          startTime: "14:00",
+          endTime: "17:10",
+          startWeek: 1,
+          endWeek: 16,
+          color: "#FA8C16",
+          confidence: 60,
+        },
+        {
+          name: "军体课",
+          location: "操场",
+          teacher: "潘岐辉",
+          weekDay: 3,
+          startTime: "08:30",
+          endTime: "09:55",
+          startWeek: 1,
+          endWeek: 16,
+          color: "#52C41A",
+          confidence: 60,
+        },
+      ];
     }
-    success(res, { courses, tips, strategy: rawText ? 'rule-parse-v2' : 'demo-fallback' })
+    success(res, {
+      courses,
+      tips,
+      strategy: rawText ? "rule-parse-v2" : "demo-fallback",
+    });
   } catch (e) {
-    fail(res, safeMessage(e), 500)
+    fail(res, safeMessage(e), 500);
   }
-}
+};
 
-// 同步教务系统课表
 exports.sync = async (req, res) => {
-  const { username, password } = req.body
-  if (!username || !password) return fail(res, '学号和密码不能为空')
+  const username = String(req.body.username || "").trim();
+  const password = String(req.body.password || "");
+
+  if (!username || !password) return fail(res, "学号和密码不能为空");
+  if (!/^\d{6,20}$/.test(username)) return fail(res, "请输入正确的教务账号");
 
   try {
-    // TODO: 实际对接教务系统 API
-    // 1. 模拟登录 jw.gdip.edu.cn
-    // 2. 获取课表数据
-    // 3. 解析 HTML/JSON 为结构化数据
-
-    // 当前为演示数据，根据 J25092 课表录入
-    const mockCourses = [
-      // 周一
-      { name: '军体课', location: '操场', teacher: '潘岐辉', weekDay: 1, startTime: '08:30', endTime: '09:55', startWeek: 1, endWeek: 16, color: '#4A7AFF' },
-      { name: '大学英语(下)', location: '1305', teacher: '周立平', weekDay: 1, startTime: '14:00', endTime: '17:10', startWeek: 1, endWeek: 16, color: '#52C41A' },
-      { name: '晚训', location: '操场', teacher: '潘岐辉', weekDay: 1, startTime: '19:30', endTime: '20:10', startWeek: 1, endWeek: 16, color: '#FAAD14' },
-      // 周二
-      { name: '大学语文', location: '1305', teacher: '袁鸿', weekDay: 2, startTime: '10:15', endTime: '11:40', startWeek: 1, endWeek: 16, color: '#13C2C2' },
-      { name: '机械制图', location: '第四实训楼B605', teacher: '艾雄', weekDay: 2, startTime: '14:00', endTime: '17:10', startWeek: 1, endWeek: 16, color: '#FAAD14' },
-      { name: '晚自习', location: '2301', teacher: '吴丽婷', weekDay: 2, startTime: '19:30', endTime: '20:10', startWeek: 1, endWeek: 16, color: '#722ED1' },
-      // 周三
-      { name: '大学生安全教育', location: '1213', teacher: '袁鸿', weekDay: 3, startTime: '08:30', endTime: '09:55', startWeek: 1, endWeek: 16, color: '#FF4D4F' },
-      { name: '计算机应用基础教程2', location: '第四实训楼B604', teacher: '周杭声', weekDay: 3, startTime: '10:15', endTime: '11:40', startWeek: 1, endWeek: 16, color: '#EB2F96' },
-      { name: '飞行原理', location: '1124', teacher: '刘香云', weekDay: 3, startTime: '14:00', endTime: '17:10', startWeek: 1, endWeek: 16, color: '#2F54EB' },
-      { name: '晚训', location: '操场', teacher: '潘岐辉', weekDay: 3, startTime: '19:30', endTime: '20:10', startWeek: 1, endWeek: 16, color: '#FAAD14' },
-      // 周四
-      { name: '民航主要机型安全设备与应急处置', location: '1205', teacher: '刘香云', weekDay: 4, startTime: '08:30', endTime: '11:40', startWeek: 1, endWeek: 16, color: '#FA8C16' },
-      { name: '民航安全管理', location: '1122', teacher: '刘香云', weekDay: 4, startTime: '14:00', endTime: '15:25', startWeek: 1, endWeek: 16, color: '#A0D911' },
-      // 周五
-      { name: 'J25092主题班会', location: '1203', teacher: '吴丽婷', weekDay: 5, startTime: '08:30', endTime: '09:10', startWeek: 1, endWeek: 16, color: '#F759AB' }
-    ]
-
-    // 删除旧课表
-    await pool.query('DELETE FROM user_schedule WHERE user_id = ?', [req.userId])
-
-    // 插入新课表
-    for (const course of mockCourses) {
-      await pool.query(
-        'INSERT INTO user_schedule (user_id, name, location, teacher, week_day, start_time, end_time, start_week, end_week, color) VALUES (?,?,?,?,?,?,?,?,?,?)',
-        [req.userId, course.name, course.location, course.teacher, course.weekDay, course.startTime, course.endTime, course.startWeek, course.endWeek, course.color]
-      )
+    const [[user]] = await pool.query(
+      "SELECT student_id, is_verified FROM sys_user WHERE id = ? LIMIT 1",
+      [req.userId],
+    );
+    if (!user) return fail(res, "用户不存在", 404);
+    if (
+      user.is_verified &&
+      user.student_id &&
+      String(user.student_id).trim() !== username
+    ) {
+      return fail(res, "当前登录用户仅允许同步本人认证学号的课表", 403);
     }
 
-    success(res, { count: mockCourses.length })
+    const [[configRow]] = await pool.query(
+      "SELECT start_date FROM schedule_config WHERE user_id = ? LIMIT 1",
+      [req.userId],
+    );
+    const syncResult = await syncScheduleFromJw({
+      userId: req.userId,
+      username,
+      password,
+      scheduleStartDate: configRow && configRow.start_date,
+    });
+
+    const connection = await pool.getConnection();
+    try {
+      await connection.beginTransaction();
+      await connection.query("DELETE FROM user_schedule WHERE user_id = ?", [
+        req.userId,
+      ]);
+
+      for (const course of syncResult.courses) {
+        await connection.query(
+          "INSERT INTO user_schedule (user_id, name, location, teacher, week_day, start_time, end_time, start_week, end_week, week_type, color) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+          [
+            req.userId,
+            course.name,
+            course.location,
+            course.teacher,
+            course.weekDay,
+            course.startTime,
+            course.endTime,
+            course.startWeek,
+            course.endWeek,
+            course.weekType || "all",
+            course.color || inferCourseColor(course.name, course.location, course.startTime),
+          ],
+        );
+      }
+
+      await connection.commit();
+    } catch (dbError) {
+      await connection.rollback();
+      throw dbError;
+    } finally {
+      connection.release();
+    }
+
+    success(
+      res,
+      {
+        count: syncResult.courses.length,
+        courses: syncResult.courses,
+        startDate: syncResult.meta.semesterStart,
+        totalWeeks: syncResult.meta.totalWeeks,
+        rawWeekCount: syncResult.meta.rawWeekCount,
+        rawCourseCount: syncResult.meta.rawCourseCount,
+      },
+      "同步成功",
+    );
   } catch (e) {
-    fail(res, safeMessage(e), 500)
+    if (e.code === "CAPTCHA_REQUIRED" && e.challenge) {
+      return res.status(409).json({
+        code: 409,
+        message: e.message,
+        data: e.challenge,
+      });
+    }
+    fail(res, safeMessage(e), e.status || 500);
   }
-}
+};
+
+exports.syncCaptcha = async (req, res) => {
+  const challengeId = String(req.body.challengeId || "").trim();
+  const code = String(req.body.code || "").trim();
+
+  if (!challengeId) return fail(res, "验证码挑战不存在");
+  if (!code) return fail(res, "请输入验证码");
+
+  try {
+    const syncResult = await submitScheduleCaptcha({
+      userId: req.userId,
+      challengeId,
+      code,
+    });
+
+    const connection = await pool.getConnection();
+    try {
+      await connection.beginTransaction();
+      await connection.query("DELETE FROM user_schedule WHERE user_id = ?", [
+        req.userId,
+      ]);
+
+      for (const course of syncResult.courses) {
+        await connection.query(
+          "INSERT INTO user_schedule (user_id, name, location, teacher, week_day, start_time, end_time, start_week, end_week, week_type, color) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+          [
+            req.userId,
+            course.name,
+            course.location,
+            course.teacher,
+            course.weekDay,
+            course.startTime,
+            course.endTime,
+            course.startWeek,
+            course.endWeek,
+            course.weekType || "all",
+            course.color || inferCourseColor(course.name, course.location, course.startTime),
+          ],
+        );
+      }
+
+      await connection.commit();
+    } catch (dbError) {
+      await connection.rollback();
+      throw dbError;
+    } finally {
+      connection.release();
+    }
+
+    success(
+      res,
+      {
+        count: syncResult.courses.length,
+        courses: syncResult.courses,
+        startDate: syncResult.meta.semesterStart,
+        totalWeeks: syncResult.meta.totalWeeks,
+        rawWeekCount: syncResult.meta.rawWeekCount,
+        rawCourseCount: syncResult.meta.rawCourseCount,
+      },
+      "同步成功",
+    );
+  } catch (e) {
+    fail(res, safeMessage(e), e.status || 500);
+  }
+};
 
 exports.getConfig = async (req, res) => {
   try {
-    const [rows] = await pool.query('SELECT * FROM schedule_config WHERE user_id = ?', [req.userId])
-    if (rows.length) success(res, rows[0])
-    else success(res, { start_date: '2025-09-01', hide_weekend: 0, reminder: 0, bg_color: '#F5F7FA' })
+    const [rows] = await pool.query(
+      `SELECT
+        id,
+        user_id AS userId,
+        start_date AS startDate,
+        hide_weekend AS hideWeekend,
+        reminder,
+        bg_color AS bgColor
+      FROM schedule_config
+      WHERE user_id = ?`,
+      [req.userId],
+    );
+    if (rows.length) success(res, rows[0]);
+    else
+      success(res, {
+        startDate: DEFAULT_SEMESTER_START,
+        hideWeekend: 0,
+        reminder: 0,
+        bgColor: "#F5F7FA",
+      });
   } catch (e) {
-    fail(res, safeMessage(e), 500)
+    fail(res, safeMessage(e), 500);
   }
-}
+};
 
 exports.updateConfig = async (req, res) => {
-  const { startDate, hideWeekend, reminder, bgColor } = req.body
+  const { startDate, hideWeekend, reminder, bgColor } = req.body;
   try {
-    const [rows] = await pool.query('SELECT id FROM schedule_config WHERE user_id = ?', [req.userId])
+    const [rows] = await pool.query(
+      "SELECT id FROM schedule_config WHERE user_id = ?",
+      [req.userId],
+    );
     if (rows.length) {
-      await pool.query('UPDATE schedule_config SET start_date=?, hide_weekend=?, reminder=?, bg_color=? WHERE user_id=?',
-        [startDate, hideWeekend ? 1 : 0, reminder ? 1 : 0, bgColor, req.userId])
+      await pool.query(
+        "UPDATE schedule_config SET start_date=?, hide_weekend=?, reminder=?, bg_color=? WHERE user_id=?",
+        [startDate, hideWeekend ? 1 : 0, reminder ? 1 : 0, bgColor, req.userId],
+      );
     } else {
-      await pool.query('INSERT INTO schedule_config (user_id, start_date, hide_weekend, reminder, bg_color) VALUES (?,?,?,?,?)',
-        [req.userId, startDate, hideWeekend ? 1 : 0, reminder ? 1 : 0, bgColor])
+      await pool.query(
+        "INSERT INTO schedule_config (user_id, start_date, hide_weekend, reminder, bg_color) VALUES (?,?,?,?,?)",
+        [req.userId, startDate, hideWeekend ? 1 : 0, reminder ? 1 : 0, bgColor],
+      );
     }
-    success(res, null)
+    success(res, null);
   } catch (e) {
-    fail(res, safeMessage(e), 500)
+    fail(res, safeMessage(e), 500);
   }
-}
+};

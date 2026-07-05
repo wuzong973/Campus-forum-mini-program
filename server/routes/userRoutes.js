@@ -5,6 +5,7 @@ const uploadController = require('../controllers/uploadController')
 const { auth } = require('../middleware/auth')
 
 router.post('/phone-login', userController.phoneLogin)
+router.post('/dev-login', userController.devLogin)
 router.post('/content-check', auth, userController.contentCheck)
 router.get('/info', auth, userController.getInfo)
 router.get('/profile/:id', userController.getProfile)

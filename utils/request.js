@@ -13,7 +13,7 @@ function getAppInstance() {
 }
 
 function request(options) {
-  const { url, method = 'GET', data = {}, needAuth = true, silent = false, showLoading = false } = options
+  const { url, method = 'GET', data = {}, needAuth = true, silent = false, showLoading = false, timeout = REQUEST_TIMEOUT } = options
   const inst = getAppInstance()
   const header = { 'Content-Type': 'application/json' }
   if (needAuth && inst.globalData.token) {
@@ -25,17 +25,23 @@ function request(options) {
     const timer = setTimeout(() => {
       if (showLoading) wx.hideLoading()
       reject(new Error('请求超时'))
-    }, REQUEST_TIMEOUT)
+    }, timeout)
 
     wx.request({
       url: BASE_URL + url,
       method,
       data,
       header,
+      timeout,
       success(res) {
         clearTimeout(timer)
         if (showLoading) wx.hideLoading()
         if (res.statusCode === 401) {
+          const currentToken = inst.globalData.token || wx.getStorageSync('token') || ''
+          if (USE_MOCK && String(currentToken).indexOf('mock_token_') === 0) {
+            reject(new Error('未登录'))
+            return
+          }
           inst.globalData.token = ''
           inst.globalData.userInfo = null
           wx.removeStorageSync('token')
@@ -57,7 +63,12 @@ function request(options) {
         } else {
           const msg = (res.data && res.data.message) || '请求失败'
           if (!silent) wx.showToast({ title: msg, icon: 'none' })
-          reject(new Error(msg))
+          const error = new Error(msg)
+          error.statusCode = res.statusCode
+          error.response = res.data
+          error.data = res.data && res.data.data
+          error.code = (error.data && error.data.code) || (res.data && res.data.code)
+          reject(error)
         }
       },
       fail(err) {

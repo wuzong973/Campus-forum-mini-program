@@ -121,6 +121,234 @@
   font-weight: 500;
 }
 
+/* ============ 周次导航栏 ============ */
+.week-nav-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16rpx 24rpx;
+  background: rgba(255, 255, 255, 0.92);
+  margin: 0 24rpx;
+  border-radius: 0 0 20rpx 20rpx;
+  border-top: 1rpx solid rgba(235, 237, 240, 0.9);
+}
+
+.week-nav-btn {
+  display: flex;
+  align-items: center;
+  gap: 6rpx;
+  padding: 12rpx 24rpx;
+  border-radius: 24rpx;
+  background: #f0f4ff;
+  transition: all 0.25s ease;
+}
+
+.week-nav-btn:active {
+  transform: scale(0.95);
+  background: #e0e8ff;
+}
+
+.week-nav-btn.disabled {
+  opacity: 0.35;
+  pointer-events: none;
+}
+
+.week-nav-icon {
+  font-size: 36rpx;
+  font-weight: 700;
+  color: #4a7aff;
+  line-height: 1;
+}
+
+.week-nav-text {
+  font-size: 26rpx;
+  color: #4a7aff;
+  font-weight: 600;
+}
+
+.week-nav-center {
+  display: flex;
+  align-items: baseline;
+  gap: 4rpx;
+}
+
+.week-nav-current {
+  font-size: 30rpx;
+  font-weight: 700;
+  color: #323233;
+}
+
+.week-nav-total {
+  font-size: 24rpx;
+  color: #969799;
+  font-weight: 400;
+}
+
+/* ============ 随机换色按钮 ============ */
+.random-color-btn-wrap {
+  padding: 0 24rpx;
+  margin-top: 16rpx;
+}
+
+.random-color-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10rpx;
+  padding: 20rpx 32rpx;
+  background: linear-gradient(135deg, #fff0f6 0%, #fbf0ff 100%);
+  border-radius: 16rpx;
+  transition: all 0.25s ease;
+}
+
+.random-color-btn:active {
+  transform: scale(0.98);
+  background: linear-gradient(135deg, #ffe0ec 0%, #f5e0ff 100%);
+}
+
+.random-color-btn-icon {
+  font-size: 32rpx;
+}
+
+.random-color-btn-text {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #eb2f96;
+}
+
+/* ============ 学期课表按钮 ============ */
+.semester-btn-wrap {
+  padding: 0 24rpx;
+  margin-top: 16rpx;
+}
+
+.semester-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10rpx;
+  padding: 20rpx 32rpx;
+  background: linear-gradient(135deg, #e8f0ff 0%, #f0f4ff 100%);
+  border-radius: 16rpx;
+  transition: all 0.25s ease;
+}
+
+.semester-btn:active {
+  transform: scale(0.98);
+  background: linear-gradient(135deg, #dce6ff 0%, #e4ecff 100%);
+}
+
+.semester-btn-icon {
+  font-size: 32rpx;
+}
+
+.semester-btn-text {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #4a7aff;
+}
+
+/* ============ 学期课表视图 ============ */
+.semester-view {
+  margin: 16rpx 24rpx 24rpx;
+  background: rgba(255, 255, 255, 0.94);
+  border-radius: 20rpx;
+  padding: 24rpx;
+  box-shadow: 0 10rpx 32rpx rgba(42, 66, 123, 0.08);
+}
+
+.semester-header {
+  display: flex;
+  align-items: baseline;
+  gap: 12rpx;
+  margin-bottom: 20rpx;
+  padding-bottom: 16rpx;
+  border-bottom: 1rpx solid #f0f2f5;
+}
+
+.semester-title {
+  font-size: 32rpx;
+  font-weight: 700;
+  color: #323233;
+}
+
+.semester-subtitle {
+  font-size: 24rpx;
+  color: #969799;
+}
+
+.semester-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12rpx;
+}
+
+.semester-week-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6rpx;
+  padding: 16rpx 8rpx;
+  background: #f7f8fa;
+  border-radius: 14rpx;
+  border: 2rpx solid transparent;
+  transition: all 0.25s ease;
+}
+
+.semester-week-item:active {
+  transform: scale(0.95);
+  background: #eef0f5;
+}
+
+.semester-week-item.current {
+  background: #e8f0ff;
+  border-color: #4a7aff;
+}
+
+.semester-week-item.expired {
+  opacity: 0.45;
+}
+
+.semester-week-num {
+  font-size: 24rpx;
+  font-weight: 700;
+  color: #323233;
+}
+
+.semester-week-item.current .semester-week-num {
+  color: #4a7aff;
+}
+
+.semester-week-date {
+  font-size: 20rpx;
+  color: #969799;
+  line-height: 1.2;
+  text-align: center;
+}
+
+.semester-week-count {
+  display: flex;
+  align-items: baseline;
+  gap: 2rpx;
+  margin-top: 4rpx;
+}
+
+.semester-week-count.has-course .semester-count-num {
+  color: #4a7aff;
+  font-weight: 700;
+}
+
+.semester-count-num {
+  font-size: 24rpx;
+  color: #c8c9cc;
+  font-weight: 600;
+}
+
+.semester-count-label {
+  font-size: 18rpx;
+  color: #c8c9cc;
+}
+
 /* ============ 过期卡片 ============ */
 .expired-card {
   margin: 120rpx 48rpx;
@@ -351,6 +579,10 @@
   position: relative;
   border: 1rpx solid rgba(228, 233, 242, 0.92);
   border-radius: 14rpx;
+  transition:
+    background-color 0.35s ease,
+    border-color 0.35s ease,
+    box-shadow 0.35s ease;
 }
 
 .grid-item.type-header {
@@ -457,6 +689,9 @@
   border: 2rpx solid transparent;
   border-radius: 14rpx;
   box-shadow: inset 0 0 0 1rpx rgba(255, 255, 255, 0.42);
+  transition:
+    background-color 0.35s ease,
+    border-color 0.35s ease;
 }
 
 .course-content .course-name {
@@ -606,6 +841,7 @@
   height: 24rpx;
   border-radius: 6rpx;
   flex-shrink: 0;
+  transition: background-color 0.35s ease;
 }
 
 .legend-label {

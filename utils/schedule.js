@@ -43,6 +43,110 @@ const COURSE_THEME_PRESETS = {
   },
 };
 
+// 差异化颜色调色板：为每门不同课程分配专属颜色
+const COURSE_COLOR_PALETTE = [
+  {
+    color: "#4A7AFF",
+    soft: "rgba(74,122,255,0.18)",
+    border: "rgba(74,122,255,0.28)",
+    text: "#1a2a5e",
+  },
+  {
+    color: "#FA8C16",
+    soft: "rgba(250,140,22,0.18)",
+    border: "rgba(250,140,22,0.28)",
+    text: "#5c3400",
+  },
+  {
+    color: "#52C41A",
+    soft: "rgba(82,196,26,0.18)",
+    border: "rgba(82,196,26,0.28)",
+    text: "#1b4d00",
+  },
+  {
+    color: "#722ED1",
+    soft: "rgba(114,46,209,0.18)",
+    border: "rgba(114,46,209,0.28)",
+    text: "#2b0d5e",
+  },
+  {
+    color: "#13C2C2",
+    soft: "rgba(19,194,194,0.18)",
+    border: "rgba(19,194,194,0.28)",
+    text: "#004d4d",
+  },
+  {
+    color: "#EB2F96",
+    soft: "rgba(235,47,150,0.18)",
+    border: "rgba(235,47,150,0.28)",
+    text: "#5e0036",
+  },
+  {
+    color: "#2F54EB",
+    soft: "rgba(47,84,235,0.18)",
+    border: "rgba(47,84,235,0.28)",
+    text: "#0d1a5e",
+  },
+  {
+    color: "#F5222D",
+    soft: "rgba(245,34,45,0.18)",
+    border: "rgba(245,34,45,0.28)",
+    text: "#5e0000",
+  },
+  {
+    color: "#FAAD14",
+    soft: "rgba(250,173,20,0.18)",
+    border: "rgba(250,173,20,0.28)",
+    text: "#5c4000",
+  },
+  {
+    color: "#7B61FF",
+    soft: "rgba(123,97,255,0.18)",
+    border: "rgba(123,97,255,0.28)",
+    text: "#2b1a5e",
+  },
+  {
+    color: "#36CFC9",
+    soft: "rgba(54,207,201,0.18)",
+    border: "rgba(54,207,201,0.28)",
+    text: "#004d4a",
+  },
+  {
+    color: "#FF7A45",
+    soft: "rgba(255,122,69,0.18)",
+    border: "rgba(255,122,69,0.28)",
+    text: "#5e2200",
+  },
+];
+
+// 为每门不同课程分配唯一颜色（按课程名称映射）
+function buildCourseColorMap(courses) {
+  const nameMap = {};
+  let paletteIdx = 0;
+  const result = {};
+  courses.forEach((course) => {
+    const key = String(course.id);
+    if (result[key]) return;
+    if (!nameMap[course.name]) {
+      nameMap[course.name] =
+        COURSE_COLOR_PALETTE[paletteIdx % COURSE_COLOR_PALETTE.length];
+      paletteIdx++;
+    }
+    result[key] = nameMap[course.name];
+  });
+  return result;
+}
+
+// 从颜色生成浅色背景（用于时段格子同步显示）
+function hexToRgb(hex) {
+  const h = hex.replace("#", "");
+  return {
+    r: parseInt(h.substr(0, 2), 16),
+    g: parseInt(h.substr(2, 2), 16),
+    b: parseInt(h.substr(4, 2), 16),
+  };
+}
+
 function pad2(value) {
   return value < 10 ? "0" + value : String(value);
 }
@@ -100,12 +204,22 @@ function normalizeCourse(course, index) {
     startWeek: Number(course.startWeek) || 1,
     endWeek: Number(course.endWeek) || 16,
     weekType: course.weekType || "all",
-    weekTypeLabel: course.weekType === "odd" ? "单周" : (course.weekType === "even" ? "双周" : ""),
+    weekTypeLabel:
+      course.weekType === "odd"
+        ? "单周"
+        : course.weekType === "even"
+          ? "双周"
+          : "",
     color: course.color || theme.color,
     themeKey: theme.key,
     themeLabel: theme.label,
     themeSoft: theme.soft,
     themeBorder: theme.border,
+    // 差异化颜色字段（由 buildCourseColorMap 填充）
+    courseColor: null,
+    courseColorSoft: null,
+    courseColorBorder: null,
+    courseColorText: null,
   });
 }
 
@@ -116,8 +230,11 @@ function getWeekDayText(weekDay) {
 
 module.exports = {
   COURSE_THEME_PRESETS,
+  COURSE_COLOR_PALETTE,
   normalizeTime,
   normalizeCourse,
   inferCourseTheme,
   getWeekDayText,
+  buildCourseColorMap,
+  hexToRgb,
 };

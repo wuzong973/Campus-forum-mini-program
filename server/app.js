@@ -70,18 +70,26 @@ app.use("/api/v1/*", (req, res) => fail(res, "接口不存在", 404));
 
 app.use(errorHandler);
 
-const server = app.listen(PORT, () => {
-  console.log(`广轻工后端服务运行在端口 ${PORT}`);
-});
+let server = null;
 
-runMigrations().catch((err) => {
-  console.warn("[Migration]", err.message);
-});
+async function start() {
+  await runMigrations();
+  server = app.listen(PORT, () => {
+    console.log(`广轻工后端服务运行在端口 ${PORT}`);
+  });
+  wsServer.init(server);
+}
 
-// 初始化 WebSocket 服务（与 HTTP 共享端口）
-wsServer.init(server);
+start().catch((err) => {
+  console.error("[Startup]", err.message);
+  process.exit(1);
+});
 
 function shutdown() {
+  if (!server) {
+    pool.end().then(() => process.exit(0));
+    return;
+  }
   server.close(() => {
     pool.end().then(() => process.exit(0));
   });

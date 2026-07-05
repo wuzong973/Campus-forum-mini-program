@@ -17,8 +17,21 @@ function phoneLogin(phoneCode) {
             phone: "13800138000",
             token: "mock_token_" + Date.now(),
           };
-          auth.saveUser(mockUser);
-          resolve(mockUser);
+          request
+            .post(
+              "/user/dev-login",
+              { phone: mockUser.phone, nickName: mockUser.nickName },
+              false,
+              { silent: true },
+            )
+            .then((user) => {
+              auth.saveUser(user || mockUser);
+              resolve(user || mockUser);
+            })
+            .catch(() => {
+              auth.saveUser(mockUser);
+              resolve(mockUser);
+            });
           return;
         }
         request

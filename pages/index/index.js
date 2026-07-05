@@ -97,7 +97,7 @@ Page({
   renderTodaySchedule(courses) {
     const app = getApp()
     const config = app.globalData.scheduleConfig || {}
-    const startDate = new Date(config.startDate || '2025-09-01')
+    const startDate = new Date(config.startDate || '2026-03-02')
     const now = new Date()
     const diffDays = Math.floor((now - startDate) / 86400000)
     const currentWeek = Math.max(1, Math.floor(diffDays / 7) + 1)

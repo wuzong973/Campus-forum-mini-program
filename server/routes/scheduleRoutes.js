@@ -9,6 +9,7 @@ router.post('/add', auth, scheduleController.add)
 router.post('/clear', auth, scheduleController.clear)
 router.post('/ocr', auth, uploadController.uploadScheduleImageMiddleware, scheduleController.ocr)
 router.post('/sync', auth, scheduleController.sync)
+router.post('/sync/captcha', auth, scheduleController.syncCaptcha)
 router.get('/config', auth, scheduleController.getConfig)
 router.put('/config', auth, scheduleController.updateConfig)
 

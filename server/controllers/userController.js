@@ -90,6 +90,58 @@ exports.phoneLogin = async (req, res) => {
   }
 };
 
+exports.devLogin = async (req, res) => {
+  if (process.env.NODE_ENV === "production") {
+    return fail(res, "生产环境不允许模拟登录", 403);
+  }
+
+  const phone = String(req.body.phone || "13800138000").trim();
+  const nickName = String(req.body.nickName || "校园用户").trim();
+
+  try {
+    let [rows] = await pool.query(
+      'SELECT * FROM sys_user WHERE phone = ? AND phone <> "" LIMIT 1',
+      [phone],
+    );
+
+    let user;
+    if (rows.length) {
+      user = rows[0];
+    } else {
+      const openid = "dev_" + phone;
+      const [result] = await pool.query(
+        "INSERT INTO sys_user (openid, nick_name, avatar_url, phone) VALUES (?, ?, ?, ?)",
+        [openid, nickName, "", phone],
+      );
+      user = {
+        id: result.insertId,
+        openid,
+        nick_name: nickName,
+        avatar_url: "",
+        phone,
+      };
+    }
+
+    const token = jwt.sign({ userId: user.id }, jwtConfig.secret, {
+      expiresIn: jwtConfig.expiresIn,
+    });
+
+    success(res, {
+      id: user.id,
+      nickName: user.nick_name,
+      avatarUrl: user.avatar_url,
+      studentId: user.student_id,
+      isVerified: user.is_verified,
+      gender: user.gender,
+      campus: user.campus,
+      phone: user.phone,
+      token,
+    });
+  } catch (e) {
+    fail(res, safeMessage(e), 500);
+  }
+};
+
 exports.getInfo = async (req, res) => {
   try {
     const [rows] = await pool.query(

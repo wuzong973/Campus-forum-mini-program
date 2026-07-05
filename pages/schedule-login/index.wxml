@@ -1,8 +1,8 @@
 <view class="page">
   <view class="login-header">
     <image class="school-logo" src="/assets/icons/avatar.png" mode="aspectFit"></image>
-    <text class="school-name">广轻工教务系统</text>
-    <text class="school-desc">输入账号密码同步课表</text>
+    <text class="school-name">教务系统同步</text>
+    <text class="school-desc">输入教务账号密码后自动导入课表</text>
   </view>
 
   <view class="form-card">
@@ -16,12 +16,32 @@
     </view>
   </view>
 
-  <button class="login-btn" bindtap="onLogin" loading="{{loading}}">同步课表</button>
+  <view class="captcha-card" wx:if="{{captchaChallenge}}">
+    <view class="captcha-title-row">
+      <text class="captcha-title">验证码</text>
+      <text class="captcha-refresh" bindtap="refreshCaptcha">换一张</text>
+    </view>
+    <view class="captcha-row">
+      <image class="captcha-image" src="{{captchaImage}}" mode="aspectFit"></image>
+      <input
+        class="captcha-input"
+        maxlength="4"
+        placeholder="4位验证码"
+        value="{{captchaCode}}"
+        bindinput="onCaptchaInput"
+      />
+    </view>
+    <text class="captcha-tip">OCR 未能自动识别时，需要手动输入一次验证码继续同步。</text>
+  </view>
+
+  <button class="login-btn" bindtap="onLogin" loading="{{loading}}">
+    {{captchaChallenge ? '提交验证码并同步' : '同步课表'}}
+  </button>
 
   <view class="tips">
     <text class="tips-title">说明</text>
-    <text class="tips-text">1. 账号密码仅用于同步课表，不会存储</text>
-    <text class="tips-text">2. 同步成功后课表将自动导入</text>
-    <text class="tips-text">3. 如忘记密码请联系教务处</text>
+    <text class="tips-text">1. 账号密码仅用于本次教务系统登录和课表同步。</text>
+    <text class="tips-text">2. 同步成功后会自动覆盖当前已导入课表。</text>
+    <text class="tips-text">3. 如果出现验证码，请按图片输入后继续同步。</text>
   </view>
 </view>

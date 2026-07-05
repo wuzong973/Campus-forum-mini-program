@@ -75,6 +75,7 @@ CREATE TABLE IF NOT EXISTS user_schedule (
   end_time VARCHAR(8) DEFAULT '09:40',
   start_week TINYINT DEFAULT 1,
   end_week TINYINT DEFAULT 16,
+  week_type VARCHAR(8) DEFAULT 'all',
   color VARCHAR(16) DEFAULT '#4A7AFF',
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   INDEX idx_user (user_id)
@@ -84,7 +85,7 @@ CREATE TABLE IF NOT EXISTS user_schedule (
 CREATE TABLE IF NOT EXISTS schedule_config (
   id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   user_id INT UNSIGNED NOT NULL UNIQUE,
-  start_date DATE DEFAULT '2025-09-01',
+  start_date DATE DEFAULT '2026-03-02',
   hide_weekend TINYINT(1) DEFAULT 0,
   reminder TINYINT(1) DEFAULT 0,
   bg_color VARCHAR(16) DEFAULT '#F5F7FA',

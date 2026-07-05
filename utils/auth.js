@@ -70,6 +70,7 @@ function saveUser(user) {
     id: user.id,
     nickName: user.nickName || user.nick_name || '校园用户',
     avatarUrl: user.avatarUrl || user.avatar_url || '',
+    studentId: user.studentId || user.student_id || '',
     gender: user.gender,
     campus: user.campus,
     phone: user.phone,

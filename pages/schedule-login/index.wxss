@@ -86,6 +86,66 @@
   border: none;
 }
 
+.captcha-card {
+  margin-top: 24rpx;
+  padding: 28rpx 32rpx;
+  background: var(--card-bg);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+}
+
+.captcha-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20rpx;
+}
+
+.captcha-title {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.captcha-refresh {
+  font-size: 26rpx;
+  color: var(--primary);
+}
+
+.captcha-row {
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+}
+
+.captcha-image {
+  width: 220rpx;
+  height: 88rpx;
+  border-radius: 8rpx;
+  background: #f5f7fa;
+  border: 1rpx solid var(--divider);
+  flex-shrink: 0;
+}
+
+.captcha-input {
+  flex: 1;
+  height: 88rpx;
+  padding: 0 24rpx;
+  border-radius: 8rpx;
+  background: #f5f7fa;
+  font-size: 30rpx;
+  color: var(--text-primary);
+  box-sizing: border-box;
+}
+
+.captcha-tip {
+  display: block;
+  margin-top: 18rpx;
+  font-size: 24rpx;
+  color: var(--text-tertiary);
+  line-height: 1.6;
+}
+
 .tips {
   margin-top: 48rpx;
   padding: 32rpx;

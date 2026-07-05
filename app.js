@@ -79,7 +79,7 @@ App({
     screenWidth: 375,
     pixelRatio: 2,
     scheduleConfig: {
-      startDate: '2025-09-01',
+      startDate: '2026-03-02',
       hideWeekend: false,
       reminder: false,
       bgColor: '#F5F7FA'
