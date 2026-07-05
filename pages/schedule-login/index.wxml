@@ -43,5 +43,6 @@
     <text class="tips-text">1. 账号密码仅用于本次教务系统登录和课表同步。</text>
     <text class="tips-text">2. 同步成功后会自动覆盖当前已导入课表。</text>
     <text class="tips-text">3. 如果出现验证码，请按图片输入后继续同步。</text>
+    <text class="tips-text">4. 同步时间可能需要1~2分钟的时间，请耐心等待哦~~~</text>
   </view>
 </view>
