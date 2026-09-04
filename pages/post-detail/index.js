@@ -8,6 +8,7 @@ Page({
     statusBarHeight: 20,
     navBarHeight: 44,
     post: null,
+    detailImages: [],
     comments: [],
     commentSort: "hot",
     commentText: "",
@@ -184,6 +185,7 @@ Page({
         post.isFollowed = followedPostIds.indexOf(post.id) > -1;
         this.setData({
           post,
+          detailImages: this.toDetailImages(post.images),
           contactExpanded: true,
           timeText: format.formatRelativeTime(post.createdAt) || "刚刚",
           viewText: this.formatViewCount(post.viewCount || 0) + " 浏览",
@@ -198,6 +200,35 @@ Page({
   formatViewCount(count) {
     const value = Number(count) || 0
     return value >= 10000 ? (value / 10000).toFixed(1) + '万' : String(value)
+  },
+
+  toDetailImages(images) {
+    return (Array.isArray(images) ? images : [])
+      .filter((url) => typeof url === 'string' && url)
+      .map((url) => ({ url, failed: false }))
+  },
+
+  onPreviewPostImage(e) {
+    const current = e.currentTarget.dataset.url
+    const urls = ((this.data.post || {}).images || []).filter((url) => typeof url === 'string' && url)
+    if (current && urls.length) wx.previewImage({ current, urls })
+  },
+
+  onPostImageError(e) {
+    const url = e.currentTarget.dataset.url
+    const detailImages = this.data.detailImages.map((item) =>
+      item.url === url ? Object.assign({}, item, { failed: true }) : item,
+    )
+    console.warn('[post-detail] image load failed', url, e.detail || {})
+    this.setData({ detailImages })
+  },
+
+  onRetryPostImage(e) {
+    const url = e.currentTarget.dataset.url
+    const detailImages = this.data.detailImages.map((item) =>
+      item.url === url ? Object.assign({}, item, { failed: false }) : item,
+    )
+    this.setData({ detailImages })
   },
 
   loadComments(postId, sort = this.data.commentSort) {

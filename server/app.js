@@ -69,10 +69,16 @@ app.use(express.urlencoded({ extended: true }));
 app.use(requestContext);
 app.use(logger);
 app.use(rateLimit({ max: 120 }));
-// Local disk uploads are useful only for development. Production must use a
-// controlled object store and expose its HTTPS base URL via configuration.
-if (process.env.NODE_ENV !== "production") {
-  app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+// 本地磁盘上传（UPLOAD_STORAGE_DRIVER=disk）需要对外暴露 /uploads；
+// 开发环境同样托管，方便本地调试。对象存储模式下图片由 COS 提供。
+if (process.env.NODE_ENV !== "production" || String(process.env.UPLOAD_STORAGE_DRIVER || "").toLowerCase() === "disk") {
+  app.use("/uploads", express.static(path.join(__dirname, "uploads"), {
+    // Helmet defaults to Cross-Origin-Resource-Policy: same-origin. Public
+    // uploads must be embeddable by the WeChat runtime, which is cross-origin.
+    setHeaders(res) {
+      res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
+    },
+  }));
 }
 
 app.get("/api/v1/health", async (req, res) => {

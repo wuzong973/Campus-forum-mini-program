@@ -17,8 +17,9 @@
   </view>
 
   <view class="post-images images-{{imageLayout}}" wx:if="{{previewImages.length}}">
-    <view class="post-img-wrap" wx:for="{{previewImages}}" wx:key="*this">
-      <image src="{{item}}" mode="aspectFill" class="post-img" lazy-load></image>
+    <view class="post-img-wrap" wx:for="{{previewImages}}" wx:key="url">
+      <image wx:if="{{!item.failed}}" src="{{item.url}}" mode="aspectFill" class="post-img" lazy-load data-url="{{item.url}}" catchtap="onPreviewImage" binderror="onImageError"></image>
+      <view wx:else class="post-img-error" data-url="{{item.url}}" catchtap="onRetryImage">图片加载失败</view>
       <view class="image-count" wx:if="{{index === 2 && post.images.length > 3}}">+{{post.images.length - 3}}</view>
     </view>
   </view>

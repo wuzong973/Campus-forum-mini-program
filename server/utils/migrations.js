@@ -40,6 +40,7 @@ async function runMigrations() {
   await ensureColumn('forum_post', 'contact', 'JSON DEFAULT NULL AFTER images')
   await ensureColumn('forum_post', 'pinned', 'TINYINT(1) NOT NULL DEFAULT 0 AFTER status')
   await ensureColumn('forum_post', 'review_note', "VARCHAR(255) DEFAULT '' AFTER pinned")
+  await ensureColumn('forum_post', 'share_count', 'INT DEFAULT 0 AFTER favorite_count')
   await ensureColumn('forum_post', 'view_count', 'INT DEFAULT 0 AFTER share_count')
   await ensureColumn('forum_comment', 'images', 'JSON AFTER content')
   await ensureColumn('user_schedule', 'week_type', "VARCHAR(8) DEFAULT 'all' AFTER end_week")

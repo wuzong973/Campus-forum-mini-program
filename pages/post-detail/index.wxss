@@ -27,7 +27,9 @@
 .post-title { display: block; margin-top: 18rpx; color: #1c2e44; font-size: 31rpx; font-weight: 700; line-height: 1.45; }
 .post-content { display: block; margin-top: 16rpx; color: #1e3048; font-size: 30rpx; line-height: 1.6; word-break: break-word; }
 .post-images { display: flex; flex-wrap: wrap; gap: 8rpx; margin-top: 16rpx; }
-.post-img { width: calc((100% - 16rpx) / 3); height: 200rpx; border-radius: 8rpx; background: #edf1f6; }
+.post-img-wrap { width: calc((100% - 16rpx) / 3); height: 200rpx; overflow: hidden; border-radius: 8rpx; background: #edf1f6; }
+.post-img { width: 100%; height: 100%; }
+.post-img-error { display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; color: #8290a0; font-size: 22rpx; }
 .post-topic-meta { display: flex; align-items: center; gap: 10rpx; margin-top: 18rpx; }
 .topic-tag { display: inline-flex; align-items: center; color: #98a4b3; font-size: 23rpx; }
 .topic-tag text { display: inline-flex; align-items: center; justify-content: center; width: 25rpx; height: 25rpx; margin-right: 5rpx; border-radius: 50%; background: #e9eef4; color: #99a5b3; font-size: 18rpx; }

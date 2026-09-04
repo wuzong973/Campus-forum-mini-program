@@ -65,9 +65,9 @@ function withMock(apiCall, mockData) {
 function parseImages(images) {
   const isPublicImage = (value) => {
     const url = String(value || '').trim()
-    // Temporary wxfile/http://tmp URLs and the server's local upload path are
-    // not downloadable by clients in the deployed environment.
-    return /^https:\/\//i.test(url) && !/\/uploads\//i.test(url)
+    // Uploads are persisted either in COS or under the server's public
+    // HTTPS /uploads path. Only temporary local URLs must be discarded.
+    return /^https:\/\//i.test(url)
   }
   if (!images) return [];
   if (Array.isArray(images)) {
@@ -113,7 +113,7 @@ function mapPost(r) {
     id: r.id,
     userId,
     nickName: String(r.nickName || r.nick_name || "校园同学"),
-    avatarUrl: /^https:\/\//i.test(avatarUrl) && !/\/uploads\//i.test(avatarUrl) ? avatarUrl : "",
+    avatarUrl: /^https:\/\//i.test(avatarUrl) ? avatarUrl : "",
     campus: String(r.campus || r.campusName || r.campus_name || ""),
     title: r.title === undefined || r.title === null ? "" : String(r.title),
     gender: r.gender,

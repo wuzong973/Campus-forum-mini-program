@@ -14,8 +14,11 @@
       </view>
       <text class="post-title" wx:if="{{post.title}}">{{post.title}}</text>
       <text class="post-content">{{post.content}}</text>
-      <view class="post-images" wx:if="{{post.images && post.images.length}}">
-        <image wx:for="{{post.images}}" wx:key="*this" src="{{item}}" mode="aspectFill" class="post-img"></image>
+      <view class="post-images" wx:if="{{detailImages.length}}">
+        <view class="post-img-wrap" wx:for="{{detailImages}}" wx:key="url">
+          <image wx:if="{{!item.failed}}" src="{{item.url}}" mode="aspectFill" class="post-img" data-url="{{item.url}}" catchtap="onPreviewPostImage" binderror="onPostImageError"></image>
+          <view wx:else class="post-img-error" data-url="{{item.url}}" catchtap="onRetryPostImage">图片加载失败</view>
+        </view>
       </view>
       <view class="post-topic-meta">
         <view class="topic-tag"><text>#</text> {{post.category || '日常话题'}}</view>

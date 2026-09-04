@@ -42,7 +42,7 @@ Component({
         viewText: this.formatCount(viewCount || 0) + " 浏览",
         authorName: nickName || "校园同学",
         certLabel: certLabel || "",
-        previewImages: (images || []).slice(0, 3),
+        previewImages: this.toPreviewImages(images),
         imageLayout: this.getImageLayout(images || []),
       });
       this.processContent(content);
@@ -56,7 +56,7 @@ Component({
         viewText: this.formatCount((post && post.viewCount) || 0) + " 浏览",
         authorName: (post && post.nickName) || "校园同学",
         certLabel: (post && post.certLabel) || "",
-        previewImages: ((post && post.images) || []).slice(0, 3),
+        previewImages: this.toPreviewImages(post && post.images),
         imageLayout: this.getImageLayout(((post && post.images) || [])),
         canManageNote: this.canManagePostContent(),
       });
@@ -76,6 +76,37 @@ Component({
       if (count === 1) return "single";
       if (count === 2) return "double";
       return "grid";
+    },
+
+    toPreviewImages(images) {
+      return (Array.isArray(images) ? images : [])
+        .slice(0, 3)
+        .filter((url) => typeof url === "string" && url)
+        .map((url) => ({ url, failed: false }));
+    },
+
+    onPreviewImage(e) {
+      const current = e.currentTarget.dataset.url;
+      const urls = ((this.data.post || {}).images || []).filter((url) => typeof url === "string" && url);
+      if (current && urls.length) wx.previewImage({ current, urls });
+    },
+
+    onImageError(e) {
+      const url = e.currentTarget.dataset.url;
+      const previewImages = this.data.previewImages.map((item) =>
+        item.url === url ? Object.assign({}, item, { failed: true }) : item,
+      );
+      console.warn("[post-card] image load failed", url, e.detail || {});
+      this.setData({ previewImages });
+      this.triggerEvent("imageerror", { postId: (this.data.post || {}).id, url });
+    },
+
+    onRetryImage(e) {
+      const url = e.currentTarget.dataset.url;
+      const previewImages = this.data.previewImages.map((item) =>
+        item.url === url ? Object.assign({}, item, { failed: false }) : item,
+      );
+      this.setData({ previewImages });
     },
 
     // 处理内容：超过一定长度截断并显示"全文"
