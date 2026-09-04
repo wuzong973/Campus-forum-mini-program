@@ -91,30 +91,75 @@ Page({
   },
 
   openActionMenu() {
-    const canManageNote = this.canManagePostContent();
-    if (canManageNote !== this.data.canManageNote) this.setData({ canManageNote });
-    const itemList = [];
-    if (canManageNote) itemList.push('添加备注');
-    itemList.push('不感兴趣', '举报内容');
+    if (!auth.requireLogin('操作帖子需要先登录')) return;
+    const userInfo = ((getApp().globalData || {}).userInfo) || wx.getStorageSync('userInfo') || {};
+    const isAdmin = ['super_admin', 'content_admin'].indexOf(userInfo.role) > -1;
+    const isAuthor = Number(userInfo.id) === Number((this.data.post || {}).userId);
+    const itemList = isAdmin
+      ? ['删除', '添加备注', '不感兴趣']
+      : isAuthor
+        ? ['删除']
+        : ['不感兴趣', '举报内容'];
     wx.showActionSheet({
       itemList,
-      success: (res) => {
+      success: async (res) => {
         const selected = itemList[res.tapIndex];
-        if (selected === '添加备注') {
+        if (selected === '删除') {
+          await this.deletePost();
+        } else if (selected === '添加备注') {
           this.openNoteEditor();
         } else if (selected === '不感兴趣') {
-          wx.navigateBack();
+          await this.markNotInterested();
         } else {
-          const submit = () => request.post('/feedback/report', {
-            targetType: 'post',
-            targetId: Number((this.data.post || {}).id),
-            reason: '用户举报：内容可能违反社区规则'
-          }, true, { silent: true })
-          if (request.USE_MOCK) wx.showToast({ title: '已收到反馈', icon: 'success' })
-          else submit().then(() => wx.showToast({ title: '举报已提交', icon: 'success' })).catch((err) => wx.showToast({ title: err.message || '举报失败', icon: 'none' }))
+          await this.reportPost();
         }
       },
     });
+  },
+
+  confirmAction(title, content) {
+    return new Promise((resolve) => wx.showModal({
+      title,
+      content,
+      confirmColor: '#e64340',
+      success: (res) => resolve(!!res.confirm),
+      fail: () => resolve(false),
+    }));
+  },
+
+  async deletePost() {
+    const post = this.data.post || {};
+    if (!await this.confirmAction('删除帖子', '删除后无法恢复，确认删除这条帖子吗？')) return;
+    try {
+      if (!request.USE_MOCK) await api.deletePost(post.id);
+      wx.showToast({ title: '帖子已删除', icon: 'success' });
+      setTimeout(() => wx.navigateBack(), 350);
+    } catch (err) {
+      wx.showToast({ title: err.message || '删除失败', icon: 'none' });
+    }
+  },
+
+  async markNotInterested() {
+    const post = this.data.post || {};
+    if (!await this.confirmAction('减少此类内容', '将永久隐藏此帖子及同分类内容，确认继续吗？')) return;
+    try {
+      if (!request.USE_MOCK) await api.markPostNotInterested(post.id);
+      wx.showToast({ title: '已减少此类内容', icon: 'success' });
+      setTimeout(() => wx.navigateBack(), 350);
+    } catch (err) {
+      wx.showToast({ title: err.message || '设置失败', icon: 'none' });
+    }
+  },
+
+  async reportPost() {
+    const post = this.data.post || {};
+    if (!await this.confirmAction('举报内容', '确认提交举报吗？管理员将收到帖子编号、举报人和提交时间。')) return;
+    try {
+      if (!request.USE_MOCK) await api.reportPost(post.id);
+      wx.showToast({ title: '举报已提交', icon: 'success' });
+    } catch (err) {
+      wx.showToast({ title: err.message || '举报失败', icon: 'none' });
+    }
   },
 
   openNoteEditor() {
@@ -146,13 +191,14 @@ Page({
     this.setData({ noteKeyboardHeight: (e.detail || {}).height || 0 });
   },
 
-  saveNote() {
+  async saveNote() {
     const reviewNote = (this.data.noteDraft || '').trim();
     if (!reviewNote) {
       wx.showToast({ title: '请填写备注', icon: 'none' });
       return;
     }
     if (this.data.savingNote || !this.data.post) return;
+    if (!await this.confirmAction('保存备注', '备注会以醒目标注展示给所有用户，确认保存吗？')) return;
     if (request.USE_MOCK) {
       this.setData({
         post: Object.assign({}, this.data.post, { reviewNote }),

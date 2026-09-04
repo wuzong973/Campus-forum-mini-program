@@ -164,7 +164,7 @@ function getPostList(params) {
   return withMock(
     () =>
       request
-        .get("/post/list", { page, pageSize, category }, false)
+        .get("/post/list", { page, pageSize, category }, true)
         .then((d) => {
           if (!d) return null;
           return {
@@ -191,7 +191,7 @@ function getPostList(params) {
 
 function getHotPostRank(period = "today") {
   return withMock(
-    () => request.get("/post/hot-rank", { period }, false).then((d) => ({
+    () => request.get("/post/hot-rank", { period }, true).then((d) => ({
       list: (d && d.list ? d.list : []).map(mapPost),
     })),
     () => {
@@ -223,7 +223,7 @@ function getPostDetail(id) {
   return withMock(
     () =>
       request
-        .get("/post/" + id, {}, false)
+        .get("/post/" + id, {}, true)
         .then((d) => (d ? mapPost(d) : null)),
     () =>
       mapMockPost(mock.posts.find((p) => p.id === Number(id)) || mock.posts[0]),
@@ -232,7 +232,7 @@ function getPostDetail(id) {
 
 function searchPosts(keyword, page = 1, pageSize = 50) {
   return withMock(
-    () => request.get('/post/search', { keyword, page, pageSize }, false).then((d) => ({
+    () => request.get('/post/search', { keyword, page, pageSize }, true).then((d) => ({
       list: (d.list || []).map(mapPost), total: d.total, hasMore: d.hasMore
     })),
     () => {
@@ -531,6 +531,22 @@ function updatePostReviewNote(postId, reviewNote) {
   return request.post("/post/" + postId + "/review-note", { reviewNote }, true);
 }
 
+function deletePost(postId) {
+  return request.del('/post/' + postId, {}, true);
+}
+
+function markPostNotInterested(postId) {
+  return request.post('/post/' + postId + '/not-interested', {}, true);
+}
+
+function reportPost(postId) {
+  return request.post('/feedback/report', {
+    targetType: 'post',
+    targetId: Number(postId),
+    reason: '用户举报：内容可能违反社区规则',
+  }, true);
+}
+
 function getMyInteractionStats() {
   return withMock(
     () => request.get("/user/interactions/stats", {}, true),
@@ -619,6 +635,9 @@ module.exports = {
   getUserPosts,
   favoritePost,
   updatePostReviewNote,
+  deletePost,
+  markPostNotInterested,
+  reportPost,
   getMyInteractionStats,
   getMyInteractionList,
   createShare,

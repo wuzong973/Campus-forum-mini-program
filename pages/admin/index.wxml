@@ -23,6 +23,23 @@
     <view class="list-card"><view wx:for="{{stats.recentActions}}" wx:key="index" class="audit-row"><text>{{item.action}}</text><text>{{item.targetType}} #{{item.targetId}}</text></view><view wx:if="{{!stats.recentActions.length}}" class="empty">暂无操作记录</view></view>
   </view>
 
+  <view wx:if="{{activeTab === 'reports'}}">
+    <view wx:for="{{reports}}" wx:key="id" class="list-card compact-row report-row">
+      <view>
+        <text class="row-title">帖子 #{{item.targetId}} · 举报 #{{item.id}}</text>
+        <text class="row-sub">举报人：{{item.reporterName || '用户'}} #{{item.reporterId}} · {{item.createdAt}}</text>
+        <text class="report-reason">{{item.reason}}</text>
+        <text class="row-sub">状态：{{item.status === 'pending' ? '待处理' : item.status === 'processing' ? '处理中' : item.status === 'resolved' ? '已解决' : '已驳回'}}</text>
+      </view>
+      <view class="row-actions" wx:if="{{item.status === 'pending' || item.status === 'processing'}}">
+        <text wx:if="{{item.status === 'pending'}}" data-id="{{item.id}}" data-status="processing" bindtap="updateReport">受理</text>
+        <text data-id="{{item.id}}" data-status="resolved" bindtap="updateReport">解决</text>
+        <text class="danger" data-id="{{item.id}}" data-status="rejected" bindtap="updateReport">驳回</text>
+      </view>
+    </view>
+    <view wx:if="{{!reports.length}}" class="empty">暂无举报记录</view>
+  </view>
+
   <view wx:if="{{activeTab === 'posts'}}">
     <view class="toolbar"><input placeholder="搜索标题、正文或用户" value="{{postKeyword}}" bindinput="onPostKeyword" confirm-type="search" bindconfirm="searchPosts"/><text bindtap="searchPosts">搜索</text></view>
     <scroll-view class="filters" scroll-x="true"><view class="filters-inner"><view class="filter {{postStatus === '' ? 'selected' : ''}}" data-status="" bindtap="choosePostStatus">全部</view><view class="filter {{postStatus === 2 ? 'selected' : ''}}" data-status="2" bindtap="choosePostStatus">待审核</view><view class="filter {{postStatus === 1 ? 'selected' : ''}}" data-status="1" bindtap="choosePostStatus">已发布</view><view class="filter {{postStatus === 3 ? 'selected' : ''}}" data-status="3" bindtap="choosePostStatus">已隐藏</view><view class="filter {{postStatus === 0 ? 'selected' : ''}}" data-status="0" bindtap="choosePostStatus">已删除</view></view></scroll-view>

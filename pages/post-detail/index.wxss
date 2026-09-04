@@ -10,7 +10,8 @@
 .post-cert-label { flex: 0 0 auto; padding: 2rpx 10rpx; border-radius: 4rpx; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #fff; font-size: 20rpx; font-weight: 500; line-height: 1.4; }
 .post-time, .comment-time { color: #a1aab6; font-size: 21rpx; }
 .post-meta { display: flex; align-items: center; gap: 9rpx; color: #9ea9b7; font-size: 21rpx; }
-.post-review-note { max-width: 200rpx; overflow: hidden; padding: 4rpx 10rpx; border: 1rpx solid #ffc5ce; border-radius: 4rpx; background: #fff0f2; color: #cf2847; font-size: 21rpx; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
+.post-review-note { display: block; margin-top: 16rpx; padding: 12rpx 14rpx; border: 2rpx solid #ef5b73; border-radius: 6rpx; background: #fff1f3; color: #b4233e; font-size: 24rpx; font-weight: 600; line-height: 1.5; word-break: break-word; }
+.post-review-note-label { margin-right: 10rpx; color: #8d1830; font-weight: 700; }
 .more-icon { width: 30rpx; height: 30rpx; opacity: .62; }
 .note-editor-mask { position: fixed; z-index: 1000; inset: 0; background: rgba(0, 0, 0, .48); }
 .note-editor { position: fixed; z-index: 1001; left: 50%; width: 660rpx; padding: 28rpx; box-sizing: border-box; border-radius: 8rpx; background: #fff; box-shadow: 0 14rpx 36rpx rgba(23, 38, 59, .18); transform: translateX(-50%); }

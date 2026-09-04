@@ -168,6 +168,7 @@
           bind:favorite="onPostFavorite"
           bind:comment="onPostComment"
           bind:close="onPostClose"
+          bind:remove="onPostRemove"
           bind:reviewnote="onPostReviewNote"
         />
       </view>

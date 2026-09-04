@@ -8,10 +8,11 @@
           <text class="post-nick">{{post.nickName || '校园同学'}}</text>
           <text class="post-cert-label" wx:if="{{post.certLabel}}">{{post.certLabel}}</text>
         </view>
-        <view class="post-meta"><text class="post-review-note" wx:if="{{post.reviewNote}}">{{post.reviewNote}}</text><text>{{timeText}}</text><text>|</text><text>{{viewText}}</text></view>
+        <view class="post-meta"><text>{{timeText}}</text><text>|</text><text>{{viewText}}</text></view>
       </view>
         <image class="more-icon" src="/assets/icons/more.png" mode="aspectFit" catchtap="openActionMenu"></image>
       </view>
+      <view class="post-review-note" wx:if="{{post.reviewNote}}"><text class="post-review-note-label">管理员备注</text><text>{{post.reviewNote}}</text></view>
       <text class="post-title" wx:if="{{post.title}}">{{post.title}}</text>
       <text class="post-content">{{post.content}}</text>
       <view class="post-images" wx:if="{{detailImages.length}}">

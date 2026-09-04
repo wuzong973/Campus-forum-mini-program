@@ -6,10 +6,12 @@
         <text class="post-nick">{{authorName}}</text>
         <text class="post-cert-label" wx:if="{{certLabel}}">{{certLabel}}</text>
       </view>
-      <view class="post-meta"><text class="post-review-note" wx:if="{{post.reviewNote}}">{{post.reviewNote}}</text><text>{{timeText}}</text><text class="meta-divider">|</text><text>{{viewText}}</text></view>
+      <view class="post-meta"><text>{{timeText}}</text><text class="meta-divider">|</text><text>{{viewText}}</text></view>
     </view>
     <view class="more-btn" catchtap="onClose"><image src="/assets/icons/more.png" mode="aspectFit"></image></view>
   </view>
+
+  <view class="post-review-note" wx:if="{{post.reviewNote}}"><text class="post-review-note-label">管理员备注</text><text>{{post.reviewNote}}</text></view>
 
   <text class="post-title" wx:if="{{post.title}}">{{post.title}}</text>
   <view class="post-content">

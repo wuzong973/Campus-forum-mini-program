@@ -2,6 +2,7 @@ const admin = require('../../utils/admin')
 
 const TAB_PERMISSIONS = {
   overview: 'stats.view',
+  reports: 'content.manage',
   posts: 'content.manage',
   content: 'config.manage',
   items: 'item.manage',
@@ -17,6 +18,7 @@ Page({
     activeTab: 'overview',
     tabs: [],
     stats: null,
+    reports: [],
     posts: [],
     postStatus: '',
     postKeyword: '',
@@ -48,6 +50,7 @@ Page({
       wx.setStorageSync('userInfo', userInfo)
       const tabs = [
         { key: 'overview', name: '概览' },
+        { key: 'reports', name: '举报' },
         { key: 'posts', name: '帖子' },
         { key: 'content', name: '配置' },
         { key: 'items', name: '物品' },
@@ -74,6 +77,7 @@ Page({
     const tab = this.data.activeTab
     try {
       if (tab === 'overview') this.setData({ stats: await admin.stats() })
+      if (tab === 'reports') await this.loadReports()
       if (tab === 'posts') await this.loadPosts()
       if (tab === 'content') await this.loadContent()
       if (tab === 'items') this.setData({ items: (await admin.items()).list || [] })
@@ -92,6 +96,24 @@ Page({
   async loadPosts() {
     const data = await admin.posts({ status: this.data.postStatus, keyword: this.data.postKeyword, page: 1, pageSize: 50 })
     this.setData({ posts: data.list || [], selectedPostIds: [] })
+  },
+
+  async loadReports() {
+    const data = await admin.reports({ page: 1, pageSize: 50 })
+    this.setData({ reports: data.list || [] })
+  },
+
+  async updateReport(e) {
+    const id = Number(e.currentTarget.dataset.id)
+    const status = String(e.currentTarget.dataset.status || '')
+    const labels = { processing: '受理举报', resolved: '解决举报', rejected: '驳回举报' }
+    if (!id || !labels[status]) return
+    if (!await this.confirm(labels[status], '确认更新此举报的处理状态吗？')) return
+    try {
+      await admin.updateReport(id, status)
+      wx.showToast({ title: '处理状态已更新', icon: 'success' })
+      this.loadReports()
+    } catch (err) {}
   },
 
   onPostKeyword(e) { this.setData({ postKeyword: e.detail.value }) },

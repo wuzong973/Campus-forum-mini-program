@@ -119,6 +119,17 @@ async function runMigrations() {
     ) ENGINE=InnoDB
   `)
   await pool.query(`
+    CREATE TABLE IF NOT EXISTS post_hidden_preference (
+      id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+      user_id INT UNSIGNED NOT NULL,
+      post_id INT UNSIGNED NOT NULL,
+      category VARCHAR(32) NOT NULL DEFAULT '',
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE KEY uk_hidden_post_user (user_id, post_id),
+      INDEX idx_hidden_user_category (user_id, category)
+    ) ENGINE=InnoDB
+  `)
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS post_view (
       id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
       post_id INT UNSIGNED NOT NULL,

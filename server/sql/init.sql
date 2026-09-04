@@ -245,6 +245,17 @@ CREATE TABLE IF NOT EXISTS content_report (
   INDEX idx_report_target (target_type, target_id, created_at)
 ) ENGINE=InnoDB;
 
+-- 用户“不感兴趣”偏好：屏蔽指定帖子及同分类后续内容。
+CREATE TABLE IF NOT EXISTS post_hidden_preference (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  user_id INT UNSIGNED NOT NULL,
+  post_id INT UNSIGNED NOT NULL,
+  category VARCHAR(32) NOT NULL DEFAULT '',
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY uk_hidden_post_user (user_id, post_id),
+  INDEX idx_hidden_user_category (user_id, category)
+) ENGINE=InnoDB;
+
 -- 提交注销申请后提供七天冷静期，实际清理任务仅处理到期且仍为 pending 的记录。
 CREATE TABLE IF NOT EXISTS account_deletion_request (
   id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,

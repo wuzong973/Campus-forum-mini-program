@@ -701,6 +701,11 @@ Page({
     this.setData({ posts: this.data.posts.filter((item) => item.id !== postId) })
   },
 
+  onPostRemove(e) {
+    const postId = e.detail.postId
+    this.setData({ posts: this.data.posts.filter((item) => item.id !== postId) })
+  },
+
   onPullDownRefresh() {
     this.fetchPosts(1, true, true)
     wx.stopPullDownRefresh()

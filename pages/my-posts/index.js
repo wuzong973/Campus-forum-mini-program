@@ -37,6 +37,11 @@ Page({
     })
   },
 
+  onPostRemove(e) {
+    const postId = (e.detail || {}).postId
+    this.setData({ posts: this.data.posts.filter((post) => post.id !== postId) })
+  },
+
   goPublish() {
     if (!auth.requirePublishReady()) return
     wx.navigateTo({ url: '/pages/post-publish/index' })

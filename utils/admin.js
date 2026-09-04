@@ -8,6 +8,8 @@ const del = (path, data) => request.del('/admin' + path, data || {}, true)
 module.exports = {
   me: () => get('/me'),
   stats: () => get('/stats'),
+  reports: (data) => get('/reports', data),
+  updateReport: (id, status, note) => put('/reports/' + id, { status, note: note || '' }),
   posts: (data) => get('/posts', data),
   updatePost: (id, data) => put('/posts/' + id, data),
   postAction: (id, action) => post('/posts/' + id + '/action', { action }),
