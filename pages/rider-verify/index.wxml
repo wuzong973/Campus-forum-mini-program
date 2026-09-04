@@ -1,0 +1,80 @@
+<view class="page">
+  <view class="nav" style="padding-top: {{statusBarHeight}}px; height: {{statusBarHeight + navBarHeight}}px;">
+    <view class="nav-content" style="height: {{navBarHeight}}px;">
+      <text class="nav-back" bindtap="goBack">‹</text>
+      <text class="nav-title">{{stage === 'overview' ? '骑手认证' : '信院-完善资料'}}</text>
+      <view class="nav-placeholder"></view>
+    </view>
+  </view>
+  <view style="height: {{statusBarHeight + navBarHeight}}px;"></view>
+
+  <scroll-view class="scroll" scroll-y style="height: calc(100vh - {{statusBarHeight + navBarHeight}}px);">
+    <block wx:if="{{stage === 'overview'}}">
+      <view class="hero">
+        <text class="hero-title">骑手认证</text>
+        <text class="hero-desc">认证审核通过后就可以接单赚米啦～</text>
+        <text class="hero-contact" bindtap="contactAdmin">联系管理员 ›</text>
+      </view>
+
+      <view class="steps">
+        <text class="step {{!campusVerified ? 'active' : ''}}">① 校园认证</text><text>›</text>
+        <text class="step {{campusVerified && !realNameVerified ? 'active' : ''}}">② 实名认证</text><text>›</text>
+        <text class="step {{campusVerified && realNameVerified && phoneBound ? 'active' : ''}}">③ 成为骑手</text>
+      </view>
+
+      <view class="verify-card">
+        <view class="verify-row" bindtap="enterStage" data-stage="campus">
+          <view class="verify-icon">✓</view>
+          <view class="verify-text"><text class="verify-title">校园认证</text><text>上传学生证相关信息，认证你的学生身份</text></view>
+          <text class="status {{campusVerified ? 'done' : ''}}">{{campusVerified ? '已完成' : '待完成'}}</text>
+        </view>
+        <view class="verify-row" bindtap="enterStage" data-stage="realname">
+          <view class="verify-icon person">●</view>
+          <view class="verify-text"><text class="verify-title">实名认证</text><text>上传身份证对接权威认证，后续提现更高效</text></view>
+          <text class="status {{realNameVerified ? 'done' : ''}}">{{realNameVerified ? '已完成' : '待完成'}}</text>
+        </view>
+      </view>
+
+      <view class="phone-card">
+        <view><text class="phone-title">联系号码</text><text class="phone-desc">展示给接单同学方便联系</text></view>
+        <button wx:if="{{!phoneBound}}" class="phone-button" open-type="getPhoneNumber" bindgetphonenumber="onGetPhoneNumber">待绑定</button>
+        <text wx:else class="status done">已绑定</text>
+      </view>
+      <button class="primary-button" bindtap="startVerify">{{campusVerified && realNameVerified && phoneBound ? '已完成认证' : '开始认证'}}</button>
+    </block>
+
+    <block wx:elif="{{stage === 'campus'}}">
+      <view class="steps light"><text class="step active">① 校园认证</text><text>›</text><text>② 实名认证</text><text>›</text><text>③ 成为骑手</text></view>
+      <view class="form-card">
+        <text class="form-title">校园认证</text>
+        <view class="warning">! 上传后仅用于系统认证，您的信息会受到严格保护</view>
+        <view class="field"><text>姓名</text><input placeholder="请输入真实姓名" value="{{campusName}}" data-field="campusName" bindinput="onInput" /></view>
+        <view class="field"><text>学号</text><input type="number" placeholder="请输入学号" value="{{studentId}}" data-field="studentId" bindinput="onInput" /></view>
+      </view>
+      <view class="form-card">
+        <view class="credential-head"><view><text class="form-title">校园证件</text><text class="credential-desc">为证实您的身份，请上传与上述信息一致的学生证/校园卡/录取通知书等校园证件</text></view><text class="example">查看示例</text></view>
+        <view class="credential-upload" wx:if="{{!campusCredential}}" data-field="campusCredential" bindtap="chooseCredential"><text class="camera">◉</text><text>点击上传</text></view>
+        <image wx:else class="credential-image" src="{{campusCredential}}" mode="aspectFill" data-src="{{campusCredential}}" bindtap="previewCredential" />
+      </view>
+      <view class="agreement-row" data-field="campusAgreed" bindtap="toggleAgreement"><text class="checkbox {{campusAgreed ? 'checked' : ''}}">{{campusAgreed ? '✓' : ''}}</text><text>我已阅读并同意</text><text class="agreement-link" bindtap="openAgreement">《认证协议》</text><text>与</text><text class="agreement-link" bindtap="openPrivacy">《隐私协议》</text></view>
+      <button class="primary-button" bindtap="submitCampus">下一步</button>
+    </block>
+
+    <block wx:else>
+      <view class="steps light"><text class="step done">① 校园认证</text><text>›</text><text class="step active">② 实名认证</text><text>›</text><text>③ 成为骑手</text></view>
+      <view class="form-card">
+        <text class="form-title">实名认证</text>
+        <view class="warning">! 身份信息仅用于实名认证与后续提现保障</view>
+        <view class="field"><text>真实姓名</text><input placeholder="请输入身份证上的姓名" value="{{realName}}" data-field="realName" bindinput="onInput" /></view>
+        <view class="field"><text>身份证号</text><input placeholder="请输入身份证号" value="{{identityNumber}}" data-field="identityNumber" bindinput="onInput" /></view>
+      </view>
+      <view class="form-card">
+        <text class="form-title">身份证件</text><text class="credential-desc">请上传清晰的身份证人像面照片，确保证件信息完整可见</text>
+        <view class="credential-upload" wx:if="{{!identityCredential}}" data-field="identityCredential" bindtap="chooseCredential"><text class="camera">◉</text><text>上传身份证人像面</text></view>
+        <image wx:else class="credential-image" src="{{identityCredential}}" mode="aspectFill" data-src="{{identityCredential}}" bindtap="previewCredential" />
+      </view>
+      <view class="agreement-row" data-field="realAgreed" bindtap="toggleAgreement"><text class="checkbox {{realAgreed ? 'checked' : ''}}">{{realAgreed ? '✓' : ''}}</text><text>我已阅读并同意</text><text class="agreement-link" bindtap="openAgreement">《认证协议》</text><text>与</text><text class="agreement-link" bindtap="openPrivacy">《隐私协议》</text></view>
+      <button class="primary-button" loading="{{submitting}}" bindtap="submitRealName">提交认证</button>
+    </block>
+  </scroll-view>
+</view>

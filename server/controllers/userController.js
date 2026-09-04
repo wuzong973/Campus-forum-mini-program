@@ -4,8 +4,25 @@ const jwtConfig = require("../config/jwt");
 const axios = require("axios");
 const wechatConfig = require("../config/wechat");
 const { success, fail } = require("../middleware/auth");
-const { safeMessage } = require("../utils/helpers");
+const { safeMessage, clampPageSize, parseImages } = require("../utils/helpers");
 const { getAccessToken } = require("../utils/wechatToken");
+
+async function getWechatPhone(phoneCode) {
+  const accessToken = await getAccessToken();
+  const phoneRes = await axios.post(
+    `https://api.weixin.qq.com/wxa/business/getuserphonenumber?access_token=${accessToken}`,
+    { code: phoneCode },
+    { timeout: 5000 },
+  );
+  if (phoneRes.data.errcode || !(phoneRes.data.phone_info || {}).phoneNumber) {
+    const detail = phoneRes.data.errmsg || "未返回手机号";
+    const error = new Error("获取手机号失败: " + detail);
+    error.status = 400;
+    error.expose = true;
+    throw error;
+  }
+  return phoneRes.data.phone_info.phoneNumber;
+}
 
 exports.phoneLogin = async (req, res) => {
   const { code, phoneCode } = req.body;
@@ -27,14 +44,7 @@ exports.phoneLogin = async (req, res) => {
         return fail(res, "微信登录失败: " + wxRes.data.errmsg, 400);
       openid = wxRes.data.openid;
       // 获取手机号（通过 getPhoneNumber 接口）
-      const accessToken = await getAccessToken();
-      const phoneRes = await axios.post(
-        `https://api.weixin.qq.com/wxa/business/getuserphonenumber?access_token=${accessToken}`,
-        { code: phoneCode },
-      );
-      if (phoneRes.data.errcode)
-        return fail(res, "获取手机号失败: " + phoneRes.data.errmsg, 400);
-      phone = phoneRes.data.phone_info.phoneNumber;
+      phone = await getWechatPhone(phoneCode);
     } else {
       openid = "dev_" + code.slice(0, 16);
       phone = "13800138000";
@@ -83,6 +93,7 @@ exports.phoneLogin = async (req, res) => {
       nickName: user.nick_name,
       avatarUrl: user.avatar_url,
       phone: user.phone,
+      role: user.role || 'user',
       token,
     });
   } catch (e) {
@@ -135,6 +146,7 @@ exports.devLogin = async (req, res) => {
       gender: user.gender,
       campus: user.campus,
       phone: user.phone,
+      role: user.role || 'user',
       token,
     });
   } catch (e) {
@@ -145,7 +157,7 @@ exports.devLogin = async (req, res) => {
 exports.getInfo = async (req, res) => {
   try {
     const [rows] = await pool.query(
-      "SELECT id, nick_name, avatar_url, student_id, is_verified, gender, campus, phone FROM sys_user WHERE id = ?",
+      "SELECT id, nick_name, avatar_url, student_id, is_verified, gender, campus, phone, role, status FROM sys_user WHERE id = ?",
       [req.userId],
     );
     if (!rows.length) return fail(res, "用户不存在", 404);
@@ -159,6 +171,8 @@ exports.getInfo = async (req, res) => {
       gender: u.gender,
       campus: u.campus,
       phone: u.phone,
+      role: u.role || 'user',
+      status: u.status,
     });
   } catch (e) {
     fail(res, safeMessage(e), 500);
@@ -204,7 +218,7 @@ exports.getProfilePosts = async (req, res) => {
   if (!profileId) return fail(res, "用户不存在", 404);
   try {
     const [rows] = await pool.query(
-      `SELECT p.*, u.nick_name, u.avatar_url, u.is_verified
+      `SELECT p.*, u.nick_name, u.avatar_url, u.campus, u.is_verified
        FROM forum_post p
        LEFT JOIN sys_user u ON p.user_id = u.id
        WHERE p.user_id = ? AND p.status = 1
@@ -218,6 +232,7 @@ exports.getProfilePosts = async (req, res) => {
         userId: item.user_id,
         nickName: item.nick_name,
         avatarUrl: item.avatar_url,
+        campus: item.campus || "",
         verified: !!item.is_verified,
         title: item.title || "",
         category: item.category,
@@ -237,28 +252,29 @@ exports.getProfilePosts = async (req, res) => {
 
 exports.updateInfo = async (req, res) => {
   const { nickName, avatarUrl, gender, campus, phone } = req.body;
+  if (phone !== undefined) return fail(res, "手机号需通过微信授权更新", 400);
   try {
     const fields = [];
     const values = [];
     if (nickName !== undefined) {
+      if (typeof nickName !== "string" || !nickName.trim() || nickName.trim().length > 64) return fail(res, "昵称长度应为1至64个字符", 400);
       fields.push("nick_name = ?");
-      values.push(nickName);
+      values.push(nickName.trim());
     }
     if (avatarUrl !== undefined) {
+      if (typeof avatarUrl !== "string" || avatarUrl.length > 512) return fail(res, "头像地址无效", 400);
       fields.push("avatar_url = ?");
       values.push(avatarUrl);
     }
     if (gender !== undefined) {
+      if (![0, 1, 2].includes(Number(gender))) return fail(res, "性别参数无效", 400);
       fields.push("gender = ?");
-      values.push(gender);
+      values.push(Number(gender));
     }
     if (campus !== undefined) {
+      if (typeof campus !== "string" || campus.trim().length > 64) return fail(res, "校区信息无效", 400);
       fields.push("campus = ?");
-      values.push(campus);
-    }
-    if (phone !== undefined) {
-      fields.push("phone = ?");
-      values.push(phone);
+      values.push(campus.trim());
     }
     if (!fields.length) return fail(res, "无更新内容");
     values.push(req.userId);
@@ -269,6 +285,23 @@ exports.updateInfo = async (req, res) => {
     success(res, null);
   } catch (e) {
     fail(res, safeMessage(e), 500);
+  }
+};
+
+exports.updatePhone = async (req, res) => {
+  const phoneCode = String(req.body.phoneCode || "").trim();
+  if (!phoneCode) return fail(res, "缺少手机号授权凭证", 400);
+  try {
+    if (wechatConfig.appId === "your_appid" || !wechatConfig.appSecret || wechatConfig.appSecret === "your_appsecret") {
+      return fail(res, "微信配置未完成", 503);
+    }
+    const phone = await getWechatPhone(phoneCode);
+    const [result] = await pool.query("UPDATE sys_user SET phone = ? WHERE id = ?", [phone, req.userId]);
+    if (!result.affectedRows) return fail(res, "用户不存在", 404);
+    success(res, { phone }, "手机号已更新");
+  } catch (e) {
+    if (e.code === "ER_DUP_ENTRY") return fail(res, "该手机号已绑定其他账号", 409);
+    fail(res, safeMessage(e), e.status || 500);
   }
 };
 
@@ -292,8 +325,149 @@ exports.verify = async (req, res) => {
   }
 };
 
+function formatDeletionRequest(row) {
+  if (!row || row.status !== 'pending') return null
+  return {
+    status: row.status,
+    requestedAt: row.requested_at,
+    scheduledFor: row.scheduled_for
+  }
+}
+
+exports.getDeletionRequest = async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      "SELECT status, requested_at, scheduled_for FROM account_deletion_request WHERE user_id = ? LIMIT 1",
+      [req.userId]
+    )
+    success(res, formatDeletionRequest(rows[0]))
+  } catch (error) {
+    fail(res, safeMessage(error), 500)
+  }
+}
+
+exports.requestDeletion = async (req, res) => {
+  try {
+    await pool.query(
+      `INSERT INTO account_deletion_request (user_id, status, requested_at, scheduled_for, cancelled_at, completed_at)
+       VALUES (?, 'pending', NOW(), DATE_ADD(NOW(), INTERVAL 7 DAY), NULL, NULL)
+       ON DUPLICATE KEY UPDATE status = 'pending', requested_at = NOW(), scheduled_for = DATE_ADD(NOW(), INTERVAL 7 DAY), cancelled_at = NULL, completed_at = NULL`,
+      [req.userId]
+    )
+    const [rows] = await pool.query(
+      "SELECT status, requested_at, scheduled_for FROM account_deletion_request WHERE user_id = ? LIMIT 1",
+      [req.userId]
+    )
+    success(res, formatDeletionRequest(rows[0]), '注销申请已提交')
+  } catch (error) {
+    fail(res, safeMessage(error), 500)
+  }
+}
+
+exports.cancelDeletion = async (req, res) => {
+  try {
+    const [result] = await pool.query(
+      "UPDATE account_deletion_request SET status = 'cancelled', cancelled_at = NOW() WHERE user_id = ? AND status = 'pending'",
+      [req.userId]
+    )
+    if (!result.affectedRows) return fail(res, '没有可撤销的注销申请', 404)
+    success(res, null, '注销申请已撤销')
+  } catch (error) {
+    fail(res, safeMessage(error), 500)
+  }
+}
+
 exports.contentCheck = async (req, res) => {
   const { content } = req.body;
   if (!content) return fail(res, "缺少内容");
   success(res, { safe: true });
+};
+
+exports.getInteractionStats = async (req, res) => {
+  const userId = req.userId;
+  if (!userId) return fail(res, "未登录", 401);
+  try {
+    const [[likedRow]] = await pool.query(
+      "SELECT COUNT(*) as count FROM forum_like WHERE user_id = ?",
+      [userId],
+    );
+    const [[sharedRow]] = await pool.query(
+      "SELECT COUNT(*) as count FROM forum_share WHERE user_id = ? AND status = 1",
+      [userId],
+    );
+    const [[commentedRow]] = await pool.query(
+      "SELECT COUNT(*) as count FROM forum_comment WHERE user_id = ? AND status = 1",
+      [userId],
+    );
+    const [[favoritedRow]] = await pool.query(
+      "SELECT COUNT(*) as count FROM forum_favorite WHERE user_id = ?",
+      [userId],
+    );
+    success(res, {
+      liked: likedRow.count,
+      shared: sharedRow.count,
+      commented: commentedRow.count,
+      favorited: favoritedRow.count,
+    });
+  } catch (e) {
+    fail(res, safeMessage(e), 500);
+  }
+};
+
+exports.getInteractionList = async (req, res) => {
+  const userId = req.userId;
+  if (!userId) return fail(res, "未登录", 401);
+  const type = req.params.type;
+  const validTypes = ["liked", "shared", "commented", "favorited"];
+  if (!validTypes.includes(type)) return fail(res, "无效类型", 400);
+  const page = parseInt(req.query.page, 10) || 1;
+  const pageSize = clampPageSize(req.query.pageSize);
+  const offset = (page - 1) * pageSize;
+  try {
+    let joinTable, joinCol, extraWhere = "";
+    let isLiked = 0, isFavorited = 0;
+    if (type === "liked") {
+      joinTable = "forum_like"; joinCol = "post_id"; isLiked = 1;
+    } else if (type === "favorited") {
+      joinTable = "forum_favorite"; joinCol = "post_id"; isFavorited = 1;
+    } else if (type === "shared") {
+      joinTable = "forum_share"; joinCol = "post_id"; extraWhere = " AND x.status = 1";
+    } else {
+      joinTable = "forum_comment"; joinCol = "post_id"; extraWhere = " AND x.status = 1";
+    }
+    const [[countRow]] = await pool.query(
+      `SELECT COUNT(DISTINCT p.id) as total
+       FROM ${joinTable} x
+       JOIN forum_post p ON p.id = x.${joinCol} AND p.status = 1
+       WHERE x.user_id = ?${extraWhere}`,
+      [userId],
+    );
+    const distinct = type === "commented" ? "DISTINCT p.id" : "p.id";
+    const [rows] = await pool.query(
+      `SELECT ${distinct}, p.user_id, p.title, p.category, p.content, p.images,
+        p.like_count, p.comment_count, p.favorite_count, p.share_count, p.created_at,
+        u.nick_name, u.avatar_url, u.campus, u.is_verified,
+        IFNULL((SELECT COUNT(*) FROM forum_post fp2 WHERE fp2.user_id = p.user_id AND fp2.status = 1), 0) AS post_count
+       FROM ${joinTable} x
+       JOIN forum_post p ON p.id = x.${joinCol} AND p.status = 1
+       LEFT JOIN sys_user u ON p.user_id = u.id
+       WHERE x.user_id = ?${extraWhere}
+       ORDER BY x.created_at DESC LIMIT ? OFFSET ?`,
+      [userId, pageSize, offset],
+    );
+    const total = countRow ? countRow.total : 0;
+    success(res, {
+      list: rows.map((r) => ({
+        id: r.id, userId: r.user_id, nickName: r.nick_name, avatarUrl: r.avatar_url, campus: r.campus || "",
+        title: r.title || "", category: r.category, content: r.content,
+        images: parseImages(r.images), likeCount: r.like_count, commentCount: r.comment_count,
+        favoriteCount: r.favorite_count, shareCount: r.share_count || 0,
+        verified: !!r.is_verified, postCount: r.post_count || 0,
+        isLiked: !!isLiked, isFavorited: !!isFavorited, createdAt: r.created_at,
+      })),
+      total,
+    });
+  } catch (e) {
+    fail(res, safeMessage(e), 500);
+  }
 };

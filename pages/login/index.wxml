@@ -4,6 +4,23 @@
     <text class="app-name">广轻工</text>
     <text class="slogan">轻轻松松过好每一天</text>
   </view>
-  <button class="login-btn btn-primary" open-type="getPhoneNumber" bindgetphonenumber="onGetPhoneNumber" loading="{{loading}}">手机号快捷登录</button>
-  <text class="agreement">登录即表示同意《用户协议》和《隐私政策》</text>
+  <button
+    class="login-btn btn-primary {{agreementChecked ? '' : 'login-btn-disabled'}}"
+    open-type="{{agreementChecked ? 'getPhoneNumber' : ''}}"
+    bindtap="onLoginTap"
+    bindgetphonenumber="onGetPhoneNumber"
+    loading="{{loading}}"
+  >手机号快捷登录</button>
+  <view class="agreement-area">
+    <view class="agreement-row" bindtap="toggleAgreement" role="checkbox" aria-checked="{{agreementChecked}}">
+      <view class="agreement-checkbox {{agreementChecked ? 'checked' : ''}}">
+        <text wx:if="{{agreementChecked}}">✓</text>
+      </view>
+      <text class="agreement-tip">我已阅读并同意</text>
+      <text class="agreement-link" catchtap="goAgreement">《用户服务协议》</text>
+      <text class="agreement-tip">和</text>
+      <text class="agreement-link" catchtap="goPrivacy">《隐私政策》</text>
+    </view>
+  </view>
+  <button class="cancel-btn" bindtap="onCancel">返回首页</button>
 </view>

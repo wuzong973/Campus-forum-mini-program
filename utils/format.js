@@ -9,6 +9,18 @@ function formatTime(date) {
   return y + '-' + m + '-' + day + ' ' + h + ':' + min
 }
 
+function formatDateTime(date) {
+  if (!date) return ''
+  const d = typeof date === 'string' ? new Date(date) : date
+  if (Number.isNaN(d.getTime())) return ''
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  const h = String(d.getHours()).padStart(2, '0')
+  const min = String(d.getMinutes()).padStart(2, '0')
+  return y + '年' + m + '月' + day + '日 ' + h + ':' + min
+}
+
 function formatRelativeTime(dateStr) {
   if (!dateStr) return ''
   const now = Date.now()
@@ -33,4 +45,4 @@ function truncate(str, len) {
   return str.length > len ? str.slice(0, len) + '...' : str
 }
 
-module.exports = { formatTime, formatRelativeTime, formatPrice, truncate }
+module.exports = { formatTime, formatDateTime, formatRelativeTime, formatPrice, truncate }

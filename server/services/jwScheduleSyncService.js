@@ -12,10 +12,10 @@ if (!Module.globalPaths.includes(SERVER_NODE_MODULES)) {
 }
 
 const JwCrawler = require(
-  path.join(__dirname, "..", "..", "教务系统爬虫", "crawler"),
+  path.join(__dirname, "..", "..", "jw-crawler", "crawler"),
 );
 
-const CRAWLER_ROOT = path.resolve(__dirname, "..", "..", "教务系统爬虫");
+const CRAWLER_ROOT = path.resolve(__dirname, "..", "..", "jw-crawler");
 const DEFAULT_SEMESTER_START =
   process.env.SCHEDULE_DEFAULT_START_DATE ||
   process.env.JW_SEMESTER_START ||

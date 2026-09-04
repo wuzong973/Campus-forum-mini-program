@@ -10,13 +10,17 @@
     "start": "node app.js",
     "dev": "nodemon app.js",
     "pm2": "pm2 start ecosystem.config.js",
-    "test": "node tests/smoke.test.js"
+    "verify:wechat": "node scripts/verify-wechat-config.js",
+    "verify:admin": "node scripts/verify-admin-migration.js",
+    "reconcile:payments": "node scripts/reconcile-payments.js",
+    "test": "node tests/smoke.test.js && node tests/protocol.test.js && node tests/request-contract.test.js && node tests/payment-v3.test.js && node tests/admin-permissions.test.js && node tests/feature-flag.test.js"
   },
   "dependencies": {
     "axios": "^1.6.0",
     "axios-cookiejar-support": "^5.0.3",
     "cheerio": "^1.0.0",
     "cors": "^2.8.5",
+    "cos-nodejs-sdk-v5": "^3.0.0",
     "dotenv": "^16.3.1",
     "express": "^4.18.2",
     "express-rate-limit": "^7.1.5",

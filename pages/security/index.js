@@ -1,15 +1,58 @@
+const auth = require('../../utils/auth')
+const request = require('../../utils/request')
+
 Page({
-  data: {},
+  data: { deletionRequest: null, loading: false },
+
+  onShow() {
+    if (!auth.isLoggedIn()) return
+    if (request.USE_MOCK) return
+    request.get('/user/deletion-request', {}, true, { silent: true })
+      .then((deletionRequest) => this.setData({ deletionRequest }))
+      .catch(() => this.setData({ deletionRequest: null }))
+  },
 
   onDeleteAccount() {
+    if (request.USE_MOCK) {
+      wx.showToast({ title: '演示模式暂不支持注销账号', icon: 'none' })
+      return
+    }
     wx.showModal({
       title: '注销账号',
-      content: '注销后所有数据将被永久删除，7天内可恢复。确定要申请注销吗？',
+      content: '提交后将进入 7 天冷静期。冷静期内可随时撤销，期满后将按平台规则处理相关数据。确定提交吗？',
       confirmColor: '#FF4D4F',
-      success(res) {
-        if (res.confirm) {
-          wx.showToast({ title: '注销申请已提交', icon: 'success' })
-        }
+      success: (res) => {
+        if (!res.confirm) return
+        this.setData({ loading: true })
+        request.post('/user/deletion-request', {}, true, { showLoading: '提交中...' })
+          .then((deletionRequest) => {
+            this.setData({ deletionRequest })
+            wx.showToast({ title: '注销申请已提交', icon: 'success' })
+          })
+          .catch((error) => wx.showToast({ title: error.message || '提交失败，请稍后重试', icon: 'none' }))
+          .finally(() => this.setData({ loading: false }))
+      }
+    })
+  },
+
+  onCancelDeletion() {
+    if (request.USE_MOCK) {
+      wx.showToast({ title: '演示模式暂不支持该操作', icon: 'none' })
+      return
+    }
+    wx.showModal({
+      title: '撤销注销申请',
+      content: '撤销后账号将继续正常使用。',
+      success: (res) => {
+        if (!res.confirm) return
+        this.setData({ loading: true })
+        request.del('/user/deletion-request', {}, true, { showLoading: '撤销中...' })
+          .then(() => {
+            this.setData({ deletionRequest: null })
+            wx.showToast({ title: '已撤销申请', icon: 'success' })
+          })
+          .catch((error) => wx.showToast({ title: error.message || '撤销失败，请稍后重试', icon: 'none' }))
+          .finally(() => this.setData({ loading: false }))
       }
     })
   }

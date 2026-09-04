@@ -192,6 +192,27 @@
   box-shadow: 0 12rpx 32rpx rgba(30, 64, 175, 0.07);
 }
 
+.admin-entry {
+  margin: 0 24rpx 24rpx;
+  padding: 26rpx 28rpx;
+  border: 1rpx solid rgba(49, 92, 255, 0.16);
+  background: #f7f9ff;
+}
+
+.admin-entry-title {
+  display: block;
+  color: var(--primary);
+  font-size: 30rpx;
+  font-weight: 600;
+}
+
+.admin-entry-desc {
+  display: block;
+  margin-top: 6rpx;
+  color: var(--text-secondary);
+  font-size: 23rpx;
+}
+
 .menu-item {
   padding: 28rpx 0;
   border-bottom: 1rpx solid var(--divider);
@@ -221,4 +242,28 @@
 .arrow {
   color: var(--text-placeholder);
   font-size: 28rpx;
+}
+
+.customer-service-row {
+  position: relative;
+}
+
+.customer-service-hit {
+  position: absolute;
+  z-index: 2;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  width: auto;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+}
+
+.customer-service-hit::after {
+  border: none;
 }

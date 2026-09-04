@@ -6,7 +6,7 @@
 
 - 小程序前端：`app.js`、`pages/`、`components/`、`utils/`
 - 服务端：`server/`
-- 教务系统爬虫：`教务系统爬虫/`
+- 教务系统爬虫：`jw-crawler/`
 
 ## 技术栈
 
@@ -21,12 +21,12 @@
 1. 安装依赖
    - 前端小程序无需额外安装依赖
    - 服务端执行：`cd server && npm install`
-   - 爬虫目录执行：`cd "教务系统爬虫" && npm install`
+   - 爬虫目录执行：`cd "jw-crawler" && npm install`
 2. 配置环境变量
-   - 参考 `server/.env.example` 和 `教务系统爬虫/.env.example`
+   - 参考 `server/.env.example` 和 `jw-crawler/.env.example`
 3. 启动服务
    - 服务端：`cd server && npm run dev`
-   - 爬虫脚本：`cd "教务系统爬虫" && node crawler.js`
+   - 爬虫脚本：`cd "jw-crawler" && node crawler.js`
 
 ## 说明
 

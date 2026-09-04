@@ -11,6 +11,12 @@ pnpm-debug.log*
 # Environment files
 .env
 .env.*
+!.env.example
+!server/.env.example
+
+# Production credentials
+server/config/apiclient_*.pem
+private.upload.key
 
 # OS files
 .DS_Store

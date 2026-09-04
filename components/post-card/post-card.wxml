@@ -2,77 +2,58 @@
   <view class="post-header">
     <image class="post-avatar" src="{{post.avatarUrl || '/assets/icons/avatar.png'}}" mode="aspectFill" lazy-load catchtap="onAvatarTap"></image>
     <view class="post-user-info">
-      <view class="post-user-row">
-        <text class="post-nick">{{post.nickName}}</text>
-        <text class="verified-tag" wx:if="{{post.verified}}">认证</text>
+      <view class="post-nick-row">
+        <text class="post-nick">{{authorName}}</text>
+        <text class="post-cert-label" wx:if="{{certLabel}}">{{certLabel}}</text>
       </view>
-      <view class="post-sub-row">
-        <text class="post-category">{{post.category || '推荐'}}</text>
-        <text class="post-dot">·</text>
-        <text class="post-time">{{timeText}}</text>
-      </view>
-      
+      <view class="post-meta"><text class="post-review-note" wx:if="{{post.reviewNote}}">{{post.reviewNote}}</text><text>{{timeText}}</text><text class="meta-divider">|</text><text>{{viewText}}</text></view>
     </view>
-    <view class="post-header-actions">
-      <view class="close-btn" catchtap="onClose">
-        <image class="more-icon" src="/assets/icons/more.png" mode="aspectFit"></image>
-      </view>
-    </view>
+    <view class="more-btn" catchtap="onClose"><image src="/assets/icons/more.png" mode="aspectFit"></image></view>
   </view>
 
-  <view class="pin-badge" wx:if="{{post.isPinnedLocal}}">
-    <text class="pin-badge-text">置顶</text>
-  </view>
-
-  <view class="hot-badge" wx:if="{{post.isHot && !post.isPinnedLocal}}">
-    <text class="hot-badge-text">热帖</text>
-  </view>
-
-  <view class="post-title" wx:if="{{post.title}}">
-    <text class="post-title-text">{{post.title}}</text>
-  </view>
-
+  <text class="post-title" wx:if="{{post.title}}">{{post.title}}</text>
   <view class="post-content">
-    <text class="post-content-text">{{displayContent}}</text>
-    <text class="post-full-text" wx:if="{{isLongContent}}" catchtap="onViewFull">全文</text>
+    <text>{{displayContent}}</text><text class="post-full" wx:if="{{isLongContent}}" catchtap="onViewFull">全文</text>
   </view>
 
   <view class="post-images images-{{imageLayout}}" wx:if="{{previewImages.length}}">
     <view class="post-img-wrap" wx:for="{{previewImages}}" wx:key="*this">
-      <image src="{{item}}" mode="aspectFill" class="post-img img-lazy" lazy-load></image>
+      <image src="{{item}}" mode="aspectFill" class="post-img" lazy-load></image>
       <view class="image-count" wx:if="{{index === 2 && post.images.length > 3}}">+{{post.images.length - 3}}</view>
     </view>
   </view>
 
   <view class="post-footer" wx:if="{{showFooter}}">
-    <view class="footer-action {{post.isLiked ? 'liked' : ''}} action-like" catchtap="onLike">
-      <image class="footer-icon" src="{{post.isLiked ? '/assets/icons/heart.png' : '/assets/icons/heart-outline.png'}}" mode="aspectFit"></image>
-      <text class="footer-count">{{post.likeCount || 0}}</text>
+    <view class="post-topic-meta">
+      <view class="topic-tag"><text>#</text> {{post.category || '日常话题'}}</view>
+      <view class="campus-tag">{{post.campus || '未设置校区'}}</view>
     </view>
-    <view class="footer-action action-comment" catchtap="onComment">
-      <image class="footer-icon" src="/assets/icons/comment.png" mode="aspectFit"></image>
-      <text class="footer-count">{{post.commentCount || 0}}</text>
-    </view>
-    <view class="footer-action {{post.isFavorited ? 'favorited' : ''}} action-favorite" catchtap="onFavorite">
-      <image class="footer-icon" src="{{post.isFavorited ? '/assets/icons/star.png' : '/assets/icons/star-outline.png'}}" mode="aspectFit"></image>
-      <text class="footer-count">{{post.favoriteCount || 0}}</text>
-    </view>
-    <view class="footer-action action-share" catchtap="onShare">
-      <image class="footer-icon" src="/assets/icons/share.png" mode="aspectFit"></image>
-      <text class="footer-count">{{post.shareCount || 0}}</text>
+    <view class="footer-actions">
+      <view class="footer-action {{post.isLiked ? 'active-like' : ''}}" catchtap="onLike"><image src="/assets/icons/heart-outline.png" mode="aspectFit"></image><text>点赞{{post.likeCount ? ' ' + post.likeCount : ''}}</text></view>
+      <view class="footer-action" catchtap="onComment"><image src="/assets/icons/comment.png" mode="aspectFit"></image><text>评论{{post.commentCount ? ' ' + post.commentCount : ''}}</text></view>
     </view>
   </view>
 
-  <!-- 热门评论 -->
-  <view class="top-comment-bar" wx:if="{{topLikedComment}}" catchtap="onComment">
-    <image class="top-comment-avatar" src="{{topLikedComment.avatarUrl || '/assets/icons/avatar.png'}}" mode="aspectFill"></image>
-    <view class="top-comment-info">
-      <text class="top-comment-nick">{{topLikedComment.nickName}}</text>
-      <text class="top-comment-content">{{topLikedComment.content}}</text>
+  <view class="note-editor-mask" wx:if="{{showNoteEditor}}" catchtap="closeNoteEditor"></view>
+  <view class="note-editor" wx:if="{{showNoteEditor}}" catchtap="noop" style="bottom: {{noteKeyboardHeight ? noteKeyboardHeight : 16}}px;">
+    <view class="note-editor-header">
+      <view class="note-editor-title">添加备注</view>
+      <text class="note-editor-count">{{noteLength}}/255</text>
     </view>
-    <view class="top-comment-likes">
-      <text class="top-comment-heart">❤</text>
-      <text class="top-comment-count">{{topLikedComment.likeCount}}</text>
+    <textarea class="note-editor-input" placeholder="请输入备注内容" maxlength="255" value="{{noteDraft}}" focus="{{noteInputFocus}}" cursor-spacing="20" adjust-position="{{false}}" bindinput="onNoteInput" bindkeyboardheightchange="onNoteKeyboardChange" />
+    <view class="note-editor-actions">
+      <button class="note-editor-btn cancel" catchtap="closeNoteEditor">取消</button>
+      <button class="note-editor-btn confirm {{savingNote || !noteDraft ? 'is-disabled' : ''}}" loading="{{savingNote}}" disabled="{{savingNote || !noteDraft}}" catchtap="saveNote">保存备注</button>
     </view>
   </view>
+
+  <share-popup
+    visible="{{showSharePopup}}"
+    postId="{{post.id}}"
+    postTitle="{{post.title}}"
+    postContent="{{post.content}}"
+    bind:close="onCloseSharePopup"
+    bind:shareToFriend="onShareToFriend"
+    bind:sharePoster="onSharePoster"
+  />
 </view>

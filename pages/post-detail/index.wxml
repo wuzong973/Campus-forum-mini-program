@@ -1,144 +1,95 @@
-<view class="page page-enter" wx:if="{{post}}">
-
-  <!-- 可滚动内容区域 -->
+<view class="page" wx:if="{{post}}">
   <scroll-view class="page-scroll" scroll-y enhanced show-scrollbar="{{false}}" style="height: {{pageHeight}}px;">
-
-    <!-- 帖子内容 -->
-    <view class="post-card card">
+    <view class="post-detail">
       <view class="post-header">
-        <image
-          class="post-avatar"
-          src="{{post.avatarUrl || '/assets/icons/avatar.png'}}"
-          mode="aspectFill"
-          catchtap="onAvatarTap"
-          data-userid="{{post.userId}}"
-          data-nick="{{post.nickName}}"
-          data-avatar="{{post.avatarUrl}}"
-        ></image>
+        <image class="post-avatar" src="{{post.avatarUrl || '/assets/icons/avatar.png'}}" mode="aspectFill" catchtap="onAvatarTap" data-userid="{{post.userId}}"></image>
         <view class="post-user-info">
-          <text class="post-nick">{{post.nickName}}</text>
-          <text class="post-time">{{timeText}}</text>
+        <view class="post-nick-row">
+          <text class="post-nick">{{post.nickName || '校园同学'}}</text>
+          <text class="post-cert-label" wx:if="{{post.certLabel}}">{{post.certLabel}}</text>
+        </view>
+        <view class="post-meta"><text class="post-review-note" wx:if="{{post.reviewNote}}">{{post.reviewNote}}</text><text>{{timeText}}</text><text>|</text><text>{{viewText}}</text></view>
+      </view>
+        <image class="more-icon" src="/assets/icons/more.png" mode="aspectFit" catchtap="openActionMenu"></image>
+      </view>
+      <text class="post-title" wx:if="{{post.title}}">{{post.title}}</text>
+      <text class="post-content">{{post.content}}</text>
+      <view class="post-images" wx:if="{{post.images && post.images.length}}">
+        <image wx:for="{{post.images}}" wx:key="*this" src="{{item}}" mode="aspectFill" class="post-img"></image>
+      </view>
+      <view class="post-topic-meta">
+        <view class="topic-tag"><text>#</text> {{post.category || '日常话题'}}</view>
+        <view class="campus-tag">{{post.campus || '未设置校区'}}</view>
+      </view>
+      <view class="post-actions">
+        <view class="post-action-group">
+          <view class="post-action {{post.isFavorited ? 'active-favorite' : ''}}" catchtap="onFavoritePost"><image src="/assets/icons/star-outline.png" mode="aspectFit"></image><text>收藏{{post.favoriteCount ? ' ' + post.favoriteCount : ''}}</text></view>
+          <view class="post-action {{post.isFollowed ? 'active-follow' : ''}}" catchtap="onFollowPost"><image src="/assets/icons/bookmark-outline.png" mode="aspectFit"></image><text>蹲帖</text></view>
+        </view>
+        <view class="post-action-group post-action-group-right">
+          <view class="post-action" catchtap="onSharePost"><image src="/assets/icons/share.png" mode="aspectFit"></image><text>分享{{post.shareCount ? ' ' + post.shareCount : ''}}</text></view>
+          <view class="post-action {{post.isLiked ? 'active-like' : ''}}" catchtap="onLikePost"><image src="/assets/icons/heart-outline.png" mode="aspectFit"></image><text>点赞{{post.likeCount ? ' ' + post.likeCount : ''}}</text></view>
+          <view class="post-action" catchtap="onFocusComment"><image src="/assets/icons/comment.png" mode="aspectFit"></image><text>评论{{post.commentCount ? ' ' + post.commentCount : ''}}</text></view>
         </view>
       </view>
-      <view class="post-title" wx:if="{{post.title}}">{{post.title}}</view>
-      <view class="post-content">{{post.content}}</view>
-      <view class="post-images" wx:if="{{post.images && post.images.length}}">
-        <image wx:for="{{post.images}}" wx:key="*this" src="{{item}}" mode="aspectFill" class="post-img" />
-      </view>
-      <view class="post-stats">
-        <text class="stat-item">浏览 {{post.viewCount || 0}}</text>
-        <text class="stat-item">点赞 {{post.likeCount || 0}}</text>
-        <text class="stat-item">评论 {{post.commentCount || 0}}</text>
-        <text class="stat-item">转发 {{post.shareCount || 0}}</text>
+      <view class="contact-info" wx:if="{{post.contact}}">
+        <view class="contact-info-content" wx:if="{{contactExpanded}}">
+          <view class="contact-row"><text class="contact-label">联系姓名</text><text class="contact-value">{{post.contact.name}}</text></view>
+          <view class="contact-row"><text class="contact-label">{{post.contact.type}}</text><text class="contact-value">{{post.contact.value}}</text><image class="contact-copy" src="/assets/icons/clipboard.png" mode="aspectFit" catchtap="onCopyContact"></image></view>
+          <text class="contact-tip">联系 Ta 时请备注在「校园社区」看到的</text>
+        </view>
+        <view class="contact-toggle" catchtap="toggleContactInfo"><text>{{contactExpanded ? '收起联系方式' : '展开联系方式'}}</text><text class="contact-toggle-icon">{{contactExpanded ? '⌃' : '⌄'}}</text></view>
       </view>
     </view>
 
-    <!-- 评论区 -->
-    <view class="comments-section card">
-      <view class="comments-header">
-        <text class="comments-title">评论 ({{comments.length}})</text>
-      </view>
-
-      <!-- 点赞最多的评论（热门评论） -->
-      <view class="top-comment" wx:if="{{topLikedComment}}">
-        <view class="top-comment-label">
-          <text class="top-comment-icon"></text>
-          <text class="top-comment-text">热门评论</text>
-        </view>
-        <view class="top-comment-content">
-          <image class="top-comment-avatar" src="{{topLikedComment.avatarUrl || '/assets/icons/avatar.png'}}" mode="aspectFill"></image>
-          <view class="top-comment-info">
-            <view class="top-comment-header">
-              <text class="top-comment-nick">{{topLikedComment.nickName}}</text>
-              <text class="top-comment-likes">❤ {{topLikedComment.likeCount}}</text>
-            </view>
-            <text class="top-comment-text-content">{{topLikedComment.content}}</text>
-          </view>
-        </view>
-      </view>
-
+    <view class="comments-section">
+      <view class="comments-header"><text class="comments-title">评论 {{comments.length}}</text><view class="comment-sort"><text class="sort-option {{commentSort === 'hot' ? 'active' : ''}}" data-sort="hot" catchtap="onCommentSort">热门</text><text class="sort-option {{commentSort === 'time' ? 'active' : ''}}" data-sort="time" catchtap="onCommentSort">最新</text></view></view>
+      <view class="top-comment" wx:if="{{commentSort === 'hot' && topLikedComment}}"><text class="top-comment-label">热门评论</text><view class="top-comment-body"><image class="comment-avatar" src="{{topLikedComment.avatarUrl || '/assets/icons/avatar.png'}}" mode="aspectFill" data-userid="{{topLikedComment.userId}}" catchtap="onCommentAvatarTap"></image><view class="comment-content-wrap"><text class="comment-nick">{{topLikedComment.nickName}}</text><text class="comment-text">{{topLikedComment.content}}</text><view class="comment-actions"><text catchtap="onReplyComment" data-id="{{topLikedComment.id}}" data-nick="{{topLikedComment.nickName}}">回复</text></view></view><view class="comment-like-count"><image src="/assets/icons/heart-outline.png" mode="aspectFit"></image><text>点赞{{topLikedComment.likeCount ? ' ' + topLikedComment.likeCount : ''}}</text></view></view></view>
       <view class="comment-list">
         <view class="comment-item" wx:for="{{comments}}" wx:key="id">
-          <image class="comment-avatar" src="{{item.avatarUrl || '/assets/icons/avatar.png'}}" mode="aspectFill"></image>
+          <image class="comment-avatar" src="{{item.avatarUrl || '/assets/icons/avatar.png'}}" mode="aspectFill" data-userid="{{item.userId}}" catchtap="onCommentAvatarTap"></image>
           <view class="comment-content-wrap">
-            <view class="comment-header">
-              <text class="comment-nick">{{item.nickName}}</text>
-              <text class="comment-time">{{item.timeText}}</text>
-            </view>
-            <view class="comment-body">
-              <text class="comment-reply-to" wx:if="{{item.parentNickName}}">回复 {{item.parentNickName}}：</text>
-              <text class="comment-text">{{item.content}}</text>
-            </view>
-            <view class="comment-image-list" wx:if="{{item.images && item.images.length}}">
-              <image class="comment-image" wx:for="{{item.images}}" wx:for-item="img" wx:key="*this" src="{{img}}" mode="aspectFill"></image>
-            </view>
-            <view class="comment-actions">
-              <text class="comment-action-btn" catchtap="onReplyComment" data-id="{{item.id}}" data-nick="{{item.nickName}}">回复</text>
-              <text class="comment-action-btn" wx:if="{{item.userId === currentUserId}}" catchtap="onEditComment" data-id="{{item.id}}" data-content="{{item.content}}">编辑</text>
-              <text class="comment-action-btn delete" wx:if="{{item.userId === currentUserId}}" catchtap="onDeleteComment" data-id="{{item.id}}">删除</text>
-              <view class="comment-like-btn {{item.isLiked ? 'liked' : ''}}" catchtap="onLikeComment" data-id="{{item.id}}">
-                <text class="comment-like-icon">{{item.isLiked ? '❤' : '♡'}}</text>
-                <text class="comment-like-count" wx:if="{{item.likeCount > 0}}">{{item.likeCount}}</text>
-              </view>
-            </view>
+            <view class="comment-meta"><text class="comment-nick">{{item.nickName}}</text><text class="comment-time">{{item.timeText}}</text></view>
+            <view class="comment-body"><text class="comment-reply-to" wx:if="{{item.parentNickName}}">回复 {{item.parentNickName}}：</text><text class="comment-text">{{item.content}}</text></view>
+            <view class="comment-image-list" wx:if="{{item.images && item.images.length}}"><image class="comment-image" wx:for="{{item.images}}" wx:for-item="img" wx:key="*this" src="{{img}}" mode="aspectFill"></image></view>
+            <view class="comment-actions"><text catchtap="onReplyComment" data-id="{{item.id}}" data-nick="{{item.nickName}}">回复</text><text wx:if="{{item.userId === currentUserId}}" catchtap="onEditComment" data-id="{{item.id}}" data-content="{{item.content}}">编辑</text><text wx:if="{{item.userId === currentUserId}}" class="delete" catchtap="onDeleteComment" data-id="{{item.id}}">删除</text></view>
           </view>
+          <view class="comment-like {{item.isLiked ? 'active-like' : ''}}" catchtap="onLikeComment" data-id="{{item.id}}"><image src="/assets/icons/heart-outline.png" mode="aspectFit"></image><text>点赞{{item.likeCount ? ' ' + item.likeCount : ''}}</text></view>
         </view>
-        <view class="empty-comments" wx:if="{{comments.length === 0}}">
-          <text>暂无评论，快来抢沙发吧~</text>
-        </view>
+        <view class="empty-comments" wx:if="{{comments.length === 0}}">还没有评论，来说两句吧</view>
       </view>
     </view>
-
   </scroll-view>
 
-  <!-- 底部操作栏（固定在屏幕底部） -->
-  <view class="bottom-bar" style="bottom: {{keyboardHeight}}px;">
-    <view class="comment-preview-images" wx:if="{{commentImages.length}}">
-      <view class="comment-preview-item" wx:for="{{commentImages}}" wx:key="*this">
-        <image class="comment-preview-img" src="{{item}}" mode="aspectFill"></image>
-        <view class="comment-preview-remove" data-index="{{index}}" catchtap="onRemoveCommentImage">×</view>
-      </view>
+  <view class="note-editor-mask" wx:if="{{showNoteEditor}}" catchtap="closeNoteEditor"></view>
+  <view class="note-editor" wx:if="{{showNoteEditor}}" catchtap="noop" style="bottom: {{noteKeyboardHeight ? noteKeyboardHeight : 16}}px;">
+    <view class="note-editor-header">
+      <view class="note-editor-title">添加备注</view>
+      <text class="note-editor-count">{{noteLength}}/255</text>
     </view>
-    <view class="comment-toolbar">
-      <view class="comment-input-wrap">
-        <input
-          class="comment-input"
-          focus="{{commentFocus}}"
-          cursor-spacing="18"
-          adjust-position="{{false}}"
-          placeholder="{{replyTo ? '回复 ' + replyToNick + '...' : '写评论...'}}"
-          value="{{commentText}}"
-          bindinput="onCommentInput"
-          bindfocus="onInputFocus"
-          bindblur="onInputBlur"
-        />
-        <view class="send-btn {{commentText || commentImages.length ? 'active' : ''}}" bindtap="onSendComment">发送</view>
-      </view>
-      <view class="action-buttons">
-        <view class="action-btn emoji-btn" catchtap="toggleEmojiPanel">
-          <text class="action-symbol">😊</text>
-        </view>
-        <view class="action-btn image-btn" catchtap="onChooseCommentImage">
-          <text class="action-symbol">＋</text>
-        </view>
-      </view>
-    </view>
-    <view class="emoji-panel" wx:if="{{showEmojiPanel}}">
-      <view class="emoji-item" wx:for="{{emojis}}" wx:key="*this" data-emoji="{{item}}" catchtap="onEmojiTap">{{item}}</view>
+    <textarea class="note-editor-input" placeholder="请输入备注内容" maxlength="255" value="{{noteDraft}}" focus="{{noteInputFocus}}" cursor-spacing="20" adjust-position="{{false}}" bindinput="onNoteInput" bindkeyboardheightchange="onNoteKeyboardChange" />
+    <view class="note-editor-actions">
+      <button class="note-editor-btn cancel" catchtap="closeNoteEditor">取消</button>
+      <button class="note-editor-btn confirm {{savingNote || !noteDraft ? 'is-disabled' : ''}}" loading="{{savingNote}}" disabled="{{savingNote || !noteDraft}}" catchtap="saveNote">保存备注</button>
     </view>
   </view>
 
-  <!-- 编辑评论弹窗 -->
-  <view class="modal-mask" wx:if="{{showEditModal}}" bindtap="onCloseEditModal"></view>
-  <view class="edit-modal" wx:if="{{showEditModal}}">
-    <view class="modal-header">
-      <text class="modal-title">编辑评论</text>
-      <text class="modal-close" bindtap="onCloseEditModal">×</text>
-    </view>
-    <textarea class="modal-textarea" value="{{editContent}}" bindinput="onEditContentInput" maxlength="200" />
-    <view class="modal-actions">
-      <button class="modal-btn cancel" bindtap="onCloseEditModal">取消</button>
-      <button class="modal-btn confirm" bindtap="onConfirmEdit">确定</button>
-    </view>
+  <view class="bottom-bar" style="bottom: {{keyboardHeight}}px;">
+    <view class="comment-preview-images" wx:if="{{commentImages.length}}"><view class="comment-preview-item" wx:for="{{commentImages}}" wx:key="*this"><image class="comment-preview-img" src="{{item}}" mode="aspectFill"></image><view class="comment-preview-remove" data-index="{{index}}" catchtap="onRemoveCommentImage">×</view></view></view>
+    <view class="comment-toolbar"><input class="comment-input" focus="{{commentFocus}}" cursor-spacing="18" adjust-position="{{false}}" placeholder="{{replyTo ? '回复 ' + replyToNick + '...' : '写评论...'}}" value="{{commentText}}" bindinput="onCommentInput" bindfocus="onInputFocus" bindblur="onInputBlur"></input><view class="send-btn {{commentText || commentImages.length ? 'active' : ''}}" bindtap="onSendComment">发送</view><view class="tool-btn" catchtap="toggleEmojiPanel">☺</view><view class="tool-btn" catchtap="onChooseCommentImage">＋</view></view>
+    <view class="emoji-panel" wx:if="{{showEmojiPanel}}"><view class="emoji-item" wx:for="{{emojis}}" wx:key="*this" data-emoji="{{item}}" catchtap="onEmojiTap">{{item}}</view></view>
   </view>
+
+  <view class="modal-mask" wx:if="{{showEditModal}}" bindtap="onCloseEditModal"></view>
+  <view class="edit-modal" wx:if="{{showEditModal}}"><view class="modal-header"><text class="modal-title">编辑评论</text><text class="modal-close" bindtap="onCloseEditModal">×</text></view><textarea class="modal-textarea" value="{{editContent}}" bindinput="onEditContentInput" maxlength="200"></textarea><view class="modal-actions"><button class="modal-btn cancel" bindtap="onCloseEditModal">取消</button><button class="modal-btn confirm" bindtap="onConfirmEdit">确定</button></view></view>
+
+  <share-popup
+    visible="{{showSharePopup}}"
+    postId="{{post.id}}"
+    postTitle="{{post.title}}"
+    postContent="{{post.content}}"
+    bind:close="onCloseSharePopup"
+    bind:shareToFriend="onShareToFriend"
+    bind:sharePoster="onSharePoster"
+  />
 </view>

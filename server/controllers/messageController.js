@@ -46,55 +46,63 @@ async function getOrCreateConversation(userId, peerId) {
   return { myConvId, peerConvId, peerInfo: users[0] }
 }
 
+async function createPrivateMessage(senderId, receiverId, content, msgType = 'text') {
+  const { myConvId, peerConvId } = await getOrCreateConversation(senderId, receiverId)
+  const text = String(content).trim()
+  const type = ['text', 'image', 'emoji'].includes(msgType) ? msgType : 'text'
+  const conn = await pool.getConnection()
+  let messageId
+  try {
+    await conn.beginTransaction()
+    const [result] = await conn.query(
+      'INSERT INTO private_message (conversation_id, sender_id, receiver_id, content, msg_type) VALUES (?, ?, ?, ?, ?)',
+      [myConvId, senderId, receiverId, text, type]
+    )
+    messageId = result.insertId
+    await conn.query(
+      'UPDATE private_conversation SET last_message_id = ?, last_message_text = ?, last_message_time = NOW() WHERE id = ?',
+      [messageId, type === 'image' ? '[图片]' : text.slice(0, 500), myConvId]
+    )
+    await conn.query(
+      'UPDATE private_conversation SET last_message_id = ?, last_message_text = ?, last_message_time = NOW(), unread_count = unread_count + 1 WHERE id = ?',
+      [messageId, type === 'image' ? '[图片]' : text.slice(0, 500), peerConvId]
+    )
+    await conn.commit()
+  } catch (e) {
+    await conn.rollback()
+    throw e
+  } finally {
+    conn.release()
+  }
+
+  const data = {
+    id: messageId,
+    senderId,
+    receiverId,
+    content: text,
+    msgType: type,
+    createdAt: new Date().toISOString(),
+    status: 'sent'
+  }
+  wsServer.sendToUser(receiverId, { type: 'private_message', data })
+  return data
+}
+
 // 发送私信
 exports.send = async (req, res) => {
-  const { receiverId, content } = req.body
+  const receiverId = parseInt(req.body.receiverId, 10)
+  const { content, msgType } = req.body
+  if (typeof content === 'string' && content.trim().length > 1000) return fail(res, '消息不能超过1000个字符')
   if (!receiverId || !content || !content.trim()) return fail(res, '参数不完整')
   try {
-    const { myConvId, peerConvId } = await getOrCreateConversation(req.userId, receiverId)
-    const text = content.trim()
-    const conn = await pool.getConnection()
-    let messageId
-    try {
-      await conn.beginTransaction()
-      const [r] = await conn.query(
-        'INSERT INTO private_message (conversation_id, sender_id, receiver_id, content) VALUES (?, ?, ?, ?)',
-        [myConvId, req.userId, receiverId, text]
-      )
-      messageId = r.insertId
-      // 更新双方会话最后消息
-      await conn.query(
-        'UPDATE private_conversation SET last_message_id = ?, last_message_text = ?, last_message_time = NOW() WHERE id = ?',
-        [messageId, text.slice(0, 500), myConvId]
-      )
-      await conn.query(
-        'UPDATE private_conversation SET last_message_id = ?, last_message_text = ?, last_message_time = NOW(), unread_count = unread_count + 1 WHERE id = ?',
-        [messageId, text.slice(0, 500), peerConvId]
-      )
-      await conn.commit()
-    } catch (e) {
-      await conn.rollback()
-      throw e
-    } finally {
-      conn.release()
-    }
-    // WebSocket 实时推送
-    wsServer.sendToUser(receiverId, {
-      type: 'private_message',
-      data: {
-        id: messageId,
-        senderId: req.userId,
-        receiverId,
-        content: text,
-        createdAt: new Date().toISOString(),
-        status: 'sent'
-      }
-    })
-    success(res, { id: messageId, status: 'sent' })
+    const message = await createPrivateMessage(req.userId, receiverId, content, msgType)
+    success(res, { id: message.id, status: message.status, createdAt: message.createdAt })
   } catch (e) {
     fail(res, safeMessage(e), 500)
   }
 }
+
+exports.createPrivateMessage = createPrivateMessage
 
 // 获取与某用户的聊天记录
 exports.history = async (req, res) => {

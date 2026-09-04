@@ -60,6 +60,20 @@
   padding: 0 32rpx 32rpx;
 }
 
+.request-status {
+  display: block;
+  margin-bottom: 20rpx;
+  color: #646566;
+  font-size: 26rpx;
+  line-height: 1.5;
+}
+
+.cancel-btn {
+  background: #ffffff;
+  color: #323233;
+  border: 1rpx solid #dcdee0;
+}
+
 .delete-btn {
   width: 100%;
   height: 88rpx;

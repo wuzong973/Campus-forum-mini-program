@@ -1,0 +1,20 @@
+<view class="poster-page">
+  <view class="poster-container" wx:if="{{posterTempPath}}">
+    <image class="poster-image" src="{{posterTempPath}}" mode="widthFix"></image>
+  </view>
+
+  <view class="poster-loading" wx:if="{{generating}}">
+    <view class="loading-spinner"></view>
+    <text class="loading-text">海报生成中...</text>
+  </view>
+
+  <canvas id="posterCanvas" type="2d" style="width:{{canvasWidth}}px;height:{{canvasHeight}}px;position:fixed;left:-9999px;top:-9999px;"></canvas>
+
+  <view class="poster-actions" wx:if="{{posterTempPath}}">
+    <view class="poster-share-tip">分享至</view>
+    <button class="save-btn" bindtap="onSaveToAlbum">
+      <text class="save-icon">⬇</text>
+      <text>保存到相册</text>
+    </button>
+  </view>
+</view>

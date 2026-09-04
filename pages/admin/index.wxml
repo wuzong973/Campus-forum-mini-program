@@ -1,0 +1,50 @@
+<view wx:if="{{ready}}" class="page">
+  <view class="hero">
+    <text class="hero-title">管理后台</text>
+    <text class="hero-subtitle">{{role === 'super_admin' ? '超级管理员' : role}}</text>
+  </view>
+
+  <scroll-view class="tabs" scroll-x="true" show-scrollbar="false">
+    <view class="tabs-inner">
+      <view wx:for="{{tabs}}" wx:key="key" class="tab {{activeTab === item.key ? 'active' : ''}}" data-key="{{item.key}}" bindtap="switchTab">{{item.name}}</view>
+    </view>
+  </scroll-view>
+
+  <view wx:if="{{activeTab === 'overview' && stats}}">
+    <view class="metric-grid">
+      <view class="metric"><text>{{stats.users.total}}</text><label>注册用户</label></view>
+      <view class="metric"><text>{{stats.users.active7d}}</text><label>7日活跃</label></view>
+      <view class="metric"><text>{{stats.posts.published}}</text><label>已发布帖子</label></view>
+      <view class="metric"><text>{{stats.posts.pending}}</text><label>待审核帖子</label></view>
+      <view class="metric"><text>{{stats.items.sales}}</text><label>虚拟物品销量</label></view>
+      <view class="metric"><text>{{stats.errands.finished}}</text><label>完成跑腿单</label></view>
+    </view>
+    <view class="section-title">最近管理操作</view>
+    <view class="list-card"><view wx:for="{{stats.recentActions}}" wx:key="index" class="audit-row"><text>{{item.action}}</text><text>{{item.targetType}} #{{item.targetId}}</text></view><view wx:if="{{!stats.recentActions.length}}" class="empty">暂无操作记录</view></view>
+  </view>
+
+  <view wx:if="{{activeTab === 'posts'}}">
+    <view class="toolbar"><input placeholder="搜索标题、正文或用户" value="{{postKeyword}}" bindinput="onPostKeyword" confirm-type="search" bindconfirm="searchPosts"/><text bindtap="searchPosts">搜索</text></view>
+    <scroll-view class="filters" scroll-x="true"><view class="filters-inner"><view class="filter {{postStatus === '' ? 'selected' : ''}}" data-status="" bindtap="choosePostStatus">全部</view><view class="filter {{postStatus === 2 ? 'selected' : ''}}" data-status="2" bindtap="choosePostStatus">待审核</view><view class="filter {{postStatus === 1 ? 'selected' : ''}}" data-status="1" bindtap="choosePostStatus">已发布</view><view class="filter {{postStatus === 3 ? 'selected' : ''}}" data-status="3" bindtap="choosePostStatus">已隐藏</view><view class="filter {{postStatus === 0 ? 'selected' : ''}}" data-status="0" bindtap="choosePostStatus">已删除</view></view></scroll-view>
+    <view class="batch-bar"><text>已选 {{selectedPostIds.length}} 项</text><button size="mini" class="plain-btn" bindtap="batchPostAction">批量操作</button></view>
+    <checkbox-group bindchange="selectPosts"><view wx:for="{{posts}}" wx:key="id" class="list-card post-row"><checkbox value="{{item.id}}" checked="{{selectedPostIds.indexOf(item.id) >= 0}}" color="#315CFF"/><view class="post-main"><view class="post-head"><text class="post-title">{{item.title || '无标题帖子'}}</text><text class="status s{{item.status}}">{{item.status === 1 ? '已发布' : item.status === 2 ? '待审核' : item.status === 3 ? '已隐藏' : '已删除'}}</text></view><text class="post-content">{{item.content}}</text><text class="meta">{{item.nickName || '未知用户'}} · {{item.category}} · 赞{{item.likeCount}}</text><view class="actions"><text wx:if="{{item.status !== 1}}" data-id="{{item.id}}" data-action="approve" bindtap="doPostAction">通过</text><text wx:if="{{item.status !== 3}}" data-id="{{item.id}}" data-action="hide" bindtap="doPostAction">隐藏</text><text data-id="{{item.id}}" bindtap="beginPostEdit">编辑</text><text data-id="{{item.id}}" data-action="{{item.pinned ? 'unpin' : 'pin'}}" bindtap="doPostAction">{{item.pinned ? '取消置顶' : '置顶'}}</text><text class="danger" data-id="{{item.id}}" data-action="delete" bindtap="doPostAction">删除</text></view></view></view></checkbox-group>
+    <view wx:if="{{!posts.length}}" class="empty">没有符合条件的帖子</view>
+  </view>
+
+  <view wx:if="{{activeTab === 'content'}}">
+    <view class="section-head"><view class="mini-tabs"><text class="{{contentType === 'notice' ? 'on' : ''}}" data-type="notice" bindtap="chooseContentType">公告</text><text class="{{contentType === 'category' ? 'on' : ''}}" data-type="category" bindtap="chooseContentType">分类</text><text class="{{contentType === 'tag' ? 'on' : ''}}" data-type="tag" bindtap="chooseContentType">标签</text></view><button size="mini" class="primary-mini" bindtap="beginContentCreate">新增</button></view>
+    <view wx:for="{{contentList}}" wx:key="id" class="list-card compact-row"><view><text class="row-title">{{item.title}}</text><text class="row-sub">{{item.status ? '启用' : '已停用'}} · 排序 {{item.sortOrder}}</text></view><view class="row-actions"><text data-id="{{item.id}}" bindtap="beginContentEdit">编辑</text><text class="danger" data-id="{{item.id}}" bindtap="deleteContent">删除</text></view></view>
+    <view class="section-head feature-head"><text class="section-title-inline">功能开关</text><button size="mini" class="primary-mini" bindtap="beginFeatureCreate">新增</button></view>
+    <view wx:for="{{features}}" wx:key="id" class="list-card compact-row"><view><text class="row-title">{{item.label}}</text><text class="row-sub">{{item.configKey}} · {{item.status ? '启用' : '停用'}}</text></view><text class="link" data-id="{{item.id}}" bindtap="beginFeatureEdit">编辑</text></view>
+  </view>
+
+  <view wx:if="{{activeTab === 'items'}}"><view class="section-head"><text class="section-title-inline">虚拟物品</text><button size="mini" class="primary-mini" bindtap="beginItemCreate">新增物品</button></view><view wx:for="{{items}}" wx:key="id" class="list-card compact-row"><view><text class="row-title">{{item.name}}</text><text class="row-sub">￥{{item.price}} · 库存 {{item.stock}} · 销量 {{item.salesCount}} · {{item.status ? '上架' : '下架'}}</text></view><view class="row-actions"><text data-id="{{item.id}}" bindtap="beginItemEdit">编辑</text><text data-id="{{item.id}}" bindtap="toggleItem">{{item.status ? '下架' : '上架'}}</text></view></view><view wx:if="{{!items.length}}" class="empty">暂无虚拟物品</view></view>
+
+  <view wx:if="{{activeTab === 'users'}}"><view class="toolbar"><input placeholder="搜索昵称、手机号或学号" value="{{userKeyword}}" bindinput="onUserKeyword" confirm-type="search" bindconfirm="searchUsers"/><text bindtap="searchUsers">搜索</text></view><view wx:for="{{users}}" wx:key="id" class="list-card compact-row"><view><text class="row-title">{{item.nickName || '未命名用户'}} #{{item.id}}</text><text class="row-sub">{{item.phone || '未绑定手机号'}} · {{item.role}} · {{item.status ? '正常' : '已禁用'}}</text><text class="cert-label-display" wx:if="{{item.certLabel}}">{{item.certLabel}}</text></view><view class="row-actions"><text data-id="{{item.id}}" bindtap="toggleUser">{{item.status ? '禁用' : '启用'}}</text><text data-id="{{item.id}}" bindtap="changeRole">角色</text><text data-id="{{item.id}}" data-certlabel="{{item.certLabel || ''}}" bindtap="editCertLabel">认证</text></view></view></view>
+
+  <view wx:if="{{activeTab === 'withdrawals'}}"><view wx:for="{{withdrawals}}" wx:key="id" class="list-card compact-row"><view><text class="row-title">{{item.nickName || '用户'}} #{{item.userId}}</text><text class="row-sub">申请 ¥{{item.amount}} · {{item.createdAt}}</text></view><view class="row-actions"><text data-id="{{item.id}}" data-action="approve" bindtap="reviewWithdrawal">通过</text><text class="danger" data-id="{{item.id}}" data-action="reject" bindtap="reviewWithdrawal">驳回</text></view></view><view wx:if="{{!withdrawals.length}}" class="empty">暂无待审核提现</view></view>
+
+  <view wx:if="{{form}}" class="form-mask"><view class="form-card"><view class="form-title">{{form.kind === 'post' ? '编辑帖子' : form.kind === 'content' ? '内容配置' : form.kind === 'feature' ? '功能配置' : '虚拟物品'}}</view><block wx:if="{{form.kind === 'post'}}"><input data-key="title" value="{{form.title}}" placeholder="标题" bindinput="formInput"/><input data-key="category" value="{{form.category}}" placeholder="分类" bindinput="formInput"/><textarea data-key="content" value="{{form.content}}" placeholder="正文" bindinput="formInput"/></block><block wx:elif="{{form.kind === 'content'}}"><input data-key="title" value="{{form.title}}" placeholder="标题" bindinput="formInput"/><textarea data-key="body" value="{{form.body}}" placeholder="正文（分类/标签可留空）" bindinput="formInput"/><input data-key="sortOrder" value="{{form.sortOrder}}" type="number" placeholder="排序" bindinput="formInput"/></block><block wx:elif="{{form.kind === 'feature'}}"><input data-key="configKey" value="{{form.configKey}}" placeholder="配置标识，如 community.enabled" bindinput="formInput"/><input data-key="label" value="{{form.label}}" placeholder="名称" bindinput="formInput"/><textarea data-key="configValue" value="{{form.configValue}}" placeholder="配置值" bindinput="formInput"/></block><block wx:else><input data-key="name" value="{{form.name}}" placeholder="物品名称" bindinput="formInput"/><input data-key="price" value="{{form.price}}" type="digit" placeholder="价格" bindinput="formInput"/><input data-key="stock" value="{{form.stock}}" type="number" placeholder="库存" bindinput="formInput"/><input data-key="coverUrl" value="{{form.coverUrl}}" placeholder="封面地址（可选）" bindinput="formInput"/><textarea data-key="description" value="{{form.description}}" placeholder="物品说明" bindinput="formInput"/></block><label class="switch-row"><text>启用状态</text><switch checked="{{form.status}}" color="#315CFF" bindchange="formStatus"/></label><view class="form-buttons"><button class="cancel-btn" bindtap="closeForm">取消</button><button class="save-btn" loading="{{saving}}" bindtap="saveForm">保存</button></view></view></view>
+
+  <view wx:if="{{showCertModal}}" class="form-mask" bindtap="closeCertModal"><view class="form-card" catchtap="noop"><view class="form-title">编辑认证信息</view><input value="{{certDraft}}" placeholder="输入认证标签，留空则清除" maxlength="32" bindinput="onCertInput"/><view class="form-buttons"><button class="cancel-btn" bindtap="closeCertModal">取消</button><button class="save-btn" loading="{{savingCert}}" bindtap="saveCertLabel">保存</button></view></view></view>
+</view>

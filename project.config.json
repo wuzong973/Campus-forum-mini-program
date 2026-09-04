@@ -1,12 +1,24 @@
 {
   "compileType": "miniprogram",
-  "libVersion": "trial",
+  "libVersion": "3.16.2",
   "packOptions": {
     "ignore": [
-      { "type": "folder", "value": "教务系统爬虫" },
-      { "type": "folder", "value": "server" },
-      { "type": "file", "value": "find_large.ps1" },
-      { "type": "file", "value": "generate_icons.py" }
+      {
+        "value": "jw-crawler",
+        "type": "folder"
+      },
+      {
+        "value": "server",
+        "type": "folder"
+      },
+      {
+        "value": "find_large.ps1",
+        "type": "file"
+      },
+      {
+        "value": "generate_icons.py",
+        "type": "file"
+      }
     ],
     "include": []
   },
@@ -41,6 +53,6 @@
     "tabIndent": "auto",
     "tabSize": 2
   },
-  "appid": "wxd89a1e87830e5821",
+  "appid": "wx31152cc1190a7053",
   "simulatorPluginLibVersion": {}
 }

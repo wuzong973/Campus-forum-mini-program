@@ -13,22 +13,16 @@
   <view class="profile-panel">
     <view class="profile-main">
       <image class="profile-avatar" src="{{profile.avatarUrl || '/assets/icons/avatar.png'}}" mode="aspectFill"></image>
-      <view class="profile-actions" wx:if="{{profile.id !== currentUserId}}">
-        <button class="message-btn" bindtap="onMessage">
-          <image class="message-icon" src="/assets/icons/message.png" mode="aspectFit"></image>
-          <text>发私信</text>
-        </button>
-      </view>
+      <button class="message-btn" wx:if="{{!isSelf}}" bindtap="onSendMessage">
+        <text class="message-btn-text">私信</text>
+      </button>
     </view>
 
     <view class="profile-info">
       <view class="profile-name-row">
         <text class="profile-name">{{profile.nickName}}</text>
       </view>
-      <view class="signature-row">
-        <text class="profile-signature">{{profile.signature || '该用户还没有填写签名...'}}</text>
-        <text class="about-link">关于Ta ›</text>
-      </view>
+      <view class="signature-row"><text class="profile-signature">{{profile.signature || '该用户还没有填写签名...'}}</text></view>
     </view>
 
     <view class="stats-row">

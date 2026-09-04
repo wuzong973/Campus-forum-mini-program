@@ -86,7 +86,7 @@ MySQL 8.0 + Redis 7
 
 ```javascript
 // utils/request.js
-const BASE_URL = 'https://你的域名/api/v1'
+const BASE_URL = 'https://payun01.cn/api/v1'
 const USE_MOCK = false
 ```
 

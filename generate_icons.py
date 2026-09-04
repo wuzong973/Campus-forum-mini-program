@@ -221,7 +221,7 @@ def draw_rules_icon():
     return img
 
 def draw_service_icon():
-    """联系客服图标"""
+    """联系管理员图标"""
     img = create_image((48, 48))
     draw = ImageDraw.Draw(img)
     c = hex_to_rgba("#4A7AFF")

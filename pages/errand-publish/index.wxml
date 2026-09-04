@@ -1,111 +1,183 @@
 <view class="page">
-  <!-- 类型快捷选择 -->
-  <view class="type-quick card">
-    <view class="group-label">选择类型</view>
-    <view class="type-list">
-      <view
-        class="type-chip pressable {{typeIndex === index ? 'active' : ''}}"
-        wx:for="{{types}}"
-        wx:key="*this"
-        data-index="{{index}}"
-        bindtap="onTypePick"
-      >
-        <text class="type-emoji">{{typeEmojis[index]}}</text>
-        <text>{{item}}</text>
+  <!-- 收件信息 -->
+  <view class="section card">
+    <view class="section-title">收件信息</view>
+    <view class="form-item">
+      <text class="label">校区选择<text class="required">*</text></text>
+      <view class="type-grid">
+        <view
+          class="type-btn {{activeCampus === index ? 'active' : ''}}"
+          wx:for="{{campusGroups}}"
+          wx:key="name"
+          data-index="{{index}}"
+          bindtap="onCampusSelect"
+        >{{item.name}}</view>
+      </view>
+    </view>
+    <view class="form-item campus-sub-item" wx:if="{{subCampuses.length}}">
+      <text class="label">具体校区<text class="required">*</text></text>
+      <view class="type-grid">
+        <view
+          class="type-btn {{activeSubCampus === item ? 'active' : ''}}"
+          wx:for="{{subCampuses}}"
+          wx:key="*this"
+          data-value="{{item}}"
+          bindtap="onSubCampusSelect"
+        >{{item}}</view>
+      </view>
+    </view>
+    <view class="form-item">
+      <text class="label">收件人姓名<text class="required">*</text></text>
+      <input class="input" placeholder="例如：张同学" data-field="receiverName" bindinput="onInput" value="{{receiverName}}" />
+    </view>
+    <view class="form-item">
+      <text class="label">联系方式<text class="required">*</text></text>
+      <input class="input" type="number" placeholder="请输入手机号" data-field="receiverPhone" bindinput="onInput" value="{{receiverPhone}}" />
+    </view>
+    <view class="form-item">
+      <text class="label">下单类型<text class="required">*</text></text>
+      <view class="type-grid">
+        <view
+          class="type-btn {{activeOrderType === index ? 'active' : ''}}"
+          wx:for="{{orderTypes}}"
+          wx:key="*this"
+          data-index="{{index}}"
+          bindtap="onOrderTypeSelect"
+        >{{item}}</view>
+      </view>
+    </view>
+    <view class="form-item">
+      <text class="label">性别限制<text class="required">*</text></text>
+      <view class="type-grid">
+        <view
+          class="type-btn {{activeGenderRestriction === index ? 'active' : ''}}"
+          wx:for="{{genderRestrictions}}"
+          wx:key="*this"
+          data-index="{{index}}"
+          bindtap="onGenderRestrictionSelect"
+        >{{item}}</view>
       </view>
     </view>
   </view>
 
-  <!-- 基础信息 -->
-  <view class="form card">
-    <view class="group-label">基础信息</view>
+  <!-- 地址与时间信息 -->
+  <view class="section card">
+    <view class="section-title">地址与时间信息</view>
     <view class="form-item">
-      <text class="label">需求标题</text>
-      <input class="input" placeholder="如：帮取菜鸟驿站快递" maxlength="30" data-field="title" bindinput="onInput" value="{{title}}" />
+      <text class="label">取件地址<text class="required">*</text></text>
+      <input class="input" placeholder="例如：东区菜鸟驿站 / 二食堂北门" data-field="pickupAddr" bindinput="onInput" value="{{pickupAddr}}" />
+    </view>
+    <view class="map-hint" bindtap="onChooseLocation" data-target="pickupAddr">
+      <text class="map-hint-title">地图辅助定位</text>
+      <text class="map-hint-desc"></text>
     </view>
     <view class="form-item">
-      <text class="label">详细描述</text>
-      <textarea class="textarea" placeholder="补充说明（包裹大小、注意事项等）" maxlength="200" data-field="desc" bindinput="onInput" value="{{desc}}" />
-      <text class="word-count">{{desc.length}}/200</text>
+      <text class="label">送达地址<text class="required">*</text></text>
+      <input class="input" placeholder="例如：10 号宿舍楼 406" data-field="deliveryAddr" bindinput="onInput" value="{{deliveryAddr}}" />
     </view>
-    <view class="form-item form-item-row">
+    <view class="addr-links">
+      <text class="addr-link" bindtap="onFillCommonAddr">填入常用地址</text>
+      <text class="addr-link" bindtap="onChooseLocation" data-target="deliveryAddr">地图辅助定位</text>
+    </view>
+    <view class="addr-hint" wx:if="{{commonAddress}}">常用地址：{{commonAddress}}</view>
+    <view class="form-item form-row">
       <view class="row-cell">
-        <text class="label">报酬(元)</text>
-        <input class="input" type="digit" placeholder="0.00" data-field="reward" bindinput="onInput" value="{{reward}}" />
+        <text class="label">送达楼栋<text class="required">*</text></text>
+        <input class="input" placeholder="例如：10 号楼" data-field="deliveryBuilding" bindinput="onInput" value="{{deliveryBuilding}}" />
       </view>
       <view class="row-cell">
-        <text class="label">校区</text>
-        <picker mode="selector" range="{{campuses}}" value="{{campusIndex}}" bindchange="onCampus">
-          <view class="picker-val">{{campuses[campusIndex]}} ›</view>
+        <text class="label">宿舍号<text class="required">*</text></text>
+        <input class="input" placeholder="例如：406" data-field="deliveryRoom" bindinput="onInput" value="{{deliveryRoom}}" />
+      </view>
+    </view>
+    <view class="form-item">
+      <text class="label">取件时间<text class="required">*</text></text>
+      <view class="time-btns">
+        <view class="time-btn {{pickupTimeType === '尽快' ? 'active' : ''}}" data-type="尽快" bindtap="onPickupTimeTypeSelect">尽快</view>
+        <picker
+          class="time-picker"
+          mode="multiSelector"
+          range="{{appointmentPickerRange}}"
+          value="{{[appointmentDateIndex, appointmentTimeIndex]}}"
+          bindcolumnchange="onAppointmentColumnChange"
+          bindchange="onAppointmentChange"
+        >
+          <view class="time-btn {{pickupTimeType === '预约' ? 'active' : ''}}">{{appointmentValue || '预约'}}</view>
         </picker>
       </view>
     </view>
   </view>
 
-  <!-- 地址信息 -->
-  <view class="form card">
-    <view class="group-label">地址信息</view>
+  <!-- 备注、凭证与金额 -->
+  <view class="section card">
+    <view class="section-title">备注、凭证与金额<text class="required">*</text></view>
     <view class="form-item">
-      <view class="addr-label-row">
-        <text class="addr-tag">取</text>
-        <text class="label">取件地址</text>
-      </view>
-      <input class="input" placeholder="如：菜鸟驿站 A 区" data-field="pickupAddr" bindinput="onInput" value="{{pickupAddr}}" />
+      <text class="label">备注信息<text class="required">*</text></text>
+      <textarea class="textarea" placeholder="请填写取件码、口味要求、楼下联系说明等，备注为必填项" maxlength="200" data-field="remark" bindinput="onInput" value="{{remark}}" />
     </view>
     <view class="form-item">
-      <view class="addr-label-row">
-        <text class="addr-tag addr-tag-delivery">送</text>
-        <text class="label">送达地址</text>
+      <text class="label">凭证 / 地址图片</text>
+      <view class="image-upload" bindtap="onChooseImage" wx:if="{{images.length < maxImages}}">
+        <text class="upload-icon">+</text>
+        <text class="upload-text">上传图片（最多 {{maxImages}}）</text>
       </view>
-      <input class="input" placeholder="如：6 号宿舍楼 305" data-field="deliveryAddr" bindinput="onInput" value="{{deliveryAddr}}" />
+      <view class="image-list">
+        <view class="image-item" wx:for="{{images}}" wx:key="*this">
+          <image class="image-preview" src="{{item}}" mode="aspectFill" data-index="{{index}}" bindtap="onPreviewImage" />
+          <view class="image-remove" data-index="{{index}}" bindtap="onRemoveImage">×</view>
+        </view>
+      </view>
+      <text class="image-hint">可上传取件凭证、地址门牌或备注截图。</text>
+    </view>
+
+    <!-- 基础金额 -->
+    <view class="base-amount-box">
+      <view class="base-amount-header">
+        <text class="base-amount-label">基础金额</text>
+      </view>
+      <input class="base-amount-input" type="number" placeholder="请输入整数金额（最低2元）" data-field="baseAmount" bindinput="onBaseAmountInput" value="{{baseAmount}}" />
+    </view>
+    <text class="amount-hint">基础金额可手动填写，但不能低于 2 元，附加费用将根据服务类型自动计算。</text>
+
+    <!-- 大件物品 -->
+    <view class="form-item switch-row" bindtap="onToggleLargeItem">
+      <view class="switch-info">
+        <text class="switch-label">大件物品（+1元）</text>
+        <text class="switch-desc">适用于体积或重量明显较大的快递。</text>
+      </view>
+      <view class="switch {{isLargeItem ? 'on' : ''}}"><view class="switch-dot"></view></view>
+    </view>
+
+    <!-- 加急服务 -->
+    <view class="form-item switch-row" bindtap="onToggleUrgent">
+      <view class="switch-info">
+        <text class="switch-label">加急服务（+1元）</text>
+        <text class="switch-desc">加急订单会优先展示，更快被接单。</text>
+      </view>
+      <view class="switch {{isUrgent ? 'on' : ''}}"><view class="switch-dot"></view></view>
+    </view>
+
+    <!-- 费用明细 -->
+    <view class="fee-detail">
+      <view class="fee-title">费用明细</view>
+      <view class="fee-row"><text class="fee-label">基础金额：</text><text class="fee-value">¥{{baseAmount}}</text></view>
+      <view class="fee-row" wx:if="{{isLargeItem}}"><text class="fee-label">大件物品：</text><text class="fee-value">+¥1.00</text></view>
+      <view class="fee-row" wx:if="{{isUrgent}}"><text class="fee-label">加急服务：</text><text class="fee-value">+¥1.00</text></view>
+      <view class="fee-row fee-highlight"><text class="fee-label">总金额：</text><text class="fee-value">¥{{totalAmount}}</text></view>
     </view>
   </view>
 
-  <!-- 要求设置 -->
-  <view class="form card">
-    <view class="group-label">要求设置</view>
-
-    <view class="form-item">
-      <text class="label">快递件数</text>
-      <view class="stepper">
-        <view class="step-btn pressable {{itemCount <= 1 ? 'disabled' : ''}}" bindtap="onStep" data-action="minus">-</view>
-        <text class="step-val">{{itemCount}}</text>
-        <view class="step-btn pressable" bindtap="onStep" data-action="plus">+</view>
-      </view>
-    </view>
-
-    <view class="form-item">
-      <text class="label">时间要求</text>
-      <picker mode="selector" range="{{timeLimits}}" value="{{timeLimitIndex}}" bindchange="onTimeLimit">
-        <view class="picker-val">{{timeLimits[timeLimitIndex]}} ›</view>
-      </picker>
-    </view>
-
-    <view class="form-item">
-      <text class="label">性别要求</text>
-      <view class="seg-list">
-        <view
-          class="seg-item pressable {{genderReq === item ? 'active' : ''}}"
-          wx:for="{{genderReqs}}"
-          wx:key="*this"
-          data-val="{{item}}"
-          bindtap="onGenderPick"
-        >{{item}}</view>
-      </view>
-    </view>
-
-    <view class="form-item form-switch-row" bindtap="onToggleUpstairs">
-      <view class="switch-label">
-        <text class="label">不上楼</text>
-        <text class="switch-tip">配送员无需爬楼送达</text>
-      </view>
-      <view class="switch {{noUpstairs ? 'on' : ''}}"><view class="switch-dot"></view></view>
+  <!-- 支付与履约说明 -->
+  <view class="section card">
+    <view class="section-title">支付与履约说明</view>
+    <view class="rule-list">
+      <text class="rule-item">1. 发布后立即支付并托管赏金。</text>
+      <text class="rule-item">2. 微信会拉起原生支付页，请按提示完成支付。</text>
+      <text class="rule-item">3. 接单者完成前必须上传拍照送达凭证。</text>
+      <text class="rule-item">4. 若取消支付，订单会保留在订单页，可稍后继续支付。</text>
     </view>
   </view>
 
-  <view class="tips">
-    <text class="tips-text">发布后订单将进入接单大厅，可在「我的订单」中跟踪状态</text>
-  </view>
+  <button class="submit-btn btn-primary" bindtap="onSubmit" loading="{{submitting}}">发布并支付</button>
 
-  <button class="submit-btn btn-primary" bindtap="onSubmit" loading="{{submitting}}">发布订单</button>
 </view>

@@ -12,47 +12,64 @@ Component({
   },
   data: {
     timeText: "",
+    viewText: "0 浏览",
+    authorName: "校园同学",
+    certLabel: "",
     displayContent: "",
     isLongContent: false,
     previewImages: [],
     imageLayout: "none",
-    topLikedComment: null,
+    canManageNote: false,
+    showNoteEditor: false,
+    noteDraft: "",
+    noteLength: 0,
+    noteInputFocus: false,
+    noteKeyboardHeight: 0,
+    savingNote: false,
+    showSharePopup: false,
   },
   observers: {
-    "post.createdAt, post.content, post.images": function (
+    "post.createdAt, post.content, post.images, post.viewCount, post.nickName, post.certLabel": function (
       createdAt,
       content,
       images,
+      viewCount,
+      nickName,
+      certLabel,
     ) {
       this.setData({
-        timeText: format.formatRelativeTime(createdAt),
+        timeText: format.formatRelativeTime(createdAt) || "刚刚",
+        viewText: this.formatCount(viewCount || 0) + " 浏览",
+        authorName: nickName || "校园同学",
+        certLabel: certLabel || "",
         previewImages: (images || []).slice(0, 3),
         imageLayout: this.getImageLayout(images || []),
       });
       this.processContent(content);
-    },
-    "post.id": function (postId) {
-      if (postId) {
-        this.loadTopLikedComment(postId);
-      }
     },
   },
   lifetimes: {
     attached() {
       const post = this.data.post;
       this.setData({
-        timeText: format.formatRelativeTime(post && post.createdAt),
+        timeText: format.formatRelativeTime(post && post.createdAt) || "刚刚",
+        viewText: this.formatCount((post && post.viewCount) || 0) + " 浏览",
+        authorName: (post && post.nickName) || "校园同学",
+        certLabel: (post && post.certLabel) || "",
         previewImages: ((post && post.images) || []).slice(0, 3),
         imageLayout: this.getImageLayout(((post && post.images) || [])),
+        canManageNote: this.canManagePostContent(),
       });
       this.processContent(post && post.content);
-      if (post && post.id) {
-        api.setCurrentPostId(post.id);
-        this.loadTopLikedComment(post.id);
-      }
     },
   },
   methods: {
+    canManagePostContent() {
+      const app = getApp();
+      const userInfo = (app.globalData || {}).userInfo || wx.getStorageSync("userInfo") || {};
+      return ["super_admin", "content_admin"].indexOf(userInfo.role) > -1;
+    },
+
     getImageLayout(images) {
       const count = (images || []).length;
       if (!count) return "none";
@@ -129,21 +146,23 @@ Component({
       });
     },
 
-    onMessageAuthor() {
-      const post = this.data.post;
-      if (!auth.requireLogin("私信需要先登录")) return;
-      const currentUserId = ((getApp().globalData || {}).userInfo || {}).id;
-      if (post.userId === currentUserId) {
-        wx.showToast({ title: "这是你自己", icon: "none" });
-        return;
-      }
-      wx.navigateTo({
-        url: "/pages/profile/index?id=" + post.userId,
-      });
+    onShare() {
+      this.setData({ showSharePopup: true });
     },
 
-    onShare() {
-      wx.navigateTo({ url: "/pages/share/index?postId=" + this.data.post.id });
+    onCloseSharePopup() {
+      this.setData({ showSharePopup: false });
+    },
+
+    onShareToFriend(e) {
+      this.triggerEvent('shareToFriend', { postId: this.data.post.id });
+      this.setData({ showSharePopup: false });
+    },
+
+    onSharePoster(e) {
+      const postId = e.detail && e.detail.postId || this.data.post.id;
+      wx.navigateTo({ url: "/pages/poster/index?postId=" + postId });
+      this.setData({ showSharePopup: false });
     },
 
     onFavorite() {
@@ -173,18 +192,28 @@ Component({
 
     openActionMenu() {
       const canPin = this.data.allowPin;
-      const itemList = canPin
-        ? ["置顶帖子", "不感兴趣", "举报内容"]
-        : ["不感兴趣", "举报内容"];
+      // Read the latest cached role here. The role may have been updated by
+      // the management page after this reusable component was attached.
+      const canManageNote = this.canManagePostContent();
+      if (canManageNote !== this.data.canManageNote) {
+        this.setData({ canManageNote });
+      }
+      const itemList = [];
+      if (canManageNote) itemList.push("添加备注");
+      if (canPin) itemList.push("置顶帖子");
+      itemList.push("不感兴趣", "举报内容");
       wx.showActionSheet({
         itemList,
         success: (res) => {
-          if (canPin && res.tapIndex === 0) {
+          const selected = itemList[res.tapIndex];
+          if (selected === "添加备注") {
+            this.openNoteEditor();
+          } else if (selected === "置顶帖子") {
             this.triggerEvent("pin", {
               postId: this.data.post.id,
               post: this.data.post,
             });
-          } else if ((!canPin && res.tapIndex === 0) || (canPin && res.tapIndex === 1)) {
+          } else if (selected === "不感兴趣") {
             this.triggerEvent("close", { postId: this.data.post.id });
           } else {
             wx.showToast({ title: "已收到反馈", icon: "success" });
@@ -194,18 +223,69 @@ Component({
     },
 
     onClose() {
-      return this.openActionMenu();
-      wx.showActionSheet({
-        itemList: ["不感兴趣", "举报内容"],
-        success: (res) => {
-          if (res.tapIndex === 0) {
-            this.triggerEvent("close", { postId: this.data.post.id });
-          } else {
-            wx.showToast({ title: "已收到反馈", icon: "success" });
-          }
-        },
+      this.openActionMenu();
+    },
+
+    openNoteEditor() {
+      const noteDraft = this.data.post.reviewNote || "";
+      this.setData({
+        showNoteEditor: true,
+        noteDraft,
+        noteLength: noteDraft.length,
+        noteInputFocus: false,
+        noteKeyboardHeight: 0,
+      });
+      // Focus after the panel is rendered so WeChat reliably opens the keyboard.
+      setTimeout(() => {
+        if (this.data.showNoteEditor) this.setData({ noteInputFocus: true });
+      }, 120);
+    },
+
+    closeNoteEditor() {
+      if (!this.data.savingNote) {
+        this.setData({ showNoteEditor: false, noteInputFocus: false, noteKeyboardHeight: 0 });
+      }
+    },
+
+    onNoteInput(e) {
+      const noteDraft = e.detail.value || "";
+      this.setData({ noteDraft, noteLength: noteDraft.length });
+    },
+
+    onNoteKeyboardChange(e) {
+      this.setData({ noteKeyboardHeight: (e.detail || {}).height || 0 });
+    },
+
+    saveNote() {
+      const reviewNote = (this.data.noteDraft || "").trim();
+      if (!reviewNote) {
+        wx.showToast({ title: "请填写备注", icon: "none" });
+        return;
+      }
+      if (this.data.savingNote) return;
+      this.setData({ savingNote: true });
+      const finish = () => {
+        const post = Object.assign({}, this.data.post, { reviewNote });
+        this.setData({
+          post,
+          showNoteEditor: false,
+          noteInputFocus: false,
+          noteKeyboardHeight: 0,
+          savingNote: false,
+        });
+        this.triggerEvent("reviewnote", { postId: post.id, reviewNote });
+        wx.showToast({ title: "备注已保存", icon: "success" });
+      };
+      if (request.USE_MOCK) {
+        finish();
+        return;
+      }
+      api.updatePostReviewNote(this.data.post.id, reviewNote).then(finish).catch(() => {
+        this.setData({ savingNote: false });
       });
     },
+
+    noop() {},
 
     onViewFull() {
       wx.navigateTo({
@@ -213,23 +293,5 @@ Component({
       });
     },
 
-    loadTopLikedComment(postId) {
-      api.getTopLikedComment(postId).then((comment) => {
-        if (comment) {
-          this.setData({
-            topLikedComment: {
-              nickName: comment.nick_name || "用户",
-              avatarUrl: comment.avatar_url || "",
-              content: comment.content,
-              likeCount: comment.like_count || 0,
-            },
-          });
-        } else {
-          this.setData({ topLikedComment: null });
-        }
-      }).catch(() => {
-        this.setData({ topLikedComment: null });
-      });
-    },
   },
 });

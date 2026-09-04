@@ -1,7 +1,8 @@
 // 私信本地缓存管理 + WebSocket 连接管理
 const request = require('./request')
+const mockData = require('./mock')
 
-const WS_BASE = 'ws://127.0.0.1:3000/ws'
+const WS_BASE = request.getWsUrl()
 const CACHE_PREFIX = 'pm_history_' // pm_history_<peerId>
 const CONV_CACHE_KEY = 'pm_conversations'
 const UNREAD_KEY = 'pm_unread_total'
@@ -9,20 +10,34 @@ const UNREAD_KEY = 'pm_unread_total'
 let socket = null
 let reconnectTimer = null
 let heartbeatTimer = null
+let reconnectAttempts = 0 // 连续失败次数，用于指数退避
+const MAX_RECONNECT_DELAY = 60000 // 重连间隔上限（毫秒）
 let messageHandlers = [] // 外部注册的消息回调
 
 function getAppInstance() {
-  try { return getApp() } catch (e) { return { globalData: { token: '' } } }
+  try {
+    var app = getApp()
+    if (!app) return { globalData: { token: '', userInfo: null } }
+    if (!app.globalData) app.globalData = { token: '', userInfo: null }
+    return app
+  } catch (e) {
+    return { globalData: { token: '', userInfo: null } }
+  }
 }
 
 function getToken() {
-  const app = getAppInstance()
-  return app.globalData.token || ''
+  var app = getAppInstance()
+  return (app.globalData && app.globalData.token) || ''
 }
 
 // ===== 本地缓存 =====
 function loadCache(peerId) {
-  return wx.getStorageSync(CACHE_PREFIX + peerId) || []
+  const cached = wx.getStorageSync(CACHE_PREFIX + peerId)
+  if (cached && cached.length) return cached
+  if (request.USE_MOCK && mockData.mockMessages && mockData.mockMessages[peerId]) {
+    return mockData.mockMessages[peerId]
+  }
+  return []
 }
 
 function saveCache(peerId, messages) {
@@ -54,11 +69,19 @@ function saveConversations(list) {
 }
 
 function loadConversations() {
-  return wx.getStorageSync(CONV_CACHE_KEY) || []
+  const cached = wx.getStorageSync(CONV_CACHE_KEY)
+  if (cached && cached.length) return cached
+  if (request.USE_MOCK) return mockData.mockConversations || []
+  return []
 }
 
 function getUnreadTotal() {
-  return wx.getStorageSync(UNREAD_KEY) || 0
+  const cached = wx.getStorageSync(UNREAD_KEY)
+  if (cached !== undefined && cached !== null) return cached
+  if (request.USE_MOCK && mockData.mockConversations) {
+    return mockData.mockConversations.reduce((sum, c) => sum + (c.unreadCount || 0), 0)
+  }
+  return 0
 }
 
 function setUnreadTotal(n) {
@@ -83,6 +106,7 @@ function updateTabBarBadge(n) {
 
 // ===== WebSocket 连接 =====
 function connect() {
+  if (request.USE_MOCK) return
   const token = getToken()
   if (!token) return
   if (socket && (socket.readyState === 1 || socket.readyState === 0)) return
@@ -99,6 +123,7 @@ function connect() {
   }
 
   socket.onOpen(() => {
+    reconnectAttempts = 0 // 连接成功后重置退避计数
     startHeartbeat()
   })
 
@@ -109,10 +134,15 @@ function connect() {
     if (msg.type === 'private_message') {
       handleIncomingMessage(msg.data)
     }
+    if (msg.type === 'notification') {
+      notifyHandlers({ type: 'notification', data: msg.data })
+    }
   })
 
-  socket.onClose(() => {
+  socket.onClose((res) => {
     stopHeartbeat()
+    // 4001: token 无效/过期，重连也不会成功，跳过自动重连
+    if (res && res.code === 4001) return
     scheduleReconnect()
   })
 
@@ -142,10 +172,13 @@ function scheduleReconnect() {
   if (reconnectTimer) return
   const token = getToken()
   if (!token) return
+  // 指数退避：5s、10s、20s... 最大 60s，避免无限快速重连
+  const delay = Math.min(5000 * Math.pow(2, reconnectAttempts), MAX_RECONNECT_DELAY)
+  reconnectAttempts += 1
   reconnectTimer = setTimeout(() => {
     reconnectTimer = null
     connect()
-  }, 5000)
+  }, delay)
 }
 
 function disconnect() {
@@ -153,6 +186,7 @@ function disconnect() {
     clearTimeout(reconnectTimer)
     reconnectTimer = null
   }
+  reconnectAttempts = 0
   stopHeartbeat()
   if (socket) {
     try { socket.close({}) } catch (e) {}
@@ -210,19 +244,30 @@ function notifyHandlers(payload) {
 }
 
 // ===== API 调用 =====
-function sendMessage(receiverId, content) {
-  return request.post('/message/send', { receiverId, content }, true)
+function sendMessage(receiverId, content, msgType = 'text') {
+  if (request.USE_MOCK) {
+    const message = { id: Date.now(), senderId: (getAppInstance().globalData.userInfo || {}).id || 1, receiverId, content, msgType, status: 'sent', createdAt: new Date().toISOString(), isMine: true }
+    appendCache(receiverId, message)
+    return Promise.resolve(message)
+  }
+  return request.post('/message/send', { receiverId, content, msgType }, true)
 }
 
 function getHistory(peerId, page, pageSize) {
+  if (request.USE_MOCK) {
+    const list = loadCache(peerId)
+    return Promise.resolve({ list: list, total: list.length, hasMore: false })
+  }
   return request.get('/message/history', { peerId, page, pageSize }, true)
 }
 
 function getConversations() {
+  if (request.USE_MOCK) return Promise.resolve(loadConversations())
   return request.get('/message/conversations', {}, true)
 }
 
 function markRead(peerId) {
+  if (request.USE_MOCK) return Promise.resolve(null)
   return request.put('/message/read', { peerId }, true, { silent: true }).then((res) => {
     syncUnreadCount()
     return res
@@ -233,10 +278,12 @@ function markRead(peerId) {
 }
 
 function getUnreadCount() {
+  if (request.USE_MOCK) return Promise.resolve({ total: getUnreadTotal() })
   return request.get('/message/unread-count', {}, true, { silent: true })
 }
 
 function updateMessageStatus(messageId, status) {
+  if (request.USE_MOCK) return Promise.resolve(null)
   return request.put('/message/status', { messageId, status }, true, { silent: true })
 }
 

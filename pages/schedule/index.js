@@ -206,6 +206,8 @@ Page({
   },
 
   onShow() {
+    const tabBar = this.getTabBar && this.getTabBar()
+    if (tabBar) tabBar.setSelected(1)
     this.initFromConfig();
     this.applyCurrentWeekCourses(this.data.allCourses);
     this.loadSchedule();
@@ -245,12 +247,23 @@ Page({
   },
 
   loadSchedule() {
-    api.getScheduleList().then((courses) => {
+    // The schedule is private data. Guests can open this tab without sending
+    // an authenticated request or being redirected away from it.
+    if (!app.globalData.token) {
+      this.setData({ allCourses: [] });
+      this.applyCurrentWeekCourses([]);
+      return;
+    }
+
+    api.getScheduleList({ silent: true }).then((courses) => {
       const list = (courses || []).map((item, index) =>
         scheduleUtils.normalizeCourse(item, index),
       );
       this.setData({ allCourses: list });
       this.applyCurrentWeekCourses(list);
+    }).catch(() => {
+      this.setData({ allCourses: [] });
+      this.applyCurrentWeekCourses([]);
     });
   },
 
@@ -593,10 +606,12 @@ Page({
   },
 
   goAdd() {
+    if (!auth.requireLogin("添加课程前请先登录小程序账号")) return;
     wx.navigateTo({ url: "/pages/schedule-add/index" });
   },
 
   goOcr() {
+    if (!auth.requireLogin("识别课表前请先登录小程序账号")) return;
     wx.navigateTo({ url: "/pages/schedule-ocr/index" });
   },
 
@@ -753,6 +768,7 @@ Page({
 
   // 清空/编辑课表
   onEditSchedule() {
+    if (!auth.requireLogin("管理课表前请先登录小程序账号")) return;
     this.setData({ showDrawer: false });
     wx.showActionSheet({
       itemList: ["编辑课程", "清空全部课表"],

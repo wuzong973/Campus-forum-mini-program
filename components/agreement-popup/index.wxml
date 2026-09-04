@@ -1,0 +1,32 @@
+<view class="agreement-popup" wx:if="{{visible}}">
+  <view class="popup-mask" bindtap="onReject"></view>
+  <view class="popup-content">
+    <view class="popup-header">
+      <text class="popup-title">用户协议与隐私政策</text>
+    </view>
+    
+    <view class="popup-body">
+      <text class="popup-text">
+        欢迎使用校园小程序！在您开始使用我们的服务之前，请您务必仔细阅读并充分理解以下协议内容：
+      </text>
+      
+      <view class="agreement-links">
+        <view class="agreement-link" bindtap="onViewAgreement" data-type="agreement">
+          <text class="link-text">《用户服务协议》</text>
+        </view>
+        <view class="agreement-link" bindtap="onViewAgreement" data-type="privacy">
+          <text class="link-text">《隐私政策》</text>
+        </view>
+      </view>
+      
+      <text class="popup-text">
+        请您在充分阅读并理解上述协议内容后，自主选择是否同意。如您同意，请点击"同意并继续"按钮；如您不同意，请点击"拒绝"按钮，您将无法使用本小程序的服务。
+      </text>
+    </view>
+    
+    <view class="popup-footer">
+      <button class="btn-reject" bindtap="onReject">拒绝</button>
+      <button class="btn-agree" bindtap="onAgree">同意并继续</button>
+    </view>
+  </view>
+</view>

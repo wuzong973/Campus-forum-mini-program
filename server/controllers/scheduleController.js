@@ -220,6 +220,9 @@ exports.ocr = async (req, res) => {
         tips.push(lowConfidenceCount + " 门课程置信度偏低，请导入前人工核对");
     }
     if (!courses.length) {
+      if (process.env.NODE_ENV === "production") {
+        return fail(res, "真实 OCR 服务未配置，暂不能识别课程图片", 503)
+      }
       if (req.file && !rawText) {
         tips.push(
           "当前服务端未接入真实图片 OCR 引擎，仅保存了上传图片；请接入 OCR 文本结果后再调用该接口以获得稳定识别率",

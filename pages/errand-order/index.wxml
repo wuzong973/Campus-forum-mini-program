@@ -1,47 +1,78 @@
 <view class="page">
-  <!-- 顶部 Tab -->
+  <!-- 自定义导航栏 -->
+  <view class="custom-nav" style="padding-top: {{statusBarHeight}}px;">
+    <view class="nav-content" style="height: {{navBarHeight}}px;">
+      <image class="nav-home-icon" src="/assets/icons/nav-home.png" mode="aspectFit" bindtap="goBack"></image>
+      <text class="nav-title">我的订单</text>
+      <view class="nav-right-placeholder"></view>
+    </view>
+  </view>
+  <view class="nav-placeholder" style="height: {{statusBarHeight + navBarHeight}}px;"></view>
+
+  <!-- 统计卡片 -->
+  <view class="stats-card">
+    <view class="stat-item">
+      <text class="stat-num">{{counts.pending}}</text>
+      <text class="stat-label">待接单</text>
+    </view>
+    <view class="stat-item">
+      <text class="stat-num">{{counts.inProgress}}</text>
+      <text class="stat-label">待完成</text>
+    </view>
+    <view class="stat-item">
+      <text class="stat-num">{{counts.done}}</text>
+      <text class="stat-label">已完成</text>
+    </view>
+    <view class="stat-item">
+      <text class="stat-num">{{counts.cancelled}}</text>
+      <text class="stat-label">已取消</text>
+    </view>
+  </view>
+
+  <!-- 顶部标签 -->
   <view class="top-tabs">
     <view
-      class="top-tab pressable {{activeTab === index ? 'active' : ''}}"
+      class="top-tab {{activeTab === index ? 'active' : ''}}"
       wx:for="{{tabs}}"
       wx:key="*this"
       data-index="{{index}}"
       bindtap="onTab"
-    >
-      <text>{{item}}</text>
-      <view class="tab-badge" wx:if="{{counts[index]}}">{{counts[index]}}</view>
-    </view>
+    >{{item}}</view>
   </view>
 
   <!-- 状态筛选 -->
   <scroll-view class="filter-scroll" scroll-x enable-flex>
     <view class="filter-list">
       <view
-        class="filter-chip pressable {{activeStatus === index ? 'active' : ''}}"
+        class="filter-chip {{activeStatus === index ? 'active' : ''}}"
         wx:for="{{statusFilters}}"
         wx:key="*this"
         data-index="{{index}}"
         bindtap="onStatusFilter"
-      >{{item}}</view>
+      >{{item}} <text class="filter-count" wx:if="{{index === 0}}">{{counts.unpaid}}</text></view>
     </view>
   </scroll-view>
 
   <!-- 订单列表 -->
   <view class="order-list">
-    <view wx:for="{{orders}}" wx:key="id" style="--i: {{index < 6 ? index : 0}};" class="anim-stagger">
+    <view wx:for="{{orders}}" wx:key="id" class="anim-stagger">
       <errand-card
         order="{{item}}"
         bind:accept="onAccept"
+        bind:pay="onPay"
         bind:finish="onFinish"
+        bind:cancel="onCancel"
         bind:contact="onContact"
+        bind:open="onOpenDetail"
       />
     </view>
-    <empty-state wx:if="{{orders.length === 0}}" text="{{emptyText}}" icon="📋" />
+    <empty-state wx:if="{{orders.length === 0}}" text="{{emptyText}}" icon="" />
   </view>
 
-  <!-- 底部发布入口 -->
-  <view class="bottom-entry pressable" bindtap="goPublish">
-    <text class="entry-icon">＋</text>
-    <text class="entry-text">发布新跑腿</text>
+  <!-- 空状态发布入口 -->
+  <view class="empty-publish" wx:if="{{orders.length === 0}}">
+    <text class="empty-publish-desc">你可以去发布新的需求，或切换其他标签查看历史订单。</text>
+    <view class="empty-publish-btn" bindtap="goPublish">去发布需求</view>
   </view>
+
 </view>

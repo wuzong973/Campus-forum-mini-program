@@ -23,13 +23,13 @@
 .app-name {
   font-size: 48rpx;
   font-weight: 700;
-  color: #fff;
+  color: #333;
   margin-bottom: 12rpx;
 }
 
 .slogan {
   font-size: 28rpx;
-  color: rgba(255,255,255,0.8);
+  color: #666;
 }
 
 .login-btn {
@@ -38,8 +38,62 @@
   font-size: 32rpx;
 }
 
-.agreement {
-  margin-top: 32rpx;
+.login-btn-disabled {
+  opacity: 0.55;
+}
+
+/* 协议区域 */
+.agreement-area {
+  width: 80%;
+  margin-top: 30rpx;
+}
+
+.agreement-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8rpx;
+  min-height: 40rpx;
+}
+
+.agreement-checkbox {
+  width: 26rpx;
+  height: 26rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  border: 2rpx solid #aeb7c5;
+  border-radius: 50%;
+  color: #fff;
+  font-size: 20rpx;
+}
+
+.agreement-checkbox.checked {
+  border-color: #4a7aff;
+  background: #4a7aff;
+}
+
+.agreement-tip {
   font-size: 22rpx;
-  color: #969799;
+  color: #999;
+}
+
+.agreement-link {
+  font-size: 22rpx;
+  color: #4a7aff;
+  text-decoration: underline;
+}
+
+/* 取消按钮 */
+.cancel-btn {
+  margin-top: 40rpx;
+  width: 60%;
+  padding: 20rpx 0;
+  font-size: 28rpx;
+  color: #666;
+  background: transparent;
+  border: 2rpx solid #ccc;
+  border-radius: 40rpx;
 }

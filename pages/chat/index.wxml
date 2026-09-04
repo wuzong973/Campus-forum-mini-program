@@ -1,101 +1,65 @@
-<view class="page">
-  <!-- 导航栏 -->
-  <view class="custom-nav white-nav" style="padding-top: {{statusBarHeight}}px;">
-    <view class="nav-content" style="height: {{navBarHeight}}px;">
-      <view class="nav-left" bindtap="onBack">
-        <text class="nav-back">←</text>
-      </view>
-      <view class="nav-center">
-        <text class="nav-title">{{peerNick}}</text>
-      </view>
-      <view class="nav-right"></view>
-    </view>
-  </view>
-  <view class="nav-placeholder" style="height: {{statusBarHeight + navBarHeight}}px;"></view>
-
+<view class="chat-container">
   <!-- 消息列表 -->
   <scroll-view
     class="message-list"
     scroll-y
-    scroll-into-view="{{scrollToId}}"
+    scroll-into-view="{{scrollToView}}"
     scroll-with-animation
-    enhanced
-    show-scrollbar="{{false}}"
     bindscrolltoupper="onLoadMore"
-    refresher-enabled
-    refresher-triggered="{{loadingMore}}"
-    bindrefresherrefresh="onRefresh"
   >
-    <view class="load-more-tip" wx:if="{{hasMore}}">下拉加载更多</view>
-    <view class="load-more-tip" wx:if="{{!hasMore && messages.length > 0}}">没有更多消息了</view>
-
-    <view class="empty-tip" wx:if="{{messages.length === 0 && !loading}}">
-      <text>还没有消息，打个招呼吧~</text>
-    </view>
-
-    <view
-      wx:for="{{messages}}"
-      wx:key="id"
-      id="msg-{{item.id}}"
-      class="message-item {{item.isMine ? 'mine' : 'other'}}"
-    >
-      <image
-        class="msg-avatar"
-        src="{{item.isMine ? myAvatar : peerAvatar}}"
-        mode="aspectFill"
-        wx:if="{{!item.isMine}}"
-      ></image>
-      <view class="msg-bubble-wrap">
-        <view class="msg-bubble {{item.isMine ? 'bubble-mine' : 'bubble-other'}} {{item.imageUrl ? 'bubble-image' : ''}}">
-          <image wx:if="{{item.imageUrl}}" class="msg-image" src="{{item.imageUrl}}" mode="aspectFill" bindtap="onPreviewImage" data-url="{{item.imageUrl}}"></image>
-          <text wx:else class="msg-text">{{item.content}}</text>
+    <view class="message-item {{item.isSelf ? 'self' : 'other'}}" wx:for="{{messages}}" wx:key="id" id="msg-{{item.id}}">
+      <image class="avatar" src="{{item.avatar}}" mode="aspectFill"></image>
+      <view class="message-content">
+        <view class="message-bubble {{item.type === 'image' ? 'image-bubble' : ''}}">
+          <text wx:if="{{item.type === 'text'}}" class="message-text">{{item.content}}</text>
+          <image wx:elif="{{item.type === 'image'}}" class="message-image" src="{{item.content}}" mode="widthFix" data-src="{{item.content}}" catchtap="onPreviewImage"></image>
+          <text wx:else class="message-emoji">{{item.content}}</text>
         </view>
-        <view class="msg-status" wx:if="{{item.isMine}}">
-          <text wx:if="{{item.status === 'sending'}}" class="status-sending">发送中</text>
-          <text wx:elif="{{item.status === 'failed'}}" class="status-failed" catchtap="onRetry" data-id="{{item.id}}" data-content="{{item.content}}">发送失败，点击重试</text>
-          <text wx:elif="{{item.status === 'read'}}" class="status-read">已读</text>
-          <text wx:elif="{{item.status === 'sent' || item.status === 'delivered'}}" class="status-sent">已送达</text>
-        </view>
-        <text class="msg-time">{{item.timeText}}</text>
+        <text class="time">{{item.timeText}}</text>
       </view>
-      <image
-        class="msg-avatar"
-        src="{{myAvatar}}"
-        mode="aspectFill"
-        wx:if="{{item.isMine}}"
-      ></image>
     </view>
+    <view wx:if="{{loadingMore}}" class="loading-more">加载中...</view>
   </scroll-view>
 
-  <!-- 底部输入栏 -->
-  <view class="input-bar">
-    <view class="input-wrap">
-      <input
-        class="msg-input"
-        placeholder="写评论..."
-        value="{{inputText}}"
-        bindinput="onInput"
-        bindconfirm="onSend"
-        confirm-type="send"
-        adjust-position
-        cursor-spacing="20"
-      />
-      <view class="send-text {{inputText ? 'active' : ''}}" bindtap="onSend">{{sending ? '发送中' : '发送'}}</view>
-      <view class="emoji-btn" catchtap="onEmoji">
-        <text class="emoji-icon">😊</text>
-      </view>
-      <view class="plus-btn" catchtap="onAddImage">
-        <text class="plus-icon">+</text>
+  <!-- 微信式输入区 -->
+  <view class="input-area">
+    <view class="emoji-panel" wx:if="{{activePanel === 'emoji'}}">
+      <view class="emoji-grid">
+        <text
+          class="emoji-item"
+          wx:for="{{emojiList}}"
+          wx:key="*this"
+          bindtap="onEmojiTap"
+          data-emoji="{{item}}"
+        >{{item}}</text>
       </view>
     </view>
-  </view>
 
-  <!-- 表情面板 -->
-  <view class="emoji-panel {{showEmojiPanel ? 'show' : ''}}">
-    <view class="emoji-grid">
-      <view class="emoji-item" wx:for="{{emojiList}}" wx:key="*this" catchtap="onSelectEmoji" data-emoji="{{item}}">
-        <text>{{item}}</text>
+    <view class="tool-panel" wx:if="{{activePanel === 'tools'}}">
+      <view class="tool-panel-item" bindtap="onChooseImage">
+        <text class="tool-panel-icon">▣</text>
+        <text class="tool-panel-label">照片</text>
       </view>
+    </view>
+
+    <view class="input-toolbar">
+      <view class="tool-btn voice-btn" bindtap="onToggleVoice"><text>{{voiceMode ? '⌨' : '◉'}}</text></view>
+      <view class="input-wrapper" wx:if="{{!voiceMode}}">
+        <input
+          class="message-input"
+          placeholder=""
+          value="{{inputValue}}"
+          bindinput="onInput"
+          bindfocus="onInputFocus"
+          bindconfirm="onSend"
+          confirm-type="send"
+          focus="{{inputFocus}}"
+        />
+      </view>
+      <view class="voice-input" wx:else bindtouchstart="onVoiceHint">按住说话</view>
+      <view class="tool-btn" bindtap="onToggleEmoji"><text>☺</text></view>
+      <view class="tool-btn" wx:if="{{!inputValue}}" bindtap="onToggleTools"><text>＋</text></view>
+      <view class="send-btn" wx:else bindtap="onSend">发送</view>
     </view>
   </view>
 </view>

@@ -25,10 +25,13 @@ Page({
 
   loadPosts() {
     this.setData({ loading: true })
-    const nickName = (getApp().globalData.userInfo || {}).nickName
-    api.getPostList({ page: 1, pageSize: 50 }).then((res) => {
-      const posts = (res.list || []).filter((p) => p.nickName === nickName || p.nickName === '我')
-      this.setData({ posts, loading: false })
+    const userId = (getApp().globalData.userInfo || {}).id
+    if (!userId) {
+      this.setData({ posts: [], loading: false })
+      return
+    }
+    api.getUserPosts(userId).then((posts) => {
+      this.setData({ posts: posts || [], loading: false })
     }).catch(() => {
       this.setData({ loading: false })
     })

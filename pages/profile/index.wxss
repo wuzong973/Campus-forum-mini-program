@@ -154,32 +154,25 @@
   flex-shrink: 0;
 }
 
-.profile-actions {
-  display: flex;
-  align-items: center;
-  gap: 14rpx;
-  padding-bottom: 12rpx;
-}
-
 .message-btn {
   height: 64rpx;
-  line-height: 64rpx;
+  min-width: 160rpx;
   border-radius: 999rpx;
   font-size: 26rpx;
   font-weight: 600;
   border: none;
-  margin: 0;
-  padding: 0 28rpx;
+  margin: 0 0 0 24rpx;
+  padding: 0 32rpx;
   background: #f7f4ff;
   color: #4d5b8c;
   display: flex;
   align-items: center;
-  gap: 8rpx;
+  justify-content: center;
+  flex-shrink: 0;
 }
 
-.message-icon {
-  width: 28rpx;
-  height: 28rpx;
+.message-btn-text {
+  text-align: center;
 }
 
 .message-btn::after {

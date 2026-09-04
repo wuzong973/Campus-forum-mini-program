@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head><title>Icon Generator</title></head>
+<body>
+<canvas id="c" width="200" height="200"></canvas>
+<script>
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+
+// Light gray circle background
+ctx.beginPath();
+ctx.arc(100, 100, 90, 0, Math.PI * 2);
+ctx.fillStyle = '#e1e1e1';
+ctx.fill();
+
+// Dark gray arrow
+ctx.strokeStyle = '#323232';
+ctx.lineWidth = 4;
+ctx.lineCap = 'round';
+ctx.lineJoin = 'round';
+
+// Vertical shaft
+ctx.beginPath();
+ctx.moveTo(100, 170);
+ctx.lineTo(100, 58);
+ctx.stroke();
+
+// Arrowhead V
+ctx.beginPath();
+ctx.moveTo(80, 78);
+ctx.lineTo(100, 52);
+ctx.lineTo(120, 78);
+ctx.stroke();
+
+// Horizontal bar near top
+ctx.beginPath();
+ctx.moveTo(76, 68);
+ctx.lineTo(124, 68);
+ctx.stroke();
+
+// Auto download
+const link = document.createElement('a');
+link.download = 'scroll-top.png';
+link.href = canvas.toDataURL('image/png');
+link.click();
+</script>
+</body>
+</html>

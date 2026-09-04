@@ -11,6 +11,8 @@
     class="scroll-container"
     scroll-y
     bindscroll="onContentScroll"
+    bindscrolltoupper="onContentScrollToUpper"
+    bindtouchmove="onContentTouchMove"
     bindscrolltolower="onReachBottom"
     lower-threshold="120"
     scroll-top="{{scrollTop}}"
@@ -50,19 +52,18 @@
       <text class="notice-tail">更新中</text>
     </view>
 
-    <!-- 校园服务（两行展示） -->
+    <!-- 校园服务 -->
     <view class="section card anim-slide-up">
-      <scroll-view class="service-two-rows" scroll-x enable-flex show-scrollbar="{{false}}">
-        <view class="service-two-rows-track">
-        <view class="service-two-rows-item" wx:for="{{allServices}}" wx:key="id" data-item="{{item}}" bindtap="onServiceTap">
-          <view class="service-two-rows-icon">
-            <image class="service-two-rows-icon-img" src="{{item.iconPath}}" mode="aspectFit" wx:if="{{item.iconPath}}"></image>
-            <text class="service-two-rows-icon-text" wx:else>{{item.icon}}</text>
-          </view>
-          <text class="service-two-rows-name">{{item.name}}</text>
-        </view>
-        </view>
-      </scroll-view>
+      <view class="service-retry" wx:if="{{serviceLoadFailed}}" bindtap="loadServices">校园服务加载失败，点击重试</view>
+      <service-grid
+        services="{{allServices}}"
+        layout="scroll"
+        bind:tap="onServiceTap"
+        bind:scroll="onServiceScroll"
+      />
+      <view class="service-page-dots" wx:if="{{serviceIndicators.length > 1}}">
+        <view class="service-page-dot {{serviceIndicatorCurrent === index ? 'active' : ''}}" wx:for="{{serviceIndicators}}" wx:key="*this"></view>
+      </view>
     </view>
 
     <!-- 课程表卡片（仅在开启"首页课程表提醒"时显示） -->
@@ -117,8 +118,33 @@
       </view>
     </scroll-view>
 
+    <!-- 最热榜单 -->
+    <view class="hot-rank" wx:if="{{isHotCategory}}">
+      <view class="hot-period-tabs">
+        <view class="hot-period {{hotPeriod === 'today' ? 'active' : ''}}" data-period="today" bindtap="onHotPeriodTap">今天</view>
+        <view class="hot-period {{hotPeriod === 'yesterday' ? 'active' : ''}}" data-period="yesterday" bindtap="onHotPeriodTap">昨天</view>
+      </view>
+      <view class="hot-rank-heading">
+        <view><text class="hot-rank-kicker">TOP10</text><text class="hot-rank-title">{{hotPeriod === 'today' ? '今日热榜' : '昨日热榜'}}</text></view>
+        <text class="hot-rank-note">{{hotPeriod === 'today' ? '校园新鲜事，每日更新' : '截止昨日 20:00'}}</text>
+      </view>
+      <view class="hot-rank-list" wx:if="{{hotPosts.length}}">
+        <view class="hot-rank-card" wx:for="{{hotPosts}}" wx:key="id" data-id="{{item.id}}" bindtap="onHotPostTap">
+          <view class="hot-rank-card-header">
+            <image class="hot-rank-avatar" src="{{item.avatarUrl || '/assets/icons/avatar.png'}}" mode="aspectFill"></image>
+            <view class="hot-rank-author"><text class="hot-rank-nick">{{item.nickName}}</text><text class="hot-rank-time">{{item.rankTimeText}} 发布</text></view>
+            <view class="hot-rank-badge {{index < 3 ? 'top' : ''}}"><text>TOP</text><text>{{index + 1}}</text></view>
+          </view>
+          <text class="hot-rank-post-title">{{item.title || item.content}}</text>
+          <view class="hot-rank-footer"><view class="hot-rank-topic"><text>#</text>{{item.category}}</view><view class="hot-rank-stats"><view><image src="/assets/icons/heart-outline.png" mode="aspectFit"></image><text>{{item.likeCount || '点赞'}}</text></view><view><image src="/assets/icons/comment.png" mode="aspectFit"></image><text>{{item.commentCount || 0}}</text></view></view></view>
+        </view>
+      </view>
+      <view class="hot-rank-empty" wx:elif="{{!hotLoading}}">当前时间范围暂无帖子</view>
+      <view class="hot-rank-empty" wx:else>榜单更新中...</view>
+    </view>
+
     <!-- 帖子列表 - 骨架屏 -->
-    <block wx:if="{{skeleton}}">
+    <block wx:if="{{skeleton && !isHotCategory}}">
       <view class="sk-card" wx:for="{{[1,2,3]}}" wx:key="*this">
         <view class="sk-header">
           <view class="sk-avatar skeleton"></view>
@@ -133,17 +159,16 @@
     </block>
 
     <!-- 帖子列表 -->
-    <block wx:else>
-      <view wx:for="{{posts}}" wx:key="id" style="--i: {{index < 6 ? index : 0}};" class="anim-stagger">
+    <block wx:elif="{{!isHotCategory}}">
+      <view wx:for="{{posts}}" wx:key="id" style="--i: {{index < 6 ? index : 0}};" class="post-feed anim-stagger">
         <post-card
           post="{{item}}"
           commentMode="sheet"
-          allowPin="{{true}}"
           bind:like="onPostLike"
           bind:favorite="onPostFavorite"
           bind:comment="onPostComment"
-          bind:pin="onPostPin"
           bind:close="onPostClose"
+          bind:reviewnote="onPostReviewNote"
         />
       </view>
       <empty-state wx:if="{{posts.length === 0}}" text="暂无帖子" />
@@ -154,12 +179,7 @@
   <!-- 浮动操作按钮 -->
   <view class="float-actions {{showFloatBtns ? 'show' : ''}}">
     <view class="float-btn pressable" bindtap="onScrollToTop">
-      <image class="float-btn-icon icon-md" src="/assets/icons/scroll-top.png" mode="aspectFit"></image>
-      <text class="float-btn-text">顶部</text>
-    </view>
-    <view class="float-btn float-btn-publish pressable" bindtap="goPublish">
-      <image class="float-btn-icon icon-md" src="/assets/icons/edit.png" mode="aspectFit"></image>
-      <text class="float-btn-text">发帖</text>
+      <image class="float-btn-icon" src="/assets/icons/scroll-top.png" mode="aspectFit"></image>
     </view>
   </view>
 
@@ -174,7 +194,7 @@
     <scroll-view class="comment-sheet-list" scroll-y enhanced show-scrollbar="{{false}}">
       <view class="comment-sheet-loading" wx:if="{{commentSheetLoading}}">评论加载中...</view>
       <view class="sheet-comment" wx:for="{{commentSheetComments}}" wx:key="id">
-        <image class="sheet-comment-avatar" src="{{item.avatarUrl || '/assets/icons/avatar.png'}}" mode="aspectFill"></image>
+        <image class="sheet-comment-avatar" src="{{item.avatarUrl || '/assets/icons/avatar.png'}}" mode="aspectFill" data-userid="{{item.userId}}" catchtap="onCommentAvatarTap"></image>
         <view class="sheet-comment-main">
           <view class="sheet-comment-meta">
             <text class="sheet-comment-name">{{item.nickName}}</text>
@@ -187,7 +207,7 @@
         </view>
         <view class="sheet-comment-like">
           <image class="sheet-like-icon" src="/assets/icons/heart-outline.png" mode="aspectFit"></image>
-          <text class="sheet-like-count" wx:if="{{item.likeCount}}">{{item.likeCount}}</text>
+          <text class="sheet-like-count">点赞{{item.likeCount ? ' ' + item.likeCount : ''}}</text>
         </view>
       </view>
       <view class="comment-sheet-empty" wx:if="{{!commentSheetLoading && commentSheetComments.length === 0}}">

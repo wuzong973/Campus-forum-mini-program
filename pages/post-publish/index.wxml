@@ -1,81 +1,72 @@
 <view class="page">
-  <!-- 自定义导航栏 -->
-  <view class="custom-nav" style="padding-top: {{statusBarHeight}}px;">
-    <view class="nav-content" style="height: {{navBarHeight}}px;">
-      <view class="nav-back" bindtap="goBack">
-        <text class="back-arrow">‹</text>
-      </view>
-      <text class="nav-title">发布帖子</text>
-      <view class="nav-placeholder"></view>
-    </view>
-  </view>
-  <view class="nav-placeholder" style="height: {{statusBarHeight + navBarHeight}}px;"></view>
 
-  <!-- 标题 -->
-  <view class="form-section">
-    <text class="section-label">标题 <text class="label-optional">（可选）</text></text>
-    <input class="title-input" placeholder="添加标题更容易被发现..." bindinput="onTitleInput" value="{{title}}" />
-  </view>
 
-  <!-- 内容 -->
-  <view class="form-section">
-    <text class="section-label">内容 <text class="label-required">*</text></text>
-    <view class="textarea-wrap">
-      <textarea class="content-input" placeholder="分享你的想法..." maxlength="500" bindinput="onInput" value="{{content}}" auto-height />
-      <text class="char-count">{{content.length || 0}}/500</text>
-    </view>
-  </view>
-
-  <!-- 添加图片 -->
-  <view class="form-section">
-    <text class="section-label">添加图片 <text class="label-optional">（可选）</text></text>
-    <view class="image-list">
-      <view class="image-item" wx:for="{{mediaList}}" wx:key="path">
-        <image src="{{item.thumb || item.path}}" mode="aspectFill" class="thumb" />
-        <view class="media-type" wx:if="{{item.type === 'video'}}">视频</view>
-        <view class="remove" data-index="{{index}}" bindtap="onRemoveImage">×</view>
-      </view>
-      <view class="add-image-box" bindtap="onChooseImage" wx:if="{{mediaList.length < 9}}">
-        <text class="add-plus">+</text>
-        <text class="add-text">图片/视频</text>
+  <scroll-view class="publish-scroll" scroll-y enhanced show-scrollbar="{{false}}">
+    <view class="editor-card">
+      <view class="notice-tip"><text class="notice-mark">!</text> 禁止发布重复信息、广告营销类、含二维码等内容</view>
+      <textarea class="content-input" placeholder="请输入投稿内容..." maxlength="500" value="{{content}}" bindinput="onInput" auto-height></textarea>
+      <view class="image-grid">
+        <view class="image-item" wx:for="{{mediaList}}" wx:key="path">
+          <image src="{{item.thumb || item.path}}" mode="aspectFill" class="thumb"></image>
+          <view class="image-remove" data-index="{{index}}" bindtap="onRemoveImage">×</view>
+        </view>
+        <view class="image-add" bindtap="onChooseImage" wx:if="{{mediaList.length < 9}}">
+          <image src="/assets/icons/camera.png" class="camera-icon" mode="aspectFit"></image>
+          <text>{{mediaList.length}} / 9</text>
+        </view>
       </view>
     </view>
-  </view>
 
-  <!-- 标签 -->
-  <view class="form-section tag-section" bindtap="openTagPicker">
-    <text class="section-label">标签 <text class="label-required">*</text></text>
-    <view class="tag-picker">
-      <text class="tag-picker-text {{categoryIndex >= 0 ? 'selected' : ''}}">{{categoryIndex >= 0 ? categories[categoryIndex] : '请选择标签'}}</text>
-      <text class="tag-arrow">›</text>
+    <view class="settings-card">
+      <view class="setting-row" bindtap="openContactSheet">
+        <text class="setting-title">填写联系方式</text>
+        <view class="setting-value"><text>{{contactSummary}}</text><text class="chevron">›</text></view>
+      </view>
+      <view class="setting-row">
+        <text class="setting-title">切换第二身份</text>
+        <switch checked="{{secondIdentity}}" color="#3478f6" bindchange="onSecondIdentityChange"></switch>
+      </view>
+      <view class="setting-row" bindtap="openTagPicker">
+        <text class="setting-title">主题分类</text>
+        <view class="setting-value"><text>{{categoryIndex >= 0 ? categories[categoryIndex] : '未选择'}}</text><text class="chevron">›</text></view>
+      </view>
     </view>
-  </view>
 
-  <!-- 标签选择弹窗 -->
-  <view class="tag-mask {{showTagPicker ? 'show' : ''}}" bindtap="closeTagPicker"></view>
-  <view class="tag-popup {{showTagPicker ? 'show' : ''}}">
-    <view class="tag-popup-header">
-      <text class="tag-popup-cancel" bindtap="closeTagPicker">取消</text>
-      <text class="tag-popup-title">选择标签</text>
-      <text class="tag-popup-confirm" bindtap="confirmTag">确定</text>
+    <view class="forum-tips">
+      <view class="tips-title"><text class="notice-mark">!</text> 论坛小贴士</view>
+      <text class="tips-content">普通消息免费发布；商业推广、招聘及营销内容请先联系管理员审核。请文明发言，遵守社区规则。</text>
+      <text class="tips-rules" bindtap="openRules">查看《社区规则》</text>
     </view>
-    <scroll-view class="tag-popup-list" scroll-y>
-      <view
-        class="tag-popup-item {{tempCategoryIndex === index ? 'active' : ''}}"
-        wx:for="{{categories}}"
-        wx:key="*this"
-        data-index="{{index}}"
-        bindtap="onTempTagSelect"
-      >{{item}}</view>
-    </scroll-view>
+  </scroll-view>
+
+  <view class="tag-mask" wx:if="{{showTagPicker}}" bindtap="closeTagPicker"></view>
+  <view class="tag-popup" wx:if="{{showTagPicker}}" catchtap="noop">
+    <view class="sheet-header"><text></text><text class="sheet-title">请选择主题分类</text><text class="sheet-close" bindtap="closeTagPicker">×</text></view>
+    <text class="sheet-subtitle">选择主题</text>
+    <view class="category-grid">
+      <view wx:for="{{categories}}" wx:key="*this" data-index="{{index}}" bindtap="onTempTagSelect" class="category-option {{tempCategoryIndex === index ? 'active' : ''}}">{{item}}</view>
+    </view>
+    <button class="sheet-confirm" bindtap="confirmTag">确认</button>
   </view>
 
-  <!-- 发布按钮 -->
-  <view class="submit-error" wx:if="{{submitError}}">
-    <text>{{submitError}}</text>
-    <text class="retry-link" bindtap="onRetrySubmit">重试</text>
+  <view class="tag-mask" wx:if="{{showContactSheet}}" bindtap="closeContactSheet"></view>
+  <view class="contact-popup" wx:if="{{showContactSheet}}" catchtap="noop">
+    <view class="sheet-header"><text></text><text class="sheet-title">请填写联系方式</text><text class="sheet-close" bindtap="closeContactSheet">×</text></view>
+    <view class="contact-card">
+      <text class="contact-label">联系姓名</text>
+      <input class="contact-input" value="{{contactName}}" placeholder="例如：小明" bindinput="onContactNameInput"></input>
+    </view>
+    <view class="contact-card">
+      <text class="contact-label">联系方式</text>
+      <view class="contact-types">
+        <view wx:for="{{contactTypes}}" wx:key="*this" class="contact-type {{contactType === item ? 'active' : ''}}" data-value="{{item}}" bindtap="onContactTypeSelect"><text class="radio-dot"></text>{{item}}</view>
+      </view>
+      <input class="contact-input" value="{{contactValue}}" placeholder="{{contactType}}" bindinput="onContactValueInput"></input>
+    </view>
+    <button class="sheet-confirm" bindtap="confirmContact">确认</button>
   </view>
+
   <view class="submit-wrap">
-    <button class="submit-btn {{canSubmit ? 'active' : ''}}" loading="{{submitting}}" bindtap="onSubmit">{{submitting ? '发布中' : '发布'}}</button>
+    <button class="submit-btn {{canSubmit ? 'active' : ''}}" loading="{{submitting}}" bindtap="onSubmit">{{submitting ? '发布中' : '确认发布'}}</button>
   </view>
 </view>

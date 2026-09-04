@@ -12,7 +12,7 @@ const ICONS = {
   help: ICON_BASE + 'help.png',
   about: ICON_BASE + 'about.png',
   avatar: ICON_BASE + 'avatar.png',
-  heart: ICON_BASE + 'heart.png',
+  heart: ICON_BASE + 'heart-outline.png',
   heartOutline: ICON_BASE + 'heart-outline.png',
   comment: ICON_BASE + 'comment.png',
   share: ICON_BASE + 'share.png'
@@ -27,7 +27,16 @@ function compressImage(filePath, quality) {
     wx.compressImage({
       src: filePath,
       quality: quality || 80,
-      success: (res) => resolve(res.tempFilePath),
+      success: (res) => {
+        const compressed = res.tempFilePath
+        // 开发者工具中压缩后的临时文件可能无法被本地服务器加载，
+        // 通过 wx.getImageInfo 验证文件是否可访问，不可用则回退原始文件。
+        wx.getImageInfo({
+          src: compressed,
+          success: () => resolve(compressed),
+          fail: () => resolve(filePath)
+        })
+      },
       fail: () => resolve(filePath)
     })
   })
@@ -41,7 +50,8 @@ function chooseAndCompress(count) {
   return new Promise((resolve, reject) => {
     wx.chooseMedia({
       count: count || 9,
-      mediaType: ['image', 'video'],
+      // 视频需要先接入 media_check_async 和公开 HTTPS 媒体地址，当前发布流程仅允许图片。
+      mediaType: ['image'],
       sizeType: ['compressed'],
       success: async (res) => {
         const files = res.tempFiles.map((f) => ({

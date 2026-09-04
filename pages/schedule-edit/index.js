@@ -2,6 +2,7 @@ const api = require('../../utils/api')
 const request = require('../../utils/request')
 const mock = require('../../utils/mock')
 const scheduleUtils = require('../../utils/schedule')
+const auth = require('../../utils/auth')
 
 const WEEK_DAYS = ['星期一', '星期二', '星期三', '星期四', '星期五', '星期六', '星期日']
 
@@ -32,9 +33,15 @@ Page({
   },
 
   loadCourses() {
-    api.getScheduleList().then((courses) => {
+    if (!auth.isLoggedIn()) {
+      this.setData({ courses: [], conflictGroups: [] })
+      return
+    }
+    api.getScheduleList({ silent: true }).then((courses) => {
       const list = this.enrichCourses(courses || [])
       this.setData({ courses: list, conflictGroups: this.detectConflicts(list) })
+    }).catch(() => {
+      this.setData({ courses: [], conflictGroups: [] })
     })
   },
 

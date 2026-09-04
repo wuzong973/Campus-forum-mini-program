@@ -1,5 +1,5 @@
 {
-  "navigationBarTitleText": "私信",
-  "usingComponents": {},
-  "navigationStyle": "custom"
+  "navigationBarTitleText": "聊天",
+  "navigationBarBackgroundColor": "#7DD3C0",
+  "navigationBarTextStyle": "white"
 }

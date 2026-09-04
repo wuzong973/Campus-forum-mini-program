@@ -1,5 +1,6 @@
 const app = getApp();
 const api = require("../../utils/api");
+const request = require("../../utils/request");
 
 Page({
   data: {
@@ -33,6 +34,15 @@ Page({
 
   onLogin() {
     if (this.data.loading) return;
+
+    if (request.USE_MOCK) {
+      wx.showModal({
+        title: "演示模式",
+        content: "课表同步需要连接教务系统，请部署后端服务后使用",
+        showCancel: false,
+      });
+      return;
+    }
 
     if (this.data.captchaChallenge) {
       this.submitCaptcha();

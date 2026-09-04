@@ -1,318 +1,209 @@
 const messageStore = require('../../utils/messageStore')
+const wechat = require('../../utils/wechat')
 const request = require('../../utils/request')
-const format = require('../../utils/format')
+
+function formatTime(value) {
+  const date = value ? new Date(value) : new Date()
+  if (Number.isNaN(date.getTime())) return ''
+  return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
+}
 
 Page({
   data: {
-    statusBarHeight: 20,
-    navBarHeight: 44,
     peerId: 0,
-    peerNick: '',
-    peerAvatar: '',
-    myAvatar: '',
+    otherUser: {},
     messages: [],
-    inputText: '',
-    scrollToId: '',
-    hasMore: true,
-    page: 1,
-    loading: false,
+    inputValue: '',
+    activePanel: '',
+    voiceMode: false,
+    inputFocus: false,
+    scrollToView: '',
     loadingMore: false,
-    sending: false,
-    showEmojiPanel: false,
-    emojiList: ['😊', '😂', '❤️', '🎉', '😍', '😢', '💪', '🙏', '😎', '🥰', '😅', '😘', '👏', '🔥', '💯', '✨', '🎊', '😁', '🤣', '😜']
+    hasMore: false,
+    page: 1,
+    emojiList: [
+      '😀', '😁', '😂', '🤣', '😃', '😄', '😅', '😆',
+      '😉', '😊', '😋', '😎', '😍', '😘', '🥰', '😗',
+      '😙', '😚', '🙂', '🤗', '🤩', '🤨', '😐', '😑',
+      '😶', '😏', '😣', '😮', '🤐', '😯', '😪', '😫',
+      '🥱', '😴', '😛', '😜', '😝', '🤤', '😒', '😓',
+      '😔', '😕', '🙃', '🤑', '😲', '☹️', '🙁', '😖'
+    ]
   },
 
   onLoad(options) {
-    const app = getApp()
-    const peerId = parseInt(options.peerId, 10)
-    const peerNick = options.nick ? decodeURIComponent(options.nick) : '用户'
-    const peerAvatar = options.avatar ? decodeURIComponent(options.avatar) : '/assets/icons/avatar.png'
-    this.setData({
-      statusBarHeight: app.globalData.statusBarHeight,
-      navBarHeight: app.globalData.navBarHeight,
-      peerId,
-      peerNick,
-      peerAvatar,
-      myAvatar: (app.globalData.userInfo || {}).avatarUrl || '/assets/icons/avatar.png'
-    })
-    wx.setNavigationBarTitle({ title: peerNick })
-
-    // 加载本地缓存优先展示
-    const cached = messageStore.loadCache(peerId)
-    if (cached.length) {
-      this.setData({
-        messages: this.formatMessages(cached),
-        scrollToId: 'msg-' + cached[cached.length - 1].id
-      })
+    let legacyUser = {}
+    try { legacyUser = JSON.parse(decodeURIComponent(options.otherUser || '{}')) } catch (e) {}
+    const peerId = parseInt(options.peerId || legacyUser.id, 10)
+    const otherUser = {
+      nickname: options.nick || legacyUser.nickname || '维修人员',
+      avatar: options.avatar || legacyUser.avatar || '/assets/icons/repair-logo.jpg'
     }
-
-    // 从云端拉取最新
-    this.loadHistory(true)
-    // 标记已读
-    this.markRead()
-    // 注册实时消息回调
+    if (!peerId) {
+      wx.showToast({ title: '未找到聊天对象', icon: 'none' })
+      setTimeout(() => wx.navigateBack(), 300)
+      return
+    }
+    this.setData({ peerId, otherUser })
+    wx.setNavigationBarTitle({ title: otherUser.nickname })
     this.unsubscribe = messageStore.onMessage((payload) => {
-      if ((payload.type === 'message' || payload.type === 'private_message') && payload.peerId === peerId) {
-        this.appendMessage(payload.data)
-      }
+      if (payload.type === 'message' && payload.peerId === peerId) this.appendMessage(payload.data)
     })
+    this.loadMessages()
   },
 
   onUnload() {
     if (this.unsubscribe) this.unsubscribe()
   },
 
-  formatMessages(list) {
-    return list.map((m) => ({
-      id: m.id,
-      content: m.content,
-      isMine: m.isMine !== undefined ? m.isMine : (m.senderId === getApp().globalData.userInfo.id),
-      senderId: m.senderId,
-      status: m.status || 'sent',
-      timeText: format.formatRelativeTime(m.createdAt) || format.formatTime(m.createdAt),
-      createdAt: m.createdAt
-    }))
+  toViewMessage(message) {
+    const currentUser = (getApp().globalData.userInfo || {}).id || 0
+    const isSelf = Number(message.senderId) === Number(currentUser) || message.isMine === true
+    return {
+      id: message.id,
+      type: message.msgType || message.type || 'text',
+      content: message.content,
+      isSelf,
+      nickname: isSelf ? '我' : (message.senderNick || this.data.otherUser.nickname),
+      avatar: isSelf
+        ? ((getApp().globalData.userInfo || {}).avatarUrl || '/assets/icons/avatar.png')
+        : (message.senderAvatar || this.data.otherUser.avatar),
+      timeText: formatTime(message.createdAt)
+    }
   },
 
-  loadHistory(reset) {
-    if (this.data.loading) return
-    this.setData({ loading: true })
-    const page = reset ? 1 : this.data.page
-    if (request.USE_MOCK) {
-      // Mock 模式：使用本地缓存
-      const cached = messageStore.loadCache(this.data.peerId)
-      this.setData({
-        messages: this.formatMessages(cached),
-        loading: false,
-        hasMore: false
-      })
-      this.scrollToBottom()
-      return
-    }
-    messageStore.getHistory(this.data.peerId, page, 30).then((res) => {
-      const list = (res.list || []).map((m) => ({
-        id: m.id,
-        content: m.content,
-        isMine: m.senderId === getApp().globalData.userInfo.id,
-        senderId: m.senderId,
-        status: m.status,
-        timeText: format.formatRelativeTime(m.createdAt) || format.formatTime(m.createdAt),
-        createdAt: m.createdAt
-      }))
-      let messages
-      if (reset) {
-        messages = list
-      } else {
-        messages = list.concat(this.data.messages)
+  async loadMessages(page = 1) {
+    try {
+      const result = await messageStore.getHistory(this.data.peerId, page, 30)
+      const list = (result.list || []).map((item) => this.toViewMessage(item))
+      const messages = page === 1 ? list : list.concat(this.data.messages)
+      this.setData({ messages, page, hasMore: !!result.hasMore })
+      if (page === 1) {
+        messageStore.saveCache(this.data.peerId, result.list || [])
+        messageStore.markRead(this.data.peerId).catch(() => {})
+        this.scrollToBottom()
       }
-      this.setData({
-        messages,
-        hasMore: res.hasMore,
-        page: page + 1,
-        loading: false,
-        loadingMore: false
-      })
-      // 写入本地缓存
-      if (reset) {
-        messageStore.saveCache(this.data.peerId, list)
+    } catch (e) {
+      if (page === 1) {
+        const cached = messageStore.loadCache(this.data.peerId).map((item) => this.toViewMessage(item))
+        this.setData({ messages: cached })
+        this.scrollToBottom()
       }
-      if (reset) this.scrollToBottom()
-    }).catch(() => {
-      this.setData({ loading: false, loadingMore: false })
-    })
-  },
-
-  onRefresh() {
-    if (this.data.hasMore) {
-      this.setData({ loadingMore: true })
-      this.loadHistory(false)
-    } else {
-      this.setData({ loadingMore: false })
     }
   },
 
-  onLoadMore() {
-    if (this.data.hasMore && !this.data.loading) {
-      this.loadHistory(false)
-    }
-  },
-
-  scrollToBottom() {
-    const list = this.data.messages
-    if (list.length) {
-      this.setData({ scrollToId: 'msg-' + list[list.length - 1].id })
-    }
-  },
-
-  appendMessage(msg) {
-    const item = {
-      id: msg.id,
-      content: msg.content,
-      isMine: msg.senderId === getApp().globalData.userInfo.id,
-      senderId: msg.senderId,
-      status: msg.status || 'sent',
-      timeText: format.formatRelativeTime(msg.createdAt) || '刚刚',
-      createdAt: msg.createdAt
-    }
-    // 去重
-    if (this.data.messages.find((m) => m.id === item.id)) return
-    const messages = this.data.messages.concat([item])
-    this.setData({ messages })
+  appendMessage(message) {
+    if (this.data.messages.some((item) => Number(item.id) === Number(message.id))) return
+    const viewMessage = this.toViewMessage(message)
+    messageStore.appendCache(this.data.peerId, message)
+    this.setData({ messages: this.data.messages.concat(viewMessage) })
     this.scrollToBottom()
-    if (!item.isMine) {
-      this.markRead()
-    }
   },
 
   onInput(e) {
-    this.setData({ inputText: e.detail.value })
+    this.setData({ inputValue: e.detail.value })
   },
 
-  onSend() {
-    if (this.data.sending) return
-    const text = this.data.inputText.trim()
-    if (!text) return
-    const app = getApp()
-    const currentUserId = (app.globalData.userInfo || {}).id || 0
-    if (!currentUserId) {
-      wx.navigateTo({ url: '/pages/login/index' })
-      return
-    }
-
-    // 创建临时消息（乐观更新）
-    const tempId = 'temp_' + Date.now()
-    const tempMsg = {
-      id: tempId,
-      content: text,
-      isMine: true,
-      senderId: currentUserId,
-      status: 'sending',
-      timeText: '刚刚',
-      createdAt: new Date().toISOString()
-    }
-    const messages = this.data.messages.concat([tempMsg])
-    this.setData({ messages, inputText: '', sending: true })
-    this.scrollToBottom()
-
-    // 写入本地缓存
-    messageStore.appendCache(this.data.peerId, tempMsg)
-
-    const doSend = () => {
-      if (request.USE_MOCK) {
-        // Mock：1秒后变成已发送
-        setTimeout(() => {
-          this.updateTempMessage(tempId, {
-            id: Date.now(),
-            status: 'sent'
-          })
-          this.setData({ sending: false })
-        }, 500)
-        return
-      }
-      messageStore.sendMessage(this.data.peerId, text).then((res) => {
-        this.updateTempMessage(tempId, {
-          id: res.id,
-          status: 'sent'
-        })
-        this.setData({ sending: false })
-      }).catch(() => {
-        this.updateTempMessage(tempId, { status: 'failed' })
-        this.setData({ sending: false })
-      })
-    }
-    doSend()
+  onInputFocus() {
+    this.setData({ activePanel: '' })
   },
 
-  updateTempMessage(tempId, patch) {
-    const messages = this.data.messages.map((m) => {
-      if (m.id === tempId) {
-        return Object.assign({}, m, patch)
-      }
-      return m
-    })
-    this.setData({ messages })
-    // 同步缓存
-    const peerId = this.data.peerId
-    const cached = messageStore.loadCache(peerId)
-    const idx = cached.findIndex((m) => m.id === tempId)
-    if (idx >= 0) {
-      cached[idx] = Object.assign({}, cached[idx], patch)
-      messageStore.saveCache(peerId, cached)
-    }
-  },
-
-  onRetry(e) {
-    const id = e.currentTarget.dataset.id
-    const content = e.currentTarget.dataset.content
-    // 重置为发送中
-    this.updateTempMessage(id, { status: 'sending' })
-    if (request.USE_MOCK) {
-      setTimeout(() => {
-        this.updateTempMessage(id, { id: Date.now(), status: 'sent' })
-      }, 500)
-      return
-    }
-    messageStore.sendMessage(this.data.peerId, content).then((res) => {
-      this.updateTempMessage(id, { id: res.id, status: 'sent' })
-    }).catch(() => {
-      this.updateTempMessage(id, { status: 'failed' })
-    })
-  },
-
-  markRead() {
-    messageStore.markRead(this.data.peerId).catch(() => {})
-  },
-
-  onBack() {
-    wx.navigateBack()
-  },
-
-  onEmoji() {
-    this.setData({ showEmojiPanel: !this.data.showEmojiPanel })
-  },
-
-  onSelectEmoji(e) {
-    const emoji = e.currentTarget.dataset.emoji
+  onToggleEmoji() {
     this.setData({
-      inputText: this.data.inputText + emoji,
-      showEmojiPanel: false
+      voiceMode: false,
+      activePanel: this.data.activePanel === 'emoji' ? '' : 'emoji',
+      inputFocus: false
+    })
+  },
+
+  onToggleTools() {
+    this.setData({
+      voiceMode: false,
+      activePanel: this.data.activePanel === 'tools' ? '' : 'tools',
+      inputFocus: false
+    })
+  },
+
+  onToggleVoice() {
+    this.setData({ voiceMode: !this.data.voiceMode, activePanel: '', inputFocus: false })
+  },
+
+  onVoiceHint() {
+    wx.showToast({ title: '语音功能暂未开启', icon: 'none' })
+  },
+
+  onEmojiTap(e) {
+    this.setData({ inputValue: this.data.inputValue + e.currentTarget.dataset.emoji })
+  },
+
+  async sendContent(content, msgType = 'text') {
+    const result = await messageStore.sendMessage(this.data.peerId, content, msgType)
+    this.appendMessage({
+      id: result.id,
+      senderId: (getApp().globalData.userInfo || {}).id || 0,
+      receiverId: this.data.peerId,
+      content,
+      msgType,
+      status: result.status || 'sent',
+      createdAt: result.createdAt || new Date().toISOString(),
+      isMine: true
+    })
+  },
+
+  async onSend() {
+    const content = this.data.inputValue.trim()
+    if (!content) return
+    this.setData({ inputValue: '', activePanel: '' })
+    try {
+      await this.sendContent(content)
+    } catch (e) {
+      this.setData({ inputValue: content })
+      wx.showToast({ title: '消息发送失败，请重试', icon: 'none' })
+    }
+  },
+
+  onChooseImage() {
+    wx.chooseMedia({
+      count: 9,
+      mediaType: ['image'],
+      sourceType: ['album', 'camera'],
+      sizeType: ['compressed'],
+      success: async (res) => {
+        const paths = (res.tempFiles || []).map((item) => item.tempFilePath).filter(Boolean)
+        if (!paths.length) return
+        this.setData({ activePanel: '' })
+        wx.showLoading({ title: '发送图片...', mask: true })
+        try {
+          const urls = await wechat.uploadImages(paths)
+          if (!request.USE_MOCK && urls.some((url) => !/^https?:\/\//.test(url))) {
+            throw new Error('图片上传失败')
+          }
+          for (const url of urls) await this.sendContent(url, 'image')
+        } catch (e) {
+          wx.showToast({ title: '图片发送失败，请重试', icon: 'none' })
+        } finally {
+          wx.hideLoading()
+        }
+      }
     })
   },
 
   onPreviewImage(e) {
-    const url = e.currentTarget.dataset.url
-    wx.previewImage({ current: url, urls: [url] })
+    const current = e.currentTarget.dataset.src
+    const urls = this.data.messages.filter((item) => item.type === 'image').map((item) => item.content)
+    wx.previewImage({ current, urls })
   },
 
-  onAddImage() {
-    wx.chooseMedia({
-      count: 1,
-      mediaType: ['image'],
-      sourceType: ['album', 'camera'],
-      success: (res) => {
-        const tempFilePath = res.tempFiles[0].tempFilePath
-        const app = getApp()
-        const currentUserId = (app.globalData.userInfo || {}).id || 0
-        if (!currentUserId) {
-          wx.navigateTo({ url: '/pages/login/index' })
-          return
-        }
-        const tempId = 'temp_' + Date.now()
-        const tempMsg = {
-          id: tempId,
-          content: '[图片]',
-          imageUrl: tempFilePath,
-          isMine: true,
-          senderId: currentUserId,
-          status: 'sent',
-          timeText: '刚刚',
-          createdAt: new Date().toISOString()
-        }
-        const messages = this.data.messages.concat([tempMsg])
-        this.setData({ messages })
-        this.scrollToBottom()
-        messageStore.appendCache(this.data.peerId, tempMsg)
-      }
-    })
+  onLoadMore() {
+    if (this.data.loadingMore || !this.data.hasMore) return
+    this.setData({ loadingMore: true })
+    this.loadMessages(this.data.page + 1).finally(() => this.setData({ loadingMore: false }))
+  },
+
+  scrollToBottom() {
+    setTimeout(() => {
+      const last = this.data.messages[this.data.messages.length - 1]
+      if (last) this.setData({ scrollToView: `msg-${last.id}` })
+    }, 50)
   }
 })

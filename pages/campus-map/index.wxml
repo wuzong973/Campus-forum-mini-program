@@ -1,0 +1,35 @@
+<view class="map-page">
+  <map id="campusMap" class="map" latitude="{{latitude}}" longitude="{{longitude}}" scale="{{scale}}" markers="{{markers}}" polygons="{{polygons}}" enable-satellite="{{satellite}}" show-location enable-zoom enable-scroll bindmarkertap="onMarkerTap"></map>
+
+  <view class="topbar" style="padding-top: {{statusBarHeight}}px;">
+    <view class="back-btn" bindtap="goBack"><text>‹</text></view>
+    <view class="campus-trigger" bindtap="openCampusPicker"><text>{{campus.name}}</text><text class="chevron">⌄</text></view>
+    <view class="top-spacer"></view>
+  </view>
+
+  <view class="map-actions">
+    <view class="map-action toggle-action" bindtap="toggleSatellite">
+      <view class="switch {{satellite ? 'on' : ''}}"><view class="switch-thumb"></view></view>
+      <text>{{satellite ? '切换普通图' : '卫星图'}}</text>
+    </view>
+    <view class="map-action" bindtap="toggleCampus"><text class="action-icon">⌘</text><text>切换校区</text></view>
+    <view class="map-action" bindtap="openPanorama"><text class="action-icon">360</text><text>VR 全景</text></view>
+    <view class="divider"></view>
+    <view class="map-action compact" bindtap="zoom" data-step="1"><text class="zoom-icon">+</text></view>
+    <view class="map-action compact" bindtap="zoom" data-step="-1"><text class="zoom-icon">−</text></view>
+    <view class="map-action compact" bindtap="locateMe"><text class="locate-icon">◎</text></view>
+  </view>
+
+  <view class="place-card">
+    <view class="place-copy"><text class="place-name">{{selectedPlace.name}}</text><text class="place-detail">{{selectedPlace.detail}}</text><text class="place-campus">{{campus.fullName}}</text></view>
+    <view class="route-btn" bindtap="openNavigation">路线</view>
+  </view>
+
+  <view class="picker-mask" wx:if="{{campusPickerVisible}}" bindtap="closeCampusPicker"></view>
+  <view class="campus-sheet {{campusPickerVisible ? 'show' : ''}}">
+    <view class="sheet-handle"></view>
+    <text class="sheet-title">切换校区</text>
+    <view class="campus-option {{campusKey === 'foshan' ? 'selected' : ''}}" data-key="foshan" bindtap="selectCampus"><view><text class="option-name">佛山校区</text><text class="option-address">南海区信息大道中 18 号</text></view><text class="check">{{campusKey === 'foshan' ? '✓' : ''}}</text></view>
+    <view class="campus-option {{campusKey === 'guangzhou' ? 'selected' : ''}}" data-key="guangzhou" bindtap="selectCampus"><view><text class="option-name">广州校区</text><text class="option-address">海珠区新港西路 152 号</text></view><text class="check">{{campusKey === 'guangzhou' ? '✓' : ''}}</text></view>
+  </view>
+</view>

@@ -1,0 +1,18 @@
+<view class="tab-bar">
+  <block wx:for="{{list}}" wx:for-item="tab" wx:for-index="tabIndex" wx:key="pagePath">
+    <view class="tab-item" wx:if="{{tabIndex < 2}}" data-index="{{tabIndex}}" bindtap="onChange">
+      <image class="tab-icon" src="{{selected === tabIndex ? tab.selectedIconPath : tab.iconPath}}" mode="aspectFit"></image>
+      <text class="tab-text" style="color: {{selected === tabIndex ? selectedColor : color}};">{{tab.text}}</text>
+    </view>
+  </block>
+  <view class="publish-slot" catchtap="onPublish">
+    <view class="publish-button">+</view>
+    <text class="publish-text">发帖</text>
+  </view>
+  <block wx:for="{{list}}" wx:for-item="tab" wx:for-index="tabIndex" wx:key="pagePath">
+    <view class="tab-item" wx:if="{{tabIndex >= 2}}" data-index="{{tabIndex}}" bindtap="onChange">
+      <image class="tab-icon" src="{{selected === tabIndex ? tab.selectedIconPath : tab.iconPath}}" mode="aspectFit"></image>
+      <text class="tab-text" style="color: {{selected === tabIndex ? selectedColor : color}};">{{tab.text}}</text>
+    </view>
+  </block>
+</view>

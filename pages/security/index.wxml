@@ -13,10 +13,14 @@
       <text class="delete-title">注销账号</text>
     </view>
     <view class="delete-body">
-      <text class="delete-desc">请注意，一旦您注销账号，所有相关数据都将被永久删除且无法恢复。不过，在账号注销后的7天内，您仍有机会重新登录该账号，并按照提示操作以恢复账号。</text>
+      <text class="delete-desc">提交注销申请后将进入 7 天冷静期。在冷静期内，您可随时撤销申请；期满后平台会按规则处理相关数据。</text>
     </view>
     <view class="delete-btn-wrap">
-      <button class="delete-btn" bindtap="onDeleteAccount">申请注销账号</button>
+      <block wx:if="{{deletionRequest && deletionRequest.status === 'pending'}}">
+        <text class="request-status">注销申请已提交，处理时间：{{deletionRequest.scheduledFor}}</text>
+        <button class="delete-btn cancel-btn" loading="{{loading}}" bindtap="onCancelDeletion">撤销注销申请</button>
+      </block>
+      <button wx:else class="delete-btn" loading="{{loading}}" bindtap="onDeleteAccount">申请注销账号</button>
     </view>
   </view>
 </view>

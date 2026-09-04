@@ -1,5 +1,4 @@
 const api = require("../../utils/api");
-const auth = require("../../utils/auth");
 
 Page({
   data: {
@@ -12,6 +11,7 @@ Page({
     activeTab: 0,
     tabs: ["帖子", "收藏"],
     loading: true,
+    isSelf: false,
   },
 
   onLoad(options) {
@@ -56,6 +56,7 @@ Page({
           profile: mergedProfile,
           posts: posts || [],
           loading: false,
+          isSelf: currentUserProfile,
         });
       })
       .catch(() => {
@@ -68,26 +69,22 @@ Page({
     wx.navigateBack();
   },
 
-  onMessage() {
-    const profile = this.data.profile;
-    if (!profile) return;
-    if (!auth.requireLogin("私信需要先登录")) return;
-    if (profile.id === this.data.currentUserId) {
-      wx.showToast({ title: "这是你自己", icon: "none" });
-      return;
-    }
-    wx.navigateTo({
-      url:
-        "/pages/chat/index?peerId=" +
-        profile.id +
-        "&nick=" +
-        encodeURIComponent(profile.nickName || "用户") +
-        "&avatar=" +
-        encodeURIComponent(profile.avatarUrl || "/assets/icons/avatar.png"),
-    });
-  },
-
   onTab(e) {
     this.setData({ activeTab: Number(e.currentTarget.dataset.index) });
+  },
+
+  onSendMessage() {
+    if (!this.data.currentUserId) {
+      wx.showToast({ title: '请先登录', icon: 'none' });
+      wx.navigateTo({ url: '/pages/login/index' });
+      return;
+    }
+    const profile = this.data.profile;
+    if (!profile) return;
+    wx.navigateTo({
+      url: '/pages/chat/index?peerId=' + this.data.profileId +
+        '&nick=' + encodeURIComponent(profile.nickName || '用户') +
+        '&avatar=' + encodeURIComponent(profile.avatarUrl || '/assets/icons/avatar.png')
+    });
   },
 });

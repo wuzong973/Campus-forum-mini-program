@@ -1,11 +1,9 @@
-<scroll-view wx:if="{{layout === 'scroll'}}" class="service-scroll" scroll-x enable-flex show-scrollbar="{{false}}">
+<scroll-view wx:if="{{layout === 'scroll'}}" class="service-scroll" scroll-x enable-flex show-scrollbar="{{false}}" bindscroll="onScroll">
   <view class="service-strip">
     <view class="service-item service-strip-item" wx:for="{{services}}" wx:key="id" data-item="{{item}}" bindtap="onTap">
       <view class="icon-wrap">
         <image class="service-icon-img" src="{{item.iconPath}}" mode="aspectFit" wx:if="{{item.iconPath}}"></image>
         <text class="icon" wx:else>{{item.icon}}</text>
-        <view class="badge badge-recommend" wx:if="{{item.badge === '推荐'}}">{{item.badge}}</view>
-        <view class="badge badge-new" wx:if="{{item.badge === '新生'}}">{{item.badge}}</view>
       </view>
       <text class="name">{{item.name}}</text>
     </view>
@@ -17,8 +15,6 @@
     <view class="icon-wrap">
       <image class="service-icon-img" src="{{item.iconPath}}" mode="aspectFit" wx:if="{{item.iconPath}}"></image>
       <text class="icon" wx:else>{{item.icon}}</text>
-      <view class="badge badge-recommend" wx:if="{{item.badge === '推荐'}}">{{item.badge}}</view>
-      <view class="badge badge-new" wx:if="{{item.badge === '新生'}}">{{item.badge}}</view>
     </view>
     <text class="name">{{item.name}}</text>
   </view>

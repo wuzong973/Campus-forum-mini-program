@@ -2,6 +2,7 @@ module.exports = {
   apps: [{
     name: 'GQG-campus',
     script: 'app.js',
+    cwd: __dirname,
     instances: 2,
     exec_mode: 'cluster',
     env: {

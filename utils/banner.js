@@ -1,5 +1,3 @@
-const mock = require('./mock')
-
 const THEME_ASSETS = {
   schedule: {
     id: 'schedule',
@@ -102,7 +100,7 @@ function buildHomeBanners(options) {
   const banners = [
     buildScheduleBanner((options && options.courses) || [], now),
     buildCommunityBanner((options && options.posts) || []),
-    buildErrandBanner((options && options.services) || mock.homeServices)
+    buildErrandBanner((options && options.services) || [])
   ]
   return banners.map((item, index) => Object.assign({ order: index }, item))
 }

@@ -1,3 +1,7 @@
+const auth = require('../../utils/auth')
+const request = require('../../utils/request')
+const wechat = require('../../utils/wechat')
+
 Page({
   data: {
     feedbackType: '',
@@ -5,6 +9,7 @@ Page({
     contact: '',
     images: [],
     canSubmit: false,
+    submitting: false,
     typeList: ['功能建议', 'Bug反馈', '体验优化', '其他问题']
   },
 
@@ -56,10 +61,25 @@ Page({
   },
 
   onSubmit() {
-    if (!this.data.canSubmit) return
-    wx.showToast({ title: '反馈已提交', icon: 'success' })
-    setTimeout(() => {
-      wx.navigateBack()
-    }, 1000)
+    if (!this.data.canSubmit || this.data.submitting) return
+    if (!auth.requireLogin('提交反馈前请先登录')) return
+    if (request.USE_MOCK) {
+      wx.showToast({ title: '演示模式暂不支持提交反馈', icon: 'none' })
+      return
+    }
+    this.setData({ submitting: true })
+    wechat.uploadImages(this.data.images)
+      .then((images) => request.post('/feedback', {
+        type: this.data.feedbackType,
+        content: this.data.feedbackContent.trim(),
+        contact: this.data.contact.trim(),
+        images
+      }, true, { showLoading: '提交中...' }))
+      .then(() => {
+        wx.showToast({ title: '反馈已提交', icon: 'success' })
+        setTimeout(() => wx.navigateBack(), 900)
+      })
+      .catch((error) => wx.showToast({ title: error.message || '提交失败，请稍后重试', icon: 'none' }))
+      .finally(() => this.setData({ submitting: false }))
   }
 })

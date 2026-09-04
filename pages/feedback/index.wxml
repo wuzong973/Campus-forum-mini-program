@@ -46,6 +46,6 @@
 
   <!-- 提交按钮 -->
   <view class="submit-wrap">
-    <button class="submit-btn {{canSubmit ? 'active' : 'disabled'}}" bindtap="onSubmit">提交反馈</button>
+    <button class="submit-btn {{canSubmit ? 'active' : 'disabled'}}" loading="{{submitting}}" disabled="{{!canSubmit || submitting}}" bindtap="onSubmit">提交反馈</button>
   </view>
 </view>

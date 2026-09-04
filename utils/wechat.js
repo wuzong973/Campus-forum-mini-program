@@ -9,31 +9,6 @@ function phoneLogin(phoneCode) {
           reject(new Error("登录失败"));
           return;
         }
-        if (request.USE_MOCK) {
-          const mockUser = {
-            id: 1,
-            nickName: "校园用户",
-            avatarUrl: "",
-            phone: "13800138000",
-            token: "mock_token_" + Date.now(),
-          };
-          request
-            .post(
-              "/user/dev-login",
-              { phone: mockUser.phone, nickName: mockUser.nickName },
-              false,
-              { silent: true },
-            )
-            .then((user) => {
-              auth.saveUser(user || mockUser);
-              resolve(user || mockUser);
-            })
-            .catch(() => {
-              auth.saveUser(mockUser);
-              resolve(mockUser);
-            });
-          return;
-        }
         request
           .post(
             "/user/phone-login",
@@ -52,34 +27,41 @@ function phoneLogin(phoneCode) {
 }
 
 function checkContent(content) {
-  if (request.USE_MOCK) return Promise.resolve({ safe: true });
   return request
-    .post("/user/content-check", { content }, true, { silent: true })
-    .catch(() => ({ safe: true }));
+    .post("/user/content-check", { content }, true, { silent: true });
+}
+
+function updatePhone(phoneCode) {
+  return request.post('/user/phone', { phoneCode }, true)
 }
 
 function uploadImages(filePaths) {
-  if (request.USE_MOCK) return Promise.resolve(filePaths);
   const inst = getApp();
   const base = request.BASE_URL.replace("/api/v1", "");
   return Promise.all(
     filePaths.map(
       (filePath) =>
-        new Promise((resolve) => {
+        new Promise((resolve, reject) => {
           wx.uploadFile({
             url: base + "/api/v1/user/upload/image",
             filePath,
             name: "file",
             header: { Authorization: "Bearer " + inst.globalData.token },
+            timeout: 20000,
             success(res) {
               try {
                 const data = JSON.parse(res.data);
-                resolve(data.data && data.data.url ? data.data.url : filePath);
+                if (res.statusCode < 200 || res.statusCode >= 300 || !data.data || !data.data.url) {
+                  reject(new Error((data && data.message) || '图片上传失败'))
+                  return
+                }
+                const url = data.data.url;
+                resolve(url.indexOf('/') === 0 ? base + url : url);
               } catch (e) {
-                resolve(filePath);
+                reject(new Error('图片上传响应无效'))
               }
             },
-            fail: () => resolve(filePath),
+            fail: (error) => reject(new Error(error.errMsg || '图片上传失败')),
           });
         }),
     ),
@@ -90,4 +72,4 @@ function previewImages(urls, current) {
   wx.previewImage({ urls, current: current || urls[0] });
 }
 
-module.exports = { phoneLogin, checkContent, uploadImages, previewImages };
+module.exports = { phoneLogin, checkContent, updatePhone, uploadImages, previewImages };

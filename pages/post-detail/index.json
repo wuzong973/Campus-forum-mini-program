@@ -1,3 +1,6 @@
 {
-  "navigationBarTitleText": "帖子详情"
+  "navigationBarTitleText": "帖子详情",
+  "usingComponents": {
+    "share-popup": "/components/share-popup/share-popup"
+  }
 }

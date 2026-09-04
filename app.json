@@ -10,9 +10,14 @@
     "pages/errand/index",
     "pages/errand-publish/index",
     "pages/errand-order/index",
+    "pages/errand-detail/index",
+    "pages/rider-verify/index",
+    "pages/repair/index",
+    "pages/campus-map/index",
     "pages/post-publish/index",
     "pages/post-detail/index",
     "pages/share/index",
+    "pages/poster/index",
     "pages/chat/index",
     "pages/profile/index",
     "pages/profile-edit/index",
@@ -31,55 +36,61 @@
     "pages/my-messages/index",
     "pages/wallet/index",
     "pages/webview/index",
-    "pages/logs/logs"
+    "pages/logs/logs",
+    "pages/admin/index"
   ],
   "window": {
     "navigationBarTextStyle": "white",
-    "navigationBarTitleText": "广轻工",
+    "navigationBarTitleText": "Campus",
     "navigationBarBackgroundColor": "#7DD3C0",
     "backgroundColor": "#F5F7FA",
     "backgroundTextStyle": "dark"
   },
   "tabBar": {
+    "custom": true,
     "color": "#969799",
     "selectedColor": "#4A7AFF",
     "backgroundColor": "#FFFFFF",
     "borderStyle": "black",
     "list": [
-      {
-        "pagePath": "pages/index/index",
-        "text": "首页",
-        "iconPath": "assets/tabbar/home.png",
-        "selectedIconPath": "assets/tabbar/home-active.png"
-      },
-      {
-        "pagePath": "pages/schedule/index",
-        "text": "课程表",
-        "iconPath": "assets/tabbar/schedule.png",
-        "selectedIconPath": "assets/tabbar/schedule-active.png"
-      },
-      {
-        "pagePath": "pages/errand/index",
-        "text": "代拿跑腿",
-        "iconPath": "assets/tabbar/errand.png",
-        "selectedIconPath": "assets/tabbar/errand-active.png"
-      },
-      {
-        "pagePath": "pages/user/index",
-        "text": "我的",
-        "iconPath": "assets/tabbar/user.png",
-        "selectedIconPath": "assets/tabbar/user-active.png"
-      }
+      { "pagePath": "pages/index/index", "text": "Home", "iconPath": "assets/tabbar/home.png", "selectedIconPath": "assets/tabbar/home-active.png" },
+      { "pagePath": "pages/schedule/index", "text": "Schedule", "iconPath": "assets/tabbar/schedule.png", "selectedIconPath": "assets/tabbar/schedule-active.png" },
+      { "pagePath": "pages/errand/index", "text": "Errand", "iconPath": "assets/tabbar/errand.png", "selectedIconPath": "assets/tabbar/errand-active.png" },
+      { "pagePath": "pages/user/index", "text": "Profile", "iconPath": "assets/tabbar/user.png", "selectedIconPath": "assets/tabbar/user-active.png" }
     ]
   },
+  "permission": {
+    "scope.userLocation": { "desc": "用于校园地图定位" }
+  },
+  "requiredPrivateInfos": ["chooseLocation", "getLocation"],
   "style": "v2",
   "sitemapLocation": "sitemap.json",
   "lazyCodeLoading": "requiredComponents",
-  "navigateToMiniProgramAppIdList": [
-    "wx4f4f74eaf4b7d100",
-    "wxe9f4a4df3ac90522",
-    "wx7b3c69b4b6b348d5",
-    "wx2cd0769ebeb0d213",
-    "wxbe48d181d8d5762e"
-  ]
+  "navigateToMiniProgramAppIdList": ["wx4f4f74eaf4b7d100", "wxe9f4a4df3ac90522", "wx7b3c69b4b6b348d5", "wx2cd0769ebeb0d213", "wxbe48d181d8d5762e"],
+  "__privacy_info__": {
+    "desc": "校园小程序需要收集您的个人信息以提供服务",
+    "apis": [
+      {
+        "api": "wx.getLocation",
+        "purpose": "用于校园地图定位功能"
+      },
+      {
+        "api": "wx.chooseLocation",
+        "purpose": "用于选择地址信息"
+      },
+      {
+        "api": "wx.getPhoneNumber",
+        "purpose": "用于手机号快捷登录"
+      },
+      {
+        "api": "wx.chooseMedia",
+        "purpose": "用于上传图片内容"
+      },
+      {
+        "api": "wx.saveImageToPhotosAlbum",
+        "purpose": "用于保存图片到相册"
+      }
+    ],
+    "privacyFilePath": "pages/privacy/index"
+  }
 }

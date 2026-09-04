@@ -1,5 +1,6 @@
 const request = require('./request')
 const loginExpiry = require('./login-expiry')
+const syncQueue = require('./syncQueue')
 
 function getAppSafe() {
   try {
@@ -20,6 +21,7 @@ function requireLogin(message) {
     title: '提示',
     content: message || '请先登录后再操作',
     confirmText: '去登录',
+    cancelText: '取消',
     success(res) {
       if (res.confirm) wx.navigateTo({ url: '/pages/login/index' })
     }
@@ -59,6 +61,33 @@ function requirePublishReady() {
   return false
 }
 
+function getRunnerVerification() {
+  const verification = wx.getStorageSync('runner_verification') || {}
+  const app = getAppSafe()
+  const user = (app && app.globalData.userInfo) || wx.getStorageSync('userInfo') || {}
+  return {
+    campusVerified: !!verification.campusVerified,
+    realNameVerified: !!verification.realNameVerified,
+    phoneBound: !!user.phone
+  }
+}
+
+function requireRunnerReady() {
+  if (!requireLogin('接单需要先登录')) return false
+  const status = getRunnerVerification()
+  if (status.campusVerified && status.realNameVerified && status.phoneBound) return true
+  wx.showModal({
+    title: '接单提示',
+    content: '认证以后马上就能接单赚钱 💰 前往认证>>>',
+    cancelText: '取消',
+    confirmText: '前往',
+    success(res) {
+      if (res.confirm) wx.navigateTo({ url: '/pages/rider-verify/index' })
+    }
+  })
+  return false
+}
+
 function saveUser(user) {
   const app = getAppSafe()
   if (!app) return
@@ -75,7 +104,8 @@ function saveUser(user) {
     campus: user.campus,
     phone: user.phone,
     school: user.school || '广东轻工职业技术大学',
-    isVerified: user.isVerified || user.is_verified
+    isVerified: user.isVerified || user.is_verified,
+    role: user.role || 'user'
   }
   app.globalData.userInfo = info
   wx.setStorageSync('userInfo', info)
@@ -94,21 +124,30 @@ function logout() {
 }
 
 function syncProfile(fields) {
+  if (request.USE_MOCK) {
+    saveUser({ ...getAppSafe().globalData.userInfo, ...fields })
+    return Promise.resolve({ queued: false })
+  }
   if (!isLoggedIn()) {
     saveUser({ ...getAppSafe().globalData.userInfo, ...fields })
     return Promise.resolve()
   }
-  return request.put('/user/info', {
+  const payload = {
     nickName: fields.nickName,
     avatarUrl: fields.avatarUrl,
     gender: fields.gender,
-    campus: fields.campus,
-    phone: fields.phone
-  }).then(() => {
+    campus: fields.campus
+  }
+  Object.keys(payload).forEach((key) => payload[key] === undefined && delete payload[key])
+  return request.put('/user/info', payload, true, { retryable: true, idempotencyKey: `profile_${Date.now()}` }).then(() => {
     saveUser({ ...getAppSafe().globalData.userInfo, ...fields })
-  }).catch(() => {
+    return { queued: false }
+  }).catch((error) => {
+    if (!error.isNetwork) throw error
+    syncQueue.queueProfile(payload)
     saveUser({ ...getAppSafe().globalData.userInfo, ...fields })
+    return { queued: true }
   })
 }
 
-module.exports = { isLoggedIn, requireLogin, requirePublishReady, getMissingProfileFields, saveUser, logout, syncProfile }
+module.exports = { isLoggedIn, requireLogin, requirePublishReady, requireRunnerReady, getRunnerVerification, getMissingProfileFields, saveUser, logout, syncProfile }

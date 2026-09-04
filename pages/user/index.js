@@ -7,9 +7,9 @@ Page({
     statusBarHeight: 20,
     userInfo: null,
     isLogin: false,
+    isAdmin: false,
     unreadCount: 0,
     shortcuts: [
-      { icon: "/assets/icons/wallet.png", name: "钱包" },
       { icon: "/assets/icons/order.png", name: "订单" },
       { icon: "/assets/icons/post.png", name: "帖子" },
       { icon: "/assets/icons/message.png", name: "消息" },
@@ -21,20 +21,23 @@ Page({
       favorited: 0,
     },
     interactionShortcuts: [
-      { key: "liked", icon: "/assets/icons/heart.png", name: "已点赞" },
+      { key: "liked", icon: "/assets/icons/heart-outline.png", name: "已点赞" },
       { key: "shared", icon: "/assets/icons/share.png", name: "已转发" },
       { key: "commented", icon: "/assets/icons/comment.png", name: "已评论" },
-      { key: "favorited", icon: "/assets/icons/star.png", name: "已收藏" },
+      { key: "favorited", icon: "/assets/icons/star-outline.png", name: "已收藏" },
     ],
     menus: [
       { icon: "/assets/icons/edit.png", name: "编辑个人主页" },
-      { icon: "/assets/icons/service.png", name: "联系客服" },
+      { icon: "/assets/icons/service.png", name: "联系管理员" },
       { icon: "/assets/icons/feedback.png", name: "用户反馈" },
       { icon: "/assets/icons/help.png", name: "常见问题" },
     ],
   },
 
   onLoad() {
+    this.setData({
+      shortcuts: [{ icon: '/assets/icons/wallet.png', name: '钱包' }].concat(this.data.shortcuts)
+    });
     // 注册实时消息回调，更新消息红点
     this.unsubscribe = messageStore.onMessage(() => {
       this.setData({ unreadCount: messageStore.getUnreadTotal() });
@@ -46,6 +49,8 @@ Page({
   },
 
   onShow() {
+    const tabBar = this.getTabBar && this.getTabBar()
+    if (tabBar) tabBar.setSelected(3)
     const app = getApp();
     const userInfo = Object.assign(
       { school: "广东轻工职业技术大学" },
@@ -55,6 +60,7 @@ Page({
       statusBarHeight: app.globalData.statusBarHeight,
       userInfo,
       isLogin: !!app.globalData.token,
+      isAdmin: ['super_admin', 'content_admin', 'user_admin', 'operator'].indexOf(userInfo.role) >= 0,
       unreadCount: messageStore.getUnreadTotal(),
     });
     this.loadInteractionStats();
@@ -72,11 +78,19 @@ Page({
     wx.navigateTo({ url: "/pages/settings/index" });
   },
 
+  goAdmin() {
+    if (!this.data.isLogin || !this.data.isAdmin) {
+      wx.showToast({ title: '无管理员权限', icon: 'none' });
+      return;
+    }
+    wx.navigateTo({ url: '/pages/admin/index' });
+  },
+
   onMenuTap(e) {
     const name = e.currentTarget.dataset.name;
     const routes = {
       编辑个人主页: "/pages/profile-edit/index",
-      联系客服: "/pages/feedback/index",
+      联系管理员: "/pages/chat/index?type=customer_service",
       用户反馈: "/pages/feedback/index",
       常见问题: "/pages/help/index",
     };
@@ -85,6 +99,13 @@ Page({
       wx.navigateTo({ url });
     } else {
       wx.showToast({ title: name, icon: "none" });
+    }
+  },
+
+  onCustomerServiceContact(e) {
+    const result = (e.detail || {}).errMsg || "";
+    if (result.indexOf("fail") !== -1) {
+      wx.showToast({ title: "客服暂不可用，请稍后重试", icon: "none" });
     }
   },
 

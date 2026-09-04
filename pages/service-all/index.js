@@ -1,19 +1,18 @@
 const api = require('../../utils/api')
 
 Page({
-  data: { sections: [], loading: true },
+  data: { sections: [], loading: true, loadError: false },
 
   onLoad() {
+    this.loadServices()
+  },
+
+  loadServices() {
+    this.setData({ loading: true, loadError: false })
     api.getServiceList().then((data) => {
-      const sections = Array.isArray(data) && data[0] && data[0].title
-        ? data
-        : require('../../utils/mock').allServiceSections
-      this.setData({ sections, loading: false })
+      this.setData({ sections: Array.isArray(data) ? data : [], loading: false })
     }).catch(() => {
-      this.setData({
-        sections: require('../../utils/mock').allServiceSections,
-        loading: false
-      })
+      this.setData({ sections: [], loading: false, loadError: true })
     })
   },
 
@@ -39,6 +38,10 @@ Page({
     }
     // 跳转到外部 H5 页面（订水系统 / 教务系统 等）
     if (item.link) {
+      if (!/^https:\/\//i.test(item.link)) {
+        wx.showToast({ title: '该服务链接暂不可用', icon: 'none' })
+        return
+      }
       wx.vibrateShort({ type: 'light' })
       wx.navigateTo({
         url: '/pages/webview/index?url=' + encodeURIComponent(item.link) + '&title=' + encodeURIComponent(item.name)
@@ -48,11 +51,14 @@ Page({
     const routes = {
       '代拿跑腿': '/pages/errand/index',
       '课程表': '/pages/schedule/index',
-      '社区论坛': '/pages/index/index'
+      '社区论坛': '/pages/index/index',
+      '广轻维修': '/pages/repair/index',
+      '校园地图': '/pages/campus-map/index'
     }
     const url = routes[item.name]
     if (url) {
-      wx.switchTab({ url })
+      if (url === '/pages/repair/index' || url === '/pages/campus-map/index') wx.navigateTo({ url })
+      else wx.switchTab({ url })
     } else {
       wx.showToast({ title: item.name + ' 即将上线', icon: 'none' })
     }

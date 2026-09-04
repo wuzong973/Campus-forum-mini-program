@@ -7,9 +7,7 @@ const PENDING_POST_KEY = 'home_pending_post'
 
 Page({
   data: {
-    statusBarHeight: 20,
-    navBarHeight: 44,
-    categories: ['日常生活', '吃瓜爆料', '打听求助', '二手', '日常分享', '旧书交易'],
+    categories: ['日常话题', '表白交友', '二手闲置', '失物寻物', '树洞吐槽', '组队拼车'],
     categoryIndex: -1,
     tempCategoryIndex: -1,
     title: '',
@@ -18,21 +16,23 @@ Page({
     mediaList: [],
     canSubmit: false,
     showTagPicker: false,
+    showContactSheet: false,
+    contactName: '',
+    contactType: '手机号码',
+    contactTypes: ['手机号码', '微信账号', 'QQ账号'],
+    contactValue: '',
+    contactSummary: '方便其他同学联系',
+    secondIdentity: false,
     submitting: false,
     lastSubmitPayload: null,
     submitError: ''
   },
 
   onLoad() {
-    const app = getApp()
     if (!auth.requirePublishReady()) {
       setTimeout(() => wx.navigateBack(), 500)
       return
     }
-    this.setData({
-      statusBarHeight: app.globalData.statusBarHeight,
-      navBarHeight: app.globalData.navBarHeight
-    })
     this.restoreDraft()
   },
 
@@ -45,6 +45,13 @@ Page({
       categoryIndex: draft.categoryIndex === undefined ? -1 : draft.categoryIndex,
       mediaList: draft.mediaList || [],
       images: (draft.mediaList || []).map((item) => item.path),
+      contactName: draft.contactName || '',
+      contactType: draft.contactType || '手机号码',
+      contactValue: draft.contactValue || '',
+      contactSummary: draft.contactName && draft.contactValue
+        ? draft.contactName + ' · ' + (draft.contactType || '手机号码')
+        : '方便其他同学联系',
+      secondIdentity: !!draft.secondIdentity,
       canSubmit: !!(draft.content && draft.content.trim() && draft.categoryIndex >= 0)
     })
   },
@@ -55,6 +62,10 @@ Page({
       content: this.data.content,
       categoryIndex: this.data.categoryIndex,
       mediaList: this.data.mediaList,
+      contactName: this.data.contactName,
+      contactType: this.data.contactType,
+      contactValue: this.data.contactValue,
+      secondIdentity: this.data.secondIdentity,
       ts: Date.now()
     })
   },
@@ -62,6 +73,8 @@ Page({
   goBack() {
     wx.navigateBack()
   },
+
+  noop() {},
 
   onTitleInput(e) {
     this.setData({ title: e.detail.value })
@@ -83,6 +96,52 @@ Page({
 
   closeTagPicker() {
     this.setData({ showTagPicker: false })
+  },
+
+  openContactSheet() {
+    this.setData({ showContactSheet: true })
+  },
+
+  closeContactSheet() {
+    this.setData({ showContactSheet: false })
+  },
+
+  updateContactSummary() {
+    const { contactName, contactType, contactValue } = this.data
+    const contactSummary = contactName && contactValue
+      ? contactName + ' · ' + contactType
+      : '方便其他同学联系'
+    this.setData({ contactSummary })
+  },
+
+  onContactNameInput(e) {
+    this.setData({ contactName: e.detail.value }, () => { this.updateContactSummary(); this.saveDraft() })
+  },
+
+  onContactTypeSelect(e) {
+    this.setData({ contactType: e.currentTarget.dataset.value }, () => { this.updateContactSummary(); this.saveDraft() })
+  },
+
+  onContactValueInput(e) {
+    this.setData({ contactValue: e.detail.value }, () => { this.updateContactSummary(); this.saveDraft() })
+  },
+
+  confirmContact() {
+    if (!this.data.contactName.trim() || !this.data.contactValue.trim()) {
+      wx.showToast({ title: '请填写联系人和联系方式', icon: 'none' })
+      return
+    }
+    this.updateContactSummary()
+    this.setData({ showContactSheet: false })
+  },
+
+  onSecondIdentityChange(e) {
+    this.setData({ secondIdentity: !!e.detail.value })
+    this.saveDraft()
+  },
+
+  openRules() {
+    wx.navigateTo({ url: '/pages/rules/index' })
   },
 
   onTempTagSelect(e) {
@@ -145,7 +204,12 @@ Page({
         category: this.data.categories[this.data.categoryIndex],
         content,
         images: imageUrls,
-        videos: videoUrls
+        videos: videoUrls,
+        contact: this.data.contactName && this.data.contactValue ? {
+          name: this.data.contactName.trim(),
+          type: this.data.contactType,
+          value: this.data.contactValue.trim()
+        } : null
       }
       this.setData({ lastSubmitPayload: payload, submitError: '' })
       if (!request.USE_MOCK) {
@@ -157,6 +221,7 @@ Page({
           userId: (getApp().globalData.userInfo || {}).id || 0,
           nickName: (getApp().globalData.userInfo || {}).nickName || '我',
           avatarUrl: (getApp().globalData.userInfo || {}).avatarUrl || '',
+          campus: (getApp().globalData.userInfo || {}).campus || '',
           title: this.data.title.trim(),
           category: this.data.categories[this.data.categoryIndex],
           content: content,
@@ -167,6 +232,12 @@ Page({
           favoriteCount: 0,
           isLiked: false,
           isFavorited: false,
+          contact: this.data.contactName && this.data.contactValue ? {
+            name: this.data.contactName.trim(),
+            type: this.data.contactType,
+            value: this.data.contactValue.trim()
+          } : null,
+          isSecondIdentity: this.data.secondIdentity,
           createdAt: new Date().toISOString()
         }
         mock.posts.unshift(newPost)

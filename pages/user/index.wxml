@@ -42,13 +42,31 @@
     </view>
   </view>
 
-  <view class="menu card">
-    <view class="menu-item flex-between" wx:for="{{menus}}" wx:key="name" data-name="{{item.name}}" bindtap="onMenuTap">
-      <view class="flex-row">
-        <image class="menu-icon-img" src="{{item.icon}}" mode="aspectFit"></image>
-        <text class="menu-name">{{item.name}}</text>
-      </view>
-      <text class="arrow">></text>
+  <view wx:if="{{isAdmin}}" class="admin-entry card flex-between" bindtap="goAdmin">
+    <view>
+      <text class="admin-entry-title">管理后台</text>
+      <text class="admin-entry-desc">内容、用户、配置与运营数据</text>
     </view>
+    <text class="arrow">></text>
+  </view>
+
+  <view class="menu card">
+    <block wx:for="{{menus}}" wx:key="name">
+      <view wx:if="{{item.name === '联系管理员'}}" class="menu-item flex-between customer-service-row">
+        <view class="flex-row">
+          <image class="menu-icon-img" src="{{item.icon}}" mode="aspectFit"></image>
+          <text class="menu-name">{{item.name}}</text>
+        </view>
+        <text class="arrow">></text>
+        <button class="customer-service-hit" open-type="contact" bindcontact="onCustomerServiceContact" aria-label="联系管理员"></button>
+      </view>
+      <view wx:else class="menu-item flex-between" data-name="{{item.name}}" bindtap="onMenuTap">
+        <view class="flex-row">
+          <image class="menu-icon-img" src="{{item.icon}}" mode="aspectFit"></image>
+          <text class="menu-name">{{item.name}}</text>
+        </view>
+        <text class="arrow">></text>
+      </view>
+    </block>
   </view>
 </view>

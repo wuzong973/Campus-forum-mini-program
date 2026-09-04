@@ -1,0 +1,51 @@
+<view class="page">
+  <view class="loading" wx:if="{{loading}}">加载中...</view>
+  <view wx:if="{{order && !loading}}">
+    <view class="section card">
+      <view class="header-row">
+        <text class="status {{order.status}}">{{order.status === 'pending' ? '待接单' : (order.status === 'accepted' ? '已接单' : order.status)}}</text>
+        <text class="reward">¥{{order.reward}}</text>
+      </view>
+      <text class="title">{{order.title}}</text>
+      <text class="created">发布于 {{order.createdText}}</text>
+    </view>
+
+    <view class="section card">
+      <view class="section-title">订单信息</view>
+      <view class="detail-row"><text class="detail-label">类型</text><text>{{order.type}}</text></view>
+      <view class="detail-row"><text class="detail-label">校区</text><text>{{order.campus}}</text></view>
+      <view class="detail-row"><text class="detail-label">取件地址</text><text class="detail-value">{{order.pickupAddr}}</text></view>
+      <view class="detail-row"><text class="detail-label">送达地址</text><text class="detail-value">{{order.deliveryAddr}}</text></view>
+      <view class="detail-row"><text class="detail-label">取件时间</text><text>{{order.pickupTimeType === '预约' ? order.appointmentText : '尽快'}}</text></view>
+      <view class="detail-row"><text class="detail-label">性别限制</text><text>{{order.genderRequirement}}</text></view>
+      <view class="detail-row" wx:if="{{canViewRemark && order.receiverName}}"><text class="detail-label">收件人</text><text>{{order.receiverName}}</text></view>
+      <view class="detail-row" wx:if="{{canViewRemark && order.receiverPhone}}"><text class="detail-label">联系电话</text><text>{{order.receiverPhone}}</text></view>
+      <view class="detail-row" wx:if="{{canViewRemark && order.deliveryBuilding}}"><text class="detail-label">楼栋宿舍</text><text>{{order.deliveryBuilding}} {{order.deliveryRoom}}</text></view>
+    </view>
+
+    <view class="section card" wx:if="{{canViewRemark && order.description}}">
+      <view class="section-title">订单说明</view>
+      <text class="remark">{{order.description}}</text>
+    </view>
+
+    <view class="section card" wx:if="{{canViewRemark && order.remark}}">
+      <view class="section-title">发单者备注</view>
+      <text class="remark">{{order.remark}}</text>
+    </view>
+    <view class="remark-locked" wx:if="{{!canViewRemark}}">接单后可查看发单者备注</view>
+
+    <button class="accept-btn" bindtap="onAccept" loading="{{accepting}}" wx:if="{{order.status === 'pending' && !order.isOwner}}">接单</button>
+    <button class="review-btn" bindtap="openReview" wx:if="{{order.status === 'finished' && order.role !== 'viewer'}}">评价订单</button>
+  </view>
+
+  <view class="review-mask" wx:if="{{showReview}}" catchtap="closeReview">
+    <view class="review-panel" catchtap="noop">
+      <view class="section-title">评价订单</view>
+      <view class="rating-row">
+        <text wx:for="{{[1,2,3,4,5]}}" wx:key="*this" class="star {{item <= reviewRating ? 'selected' : ''}}" data-rating="{{item}}" bindtap="chooseRating">★</text>
+      </view>
+      <textarea class="review-input" placeholder="写下本次体验（选填）" maxlength="200" value="{{reviewContent}}" bindinput="onReviewInput" />
+      <view class="review-actions"><button class="cancel-review" bindtap="closeReview">取消</button><button class="confirm-review" loading="{{reviewing}}" bindtap="submitReview">提交</button></view>
+    </view>
+  </view>
+</view>

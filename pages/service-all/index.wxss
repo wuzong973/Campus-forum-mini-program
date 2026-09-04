@@ -6,6 +6,17 @@
     linear-gradient(180deg, #eef4ff 0%, #f4f6fa 420rpx, #f4f6fa 100%);
 }
 
+.page-state {
+  padding: 96rpx 24rpx;
+  text-align: center;
+  color: var(--text-tertiary);
+  font-size: 28rpx;
+}
+
+.page-state.retry {
+  color: var(--primary);
+}
+
 .section {
   margin-bottom: 24rpx;
   padding: 30rpx 22rpx 26rpx;

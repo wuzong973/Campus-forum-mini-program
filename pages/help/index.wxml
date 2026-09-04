@@ -23,7 +23,7 @@
     <view class="faq-item" wx:for="{{filteredFaqs}}" wx:key="id">
       <view class="faq-question" bindtap="onToggleFaq" data-id="{{item.id}}">
         <text class="faq-question-text">{{item.question}}</text>
-        <text class="faq-arrow {{item.expanded ? 'expanded' : ''}}">∨</text>
+        <text class="faq-arrow {{item.expanded ? 'expanded' : ''}}"></text>
       </view>
       <view class="faq-answer {{item.expanded ? 'show' : ''}}">
         <text class="faq-answer-text">{{item.answer}}</text>
@@ -31,9 +31,9 @@
     </view>
   </view>
 
-  <!-- 底部联系客服 -->
+  <!-- 底部操作区 -->
   <view class="bottom-contact">
     <text class="contact-hint">仍有问题？</text>
-    <button class="contact-btn" bindtap="onContactService">联系客服</button>
+    <button class="contact-btn" open-type="contact" bindcontact="onContactService">联系管理员</button>
   </view>
 </view>

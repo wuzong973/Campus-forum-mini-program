@@ -1,12 +1,21 @@
 const express = require('express')
 const router = express.Router()
 const errandController = require('../controllers/errandController')
-const { auth } = require('../middleware/auth')
+const paymentController = require('../controllers/paymentController')
+const { auth, optionalAuth } = require('../middleware/auth')
 const contentSecurity = require('../middleware/contentSecurity')
+const idempotency = require('../middleware/idempotency')
 
-router.get('/list', errandController.list)
+router.get('/list', optionalAuth, errandController.list)
+router.get('/my-published', auth, errandController.myPublished)
+router.get('/my-accepted', auth, errandController.myAccepted)
+router.get('/:id/payment-status', auth, paymentController.queryErrandPaymentStatus)
+router.get('/:id', auth, errandController.detail)
 router.post('/', auth, contentSecurity, errandController.create)
+router.post('/:id/pay', auth, idempotency, paymentController.createErrandPayment)
 router.post('/:id/accept', auth, errandController.accept)
 router.post('/:id/finish', auth, errandController.finish)
+router.post('/:id/cancel', auth, idempotency, paymentController.cancelErrand)
+router.post('/:id/review', auth, contentSecurity, errandController.review)
 
 module.exports = router

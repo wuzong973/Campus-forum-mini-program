@@ -1,5 +1,7 @@
 {
   "navigationBarTitleText": "搜索",
+  "navigationBarBackgroundColor": "#B9DCFB",
+  "navigationBarTextStyle": "black",
   "usingComponents": {
     "post-card": "/components/post-card/post-card",
     "empty-state": "/components/empty-state/empty-state"

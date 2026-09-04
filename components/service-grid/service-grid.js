@@ -8,6 +8,15 @@ Component({
     onTap(e) {
       const item = e.currentTarget.dataset.item
       this.triggerEvent('tap', { item })
+    },
+
+    onScroll(e) {
+      const detail = e.detail || {}
+      this.triggerEvent('scroll', {
+        scrollLeft: detail.scrollLeft || 0,
+        scrollWidth: detail.scrollWidth || 0,
+        clientWidth: detail.clientWidth || 0
+      })
     }
   }
 })

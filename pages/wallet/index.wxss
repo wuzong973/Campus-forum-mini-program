@@ -19,8 +19,27 @@
   color: #fff;
   font-size: 72rpx;
   font-weight: 700;
-  margin: 16rpx 0 32rpx;
+  margin: 16rpx 0;
 }
+
+.balance-meta {
+  display: flex;
+  flex-direction: column;
+  color: rgba(255, 255, 255, 0.86);
+  font-size: 24rpx;
+  line-height: 1.6;
+}
+
+.withdraw-btn {
+  width: 100%;
+  margin-top: 28rpx;
+  color: #3264d9;
+  background: #fff;
+  border-radius: 8rpx;
+  font-size: 28rpx;
+}
+
+.withdraw-btn::after, .sheet-actions button::after { border: none; }
 
 .balance-actions {
   display: flex;
@@ -43,6 +62,77 @@
 }
 
 .action-btn::after { border: none; }
+
+/* 提现规则说明区域 */
+.rules-section {
+  margin-bottom: 32rpx;
+  padding: 28rpx 24rpx;
+}
+
+.rules-header {
+  margin-bottom: 20rpx;
+  padding-bottom: 16rpx;
+  border-bottom: 1rpx solid #f0f2f5;
+}
+
+.rules-title {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.rules-list {
+  display: flex;
+  flex-direction: column;
+  gap: 20rpx;
+}
+
+.rule-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 16rpx;
+  padding: 16rpx 0;
+}
+
+.rule-icon-wrap {
+  width: 64rpx;
+  height: 64rpx;
+  border-radius: 14rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.rule-icon-balance { background: #e8f4fd; }
+.rule-icon-limit { background: #e8f8f0; }
+.rule-icon-time { background: #fff8e1; }
+.rule-icon-arrival { background: #f3e8ff; }
+.rule-icon-fee { background: #fce4ec; }
+
+.rule-icon {
+  font-size: 32rpx;
+}
+
+.rule-content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6rpx;
+}
+
+.rule-label {
+  font-size: 26rpx;
+  font-weight: 600;
+  color: #323233;
+}
+
+.rule-value {
+  font-size: 22rpx;
+  color: #8a94a6;
+  line-height: 1.5;
+}
 
 .section-title {
   margin-bottom: 16rpx;
@@ -78,3 +168,32 @@
   text-align: center;
   padding: 48rpx;
 }
+
+.mask { position: fixed; inset: 0; z-index: 10; background: rgba(0, 0, 0, .42); }
+.withdraw-sheet { position: fixed; z-index: 11; bottom: 0; left: 0; right: 0; box-sizing: border-box; padding: 36rpx 32rpx 48rpx; background: #fff; border-radius: 16rpx 16rpx 0 0; }
+.sheet-title { font-size: 34rpx; font-weight: 600; color: #1f2937; }
+.amount-input-row { display: flex; align-items: center; margin-top: 28rpx; border-bottom: 2rpx solid #e5e7eb; font-size: 48rpx; color: #1f2937; }
+.amount-input-row input { flex: 1; height: 90rpx; margin-left: 16rpx; font-size: 40rpx; }
+.available-tip { display: block; margin-top: 16rpx; font-size: 24rpx; color: #8a94a6; }
+
+/* 提现弹窗内的规则说明 */
+.sheet-rules {
+  display: flex;
+  flex-direction: column;
+  gap: 8rpx;
+  margin-top: 20rpx;
+  padding: 16rpx;
+  background: #f7f8fa;
+  border-radius: 12rpx;
+}
+
+.sheet-rule-text {
+  font-size: 22rpx;
+  color: #8a94a6;
+  line-height: 1.6;
+}
+
+.sheet-actions { display: flex; gap: 20rpx; margin-top: 40rpx; }
+.sheet-actions button { flex: 1; border-radius: 8rpx; font-size: 28rpx; }
+.sheet-cancel { color: #596579; background: #f1f4f8; }
+.sheet-submit { color: #fff; background: #4a7aff; }

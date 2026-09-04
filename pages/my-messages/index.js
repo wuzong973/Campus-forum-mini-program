@@ -7,6 +7,7 @@ Page({
     activeTab: 0,
     tabs: ['私信', '评论', '点赞', '系统'],
     messages: [],
+    allMessages: [],
     conversations: []
   },
 
@@ -18,12 +19,14 @@ Page({
       if (payload.type === 'new_message' || payload.type === 'message') {
         this.loadConversations()
       }
+      if (payload.type === 'notification') this.loadInteractMessages()
     })
   },
 
   onShow() {
     // 每次显示刷新会话列表
     this.loadConversations()
+    this.loadInteractMessages()
     messageStore.syncUnreadCount()
   },
 
@@ -32,12 +35,21 @@ Page({
   },
 
   loadInteractMessages() {
-    const stored = wx.getStorageSync('user_messages') || [
-      { id: 1, type: 'comment', title: '评论提醒', content: '校友 回复了你的帖子', time: '2小时前', read: false },
-      { id: 2, type: 'like', title: '点赞提醒', content: '有人赞了你的帖子', time: '昨天', read: true },
-      { id: 3, type: 'system', title: '系统通知', content: '课程表智能识别功能已上线', time: '3天前', read: true }
-    ]
-    this.setData({ messages: stored })
+    if (request.USE_MOCK) {
+      const stored = wx.getStorageSync('user_messages') || []
+      this.setInteractionMessages(stored)
+      return
+    }
+    request.get('/notification', { page: 1, pageSize: 50 }, true, { silent: true }).then((res) => {
+      this.setInteractionMessages((res.list || []).map((item) => ({
+        id: item.id,
+        type: item.type,
+        title: item.title,
+        content: item.content,
+        read: !!item.isRead,
+        time: format.formatRelativeTime(item.createdAt)
+      })))
+    }).catch(() => {})
   },
 
   loadConversations() {
@@ -66,7 +78,7 @@ Page({
   },
 
   onTab(e) {
-    this.setData({ activeTab: parseInt(e.currentTarget.dataset.tab, 10) })
+    this.setData({ activeTab: parseInt(e.currentTarget.dataset.tab, 10) }, () => this.filterInteractionMessages())
   },
 
   onOpenChat(e) {
@@ -81,9 +93,34 @@ Page({
   },
 
   onReadAll() {
-    const messages = this.data.messages.map((m) => Object.assign({}, m, { read: true }))
-    wx.setStorageSync('user_messages', messages)
+    const done = () => {
+      const messages = this.data.allMessages.map((m) => Object.assign({}, m, { read: true }))
+      this.setInteractionMessages(messages)
+      wx.showToast({ title: '已全部标记为已读', icon: 'success' })
+    }
+    if (request.USE_MOCK) {
+      wx.setStorageSync('user_messages', this.data.allMessages.map((m) => Object.assign({}, m, { read: true })))
+      done()
+      return
+    }
+    request.put('/notification/read-all', {}, true).then(done).catch(() => {})
+  },
+
+  onOpenNotification(e) {
+    const id = e.currentTarget.dataset.id
+    const messages = this.data.allMessages.map((item) => Number(item.id) === Number(id) ? Object.assign({}, item, { read: true }) : item)
+    this.setInteractionMessages(messages)
+    if (!request.USE_MOCK) request.put('/notification/' + id + '/read', {}, true, { silent: true }).catch(() => {})
+  },
+
+  setInteractionMessages(messages) {
+    this.setData({ allMessages: messages }, () => this.filterInteractionMessages())
+  },
+
+  filterInteractionMessages() {
+    const types = [null, 'comment', 'like', 'system']
+    const type = types[this.data.activeTab]
+    const messages = !type ? this.data.allMessages : this.data.allMessages.filter((item) => type === 'system' ? ['system', 'errand', 'repair'].includes(item.type) : item.type === type)
     this.setData({ messages })
-    wx.showToast({ title: '已全部标记为已读', icon: 'success' })
   }
 })

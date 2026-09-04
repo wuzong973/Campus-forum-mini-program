@@ -4,7 +4,6 @@ const request = require('../../utils/request')
 const format = require('../../utils/format')
 
 const POSTS_CACHE_KEY = 'home_posts_cache'
-const POSTS_CACHE_TTL = 5 * 60 * 1000 // 5 分钟缓存
 const PENDING_POST_KEY = 'home_pending_post'
 
 Page({
@@ -18,8 +17,14 @@ Page({
     notice: '课表 AI 识别、社区私信链路和校园服务导航已完成新一轮优化升级',
     services: [],
     allServices: [],
+    serviceIndicators: [0, 1, 2, 3, 4],
+    serviceIndicatorCurrent: 0,
     categories: [],
     activeCategory: 0,
+    isHotCategory: false,
+    hotPeriod: 'today',
+    hotPosts: [],
+    hotLoading: false,
     posts: [],
     page: 1,
     pageSize: 10,
@@ -44,9 +49,11 @@ Page({
     commentSheetLoading: false,
     commentSheetEmojiVisible: false,
     commentSheetFocus: false,
+    serviceLoading: false,
+    serviceLoadFailed: false,
     commentSheetEmojis: [
-      '😀', '😂', '😍', '🥰', '😎',
-      '😭', '👍', '👏', '🙏', '🔥',
+      '😀', '', '😍', '🥰', '😎',
+      '😭', '', '👏', '🙏', '🔥',
       '❤️', '🎉', '🥹', '😊', '😴',
       '💪', '✨', '📚', '🏃', '☕'
     ]
@@ -60,11 +67,14 @@ Page({
       reminderEnabled: !!(app.globalData.scheduleConfig || {}).reminder
     })
     this.loadStaticData()
+    this.loadServices()
     this.loadPosts(true)
     this.loadTodaySchedule()
   },
 
   onShow() {
+    const tabBar = this.getTabBar && this.getTabBar()
+    if (tabBar) tabBar.setSelected(0)
     // 每次回到首页刷新课表提醒开关状态和课表数据
     const app = getApp()
     const reminderEnabled = !!(app.globalData.scheduleConfig || {}).reminder
@@ -73,6 +83,7 @@ Page({
     }
     this.loadTodaySchedule()
     this.consumePendingPost()
+    if (this.data.isHotCategory) this.loadHotPosts()
   },
 
   consumePendingPost() {
@@ -80,16 +91,35 @@ Page({
     if (!post || !post.id) return
     wx.removeStorageSync(PENDING_POST_KEY)
     const exists = this.data.posts.some((item) => item.id === post.id)
-    const posts = exists ? this.data.posts : [post].concat(this.data.posts)
+    const normalizedPost = api.normalizePost(post)
+    const posts = exists ? this.data.posts : [normalizedPost].concat(this.data.posts)
     this.setData({ posts, skeleton: false })
     this.updateBanners()
   },
 
   // 加载当天课程
   loadTodaySchedule() {
-    api.getScheduleList().then((courses) => {
+    const app = getApp()
+    // 课程表属于个人数据。首页对游客保持可浏览，不能因后台课表请求
+    // 返回 401 而跳转到登录页。
+    if (!app.globalData.token) {
+      this.setData({
+        scheduleCourses: [],
+        todayCourses: [],
+        scheduleEmpty: true,
+        scheduleRemainText: ''
+      })
+      this.updateBanners()
+      return
+    }
+
+    api.getScheduleList({ silent: true }).then((courses) => {
       this.setData({ scheduleCourses: courses || [] })
       this.renderTodaySchedule(courses || [])
+      this.updateBanners()
+    }).catch(() => {
+      // A stale login only hides personal schedule data on the public home page.
+      this.setData({ scheduleCourses: [], todayCourses: [], scheduleEmpty: true })
       this.updateBanners()
     })
   },
@@ -146,17 +176,74 @@ Page({
 
   // 静态数据立即渲染，提升首屏速度
   loadStaticData() {
-    const mock = require('../../utils/mock')
-    // 合并所有服务为一维数组
-    const allServices = mock.allServiceSections.reduce((acc, section) => {
-      return acc.concat(section.items || [])
-    }, [])
     this.setData({
-      services: mock.homeServices,
-      allServices,
-      categories: mock.categories,
-      banners: bannerUtil.buildHomeBanners({ services: mock.homeServices })
+      services: [],
+      allServices: [],
+      serviceIndicatorCurrent: 0,
+      categories: ['最新', '最热', '日常话题', '表白交友', '二手闲置', '失物寻物', '树洞吐槽', '组队拼车'],
+      banners: bannerUtil.buildHomeBanners({ services: [] })
     })
+  },
+
+  loadServices() {
+    this.setData({ serviceLoading: true, serviceLoadFailed: false })
+    api.getServiceList().then((sections) => {
+      const normalized = Array.isArray(sections) ? sections : []
+      const allServices = normalized.reduce((items, section) => items.concat(section.items || []), [])
+      const campusServices = (normalized.find((section) => section.title === '校园服务') || {}).items || allServices
+      const uniqueServices = this.uniqueServices(allServices)
+      this.setData({
+        services: campusServices,
+        allServices: uniqueServices,
+        serviceIndicatorCurrent: 0,
+        serviceLoading: false,
+        serviceLoadFailed: false
+      })
+      this.updateBanners()
+    }).catch(() => {
+      this.setData({ serviceLoading: false, serviceLoadFailed: true })
+    })
+  },
+
+  uniqueServices(services) {
+    const unique = []
+    const seen = {}
+    ;(services || []).forEach((item) => {
+      const key = String(item.id || item.name || unique.length)
+      if (seen[key]) return
+      seen[key] = true
+      unique.push(item)
+    })
+    return unique
+  },
+
+  onServiceScroll(e) {
+    const detail = e.detail || {}
+    const scrollLeft = Number(detail.scrollLeft) || 0
+    const scrollWidth = Number(detail.scrollWidth) || 0
+    const clientWidth = Number(detail.clientWidth) || 0
+    const indicatorCount = this.data.serviceIndicators.length
+
+    // Scroll events expose the content and viewport widths in the mini-program
+    // runtime. Fall back to the visible item width when running in older tools.
+    const windowWidth = (wx.getSystemInfoSync().windowWidth || 375)
+    const rpx = windowWidth / 750
+    const columnCount = Math.ceil(this.data.allServices.length / 2)
+    const stripWidth = (columnCount * 126 + Math.max(0, columnCount - 1) * 16 + 8) * rpx
+    const viewportWidth = Math.max(0, windowWidth - 84 * rpx)
+    const fallbackMaxScroll = Math.max(0, stripWidth - viewportWidth)
+    const measuredMaxScroll = scrollWidth > clientWidth && clientWidth > 0
+      ? scrollWidth - clientWidth
+      : fallbackMaxScroll
+    const maxScroll = Math.max(1, measuredMaxScroll)
+    const current = Math.min(
+      indicatorCount - 1,
+      Math.round((scrollLeft / maxScroll) * (indicatorCount - 1))
+    )
+
+    if (current !== this.data.serviceIndicatorCurrent) {
+      this.setData({ serviceIndicatorCurrent: current })
+    }
   },
 
   updateBanners() {
@@ -171,21 +258,9 @@ Page({
 
   // 优先读取本地缓存秒开，再后台静默刷新
   loadPosts(reset) {
-    if (reset) {
-      const cached = wx.getStorageSync(POSTS_CACHE_KEY)
-      if (cached && cached.list && Date.now() - cached.ts < POSTS_CACHE_TTL) {
-        this.setData({
-          posts: cached.list,
-          page: 1,
-          hasMore: true,
-          skeleton: false
-        })
-        this.updateBanners()
-        // 静默刷新，不显示骨架屏
-        this.fetchPosts(1, true, true)
-        return
-      }
-    }
+    // Derived home data is never used as an authority. Clear old fixture/cache
+    // data and render only the current response from the backend.
+    if (reset) wx.removeStorageSync(POSTS_CACHE_KEY)
     this.fetchPosts(1, true, false)
   },
 
@@ -195,7 +270,8 @@ Page({
       : ''
     if (!silent) this.setData({ loading: true })
     api.getPostList({ page, pageSize: this.data.pageSize, category }).then((res) => {
-      const list = reset ? res.list : this.data.posts.concat(res.list)
+      const normalizedList = (res.list || []).map((item) => api.normalizePost(item))
+      const list = reset ? normalizedList : this.data.posts.concat(normalizedList)
       this.setData({
         posts: list,
         page,
@@ -206,7 +282,6 @@ Page({
       this.updateBanners()
       // 首页数据写入本地缓存
       if (reset && category === '') {
-        wx.setStorageSync(POSTS_CACHE_KEY, { list, ts: Date.now() })
       }
     }).catch(() => {
       this.setData({ loading: false, skeleton: false })
@@ -222,11 +297,23 @@ Page({
     this._scrollTick = now
     if (scrollTop === this._lastScrollTop) return
     this._lastScrollTop = scrollTop
-    const isAtTop = scrollTop < 100
-    const showFloatBtns = scrollTop > 400
+    const isAtTop = scrollTop < 8
+    const showFloatBtns = scrollTop > 80
     if (isAtTop !== this.data.isAtTop || showFloatBtns !== this.data.showFloatBtns) {
       this.setData({ isAtTop, showFloatBtns })
     }
+  },
+
+  // Enhanced scroll-view can delay scroll events in developer tools, so show the control on the first swipe as well.
+  onContentTouchMove() {
+    if (!this.data.showFloatBtns) {
+      this.setData({ isAtTop: false, showFloatBtns: true })
+    }
+  },
+
+  onContentScrollToUpper() {
+    this._lastScrollTop = 0
+    this.setData({ isAtTop: true, showFloatBtns: false })
   },
 
   onScrollToTop() {
@@ -243,7 +330,8 @@ Page({
   },
 
   onRefresh() {
-    this.fetchPosts(1, true, true)
+    if (this.data.isHotCategory) this.loadHotPosts()
+    else this.fetchPosts(1, true, true)
     wx.showToast({ title: '已刷新', icon: 'success' })
   },
 
@@ -276,9 +364,22 @@ Page({
   onServiceTap(e) {
     const item = (e.detail && e.detail.item) || (e.currentTarget && e.currentTarget.dataset && e.currentTarget.dataset.item)
     if (!item) return
-    // 代拿跑腿：跳转到外部小程序「递至·校园代拿」
+    // 代拿跑腿：跳转到内部跑腿页面
     if (item.name === '代拿跑腿') {
-      this.openErrandMini()
+      wx.switchTab({ url: '/pages/errand/index' })
+      return
+    }
+    // 图书馆：跳转至超星图书馆H5页面
+    if (item.name === '图书馆') {
+      wx.navigateTo({ url: '/pages/webview/index?url=' + encodeURIComponent('https://mobilelib.wx.chaoxing.com/weixin/hall/showNew9?pid=529&type=9') + '&title=图书馆' })
+      return
+    }
+    if (item.name === '广轻维修') {
+      wx.navigateTo({ url: '/pages/repair/index' })
+      return
+    }
+    if (item.name === '校园地图') {
+      wx.navigateTo({ url: '/pages/campus-map/index' })
       return
     }
     // 跳转到外部小程序（乘车码 / 食堂菜单 等）
@@ -301,6 +402,10 @@ Page({
     }
     // 跳转到外部 H5 页面（订水系统 / 教务系统 等）
     if (item.link) {
+      if (!/^https:\/\//i.test(item.link)) {
+        wx.showToast({ title: '该服务链接暂不可用', icon: 'none' })
+        return
+      }
       wx.vibrateShort({ type: 'light' })
       wx.navigateTo({
         url: '/pages/webview/index?url=' + encodeURIComponent(item.link) + '&title=' + encodeURIComponent(item.name)
@@ -323,34 +428,6 @@ Page({
     }
   },
 
-  // 跳转到「递至·校园代拿」小程序
-  // 注意：wx.navigateToMiniProgram 必须提供目标小程序的 appId
-  openErrandMini() {
-    const ERRAND_APP_ID = 'wx4f4f74eaf4b7d100' // 「递至·校园代拿」小程序
-    const ERRAND_PATH = ''  // 可选：目标小程序的落地页路径，留空进默认首页
-    console.log('[代拿跑腿] 点击触发，准备跳转 appId=', ERRAND_APP_ID)
-    wx.vibrateShort({ type: 'light' })
-    wx.showLoading({ title: '正在跳转...', mask: true })
-    wx.navigateToMiniProgram({
-      appId: ERRAND_APP_ID,
-      path: ERRAND_PATH || undefined,
-      envVersion: 'release',
-      success() {
-        console.log('[代拿跑腿] 跳转成功')
-        wx.hideLoading()
-      },
-      fail(err) {
-        console.error('[代拿跑腿] 跳转失败', err)
-        wx.hideLoading()
-        wx.showModal({
-          title: '跳转失败',
-          content: '错误信息：' + (err && err.errMsg ? err.errMsg : JSON.stringify(err)) + '\n\n可能原因：\n1. 目标小程序未发布上线\n2. 开发者工具需真机预览\n3. app.json 改动后需完整重新编译',
-          showCancel: false
-        })
-      }
-    })
-  },
-
   goSearch() {
     wx.navigateTo({ url: '/pages/search/index' })
   },
@@ -364,8 +441,32 @@ Page({
   onCategoryTap(e) {
     const index = e.currentTarget.dataset.index
     if (index === this.data.activeCategory) return
-    this.setData({ activeCategory: index, page: 1, skeleton: true })
-    this.fetchPosts(1, true, false)
+    const isHotCategory = this.data.categories[index] === '最热'
+    this.setData({ activeCategory: index, page: 1, skeleton: !isHotCategory, isHotCategory })
+    if (isHotCategory) this.loadHotPosts()
+    else this.fetchPosts(1, true, false)
+  },
+
+  onHotPeriodTap(e) {
+    const hotPeriod = e.currentTarget.dataset.period
+    if (!hotPeriod || hotPeriod === this.data.hotPeriod) return
+    this.setData({ hotPeriod })
+    this.loadHotPosts()
+  },
+
+  loadHotPosts() {
+    this.setData({ hotLoading: true })
+    api.getHotPostRank(this.data.hotPeriod).then((res) => {
+      const hotPosts = (res.list || []).map((post) => Object.assign({}, post, {
+        rankTimeText: format.formatRelativeTime(post.createdAt) || '刚刚'
+      }))
+      this.setData({ hotPosts, hotLoading: false, skeleton: false })
+    }).catch(() => this.setData({ hotLoading: false, skeleton: false }))
+  },
+
+  onHotPostTap(e) {
+    const id = e.currentTarget.dataset.id
+    if (id) wx.navigateTo({ url: '/pages/post-detail/index?id=' + id })
   },
 
   onPostLike(e) {
@@ -388,6 +489,15 @@ Page({
     this.setData({ posts })
   },
 
+  onPostReviewNote(e) {
+    const { postId, reviewNote } = e.detail || {}
+    if (!postId) return
+    const posts = this.data.posts.map((item) => item.id === postId
+      ? Object.assign({}, item, { reviewNote })
+      : item)
+    this.setData({ posts })
+  },
+
   onPostPin(e) {
     const postId = e.detail.postId
     if (!postId) return
@@ -402,7 +512,6 @@ Page({
     posts.splice(index, 1)
     posts.unshift(pinned)
     this.setData({ posts, scrollTop: 0, isAtTop: true })
-    wx.setStorageSync(POSTS_CACHE_KEY, { list: posts, ts: Date.now() })
     wx.vibrateShort({ type: 'light' })
     wx.showToast({ title: '已置顶到一楼', icon: 'success' })
   },
@@ -418,11 +527,16 @@ Page({
       content: c.content || '',
       images: c.images || [],
       parentNickName: c.parent_nick_name || c.parentNickName || '',
-      timeText: c.timeText || format.formatRelativeTime(c.created_at || c.createdAt || new Date()),
+      timeText: c.timeText || format.formatDateTime(c.created_at || c.createdAt || new Date()),
       createdAt: c.created_at || c.createdAt,
       likeCount: c.like_count || c.likeCount || 0,
       isLiked: !!(c.is_liked || c.isLiked)
     }
+  },
+
+  onCommentAvatarTap(e) {
+    const userId = e.currentTarget.dataset.userid
+    if (userId) wx.navigateTo({ url: '/pages/profile/index?id=' + userId })
   },
 
   onPostComment(e) {
@@ -517,7 +631,6 @@ Page({
       patch.commentSheetPost = updatedPost
     }
     this.setData(patch)
-    wx.setStorageSync(POSTS_CACHE_KEY, { list: posts, ts: Date.now() })
   },
 
   onSheetSendComment() {
@@ -594,6 +707,7 @@ Page({
   },
 
   onReachBottom() {
+    if (this.data.isHotCategory) return
     if (!this.data.hasMore || this.data.loading) return
     this.fetchPosts(this.data.page + 1, false, false)
   }

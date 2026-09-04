@@ -1,51 +1,53 @@
-<view class="errand-card card">
+<view class="errand-card card" bindtap="onOpen">
   <view class="card-header">
-    <view class="type-tag">{{order.type}}</view>
     <view class="status-badge status-{{order.statusClass || order.status}}">{{statusText}}</view>
+    <text class="header-time">{{timeText}}</text>
   </view>
 
   <view class="title-row">
-    <text class="title ellipsis">{{order.title}}</text>
+    <view class="title-with-campus">
+      <text class="title ellipsis">{{order.title}}</text>
+      <text class="campus-tag" wx:if="{{order.campus}}">{{order.campus}}</text>
+    </view>
     <text class="reward">¥{{order.reward}}</text>
   </view>
-  <view class="desc ellipsis-2" wx:if="{{order.desc}}">{{order.desc}}</view>
-
   <view class="addr-row">
     <text class="addr-label">取</text>
-    <text class="addr-text ellipsis">{{order.pickupAddr}}</text>
+    <text class="addr-text">{{order.pickupAddr}}</text>
   </view>
   <view class="addr-row">
     <text class="addr-label delivery">送</text>
-    <text class="addr-text ellipsis">{{order.deliveryAddr}}</text>
+    <text class="addr-text">{{order.deliveryAddr}}</text>
   </view>
 
-  <view class="tags" wx:if="{{order.itemCount || order.timeLimit || order.genderReq || order.noUpstairs}}">
+  <view class="tags" wx:if="{{order.itemCount || order.timeLimit || order.genderReq || order.extraTags}}">
     <view class="tag" wx:if="{{order.itemCount}}">
       <text class="tag-emoji">📦</text>
       <text>{{order.itemCount}}件</text>
     </view>
-    <view class="tag" wx:if="{{order.timeLimit && order.timeLimit !== '不限时间'}}">
-      <text class="tag-emoji">⏱</text>
+    <view class="tag" wx:if="{{order.timeLimit}}">
+      <text class="tag-emoji"></text>
       <text>{{order.timeLimit}}</text>
     </view>
-    <view class="tag" wx:if="{{order.genderReq && order.genderReq !== '不限性别'}}">
-      <text class="tag-emoji">👤</text>
+    <view class="tag" wx:if="{{order.genderReq}}">
+      <text class="tag-emoji"></text>
       <text>{{order.genderReq}}</text>
     </view>
-    <view class="tag tag-warn" wx:if="{{order.noUpstairs}}">
-      <text class="tag-emoji">🚫</text>
-      <text>不上楼</text>
+    <view class="tag" wx:for="{{order.extraTags}}" wx:key="*this">
+      <text class="tag-emoji"></text>
+      <text>{{item}}</text>
     </view>
   </view>
 
   <view class="card-footer">
     <view class="footer-user">
       <text class="user-name">{{order.publisherName}}</text>
-      <text class="time-text">{{timeText}}</text>
     </view>
     <view class="footer-actions">
+      <button class="action-btn accept-btn" size="mini" catchtap="onPay" wx:if="{{order.status === 'unpaid' && order.role === 'publisher'}}">去支付</button>
       <button class="action-btn accept-btn" size="mini" catchtap="onAccept" wx:if="{{order.status === 'pending' && order.role !== 'publisher'}}">接单</button>
       <button class="action-btn finish-btn" size="mini" catchtap="onFinish" wx:if="{{order.status === 'accepted' && order.role === 'accepter'}}">完成</button>
+      <button class="action-btn cancel-btn" size="mini" catchtap="onCancel" wx:if="{{showCancel}}">取消订单</button>
       <button class="action-btn contact-btn" size="mini" catchtap="onContact" wx:if="{{order.role && order.status !== 'done'}}">联系</button>
       <text class="done-tag" wx:if="{{order.status === 'done'}}">已完成</text>
     </view>
