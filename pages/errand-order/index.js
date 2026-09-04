@@ -1,5 +1,6 @@
 const auth = require('../../utils/auth')
 const request = require('../../utils/request')
+const { runPullDownRefresh } = require('../../utils/refresh')
 
 Page({
   data: {
@@ -28,6 +29,10 @@ Page({
 
   onShow() {
     this.refresh()
+  },
+
+  onPullDownRefresh() {
+    runPullDownRefresh(this, () => this.refresh())
   },
 
   refresh() {
@@ -212,6 +217,10 @@ Page({
 
   onFinish(e) {
     const order = e.detail.order
+    if (order && order.id) {
+      wx.navigateTo({ url: '/pages/errand-complete/index?id=' + order.id })
+      return
+    }
     if (request.USE_MOCK) {
       wx.chooseMedia({
         count: 1,
@@ -269,6 +278,10 @@ Page({
 
   onCancel(e) {
     const order = e.detail.order
+    if (order && order.id) {
+      wx.navigateTo({ url: '/pages/errand-cancel/index?id=' + order.id })
+      return
+    }
     if (request.USE_MOCK) {
       if (order.role === 'accepter') {
         const acceptedAt = order.acceptedAt || order.createdAt

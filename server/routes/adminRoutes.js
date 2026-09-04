@@ -28,5 +28,7 @@ router.put('/users/:id/role', requireAdmin('role.assign'), controller.updateUser
 router.put('/users/:id/cert-label', requireAdmin('user.manage'), controller.updateUserCertLabel)
 router.get('/withdrawals', requireAdmin('payment.manage'), walletController.listWithdrawals)
 router.post('/withdrawals/:id/review', requireAdmin('payment.manage'), walletController.reviewWithdrawal)
+router.get('/rider-verifications', requireAdmin('user.manage'), controller.listRiderVerifications)
+router.post('/rider-verifications/:id/review', requireAdmin('user.manage'), controller.reviewRiderVerification)
 
 module.exports = router

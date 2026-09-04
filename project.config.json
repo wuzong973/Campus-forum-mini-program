@@ -18,6 +18,86 @@
       {
         "value": "generate_icons.py",
         "type": "file"
+      },
+      {
+        "value": "docs",
+        "type": "folder"
+      },
+      {
+        "value": "others",
+        "type": "folder"
+      },
+      {
+        "value": ".env",
+        "type": "file"
+      },
+      {
+        "value": ".env.example",
+        "type": "file"
+      },
+      {
+        "value": "README.md",
+        "type": "file"
+      },
+      {
+        "value": "LICENSE",
+        "type": "file"
+      },
+      {
+        "value": "deploy.ps1",
+        "type": "file"
+      },
+      {
+        "value": "deploy.py",
+        "type": "file"
+      },
+      {
+        "value": "verify.py",
+        "type": "file"
+      },
+      {
+        "value": "gen_icon.bat",
+        "type": "file"
+      },
+      {
+        "value": "gen_icon.js",
+        "type": "file"
+      },
+      {
+        "value": "gen_icon.py",
+        "type": "file"
+      },
+      {
+        "value": "gen_scroll_top.bat",
+        "type": "file"
+      },
+      {
+        "value": "gen_scroll_top.py",
+        "type": "file"
+      },
+      {
+        "value": "icon_gen.html",
+        "type": "file"
+      },
+      {
+        "value": "git-push.bat",
+        "type": "file"
+      },
+      {
+        "value": "git-push.ps1",
+        "type": "file"
+      },
+      {
+        "value": "private.upload.key",
+        "type": "file"
+      },
+      {
+        "value": "avatar2/name.txt",
+        "type": "file"
+      },
+      {
+        "value": "%SystemDrive%",
+        "type": "folder"
       }
     ],
     "include": []

@@ -28,5 +28,7 @@ module.exports = {
   updateUserRole: (id, role) => put('/users/' + id + '/role', { role }),
   withdrawals: (data) => get('/withdrawals', data),
   reviewWithdrawal: (id, action, note) => post('/withdrawals/' + id + '/review', { action, note: note || '' }),
-  updateCertLabel: (id, certLabel) => put('/users/' + id + '/cert-label', { certLabel: certLabel || '' })
+  updateCertLabel: (id, certLabel) => put('/users/' + id + '/cert-label', { certLabel: certLabel || '' }),
+  riderVerifications: (data) => get('/rider-verifications', data),
+  reviewRiderVerification: (id, action, note) => post('/rider-verifications/' + id + '/review', { action, note: note || '' })
 }

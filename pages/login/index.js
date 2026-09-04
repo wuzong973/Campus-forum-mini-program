@@ -1,5 +1,6 @@
 const wechat = require("../../utils/wechat");
 const auth = require("../../utils/auth");
+const { runPullDownRefresh } = require("../../utils/refresh");
 
 Page({
   data: {
@@ -104,5 +105,9 @@ Page({
   // 取消登录，返回首页
   onCancel() {
     wx.switchTab({ url: '/pages/index/index' });
+  },
+
+  onPullDownRefresh() {
+    runPullDownRefresh(this);
   }
 });

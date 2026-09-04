@@ -1,6 +1,7 @@
 const mock = require('../../utils/mock')
 const request = require('../../utils/request')
 const scheduleUtils = require('../../utils/schedule')
+const { runPullDownRefresh } = require('../../utils/refresh')
 
 const TIME_PRESETS = [
   { label: '1-2节', startTime: '08:30', endTime: '09:55' },
@@ -28,6 +29,10 @@ Page({
     weeks: Array.from({ length: 20 }, (_, i) => i + 1),
     colors: mock.courseColors,
     selectedColor: mock.courseColors[0]
+  },
+
+  onPullDownRefresh() {
+    runPullDownRefresh(this)
   },
 
   onInput(e) {

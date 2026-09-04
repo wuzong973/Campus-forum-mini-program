@@ -140,11 +140,16 @@ async function notifyTechnician(order) {
   const staff = staffRows[0]
   const appointmentTime = new Date(order.appointment_time).toLocaleString('zh-CN', { hour12: false })
   if (staff) {
-    await createPrivateMessage(
-      order.user_id,
-      staff.id,
-      `新的维修预约：${order.device_type}，预约时间 ${appointmentTime}，地址：${order.service_address}。`
-    )
+    try {
+      await createPrivateMessage(
+        order.user_id,
+        staff.id,
+        `新的维修预约：${order.device_type}，预约时间 ${appointmentTime}，地址：${order.service_address}。`
+      )
+    } catch (error) {
+      // 站内信发送失败（如黑名单拦截）不影响维修预约流程
+      console.error('[RepairNotify]', order.order_no, error.message)
+    }
   }
   try {
     await wechat.notifyRepairTechnician(order, staff)

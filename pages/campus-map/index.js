@@ -1,3 +1,5 @@
+const { runPullDownRefresh } = require('../../utils/refresh')
+
 const PANORAMA_URL = 'https://www.720yun.com/t/32c23qigylw?scene_id=982404'
 
 const CAMPUSES = {
@@ -87,6 +89,10 @@ Page({
     campusPickerVisible: false,
     selectedPlace: { name: CAMPUSES.foshan.places[0][0], latitude: CAMPUSES.foshan.places[0][1], longitude: CAMPUSES.foshan.places[0][2], detail: CAMPUSES.foshan.places[0][3] },
     locating: false
+  },
+
+  onPullDownRefresh() {
+    runPullDownRefresh(this)
   },
 
   onLoad() {

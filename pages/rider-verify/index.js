@@ -1,6 +1,7 @@
 const auth = require('../../utils/auth')
 const wechat = require('../../utils/wechat')
 const request = require('../../utils/request')
+const { runPullDownRefresh } = require('../../utils/refresh')
 
 const VERIFY_KEY = 'runner_verification'
 
@@ -20,7 +21,9 @@ Page({
     identityCredential: '',
     campusAgreed: false,
     realAgreed: false,
-    submitting: false
+    submitting: false,
+    showContactPopup: false,
+    showQrPopup: false
   },
 
   onLoad() {
@@ -30,10 +33,35 @@ Page({
       navBarHeight: app.globalData.navBarHeight
     })
     this.refreshVerification()
+    this.loadServerVerification()
   },
 
   onShow() {
     this.refreshVerification()
+    this.loadServerVerification()
+  },
+
+  onPullDownRefresh() {
+    runPullDownRefresh(this, () => this.loadServerVerification())
+  },
+
+  loadServerVerification() {
+    if (request.USE_MOCK) return
+    request.get('/user/rider-verification', {}, true)
+      .then((data) => {
+        if (data && data.status) {
+          const saved = wx.getStorageSync(VERIFY_KEY) || {}
+          wx.setStorageSync(VERIFY_KEY, Object.assign({}, saved, {
+            verificationStatus: data.status,
+            reviewNote: data.reviewNote || ''
+          }))
+          this.setData({
+            verificationStatus: data.status,
+            reviewNote: data.reviewNote || ''
+          })
+        }
+      })
+      .catch(() => {})
   },
 
   refreshVerification() {
@@ -43,6 +71,8 @@ Page({
       campusVerified: status.campusVerified,
       realNameVerified: status.realNameVerified,
       phoneBound: status.phoneBound,
+      verificationStatus: saved.verificationStatus || status.verificationStatus || 'none',
+      reviewNote: saved.reviewNote || status.reviewNote || '',
       campusName: saved.campusName || this.data.campusName,
       studentId: saved.studentId || this.data.studentId,
       campusCredential: saved.campusCredential || this.data.campusCredential,
@@ -134,7 +164,7 @@ Page({
   },
 
   submitRealName() {
-    const { realName, identityNumber, identityCredential, realAgreed, studentId } = this.data
+    const { realName, identityNumber, identityCredential, realAgreed, studentId, campusName, campusCredential, phoneBound } = this.data
     if (!realName.trim() || !identityNumber.trim()) {
       wx.showToast({ title: '请填写真实姓名和身份证号', icon: 'none' })
       return
@@ -151,18 +181,32 @@ Page({
       wx.showToast({ title: '请阅读并同意相关协议', icon: 'none' })
       return
     }
+    if (!phoneBound) {
+      wx.showToast({ title: '请先绑定联系手机号', icon: 'none' })
+      return
+    }
     this.setData({ submitting: true })
-    const finish = () => {
+    const finish = (data) => {
       this.saveVerification({ realNameVerified: true, realName: realName.trim(), identityNumber: identityNumber.trim(), identityCredential })
-      this.setData({ realNameVerified: true, stage: 'overview', submitting: false })
-      wx.showToast({ title: '实名认证已完成', icon: 'success' })
+      this.setData({ realNameVerified: true, stage: 'overview', submitting: false, verificationStatus: 'pending' })
+      wx.showToast({ title: data && data.message || '认证信息已提交，等待审核', icon: 'success' })
     }
     if (request.USE_MOCK) {
       finish()
       return
     }
-    request.post('/user/verify', { studentId: studentId.trim(), realName: realName.trim() }, true)
-      .then(finish)
+    const app = getApp()
+    const userInfo = app.globalData.userInfo || wx.getStorageSync('userInfo') || {}
+    request.post('/user/rider-verification', {
+      campusName: campusName.trim(),
+      studentId: studentId.trim(),
+      campusCredential,
+      realName: realName.trim(),
+      identityNumber: identityNumber.trim(),
+      identityCredential,
+      phone: userInfo.phone || ''
+    }, true)
+      .then((data) => finish(data))
       .catch((error) => {
         this.setData({ submitting: false })
         wx.showToast({ title: error.message || '认证提交失败', icon: 'none' })
@@ -182,10 +226,6 @@ Page({
       this.setData({ phoneBound: true })
       wx.showToast({ title: '联系手机号已绑定', icon: 'success' })
     }).catch((error) => wx.showToast({ title: error.message || '手机号绑定失败', icon: 'none' }))
-  },
-
-  contactAdmin() {
-    wx.navigateTo({ url: '/pages/chat/index?peerId=1&nick=' + encodeURIComponent('校园客服') })
   },
 
   openAgreement() {

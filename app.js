@@ -2,6 +2,7 @@ const messageStore = require('./utils/messageStore')
 const loginExpiry = require('./utils/login-expiry')
 const syncQueue = require('./utils/syncQueue')
 const share = require('./utils/share')
+const avatar = require('./utils/avatar')
 
 // 为所有页面提供默认分享配置，页面可自行定义同名生命周期来覆盖默认行为。
 const originalPage = Page
@@ -56,6 +57,12 @@ App({
     // 3. 重新读取 token（可能已被清理）
     const token = wx.getStorageSync('token')
     const userInfo = wx.getStorageSync('userInfo')
+    const defaultProfile = avatar.getDefaultProfile()
+    if (userInfo) {
+      if (!avatar.isStoredAvatar(userInfo.avatarUrl)) userInfo.avatarUrl = defaultProfile.avatarUrl
+      if (avatar.isDefaultName(userInfo.nickName)) userInfo.nickName = defaultProfile.nickName
+      wx.setStorageSync('userInfo', userInfo)
+    }
     const scheduleConfig = wx.getStorageSync('scheduleConfig')
     if (token) {
       this.globalData.token = token

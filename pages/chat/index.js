@@ -1,6 +1,7 @@
 const messageStore = require('../../utils/messageStore')
 const wechat = require('../../utils/wechat')
 const request = require('../../utils/request')
+const { runPullDownRefresh } = require('../../utils/refresh')
 
 function formatTime(value) {
   const date = value ? new Date(value) : new Date()
@@ -12,6 +13,13 @@ Page({
   data: {
     peerId: 0,
     otherUser: {},
+    anonymousMode: false,
+    canSend: true,
+    peerBlocked: false,
+    blockedByPeer: false,
+    blocking: false,
+    pendingMessageId: 0,
+    recalling: false,
     messages: [],
     inputValue: '',
     activePanel: '',
@@ -35,7 +43,8 @@ Page({
     let legacyUser = {}
     try { legacyUser = JSON.parse(decodeURIComponent(options.otherUser || '{}')) } catch (e) {}
     const peerId = parseInt(options.peerId || legacyUser.id, 10)
-    const otherUser = {
+    const anonymousMode = options.anonymous === '1'
+    const otherUser = anonymousMode ? { nickname: '匿名用户', avatar: '/assets/icons/avatar.png' } : {
       nickname: options.nick || legacyUser.nickname || '维修人员',
       avatar: options.avatar || legacyUser.avatar || '/assets/icons/repair-logo.jpg'
     }
@@ -44,10 +53,12 @@ Page({
       setTimeout(() => wx.navigateBack(), 300)
       return
     }
-    this.setData({ peerId, otherUser })
-    wx.setNavigationBarTitle({ title: otherUser.nickname })
+    this.setData({ peerId, otherUser, anonymousMode })
+    wx.setNavigationBarTitle({ title: anonymousMode ? '匿名聊天' : otherUser.nickname })
     this.unsubscribe = messageStore.onMessage((payload) => {
-      if (payload.type === 'message' && payload.peerId === peerId) this.appendMessage(payload.data)
+      // 拉黑后客户端兜底过滤，正常情况下服务端已拒绝投递
+      if (payload.type === 'message' && payload.peerId === peerId && !this.data.peerBlocked) this.appendMessage(payload.data)
+      if (payload.type === 'message_recalled' && payload.peerId === peerId) this.removeMessage(payload.data.id)
     })
     this.loadMessages()
   },
@@ -59,25 +70,28 @@ Page({
   toViewMessage(message) {
     const currentUser = (getApp().globalData.userInfo || {}).id || 0
     const isSelf = Number(message.senderId) === Number(currentUser) || message.isMine === true
+    const anonymousMode = this.data.anonymousMode || !!message.isAnonymous
     return {
       id: message.id,
       type: message.msgType || message.type || 'text',
       content: message.content,
       isSelf,
-      nickname: isSelf ? '我' : (message.senderNick || this.data.otherUser.nickname),
-      avatar: isSelf
+      nickname: anonymousMode ? '匿名用户' : (isSelf ? '我' : (message.senderNick || this.data.otherUser.nickname)),
+      avatar: anonymousMode ? '/assets/icons/avatar.png' : (isSelf
         ? ((getApp().globalData.userInfo || {}).avatarUrl || '/assets/icons/avatar.png')
-        : (message.senderAvatar || this.data.otherUser.avatar),
-      timeText: formatTime(message.createdAt)
+        : (message.senderAvatar || this.data.otherUser.avatar)),
+      timeText: formatTime(message.createdAt),
+      canRecall: isSelf && Number(message.id) === Number(this.data.pendingMessageId)
     }
   },
 
   async loadMessages(page = 1) {
     try {
-      const result = await messageStore.getHistory(this.data.peerId, page, 30)
-      const list = (result.list || []).map((item) => this.toViewMessage(item))
+      const result = await messageStore.getHistory(this.data.peerId, page, 30, this.data.anonymousMode)
+      const anonymousMode = this.data.anonymousMode || !!result.isAnonymous
+      const list = (result.list || []).map((item) => this.toViewMessage(Object.assign({}, item, { isAnonymous: anonymousMode })))
       const messages = page === 1 ? list : list.concat(this.data.messages)
-      this.setData({ messages, page, hasMore: !!result.hasMore })
+      this.setData({ messages, page, hasMore: !!result.hasMore, canSend: result.canSend !== false, pendingMessageId: result.pendingMessageId || 0, anonymousMode: this.data.anonymousMode || !!result.isAnonymous, peerBlocked: !!result.blocked, blockedByPeer: !!result.blockedByPeer })
       if (page === 1) {
         messageStore.saveCache(this.data.peerId, result.list || [])
         messageStore.markRead(this.data.peerId).catch(() => {})
@@ -96,8 +110,14 @@ Page({
     if (this.data.messages.some((item) => Number(item.id) === Number(message.id))) return
     const viewMessage = this.toViewMessage(message)
     messageStore.appendCache(this.data.peerId, message)
-    this.setData({ messages: this.data.messages.concat(viewMessage) })
+    const isSelf = viewMessage.isSelf
+    this.setData({ messages: this.data.messages.concat(viewMessage), canSend: isSelf ? false : true, pendingMessageId: isSelf ? viewMessage.id : 0 })
     this.scrollToBottom()
+  },
+
+  removeMessage(messageId) {
+    const messages = this.data.messages.filter((item) => Number(item.id) !== Number(messageId))
+    this.setData({ messages, canSend: true, pendingMessageId: 0, recalling: false })
   },
 
   onInput(e) {
@@ -137,7 +157,9 @@ Page({
   },
 
   async sendContent(content, msgType = 'text') {
-    const result = await messageStore.sendMessage(this.data.peerId, content, msgType)
+    if (!this.data.canSend) throw new Error('请等待对方回复后再发送，可长按上一条消息撤回')
+    if (this.data.anonymousMode && msgType !== 'text') throw new Error('匿名聊天仅支持文字消息')
+    const result = await messageStore.sendMessage(this.data.peerId, content, msgType, this.data.anonymousMode)
     this.appendMessage({
       id: result.id,
       senderId: (getApp().globalData.userInfo || {}).id || 0,
@@ -153,16 +175,20 @@ Page({
   async onSend() {
     const content = this.data.inputValue.trim()
     if (!content) return
+    if (this.data.peerBlocked) { wx.showToast({ title: '已拉黑对方，请先解除拉黑', icon: 'none' }); return }
+    if (this.data.blockedByPeer) { wx.showToast({ title: '对方已将你加入黑名单', icon: 'none' }); return }
+    if (!this.data.canSend) { wx.showToast({ title: '请等待对方回复，可长按上一条撤回', icon: 'none' }); return }
     this.setData({ inputValue: '', activePanel: '' })
     try {
       await this.sendContent(content)
     } catch (e) {
       this.setData({ inputValue: content })
-      wx.showToast({ title: '消息发送失败，请重试', icon: 'none' })
+      wx.showToast({ title: e.message || '消息发送失败，请重试', icon: 'none' })
     }
   },
 
   onChooseImage() {
+    if (this.data.anonymousMode) { wx.showToast({ title: '匿名聊天仅支持文字消息', icon: 'none' }); return }
     wx.chooseMedia({
       count: 9,
       mediaType: ['image'],
@@ -194,10 +220,68 @@ Page({
     wx.previewImage({ current, urls })
   },
 
+  onRecallMessage(e) {
+    const messageId = e.currentTarget.dataset.id
+    if (!messageId || Number(messageId) !== Number(this.data.pendingMessageId) || this.data.recalling) return
+    wx.showModal({ title: '撤回消息', content: '撤回后对方将无法看到该消息，你可以重新编辑发送。', success: (res) => {
+      if (!res.confirm) return
+      this.setData({ recalling: true })
+      messageStore.recallMessage(this.data.peerId, messageId).then(() => {
+        this.removeMessage(messageId)
+        wx.showToast({ title: '消息已撤回', icon: 'success' })
+      }).catch((err) => { this.setData({ recalling: false }); wx.showToast({ title: err.message || '撤回失败', icon: 'none' }) })
+    } })
+  },
+
+  onToggleBlock() {
+    if (this.data.blocking || !this.data.peerId) return
+    if (!this.data.peerBlocked) {
+      wx.showModal({
+        title: '拉黑确认',
+        content: '拉黑后将不再接收对方发送的任何消息（文字、图片等），对方也无法再向你发送消息。确定拉黑对方吗？',
+        confirmText: '确认拉黑',
+        confirmColor: '#fa5151',
+        success: (res) => {
+          if (!res.confirm) return
+          this.setData({ blocking: true })
+          messageStore.blockPeer(this.data.peerId).then(() => {
+            this.setData({ peerBlocked: true, canSend: false, blocking: false })
+            wx.showToast({ title: '已拉黑对方', icon: 'success' })
+          }).catch((err) => {
+            this.setData({ blocking: false })
+            wx.showToast({ title: err.message || '拉黑失败，请重试', icon: 'none' })
+          })
+        }
+      })
+    } else {
+      wx.showModal({
+        title: '解除拉黑',
+        content: '解除后对方将可以重新向你发送消息。确定解除拉黑吗？',
+        confirmText: '确认解除',
+        success: (res) => {
+          if (!res.confirm) return
+          this.setData({ blocking: true })
+          messageStore.unblockPeer(this.data.peerId).then(() => {
+            this.setData({ peerBlocked: false, blocking: false })
+            wx.showToast({ title: '已解除拉黑', icon: 'success' })
+            this.loadMessages(1)
+          }).catch((err) => {
+            this.setData({ blocking: false })
+            wx.showToast({ title: err.message || '解除失败，请重试', icon: 'none' })
+          })
+        }
+      })
+    }
+  },
+
   onLoadMore() {
     if (this.data.loadingMore || !this.data.hasMore) return
     this.setData({ loadingMore: true })
     this.loadMessages(this.data.page + 1).finally(() => this.setData({ loadingMore: false }))
+  },
+
+  onPullDownRefresh() {
+    runPullDownRefresh(this, () => this.loadMessages(1))
   },
 
   scrollToBottom() {

@@ -33,6 +33,8 @@ CREATE TABLE IF NOT EXISTS forum_post (
     content TEXT NOT NULL,
     images JSON,
     contact JSON DEFAULT NULL,
+    anonymous_identity JSON DEFAULT NULL,
+    components JSON DEFAULT NULL,
     like_count INT DEFAULT 0,
   comment_count INT DEFAULT 0,
   favorite_count INT DEFAULT 0,
@@ -117,8 +119,9 @@ CREATE TABLE IF NOT EXISTS forum_comment (
   post_id INT UNSIGNED NOT NULL,
   user_id INT UNSIGNED NOT NULL,
   content TEXT NOT NULL,
-  images JSON,
-  parent_id INT UNSIGNED DEFAULT 0,
+    images JSON,
+    anonymous_identity JSON DEFAULT NULL,
+    parent_id INT UNSIGNED DEFAULT 0,
   like_count INT DEFAULT 0,
   status TINYINT(1) DEFAULT 1,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -455,6 +458,7 @@ CREATE TABLE IF NOT EXISTS private_conversation (
   last_message_text VARCHAR(512) DEFAULT '',
   last_message_time DATETIME DEFAULT NULL,
   status TINYINT(1) DEFAULT 1,
+  is_anonymous TINYINT(1) NOT NULL DEFAULT 0,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   UNIQUE KEY uk_user_peer (user_id, peer_id),
@@ -469,13 +473,23 @@ CREATE TABLE IF NOT EXISTS private_message (
   receiver_id INT UNSIGNED NOT NULL,
   content TEXT NOT NULL,
   msg_type VARCHAR(16) DEFAULT 'text',
-  status ENUM('sending','sent','delivered','read','failed') DEFAULT 'sent',
+  status ENUM('sending','sent','delivered','read','failed','recalled') DEFAULT 'sent',
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   INDEX idx_conversation (conversation_id),
   INDEX idx_receiver (receiver_id, status),
   INDEX idx_created (created_at),
   INDEX idx_message_conversation_time (conversation_id, created_at),
   INDEX idx_message_receiver_status_time (receiver_id, status, created_at)
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS private_message_recall_log (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  message_id INT UNSIGNED NOT NULL,
+  operator_id INT UNSIGNED NOT NULL,
+  receiver_id INT UNSIGNED NOT NULL,
+  recalled_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_recall_message (message_id),
+  INDEX idx_recall_operator_time (operator_id, recalled_at)
 ) ENGINE=InnoDB;
 
 -- 初始服务数据（幂等：仅在表为空时插入，避免重复执行脚本产生重复数据）

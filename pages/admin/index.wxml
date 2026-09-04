@@ -61,6 +61,28 @@
 
   <view wx:if="{{activeTab === 'withdrawals'}}"><view wx:for="{{withdrawals}}" wx:key="id" class="list-card compact-row"><view><text class="row-title">{{item.nickName || '用户'}} #{{item.userId}}</text><text class="row-sub">申请 ¥{{item.amount}} · {{item.createdAt}}</text></view><view class="row-actions"><text data-id="{{item.id}}" data-action="approve" bindtap="reviewWithdrawal">通过</text><text class="danger" data-id="{{item.id}}" data-action="reject" bindtap="reviewWithdrawal">驳回</text></view></view><view wx:if="{{!withdrawals.length}}" class="empty">暂无待审核提现</view></view>
 
+  <view wx:if="{{activeTab === 'riderVerifications'}}">
+    <view wx:for="{{riderVerifications}}" wx:key="id" class="list-card compact-row rider-verify-row">
+      <view class="rider-verify-info">
+        <text class="row-title">{{item.nickName || '用户'}} #{{item.userId}}</text>
+        <text class="row-sub">姓名：{{item.realName}} · 学号：{{item.studentId}}</text>
+        <text class="row-sub">身份证：{{item.identityNumber}} · 手机：{{item.phone || '未绑定'}}</text>
+        <text class="row-sub">提交时间：{{item.createdAt}}</text>
+        <view class="rider-verify-images" wx:if="{{item.campusCredential || item.identityCredential}}">
+          <image wx:if="{{item.campusCredential}}" class="verify-img" src="{{item.campusCredential}}" mode="aspectFill" data-src="{{item.campusCredential}}" bindtap="previewVerifyImg"></image>
+          <image wx:if="{{item.identityCredential}}" class="verify-img" src="{{item.identityCredential}}" mode="aspectFill" data-src="{{item.identityCredential}}" bindtap="previewVerifyImg"></image>
+        </view>
+        <text class="verify-status status-{{item.status}}">{{item.status === 'pending' ? '待审核' : item.status === 'approved' ? '已通过' : '已驳回'}}</text>
+        <text class="row-sub" wx:if="{{item.reviewNote}}">审核备注：{{item.reviewNote}}</text>
+      </view>
+      <view class="row-actions" wx:if="{{item.status === 'pending'}}">
+        <text data-id="{{item.id}}" data-action="approve" bindtap="reviewRiderVerification">通过</text>
+        <text class="danger" data-id="{{item.id}}" data-action="reject" bindtap="reviewRiderVerification">驳回</text>
+      </view>
+    </view>
+    <view wx:if="{{!riderVerifications.length}}" class="empty">暂无认证申请</view>
+  </view>
+
   <view wx:if="{{form}}" class="form-mask"><view class="form-card"><view class="form-title">{{form.kind === 'post' ? '编辑帖子' : form.kind === 'content' ? '内容配置' : form.kind === 'feature' ? '功能配置' : '虚拟物品'}}</view><block wx:if="{{form.kind === 'post'}}"><input data-key="title" value="{{form.title}}" placeholder="标题" bindinput="formInput"/><input data-key="category" value="{{form.category}}" placeholder="分类" bindinput="formInput"/><textarea data-key="content" value="{{form.content}}" placeholder="正文" bindinput="formInput"/></block><block wx:elif="{{form.kind === 'content'}}"><input data-key="title" value="{{form.title}}" placeholder="标题" bindinput="formInput"/><textarea data-key="body" value="{{form.body}}" placeholder="正文（分类/标签可留空）" bindinput="formInput"/><input data-key="sortOrder" value="{{form.sortOrder}}" type="number" placeholder="排序" bindinput="formInput"/></block><block wx:elif="{{form.kind === 'feature'}}"><input data-key="configKey" value="{{form.configKey}}" placeholder="配置标识，如 community.enabled" bindinput="formInput"/><input data-key="label" value="{{form.label}}" placeholder="名称" bindinput="formInput"/><textarea data-key="configValue" value="{{form.configValue}}" placeholder="配置值" bindinput="formInput"/></block><block wx:else><input data-key="name" value="{{form.name}}" placeholder="物品名称" bindinput="formInput"/><input data-key="price" value="{{form.price}}" type="digit" placeholder="价格" bindinput="formInput"/><input data-key="stock" value="{{form.stock}}" type="number" placeholder="库存" bindinput="formInput"/><input data-key="coverUrl" value="{{form.coverUrl}}" placeholder="封面地址（可选）" bindinput="formInput"/><textarea data-key="description" value="{{form.description}}" placeholder="物品说明" bindinput="formInput"/></block><label class="switch-row"><text>启用状态</text><switch checked="{{form.status}}" color="#315CFF" bindchange="formStatus"/></label><view class="form-buttons"><button class="cancel-btn" bindtap="closeForm">取消</button><button class="save-btn" loading="{{saving}}" bindtap="saveForm">保存</button></view></view></view>
 
   <view wx:if="{{showCertModal}}" class="form-mask" bindtap="closeCertModal"><view class="form-card" catchtap="noop"><view class="form-title">编辑认证信息</view><input value="{{certDraft}}" placeholder="输入认证标签，留空则清除" maxlength="32" bindinput="onCertInput"/><view class="form-buttons"><button class="cancel-btn" bindtap="closeCertModal">取消</button><button class="save-btn" loading="{{savingCert}}" bindtap="saveCertLabel">保存</button></view></view></view>

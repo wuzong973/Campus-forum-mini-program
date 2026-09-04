@@ -190,6 +190,19 @@
   border-top: 1rpx solid #f5f7fa;
 }
 
+/* 上次使用来源标记 */
+.last-used-tag {
+  display: inline-block;
+  margin-left: 12rpx;
+  padding: 2rpx 14rpx;
+  font-size: 20rpx;
+  line-height: 1.6;
+  color: #4a7aff;
+  background: #eef3ff;
+  border-radius: 999rpx;
+  vertical-align: middle;
+}
+
 .avatar-source-btn {
   width: 100%;
   line-height: 1.4;
@@ -498,6 +511,10 @@
   font-size: 32rpx;
   font-weight: 500;
   border-radius: 44rpx;
+}
+
+.confirm-btn-disabled {
+  opacity: 0.6;
 }
 
 .phone-row { position: relative; }

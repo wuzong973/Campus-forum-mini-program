@@ -1,4 +1,7 @@
 {
   "navigationStyle": "custom",
-  "backgroundColor": "#F5F7FA"
+  "backgroundColor": "#F5F7FA",
+  "usingComponents": {
+    "contact-admin": "/components/contact-admin/contact-admin"
+  }
 }

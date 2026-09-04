@@ -2,14 +2,14 @@
   <view class="header header-cyan" style="padding-top: {{statusBarHeight}}px;">
     <view class="header-content">
       <view class="user-info" bindtap="goLogin">
-        <image class="avatar-img" src="{{isLogin && userInfo.avatarUrl ? userInfo.avatarUrl : '/assets/avatars/avatar-boy-1.png'}}" mode="aspectFill"></image>
+        <image class="avatar-img" src="{{userInfo.avatarUrl || '/avatar2/1.jpg'}}" mode="aspectFill" lazy-load></image>
         <view class="user-detail">
           <view class="user-name-row">
-            <text class="user-name">{{isLogin ? (userInfo.nickName || '昵称未命名') : '点击登录'}}</text>
+            <text class="user-name">{{userInfo.nickName || '校园用户'}}</text>
             <image class="gender-icon-img" wx:if="{{isLogin && userInfo.gender === 1}}" src="/assets/icons/gender-male.png" mode="aspectFit"></image>
             <image class="gender-icon-img" wx:if="{{isLogin && userInfo.gender === 2}}" src="/assets/icons/gender-female.png" mode="aspectFit"></image>
           </view>
-          <text class="user-school" wx:if="{{isLogin}}">{{userInfo.school || '广轻工职业技术大学'}} · {{userInfo.campus || '未设置校区'}}</text>
+          <text class="user-school">{{isLogin ? ((userInfo.school || '广轻工职业技术大学') + ' · ' + (userInfo.campus || '未设置校区')) : '点击登录后完善资料'}}</text>
         </view>
       </view>
       <view class="settings-wrap" catchtap="goSettings">
@@ -52,14 +52,15 @@
 
   <view class="menu card">
     <block wx:for="{{menus}}" wx:key="name">
-      <view wx:if="{{item.name === '联系管理员'}}" class="menu-item flex-between customer-service-row">
-        <view class="flex-row">
-          <image class="menu-icon-img" src="{{item.icon}}" mode="aspectFit"></image>
-          <text class="menu-name">{{item.name}}</text>
+      <contact-admin wx:if="{{item.name === '联系管理员'}}">
+        <view slot="trigger" class="menu-item flex-between customer-service-row">
+          <view class="flex-row">
+            <image class="menu-icon-img" src="{{item.icon}}" mode="aspectFit"></image>
+            <text class="menu-name">{{item.name}}</text>
+          </view>
+          <text class="arrow">></text>
         </view>
-        <text class="arrow">></text>
-        <button class="customer-service-hit" open-type="contact" bindcontact="onCustomerServiceContact" aria-label="联系管理员"></button>
-      </view>
+      </contact-admin>
       <view wx:else class="menu-item flex-between" data-name="{{item.name}}" bindtap="onMenuTap">
         <view class="flex-row">
           <image class="menu-icon-img" src="{{item.icon}}" mode="aspectFit"></image>

@@ -19,6 +19,7 @@
       data-peer="{{item.peerId}}"
       data-nick="{{item.peerNick}}"
       data-avatar="{{item.peerAvatar}}"
+      data-anonymous="{{item.isAnonymous}}"
       bindtap="onOpenChat"
     >
       <image class="conv-avatar" src="{{item.peerAvatar || '/assets/icons/avatar.png'}}" mode="aspectFill"></image>

@@ -21,6 +21,22 @@
           <view wx:else class="post-img-error" data-url="{{item.url}}" catchtap="onRetryPostImage">图片加载失败</view>
         </view>
       </view>
+      <view class="post-components" wx:if="{{post.components && post.components.length}}">
+        <view class="detail-poll" wx:for="{{post.components}}" wx:key="type" wx:if="{{item.type === 'poll'}}">
+          <view class="component-detail-head"><text class="component-detail-icon">☆</text><text>投票</text><text class="component-detail-mode">{{item.mode === 'multiple' ? '多选' : '单选'}}</text></view>
+          <text class="component-question">{{item.question}}</text>
+          <checkbox-group bindchange="onPollChoice" wx:if="{{item.mode === 'multiple'}}"><label class="poll-option" wx:for="{{item.options}}" wx:for-item="option" wx:key="index"><checkbox value="{{index}}" checked="{{item.selectedOptionIndexes && item.selectedOptionIndexes.indexOf(index) > -1}}" color="#3478f6"></checkbox><text>{{option.text}}</text><text class="poll-votes">{{option.votes || 0}} 票</text></label></checkbox-group>
+          <radio-group bindchange="onPollChoice" wx:else><label class="poll-option" wx:for="{{item.options}}" wx:for-item="option" wx:key="index"><radio value="{{index}}" checked="{{item.selectedOptionIndexes && item.selectedOptionIndexes.indexOf(index) > -1}}" color="#3478f6"></radio><text>{{option.text}}</text><text class="poll-votes">{{option.votes || 0}} 票</text></label></radio-group>
+          <button class="component-action-btn" loading="{{submittingVote}}" disabled="{{submittingVote || (item.selectedOptionIndexes && item.selectedOptionIndexes.length)}}" bindtap="onSubmitVote">{{item.selectedOptionIndexes && item.selectedOptionIndexes.length ? '已投票' : '提交投票'}}</button>
+        </view>
+        <view class="detail-gathering" wx:for="{{post.components}}" wx:key="type" wx:if="{{item.type === 'gathering'}}">
+          <view class="component-detail-head"><text class="component-detail-icon">♧</text><text>{{item.activityType}}组局</text><text class="component-detail-mode">{{item.participants.length}}/{{item.limit}} 人</text></view>
+          <view class="gathering-line"><text>时间</text><text>{{item.date}} {{item.time}}</text></view><view class="gathering-line"><text>地点</text><text>{{item.location}}</text></view>
+          <text class="gathering-description" wx:if="{{item.description}}">{{item.description}}</text><text class="gathering-contact" wx:if="{{item.contactPublic && item.contact}}">发起人联系方式：{{item.contact}}</text>
+          <view class="participant-section"><text class="participant-title">已报名</text><view class="participant-list"><text wx:for="{{item.participants}}" wx:key="userId" class="participant-name">{{item.nickName}}</text><text wx:if="{{!item.participants.length}}" class="participant-empty">还没有同学报名</text></view></view>
+          <button class="component-action-btn" loading="{{signingUpGathering}}" disabled="{{signingUpGathering || item.participants.length >= item.limit}}" bindtap="onSignUpGathering">{{item.participants.length >= item.limit ? '报名已满' : '我要报名'}}</button>
+        </view>
+      </view>
       <view class="post-topic-meta">
         <view class="topic-tag"><text>#</text> {{post.category || '日常话题'}}</view>
         <view class="campus-tag">{{post.campus || '未设置校区'}}</view>
@@ -47,20 +63,33 @@
     </view>
 
     <view class="comments-section">
-      <view class="comments-header"><text class="comments-title">评论 {{comments.length}}</text><view class="comment-sort"><text class="sort-option {{commentSort === 'hot' ? 'active' : ''}}" data-sort="hot" catchtap="onCommentSort">热门</text><text class="sort-option {{commentSort === 'time' ? 'active' : ''}}" data-sort="time" catchtap="onCommentSort">最新</text></view></view>
-      <view class="top-comment" wx:if="{{commentSort === 'hot' && topLikedComment}}"><text class="top-comment-label">热门评论</text><view class="top-comment-body"><image class="comment-avatar" src="{{topLikedComment.avatarUrl || '/assets/icons/avatar.png'}}" mode="aspectFill" data-userid="{{topLikedComment.userId}}" catchtap="onCommentAvatarTap"></image><view class="comment-content-wrap"><text class="comment-nick">{{topLikedComment.nickName}}</text><text class="comment-text">{{topLikedComment.content}}</text><view class="comment-actions"><text catchtap="onReplyComment" data-id="{{topLikedComment.id}}" data-nick="{{topLikedComment.nickName}}">回复</text></view></view><view class="comment-like-count"><image src="/assets/icons/heart-outline.png" mode="aspectFit"></image><text>点赞{{topLikedComment.likeCount ? ' ' + topLikedComment.likeCount : ''}}</text></view></view></view>
+      <view class="comments-header"><text class="comments-title">评论 {{commentTotal}}</text><view class="comment-sort"><text class="sort-option {{commentSort === 'hot' ? 'active' : ''}}" data-sort="hot" catchtap="onCommentSort">热门</text><text class="sort-option {{commentSort === 'time' ? 'active' : ''}}" data-sort="time" catchtap="onCommentSort">最新</text></view></view>
+      <view class="top-comment" wx:if="{{commentSort === 'hot' && topLikedComment}}"><text class="top-comment-label">热门评论</text><view class="top-comment-body"><image class="comment-avatar" src="{{topLikedComment.avatarUrl || '/assets/icons/avatar.png'}}" mode="aspectFill" data-userid="{{topLikedComment.userId}}" data-anonymous="{{topLikedComment.isAnonymous}}" catchtap="onCommentAvatarTap"></image><view class="comment-content-wrap comment-reply-trigger" catchtap="onReplyComment" data-id="{{topLikedComment.id}}" data-nick="{{topLikedComment.nickName}}"><view class="comment-meta"><text class="comment-nick">{{topLikedComment.nickName}}</text><text class="author-comment-label" wx:if="{{topLikedComment.isAuthor}}">作者</text></view><text class="comment-text">{{topLikedComment.content}}</text></view><view class="comment-like-count"><image src="/assets/icons/heart-outline.png" mode="aspectFit"></image><text>点赞{{topLikedComment.likeCount ? ' ' + topLikedComment.likeCount : ''}}</text></view></view></view>
       <view class="comment-list">
         <view class="comment-item" wx:for="{{comments}}" wx:key="id">
-          <image class="comment-avatar" src="{{item.avatarUrl || '/assets/icons/avatar.png'}}" mode="aspectFill" data-userid="{{item.userId}}" catchtap="onCommentAvatarTap"></image>
-          <view class="comment-content-wrap">
-            <view class="comment-meta"><text class="comment-nick">{{item.nickName}}</text><text class="comment-time">{{item.timeText}}</text></view>
+          <image class="comment-avatar" src="{{item.avatarUrl || '/assets/icons/avatar.png'}}" mode="aspectFill" data-userid="{{item.userId}}" data-anonymous="{{item.isAnonymous}}" catchtap="onCommentAvatarTap"></image>
+          <view class="comment-content-wrap comment-reply-trigger" catchtap="onReplyComment" data-id="{{item.id}}" data-nick="{{item.nickName}}">
+            <view class="comment-meta"><text class="comment-nick">{{item.nickName}}</text><text class="author-comment-label" wx:if="{{item.isAuthor}}">作者</text><text class="comment-time">{{item.timeText}}</text></view>
             <view class="comment-body"><text class="comment-reply-to" wx:if="{{item.parentNickName}}">回复 {{item.parentNickName}}：</text><text class="comment-text">{{item.content}}</text></view>
             <view class="comment-image-list" wx:if="{{item.images && item.images.length}}"><image class="comment-image" wx:for="{{item.images}}" wx:for-item="img" wx:key="*this" src="{{img}}" mode="aspectFill"></image></view>
-            <view class="comment-actions"><text catchtap="onReplyComment" data-id="{{item.id}}" data-nick="{{item.nickName}}">回复</text><text wx:if="{{item.userId === currentUserId}}" catchtap="onEditComment" data-id="{{item.id}}" data-content="{{item.content}}">编辑</text><text wx:if="{{item.userId === currentUserId}}" class="delete" catchtap="onDeleteComment" data-id="{{item.id}}">删除</text></view>
+            <view class="comment-actions" wx:if="{{item.userId === currentUserId}}"><text catchtap="onEditComment" data-id="{{item.id}}" data-content="{{item.content}}">编辑</text><text class="delete" catchtap="onDeleteComment" data-id="{{item.id}}">删除</text></view>
+            <view class="reply-list" wx:if="{{item.replies.length}}">
+              <view class="reply-item" wx:for="{{item.expanded ? item.replies : item.recentReplies}}" wx:for-item="reply" wx:key="id" catchtap="onReplyComment" data-id="{{reply.id}}" data-nick="{{reply.nickName}}">
+                <image class="reply-avatar" src="{{reply.avatarUrl || '/assets/icons/avatar.png'}}" mode="aspectFill" data-userid="{{reply.userId}}" data-anonymous="{{reply.isAnonymous}}" catchtap="onCommentAvatarTap"></image>
+                <view class="reply-content">
+                  <view class="comment-meta"><text class="comment-nick">{{reply.nickName}}</text><text class="author-comment-label" wx:if="{{reply.isAuthor}}">作者</text><text class="comment-time">{{reply.timeText}}</text></view>
+                  <view class="comment-body"><text class="comment-reply-to" wx:if="{{reply.parentNickName}}">回复 {{reply.parentNickName}}：</text><text class="comment-text">{{reply.content}}</text></view>
+                  <view class="comment-image-list" wx:if="{{reply.images && reply.images.length}}"><image class="comment-image" wx:for="{{reply.images}}" wx:for-item="image" wx:key="*this" src="{{image}}" mode="aspectFill"></image></view>
+                  <view class="comment-actions" wx:if="{{reply.userId === currentUserId}}"><text catchtap="onEditComment" data-id="{{reply.id}}" data-content="{{reply.content}}">编辑</text><text class="delete" catchtap="onDeleteComment" data-id="{{reply.id}}">删除</text></view>
+                </view>
+                <view class="comment-like {{reply.isLiked ? 'active-like' : ''}}" catchtap="onLikeComment" data-id="{{reply.id}}"><image src="/assets/icons/heart-outline.png" mode="aspectFit"></image><text>点赞{{reply.likeCount ? ' ' + reply.likeCount : ''}}</text></view>
+              </view>
+              <view class="reply-toggle" wx:if="{{item.hasHiddenReplies}}" catchtap="toggleCommentReplies" data-id="{{item.id}}"><text class="reply-toggle-line"></text><text>{{item.expanded ? '收起回复' : '展开 ' + item.hiddenReplyCount + ' 条回复'}}</text></view>
+            </view>
           </view>
           <view class="comment-like {{item.isLiked ? 'active-like' : ''}}" catchtap="onLikeComment" data-id="{{item.id}}"><image src="/assets/icons/heart-outline.png" mode="aspectFit"></image><text>点赞{{item.likeCount ? ' ' + item.likeCount : ''}}</text></view>
         </view>
-        <view class="empty-comments" wx:if="{{comments.length === 0}}">还没有评论，来说两句吧</view>
+        <view class="empty-comments" wx:if="{{commentTotal === 0}}">还没有评论，来说两句吧</view>
       </view>
     </view>
   </scroll-view>
@@ -80,7 +109,7 @@
 
   <view class="bottom-bar" style="bottom: {{keyboardHeight}}px;">
     <view class="comment-preview-images" wx:if="{{commentImages.length}}"><view class="comment-preview-item" wx:for="{{commentImages}}" wx:key="*this"><image class="comment-preview-img" src="{{item}}" mode="aspectFill"></image><view class="comment-preview-remove" data-index="{{index}}" catchtap="onRemoveCommentImage">×</view></view></view>
-    <view class="comment-toolbar"><input class="comment-input" focus="{{commentFocus}}" cursor-spacing="18" adjust-position="{{false}}" placeholder="{{replyTo ? '回复 ' + replyToNick + '...' : '写评论...'}}" value="{{commentText}}" bindinput="onCommentInput" bindfocus="onInputFocus" bindblur="onInputBlur"></input><view class="send-btn {{commentText || commentImages.length ? 'active' : ''}}" bindtap="onSendComment">发送</view><view class="tool-btn" catchtap="toggleEmojiPanel">☺</view><view class="tool-btn" catchtap="onChooseCommentImage">＋</view></view>
+    <view class="comment-toolbar"><view class="comment-anonymous-btn {{commentAnonymous ? 'active' : ''}}" catchtap="toggleCommentAnonymous"><text class="anonymous-dot"></text>匿名</view><input class="comment-input" focus="{{commentFocus}}" cursor-spacing="18" adjust-position="{{false}}" placeholder="{{replyTo ? '回复 ' + replyToNick + '...' : '写评论...'}}" value="{{commentText}}" bindinput="onCommentInput" bindfocus="onInputFocus" bindblur="onInputBlur"></input><view class="send-btn {{commentText || commentImages.length ? 'active' : ''}}" bindtap="onSendComment">发送</view><view class="tool-btn" catchtap="toggleEmojiPanel">☺</view><view class="tool-btn" catchtap="onChooseCommentImage">＋</view></view>
     <view class="emoji-panel" wx:if="{{showEmojiPanel}}"><view class="emoji-item" wx:for="{{emojis}}" wx:key="*this" data-emoji="{{item}}" catchtap="onEmojiTap">{{item}}</view></view>
   </view>
 

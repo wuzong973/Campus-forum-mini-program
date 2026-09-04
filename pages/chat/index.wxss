@@ -5,6 +5,46 @@
   background: #ededed;
 }
 
+/* 顶部安全提示栏 */
+.chat-notice {
+  background: #f0f1f2;
+  padding: 14rpx 32rpx;
+}
+.notice-line {
+  text-align: center;
+  line-height: 1.7;
+}
+.notice-text {
+  color: #7f8792;
+  font-size: 24rpx;
+}
+.notice-contact {
+  display: inline;
+  padding: 0;
+  margin: 0;
+  background: none;
+  border: none;
+  color: #2b2f36;
+  font-size: 24rpx;
+  font-weight: 600;
+  line-height: 1.7;
+  vertical-align: baseline;
+}
+.notice-contact::after { border: none; }
+contact-admin.inline-contact { display: inline; }
+.notice-diamond {
+  font-size: 20rpx;
+  margin-right: 4rpx;
+}
+.notice-block {
+  color: #3d7dff;
+  font-size: 24rpx;
+}
+.notice-block.is-blocked {
+  color: #fa5151;
+}
+.notice-press { opacity: 0.55; }
+
 /* 消息列表 */
 .message-list {
   flex: 1;
@@ -90,6 +130,9 @@
   border-top: 1rpx solid #d7d7d7;
   padding-bottom: env(safe-area-inset-bottom);
 }
+.anonymous-chat-tip, .send-limit-tip { padding: 12rpx 24rpx; color: #63748a; background: #eef5ff; font-size: 22rpx; line-height: 1.45; }
+.send-limit-tip { border-top: 1rpx solid #dce8f7; color: #3971c9; background: #f5f9ff; }
+.send-limit-tip.block-tip { color: #b25000; background: #fff7e8; border-top-color: #f3e3c8; }
 
 .input-toolbar {
   display: flex;

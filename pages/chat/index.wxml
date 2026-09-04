@@ -1,4 +1,15 @@
 <view class="chat-container">
+  <!-- 安全提示栏 -->
+  <view class="chat-notice">
+    <view class="notice-line">
+      <text class="notice-text">如遇骚扰、广告请立即联系</text>
+      <contact-admin class="inline-contact">
+        <view slot="trigger" class="notice-contact"><text class="notice-diamond">◆</text>管理员</view>
+      </contact-admin>
+      <text class="notice-text">，平台严禁通过私聊功能对用户进行骚扰</text>
+      <text class="notice-block {{peerBlocked ? 'is-blocked' : ''}}" bindtap="onToggleBlock" hover-class="notice-press">{{peerBlocked ? '已拉黑 · 解除' : '…拉黑对方'}}</text>
+    </view>
+  </view>
   <!-- 消息列表 -->
   <scroll-view
     class="message-list"
@@ -10,7 +21,7 @@
     <view class="message-item {{item.isSelf ? 'self' : 'other'}}" wx:for="{{messages}}" wx:key="id" id="msg-{{item.id}}">
       <image class="avatar" src="{{item.avatar}}" mode="aspectFill"></image>
       <view class="message-content">
-        <view class="message-bubble {{item.type === 'image' ? 'image-bubble' : ''}}">
+        <view class="message-bubble {{item.type === 'image' ? 'image-bubble' : ''}}" bindlongpress="onRecallMessage" data-id="{{item.id}}">
           <text wx:if="{{item.type === 'text'}}" class="message-text">{{item.content}}</text>
           <image wx:elif="{{item.type === 'image'}}" class="message-image" src="{{item.content}}" mode="widthFix" data-src="{{item.content}}" catchtap="onPreviewImage"></image>
           <text wx:else class="message-emoji">{{item.content}}</text>
@@ -23,6 +34,10 @@
 
   <!-- 微信式输入区 -->
   <view class="input-area">
+    <view class="anonymous-chat-tip" wx:if="{{anonymousMode}}">匿名聊天不会展示双方真实姓名与头像，仅支持文字消息</view>
+    <view class="send-limit-tip block-tip" wx:if="{{peerBlocked}}">已拉黑对方，解除拉黑后才能继续发送消息</view>
+    <view class="send-limit-tip block-tip" wx:elif="{{blockedByPeer}}">对方已将你加入黑名单，消息将无法送达</view>
+    <view class="send-limit-tip" wx:elif="{{!canSend}}">等待对方回复后才能继续发送。长按上一条消息可撤回并重发。</view>
     <view class="emoji-panel" wx:if="{{activePanel === 'emoji'}}">
       <view class="emoji-grid">
         <text
@@ -35,7 +50,7 @@
       </view>
     </view>
 
-    <view class="tool-panel" wx:if="{{activePanel === 'tools'}}">
+    <view class="tool-panel" wx:if="{{activePanel === 'tools' && !anonymousMode}}">
       <view class="tool-panel-item" bindtap="onChooseImage">
         <text class="tool-panel-icon">▣</text>
         <text class="tool-panel-label">照片</text>
@@ -58,7 +73,7 @@
       </view>
       <view class="voice-input" wx:else bindtouchstart="onVoiceHint">按住说话</view>
       <view class="tool-btn" bindtap="onToggleEmoji"><text>☺</text></view>
-      <view class="tool-btn" wx:if="{{!inputValue}}" bindtap="onToggleTools"><text>＋</text></view>
+      <view class="tool-btn" wx:if="{{!inputValue && !anonymousMode}}" bindtap="onToggleTools"><text>＋</text></view>
       <view class="send-btn" wx:else bindtap="onSend">发送</view>
     </view>
   </view>

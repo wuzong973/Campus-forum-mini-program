@@ -383,6 +383,70 @@ exports.contentCheck = async (req, res) => {
   success(res, { safe: true });
 };
 
+exports.getRiderVerification = async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      "SELECT id, campus_name campusName, student_id studentId, campus_credential campusCredential, real_name realName, identity_number identityNumber, identity_credential identityCredential, phone, status, review_note reviewNote, reviewed_at reviewedAt, created_at createdAt FROM rider_verification WHERE user_id = ? LIMIT 1",
+      [req.userId]
+    );
+    if (!rows.length) return success(res, { status: 'none' });
+    const r = rows[0];
+    success(res, {
+      id: r.id,
+      campusName: r.campusName,
+      studentId: r.studentId,
+      campusCredential: r.campusCredential,
+      realName: r.realName,
+      identityNumber: r.identityNumber,
+      identityCredential: r.identityCredential,
+      phone: r.phone,
+      status: r.status,
+      reviewNote: r.reviewNote,
+      reviewedAt: r.reviewedAt,
+      createdAt: r.createdAt
+    });
+  } catch (e) {
+    fail(res, safeMessage(e), 500);
+  }
+};
+
+exports.submitRiderVerification = async (req, res) => {
+  const body = req.body || {};
+  const campusName = String(body.campusName || '').trim();
+  const studentId = String(body.studentId || '').trim();
+  const campusCredential = String(body.campusCredential || '').trim();
+  const realName = String(body.realName || '').trim();
+  const identityNumber = String(body.identityNumber || '').trim();
+  const identityCredential = String(body.identityCredential || '').trim();
+  const phone = String(body.phone || '').trim();
+
+  if (!campusName || !studentId || !campusCredential) return fail(res, "校园认证信息不完整");
+  if (!/^\d{6,12}$/.test(studentId)) return fail(res, "请输入有效学号");
+  if (!realName || !identityNumber || !identityCredential) return fail(res, "实名认证信息不完整");
+  if (!/(^\d{15}$)|(^\d{17}[\dXx]$)/.test(identityNumber)) return fail(res, "请输入有效身份证号");
+  if (!phone) return fail(res, "请绑定联系手机号");
+
+  try {
+    const [exist] = await pool.query("SELECT id, status FROM rider_verification WHERE user_id = ?", [req.userId]);
+    if (exist.length && exist[0].status === 'approved') return fail(res, "您已通过骑手认证", 409);
+
+    if (exist.length) {
+      await pool.query(
+        "UPDATE rider_verification SET campus_name=?, student_id=?, campus_credential=?, real_name=?, identity_number=?, identity_credential=?, phone=?, status='pending', review_note='', reviewed_by=NULL, reviewed_at=NULL WHERE user_id=?",
+        [campusName, studentId, campusCredential, realName, identityNumber, identityCredential, phone, req.userId]
+      );
+    } else {
+      await pool.query(
+        "INSERT INTO rider_verification (user_id, campus_name, student_id, campus_credential, real_name, identity_number, identity_credential, phone) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        [req.userId, campusName, studentId, campusCredential, realName, identityNumber, identityCredential, phone]
+      );
+    }
+    success(res, null, "认证信息已提交，等待管理员审核");
+  } catch (e) {
+    fail(res, safeMessage(e), 500);
+  }
+};
+
 exports.getInteractionStats = async (req, res) => {
   const userId = req.userId;
   if (!userId) return fail(res, "未登录", 401);

@@ -253,3 +253,51 @@ exports.updateUserCertLabel = async (req, res) => {
     success(res, { certLabel: certLabel || null })
   } catch (e) { fail(res, safeMessage(e), 500) }
 }
+
+exports.listRiderVerifications = async (req, res) => {
+  const { page, pageSize, offset } = pageParams(req.query)
+  const status = String(req.query.status || '').trim()
+  const allowed = ['', 'pending', 'approved', 'rejected']
+  if (!allowed.includes(status)) return fail(res, 'Invalid verification status')
+  try {
+    const where = status ? 'WHERE r.status = ?' : ''
+    const params = status ? [status] : []
+    const [[count], [list]] = await Promise.all([
+      pool.query(`SELECT COUNT(*) total FROM rider_verification r ${where}`, params),
+      pool.query(
+        `SELECT r.id, r.user_id userId, r.campus_name campusName, r.student_id studentId,
+          r.campus_credential campusCredential, r.real_name realName,
+          r.identity_number identityNumber, r.identity_credential identityCredential,
+          r.phone, r.status, r.review_note reviewNote, r.reviewed_at reviewedAt,
+          r.created_at createdAt, u.nick_name nickName, u.avatar_url avatarUrl
+         FROM rider_verification r LEFT JOIN sys_user u ON u.id = r.user_id
+         ${where} ORDER BY r.created_at DESC LIMIT ? OFFSET ?`,
+        params.concat([pageSize, offset])
+      )
+    ])
+    success(res, { list, total: Number(count.total || 0), page, hasMore: offset + list.length < Number(count.total || 0) })
+  } catch (e) { fail(res, safeMessage(e), 500) }
+}
+
+exports.reviewRiderVerification = async (req, res) => {
+  const id = intId(req.params.id)
+  const body = req.body || {}
+  const action = String(body.action || '').trim()
+  const note = optionalText(body.note || '', 255)
+  if (!id || !['approve', 'reject'].includes(action) || note === null) return fail(res, 'Invalid review action')
+  try {
+    const [[row]] = await pool.query('SELECT id, user_id, status FROM rider_verification WHERE id = ?', [id])
+    if (!row) return fail(res, 'Verification not found', 404)
+    if (row.status !== 'pending') return fail(res, '该认证已审核，请勿重复操作', 400)
+    const newStatus = action === 'approve' ? 'approved' : 'rejected'
+    await pool.query(
+      'UPDATE rider_verification SET status = ?, review_note = ?, reviewed_by = ?, reviewed_at = NOW() WHERE id = ?',
+      [newStatus, note || '', req.userId, id]
+    )
+    if (action === 'approve') {
+      await pool.query('UPDATE sys_user SET is_verified = 1 WHERE id = ?', [row.user_id])
+    }
+    await audit(req, 'rider_verification.' + action, 'rider_verification', id, { userId: row.user_id, note: note || '' })
+    success(res, null, action === 'approve' ? '已通过认证' : '已驳回认证')
+  } catch (e) { fail(res, safeMessage(e), 500) }
+}

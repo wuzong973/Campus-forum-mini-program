@@ -1,5 +1,6 @@
 const api = require('../../utils/api')
 const format = require('../../utils/format')
+const { runPullDownRefresh } = require('../../utils/refresh')
 
 Page({
   data: {
@@ -28,7 +29,7 @@ Page({
   },
 
   loadPost(postId) {
-    api.getPostDetail(postId).then((post) => {
+    return api.getPostDetail(postId).then((post) => {
       if (post) {
         this.setData({ post })
         // 用 readFile 读取项目内图片为 base64，canvas 可直接使用
@@ -328,4 +329,8 @@ Page({
       path: '/pages/post-detail/index?id=' + this.data.postId,
     }
   },
+
+  onPullDownRefresh() {
+    runPullDownRefresh(this, () => this.loadPost(this.data.postId))
+  }
 })

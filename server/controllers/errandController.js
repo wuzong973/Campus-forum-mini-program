@@ -116,7 +116,12 @@ exports.accept = async (req, res) => {
     const runner = runnerRows[0]
     if (!runner || !runner.is_verified || !runner.phone) {
       await conn.rollback()
-      return fail(res, '完成校园认证、实名认证并绑定手机号后才可接单', 403)
+      return fail(res, '请先完成骑手认证，审核通过后方可接单', 403)
+    }
+    const [verifyRows] = await conn.query('SELECT status FROM rider_verification WHERE user_id = ?', [req.userId])
+    if (!verifyRows.length || verifyRows[0].status !== 'approved') {
+      await conn.rollback()
+      return fail(res, '您的骑手认证尚未通过审核，请耐心等待', 403)
     }
     const [rows] = await conn.query("SELECT * FROM errand_order WHERE id = ? AND status = 'pending' AND payment_status = 'SUCCESS' FOR UPDATE", [req.params.id])
     if (!rows.length) { await conn.rollback(); return fail(res, '订单不存在或已被接单') }

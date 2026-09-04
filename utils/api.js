@@ -1,6 +1,7 @@
 const request = require("./request");
 const mock = require("./mock");
 const scheduleUtils = require("./schedule");
+const avatar = require("./avatar");
 
 function cacheSet(key, data) {
   try {
@@ -106,6 +107,12 @@ function parseContact(contact) {
   return { name: String(value.name), type: String(value.type), value: String(value.value) };
 }
 
+function parseComponents(components) {
+  if (!components) return []
+  if (Array.isArray(components)) return components
+  try { return JSON.parse(components) } catch (e) { return [] }
+}
+
 function mapPost(r) {
   const userId = r.userId || r.user_id;
   const avatarUrl = String(r.avatarUrl || r.avatar_url || '').trim()
@@ -113,7 +120,8 @@ function mapPost(r) {
     id: r.id,
     userId,
     nickName: String(r.nickName || r.nick_name || "校园同学"),
-    avatarUrl: /^https:\/\//i.test(avatarUrl) ? avatarUrl : "",
+    // Bundled defaults are stored as app-relative paths; remote uploads use HTTPS.
+    avatarUrl: avatar.isStoredAvatar(avatarUrl) ? avatarUrl : "",
     campus: String(r.campus || r.campusName || r.campus_name || ""),
     title: r.title === undefined || r.title === null ? "" : String(r.title),
     gender: r.gender,
@@ -133,6 +141,8 @@ function mapPost(r) {
     isFavorited: !!r.isFavorited,
     reviewNote: r.reviewNote || r.review_note || "",
     contact: parseContact(r.contact),
+    components: parseComponents(r.components),
+    isAnonymous: !!(r.isAnonymous || r.is_anonymous),
     createdAt: r.createdAt || r.created_at,
   };
 }
@@ -527,6 +537,14 @@ function favoritePost(postId) {
   );
 }
 
+function votePost(postId, optionIndexes) {
+  return request.post('/post/' + postId + '/vote', { optionIndexes }, true)
+}
+
+function signUpGathering(postId) {
+  return request.post('/post/' + postId + '/gathering/signup', {}, true)
+}
+
 function updatePostReviewNote(postId, reviewNote) {
   return request.post("/post/" + postId + "/review-note", { reviewNote }, true);
 }
@@ -634,6 +652,8 @@ module.exports = {
   getUserProfile,
   getUserPosts,
   favoritePost,
+  votePost,
+  signUpGathering,
   updatePostReviewNote,
   deletePost,
   markPostNotInterested,

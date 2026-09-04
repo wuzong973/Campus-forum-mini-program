@@ -1,6 +1,7 @@
 const auth = require('../../utils/auth')
 const request = require('../../utils/request')
 const wechat = require('../../utils/wechat')
+const { runPullDownRefresh } = require('../../utils/refresh')
 
 Page({
   data: {
@@ -81,5 +82,9 @@ Page({
       })
       .catch((error) => wx.showToast({ title: error.message || '提交失败，请稍后重试', icon: 'none' }))
       .finally(() => this.setData({ submitting: false }))
+  },
+
+  onPullDownRefresh() {
+    runPullDownRefresh(this)
   }
 })

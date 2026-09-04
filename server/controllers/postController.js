@@ -55,13 +55,64 @@ function parseContact(contact) {
   return { name: String(value.name), type: String(value.type), value: String(value.value) };
 }
 
+function parseJson(value, fallback) {
+  if (!value) return fallback;
+  if (typeof value === 'object') return value;
+  try { return JSON.parse(value); } catch (e) { return fallback; }
+}
+
+function parseAnonymousIdentity(identity) {
+  const value = parseJson(identity, null);
+  if (!value || !value.nickName || !value.avatarUrl) return null;
+  const avatarUrl = String(value.avatarUrl).trim();
+  // Anonymous artwork is bundled in the mini program and must not be an arbitrary remote URL.
+  if (!avatarUrl.startsWith('/avatar1/')) return null;
+  return { nickName: String(value.nickName).trim().slice(0, 32), avatarUrl };
+}
+
+function parseComponents(components) {
+  const value = parseJson(components, []);
+  return Array.isArray(value) ? value : [];
+}
+
+function normalizeComponents(components) {
+  const input = parseComponents(components);
+  const normalized = [];
+  const poll = input.find((item) => item && item.type === 'poll');
+  if (poll) {
+    const options = (Array.isArray(poll.options) ? poll.options : []).map((item) => ({ text: String((item || {}).text || '').trim().slice(0, 80), votes: Number((item || {}).votes) || 0 })).filter((item) => item.text);
+    if (!String(poll.question || '').trim() || options.length < 2 || options.length > 8 || !['single', 'multiple'].includes(poll.mode)) throw new Error('投票组件格式不正确');
+    normalized.push({ type: 'poll', question: String(poll.question).trim().slice(0, 80), mode: poll.mode, options, voterIds: [] });
+  }
+  const gathering = input.find((item) => item && item.type === 'gathering');
+  if (gathering) {
+    const required = ['activityType', 'date', 'time', 'location'];
+    if (required.some((key) => !String(gathering[key] || '').trim())) throw new Error('组局组件信息不完整');
+    normalized.push({ type: 'gathering', activityType: String(gathering.activityType).trim().slice(0, 32), date: String(gathering.date).slice(0, 16), time: String(gathering.time).slice(0, 8), location: String(gathering.location).trim().slice(0, 128), limit: Math.max(2, Math.min(999, Number(gathering.limit) || 2)), contact: gathering.contactPublic ? String(gathering.contact || '').trim().slice(0, 64) : '', contactPublic: !!gathering.contactPublic, description: String(gathering.description || '').trim().slice(0, 240), participants: [] });
+  }
+  if (input.length !== normalized.length) throw new Error('不支持的帖子组件');
+  return normalized;
+}
+
+function presentComponents(components, userId) {
+  return parseComponents(components).map((component) => {
+    if (component.type === 'poll') {
+      const voterIds = Array.isArray(component.voterIds) ? component.voterIds : [];
+      const selected = voterIds.find((record) => Number(record.userId) === Number(userId));
+      return Object.assign({}, component, { selectedOptionIndexes: selected ? selected.optionIndexes : [], voterIds: undefined });
+    }
+    return component;
+  });
+}
+
 function mapPost(r, userId, includeContact = false) {
+  const anonymousIdentity = parseAnonymousIdentity(r.anonymous_identity);
   const post = {
     id: r.id,
     userId: r.user_id,
-    nickName: r.nick_name || '校园同学',
-    avatarUrl: r.avatar_url,
-    campus: r.campus || "",
+    nickName: anonymousIdentity ? anonymousIdentity.nickName : (r.nick_name || '校园同学'),
+    avatarUrl: anonymousIdentity ? anonymousIdentity.avatarUrl : r.avatar_url,
+    campus: anonymousIdentity ? '' : (r.campus || ""),
     title: r.title || "",
     category: normalizeForumCategory(r.category),
     content: r.content,
@@ -78,6 +129,8 @@ function mapPost(r, userId, includeContact = false) {
     isFavorited: !!r.isFavorited,
     reviewNote: r.review_note || '',
     createdAt: r.created_at,
+    components: presentComponents(r.components, userId),
+    isAnonymous: !!anonymousIdentity,
   };
   if (includeContact) post.contact = parseContact(r.contact);
   return post;
@@ -181,7 +234,7 @@ exports.search = async (req, res) => {
 };
 
 exports.create = async (req, res) => {
-  const { title, category, content, images, videos, contact } = req.body;
+  const { title, category, content, images, videos, contact, anonymousIdentity, components } = req.body;
   if (typeof title === 'string' && title.trim().length > 128) return fail(res, '标题不能超过128个字符');
   if (typeof content === 'string' && content.trim().length > 2500) return fail(res, '内容不能超过2500个字符');
   if (videos !== undefined && (!Array.isArray(videos) || videos.some((url) => typeof url !== 'string' || !/^https:\/\//.test(url)))) return fail(res, '视频必须先上传并完成安全审核');
@@ -190,11 +243,14 @@ exports.create = async (req, res) => {
   if (contact && !normalizedContact) return fail(res, '联系方式格式不正确');
   if (normalizedContact && !['手机号码', '微信账号', 'QQ账号'].includes(normalizedContact.type)) return fail(res, '不支持的联系方式类型');
   try {
+    const normalizedAnonymousIdentity = parseAnonymousIdentity(anonymousIdentity);
+    if (anonymousIdentity && !normalizedAnonymousIdentity) return fail(res, '匿名身份格式不正确');
+    const normalizedComponents = normalizeComponents(components);
     const media = (images || []).concat(
       (videos || []).map((url) => ({ type: "video", url })),
     );
     const [result] = await pool.query(
-      "INSERT INTO forum_post (user_id, title, category, content, images, contact) VALUES (?, ?, ?, ?, ?, ?)",
+      "INSERT INTO forum_post (user_id, title, category, content, images, contact, anonymous_identity, components) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
       [
         req.userId,
         (title || "").trim().slice(0, 128),
@@ -202,12 +258,58 @@ exports.create = async (req, res) => {
         content.trim(),
         JSON.stringify(media),
         normalizedContact ? JSON.stringify(normalizedContact) : null,
+        normalizedAnonymousIdentity ? JSON.stringify(normalizedAnonymousIdentity) : null,
+        normalizedComponents.length ? JSON.stringify(normalizedComponents) : null,
       ],
     );
     success(res, { id: result.insertId });
   } catch (e) {
     fail(res, safeMessage(e), 500);
   }
+};
+
+exports.vote = async (req, res) => {
+  const postId = Number(req.params.id);
+  const optionIndexes = Array.isArray(req.body.optionIndexes) ? req.body.optionIndexes.map(Number) : [];
+  if (!postId || !optionIndexes.length) return fail(res, '请选择投票选项');
+  const conn = await pool.getConnection();
+  try {
+    await conn.beginTransaction();
+    const [rows] = await conn.query('SELECT components FROM forum_post WHERE id = ? AND status = 1 FOR UPDATE', [postId]);
+    if (!rows.length) throw new Error('帖子不存在');
+    const components = parseComponents(rows[0].components);
+    const poll = components.find((item) => item.type === 'poll');
+    if (!poll) throw new Error('投票不存在');
+    const validIndexes = [...new Set(optionIndexes)].filter((index) => Number.isInteger(index) && index >= 0 && index < poll.options.length);
+    if (!validIndexes.length || (poll.mode === 'single' && validIndexes.length !== 1)) throw new Error('投票选项不正确');
+    poll.voterIds = Array.isArray(poll.voterIds) ? poll.voterIds : [];
+    if (poll.voterIds.some((record) => Number(record.userId) === Number(req.userId))) throw new Error('你已经投过票了');
+    validIndexes.forEach((index) => { poll.options[index].votes = (Number(poll.options[index].votes) || 0) + 1; });
+    poll.voterIds.push({ userId: req.userId, optionIndexes: validIndexes });
+    await conn.query('UPDATE forum_post SET components = ? WHERE id = ?', [JSON.stringify(components), postId]);
+    await conn.commit();
+    success(res, { components: presentComponents(components, req.userId) });
+  } catch (e) { await conn.rollback(); fail(res, safeMessage(e), e.message === '帖子不存在' ? 404 : 400); } finally { conn.release(); }
+};
+
+exports.signUpGathering = async (req, res) => {
+  const postId = Number(req.params.id);
+  const conn = await pool.getConnection();
+  try {
+    await conn.beginTransaction();
+    const [rows] = await conn.query('SELECT p.components, u.nick_name FROM forum_post p LEFT JOIN sys_user u ON u.id = ? WHERE p.id = ? AND p.status = 1 FOR UPDATE', [req.userId, postId]);
+    if (!rows.length) throw new Error('帖子不存在');
+    const components = parseComponents(rows[0].components);
+    const gathering = components.find((item) => item.type === 'gathering');
+    if (!gathering) throw new Error('组局不存在');
+    gathering.participants = Array.isArray(gathering.participants) ? gathering.participants : [];
+    if (gathering.participants.some((record) => Number(record.userId) === Number(req.userId))) throw new Error('你已报名');
+    if (gathering.participants.length >= Number(gathering.limit)) throw new Error('报名人数已满');
+    gathering.participants.push({ userId: req.userId, nickName: rows[0].nick_name || '校园同学' });
+    await conn.query('UPDATE forum_post SET components = ? WHERE id = ?', [JSON.stringify(components), postId]);
+    await conn.commit();
+    success(res, { components: presentComponents(components, req.userId) });
+  } catch (e) { await conn.rollback(); fail(res, safeMessage(e), e.message === '帖子不存在' ? 404 : 400); } finally { conn.release(); }
 };
 
 exports.remove = async (req, res) => {

@@ -16,9 +16,21 @@ function phoneLogin(phoneCode) {
             false,
           )
           .then((data) => {
-            auth.saveUser(data);
-            resolve(data);
+            const saved = auth.saveUser(data)
+            // New accounts receive a bundled avatar immediately. Persist it
+            // so a later login restores the same choice instead of rerolling.
+            const serverNickName = data.nickName || data.nick_name || ''
+            const defaultFields = {}
+            if (!data.avatarUrl && saved && saved.avatarUrl) defaultFields.avatarUrl = saved.avatarUrl
+            if ((!serverNickName || serverNickName === '校园用户' || serverNickName === '微信用户') && saved && saved.nickName) {
+              defaultFields.nickName = saved.nickName
+            }
+            if (Object.keys(defaultFields).length && !request.USE_MOCK) {
+              return auth.syncProfile(defaultFields).catch(() => null).then(() => data)
+            }
+            return data
           })
+          .then(resolve)
           .catch(reject);
       },
       fail: reject,
@@ -72,4 +84,32 @@ function previewImages(urls, current) {
   wx.previewImage({ urls, current: current || urls[0] });
 }
 
-module.exports = { phoneLogin, checkContent, updatePhone, uploadImages, previewImages };
+// 隐私授权预检（符合微信开放平台规范）：
+// 1. wx.getPrivacySetting 查询用户是否已同意《用户隐私保护指引》；
+// 2. 未同意时通过 wx.requirePrivacyAuthorize 拉起官方隐私授权弹窗；
+// 3. 用户拒绝授权时 resolve(false)，由调用方给出提示。
+// 前提：需在 mp.weixin.qq.com「用户隐私保护指引」中声明"微信昵称""微信头像"收集类型，
+// 否则相关接口会报 errno:112（api scope is not declared in the privacy agreement）。
+function ensurePrivacyAuthorize() {
+  return new Promise((resolve) => {
+    if (!wx.getPrivacySetting || !wx.requirePrivacyAuthorize) {
+      resolve(true);
+      return;
+    }
+    wx.getPrivacySetting({
+      success(res) {
+        if (!res || !res.needAuthorization) {
+          resolve(true);
+          return;
+        }
+        wx.requirePrivacyAuthorize({
+          success: () => resolve(true),
+          fail: () => resolve(false),
+        });
+      },
+      fail: () => resolve(true),
+    });
+  });
+}
+
+module.exports = { phoneLogin, checkContent, updatePhone, uploadImages, previewImages, ensurePrivacyAuthorize };

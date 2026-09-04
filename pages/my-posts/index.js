@@ -1,5 +1,6 @@
 const api = require('../../utils/api')
 const auth = require('../../utils/auth')
+const { runPullDownRefresh } = require('../../utils/refresh')
 
 Page({
   data: {
@@ -35,6 +36,10 @@ Page({
     }).catch(() => {
       this.setData({ loading: false })
     })
+  },
+
+  onPullDownRefresh() {
+    runPullDownRefresh(this, this.loadPosts)
   },
 
   onPostRemove(e) {

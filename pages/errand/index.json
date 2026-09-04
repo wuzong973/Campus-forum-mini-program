@@ -1,5 +1,5 @@
 {
-  "navigationBarTitleText": "代拿跑腿",
+  "navigationBarTitleText": "接单大厅",
   "usingComponents": {
     "errand-card": "/components/errand-card/errand-card",
     "empty-state": "/components/empty-state/empty-state"

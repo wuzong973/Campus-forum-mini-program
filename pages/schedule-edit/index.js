@@ -3,6 +3,7 @@ const request = require('../../utils/request')
 const mock = require('../../utils/mock')
 const scheduleUtils = require('../../utils/schedule')
 const auth = require('../../utils/auth')
+const { runPullDownRefresh } = require('../../utils/refresh')
 
 const WEEK_DAYS = ['星期一', '星期二', '星期三', '星期四', '星期五', '星期六', '星期日']
 
@@ -30,6 +31,10 @@ Page({
 
   onLoad() {
     this.loadCourses()
+  },
+
+  onPullDownRefresh() {
+    runPullDownRefresh(this, () => this.loadCourses())
   },
 
   loadCourses() {

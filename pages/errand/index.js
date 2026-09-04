@@ -1,6 +1,7 @@
 const api = require('../../utils/api')
 const auth = require('../../utils/auth')
 const request = require('../../utils/request')
+const { runPullDownRefresh } = require('../../utils/refresh')
 
 Page({
   data: {
@@ -40,6 +41,10 @@ Page({
     const tabBar = this.getTabBar && this.getTabBar()
     if (tabBar) tabBar.setSelected(2)
     this.loadOrders()
+  },
+
+  onPullDownRefresh() {
+    runPullDownRefresh(this, () => this.loadOrders())
   },
 
   loadOrders() {

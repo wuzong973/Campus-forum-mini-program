@@ -1,6 +1,7 @@
 const auth = require('../../utils/auth')
 const request = require('../../utils/request')
 const format = require('../../utils/format')
+const { runPullDownRefresh } = require('../../utils/refresh')
 
 Page({
   data: {
@@ -23,6 +24,14 @@ Page({
     this.setData({ id: options.id || '' })
     this.loadOrder()
   },
+
+  onPullDownRefresh() {
+    runPullDownRefresh(this, () => this.loadOrder())
+  },
+
+  goBack() { wx.navigateBack() },
+  openComplete() { if (this.data.order && this.data.order.id) wx.navigateTo({ url: '/pages/errand-complete/index?id=' + this.data.order.id }) },
+  openCancel() { if (this.data.order && this.data.order.id) wx.navigateTo({ url: '/pages/errand-cancel/index?id=' + this.data.order.id }) },
 
   loadOrder() {
     if (!this.data.id) return

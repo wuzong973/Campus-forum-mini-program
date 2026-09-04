@@ -1,3 +1,6 @@
 {
-  "navigationBarTitleText": "发布帖子"
+  "navigationBarTitleText": "发布帖子",
+  "usingComponents": {
+    "contact-admin": "/components/contact-admin/contact-admin"
+  }
 }

@@ -1,6 +1,7 @@
 const app = getApp();
 const api = require("../../utils/api");
 const request = require("../../utils/request");
+const { runPullDownRefresh } = require("../../utils/refresh");
 
 Page({
   data: {
@@ -18,6 +19,10 @@ Page({
     if (userInfo.studentId) {
       this.setData({ username: String(userInfo.studentId) });
     }
+  },
+
+  onPullDownRefresh() {
+    runPullDownRefresh(this);
   },
 
   onUsernameInput(e) {

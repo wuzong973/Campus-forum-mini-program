@@ -1,4 +1,5 @@
 const api = require('../../utils/api')
+const { runPullDownRefresh } = require('../../utils/refresh')
 
 let searchTimer = null
 
@@ -18,9 +19,16 @@ Page({
 
   loadTodayHot() {
     this.setData({ hotLoading: true })
-    api.getHotPostRank('today').then((res) => {
+    return api.getHotPostRank('today').then((res) => {
       this.setData({ hotPosts: res.list || [], hotLoading: false })
     }).catch(() => this.setData({ hotPosts: [], hotLoading: false }))
+  },
+
+  onPullDownRefresh() {
+    runPullDownRefresh(this, [
+      () => this.loadTodayHot(),
+      () => { if (this.data.searched) this.onSearch() }
+    ])
   },
 
   onInput(e) {
@@ -36,7 +44,7 @@ Page({
     const kw = this.data.keyword.trim()
     if (!kw) return
     this.setData({ loading: true, searched: true })
-    api.searchPosts(kw).then((res) => {
+    return api.searchPosts(kw).then((res) => {
       this.setData({ results: res.list || [], loading: false })
     }).catch(() => {
       this.setData({ loading: false })

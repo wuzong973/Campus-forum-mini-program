@@ -1,6 +1,7 @@
 const messageStore = require('../../utils/messageStore')
 const request = require('../../utils/request')
 const format = require('../../utils/format')
+const { runPullDownRefresh } = require('../../utils/refresh')
 
 Page({
   data: {
@@ -66,11 +67,16 @@ Page({
     }).catch(() => {})
   },
 
+  onPullDownRefresh() {
+    runPullDownRefresh(this, [() => this.loadInteractMessages(), () => this.loadConversations()])
+  },
+
   formatConv(list) {
     return list.map((c) => ({
       peerId: c.peerId,
       peerNick: c.peerNick || '用户',
       peerAvatar: c.peerAvatar || '/assets/icons/avatar.png',
+      isAnonymous: !!c.isAnonymous,
       unreadCount: c.unreadCount || 0,
       lastMessage: c.lastMessage || '',
       timeText: c.lastTime ? format.formatRelativeTime(c.lastTime) : ''
@@ -85,10 +91,12 @@ Page({
     const peerId = e.currentTarget.dataset.peer
     const nick = e.currentTarget.dataset.nick
     const avatar = e.currentTarget.dataset.avatar
+    const anonymous = !!e.currentTarget.dataset.anonymous
     wx.navigateTo({
       url: '/pages/chat/index?peerId=' + peerId +
         '&nick=' + encodeURIComponent(nick) +
-        '&avatar=' + encodeURIComponent(avatar)
+        '&avatar=' + encodeURIComponent(avatar) +
+        '&anonymous=' + (anonymous ? '1' : '0')
     })
   },
 

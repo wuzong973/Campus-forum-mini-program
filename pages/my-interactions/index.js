@@ -1,5 +1,6 @@
 const api = require('../../utils/api')
 const auth = require('../../utils/auth')
+const { runPullDownRefresh } = require('../../utils/refresh')
 
 const TYPE_META = {
   liked: { title: '已点赞', empty: '还没有点赞过帖子' },
@@ -43,6 +44,10 @@ Page({
     }).catch(() => {
       this.setData({ loading: false })
     })
+  },
+
+  onPullDownRefresh() {
+    runPullDownRefresh(this, this.loadList)
   },
 
   openProfile(e) {

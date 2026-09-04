@@ -1,5 +1,7 @@
 const request = require('../../utils/request')
 const wechat = require('../../utils/wechat')
+const avatar = require('../../utils/avatar')
+const { runPullDownRefresh } = require('../../utils/refresh')
 
 const DRAFT_KEY = 'profile_edit_draft'
 const PROFILE_EXT_KEY = 'profile_ext'
@@ -20,9 +22,16 @@ Page({
     saving: false
   },
 
+  onPullDownRefresh() {
+    runPullDownRefresh(this)
+  },
+
   onLoad() {
     const app = getApp()
-    const user = app.globalData.userInfo || {}
+    const defaults = avatar.getDefaultProfile()
+    const user = Object.assign({}, defaults, app.globalData.userInfo || {})
+    if (!avatar.isStoredAvatar(user.avatarUrl)) user.avatarUrl = defaults.avatarUrl
+    if (avatar.isDefaultName(user.nickName)) user.nickName = defaults.nickName
     const ext = wx.getStorageSync(PROFILE_EXT_KEY) || {}
     const draft = wx.getStorageSync(DRAFT_KEY)
     const source = draft || Object.assign({}, ext, {
@@ -33,7 +42,7 @@ Page({
     })
     this.setData({
       nickName: source.nickName || '',
-      avatarUrl: source.avatarUrl || '',
+      avatarUrl: source.avatarUrl || avatar.getRandomAvatar(),
       coverUrl: source.coverUrl || '/assets/banners/banner-community.png',
       signature: source.signature || '',
       socialAccount: source.socialAccount || '',
@@ -115,9 +124,12 @@ Page({
       let avatarUrl = this.data.avatarUrl
       let coverUrl = this.data.coverUrl
       if (!request.USE_MOCK) {
-        const uploaded = await wechat.uploadImages([avatarUrl, coverUrl].filter(Boolean))
-        avatarUrl = uploaded[0] || avatarUrl
-        coverUrl = uploaded[1] || coverUrl
+        if (avatar.isTemporaryAvatar(avatarUrl)) {
+          avatarUrl = (await wechat.uploadImages([avatarUrl]))[0] || avatarUrl
+        }
+        if (avatar.isTemporaryAvatar(coverUrl)) {
+          coverUrl = (await wechat.uploadImages([coverUrl]))[0] || coverUrl
+        }
         await request.put('/user/info', {
           nickName: this.data.nickName.trim(),
           avatarUrl

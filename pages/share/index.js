@@ -1,6 +1,7 @@
 const api = require('../../utils/api')
 const auth = require('../../utils/auth')
 const request = require('../../utils/request')
+const { runPullDownRefresh } = require('../../utils/refresh')
 
 Page({
   data: {
@@ -28,7 +29,7 @@ Page({
   },
 
   loadOriginalPost(postId) {
-    api.getPostDetail(postId).then((post) => {
+    return api.getPostDetail(postId).then((post) => {
       if (post) {
         this.setData({ originalPost: post })
       } else {
@@ -70,5 +71,9 @@ Page({
 
   onBack() {
     wx.navigateBack()
+  },
+
+  onPullDownRefresh() {
+    runPullDownRefresh(this, () => this.loadOriginalPost(this.data.postId))
   }
 })

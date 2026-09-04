@@ -21,7 +21,11 @@
 .forum-tips { margin-top: 20rpx; padding: 26rpx; }
 .tips-title { display: flex; align-items: center; color: #10213a; font-size: 32rpx; font-weight: 700; }
 .tips-content, .tips-rules { display: block; margin-top: 16rpx; color: #727d8c; font-size: 26rpx; line-height: 1.6; }
-.tips-rules { color: #3478f6; margin-top: 8rpx; }
+.tips-rules { color: #3478f6; margin-top: 8rpx; text-decoration: underline; }
+.contact-admin { display: inline; padding: 0; margin: 0; background: none; border: none; color: #3478f6; font-size: 26rpx; line-height: 1.6; font-weight: 600; vertical-align: baseline; text-decoration: underline; }
+.contact-admin::after { border: none; }
+.contact-admin-hover { color: #2461cc; }
+contact-admin.inline-contact { display: inline; }
 .submit-wrap { position: fixed; z-index: 20; right: 0; bottom: 0; left: 0; padding: 18rpx 24rpx calc(18rpx + env(safe-area-inset-bottom)); background: rgba(246,247,249,.96); }
 .submit-btn, .sheet-confirm { width: 100%; height: 92rpx; line-height: 92rpx; border: 0; border-radius: 46rpx; background: #dfe5ec; color: #a7b0bb; font-size: 32rpx; font-weight: 700; }
 .submit-btn.active, .sheet-confirm { background: #3478f6; color: #ffffff; }
@@ -45,3 +49,42 @@
 .contact-type.active .radio-dot { border: 8rpx solid #3478f6; }
 .contact-input { width: 100%; height: 82rpx; padding: 0 22rpx; box-sizing: border-box; border-radius: 41rpx; background: #f6f7f9; color: #15233a; font-size: 28rpx; }
 .contact-popup .sheet-confirm { margin-top: 34rpx; }
+.component-card { margin-top: 20rpx; padding: 24rpx 26rpx; border-radius: 20rpx; background: #fff; }
+.component-title-row, .component-summary, .form-label-row, .public-contact { display: flex; align-items: center; justify-content: space-between; }
+.component-title { display: block; color: #10213a; font-size: 31rpx; font-weight: 700; }
+.component-subtitle { display: block; margin-top: 6rpx; color: #98a4b2; font-size: 22rpx; }
+.add-component-btn { display: flex; align-items: center; gap: 6rpx; padding: 10rpx 16rpx; border-radius: 28rpx; background: #edf4ff; color: #3478f6; font-size: 25rpx; font-weight: 600; }
+.add-symbol { font-size: 31rpx; line-height: 1; }
+.component-summary { min-height: 76rpx; margin-top: 20rpx; padding: 0 14rpx; border-radius: 10rpx; background: #f7f9fc; color: #506078; font-size: 25rpx; }
+.summary-icon { margin-right: 10rpx; color: #3478f6; font-size: 31rpx; }
+.summary-title { margin-right: 12rpx; color: #20324a; font-weight: 700; }
+.summary-text { color: #8390a0; }
+.remove-component { color: #a0a9b5; font-size: 23rpx; }
+.anonymous-state { display: block; margin-top: 7rpx; color: #3478f6; font-size: 21rpx; font-weight: 400; }
+.anonymous-preview { display: flex; align-items: center; gap: 14rpx; min-height: 80rpx; padding: 0 2rpx 16rpx; color: #65748a; font-size: 24rpx; }
+.anonymous-preview image { width: 48rpx; height: 48rpx; border-radius: 50%; background: #eef2f7; }
+.component-sheet, .component-editor { position: fixed; z-index: 101; right: 0; bottom: 0; left: 0; max-height: 82vh; padding: 30rpx 28rpx calc(28rpx + env(safe-area-inset-bottom)); overflow-y: auto; box-sizing: border-box; border-radius: 28rpx 28rpx 0 0; background: #fff; }
+.component-choice-row { display: flex; gap: 20rpx; margin-top: 28rpx; }
+.component-choice { display: flex; flex: 1; align-items: center; justify-content: center; gap: 12rpx; height: 106rpx; border-radius: 14rpx; background: #f4f7fb; color: #25364d; font-size: 30rpx; font-weight: 600; }
+.choice-icon { color: #3478f6; font-size: 43rpx; }
+.form-input, .picker-input, .form-textarea { width: 100%; margin-top: 20rpx; padding: 0 22rpx; box-sizing: border-box; border-radius: 12rpx; background: #f5f7fa; color: #203149; font-size: 27rpx; }
+.form-input, .picker-input { height: 84rpx; line-height: 84rpx; }
+.form-label-row { margin-top: 28rpx; }
+.form-label { color: #26374d; font-size: 28rpx; font-weight: 700; }
+.mode-switch { display: flex; overflow: hidden; border-radius: 26rpx; background: #f2f4f7; }
+.mode-item { padding: 10rpx 20rpx; color: #7a8797; font-size: 24rpx; }
+.mode-item.active { border-radius: 26rpx; background: #e7f0ff; color: #3478f6; font-weight: 700; }
+.option-input-row { position: relative; display: flex; align-items: center; }
+.option-input { padding-right: 68rpx; }
+.option-remove { position: absolute; right: 24rpx; top: 37rpx; color: #a7b0bb; font-size: 36rpx; }
+.add-option { margin: 26rpx 0; color: #3478f6; font-size: 27rpx; text-align: center; }
+.component-editor .sheet-confirm { margin-top: 26rpx; }
+.gathering-editor { max-height: 88vh; }
+.activity-types { display: flex; flex-wrap: wrap; gap: 14rpx; margin-top: 20rpx; }
+.activity-type { min-width: 92rpx; padding: 12rpx 18rpx; border-radius: 26rpx; background: #f3f5f8; color: #67758a; font-size: 25rpx; text-align: center; }
+.activity-type.active { background: #e7f0ff; color: #3478f6; font-weight: 700; }
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18rpx; }
+.form-grid .picker-input { margin-top: 20rpx; color: #65748a; }
+.limit-input { width: 110rpx; height: 58rpx; padding: 0 12rpx; border-radius: 10rpx; background: #f4f6f9; color: #203149; font-size: 27rpx; text-align: center; }
+.public-contact { margin-top: 20rpx; color: #415169; font-size: 27rpx; }
+.form-textarea { min-height: 150rpx; padding-top: 18rpx; line-height: 1.5; }

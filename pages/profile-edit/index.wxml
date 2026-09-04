@@ -7,7 +7,7 @@
 
   <view class="profile-form card">
     <view class="avatar-row">
-      <image class="avatar" src="{{avatarUrl || '/assets/icons/avatar.png'}}" mode="aspectFill" bindtap="chooseImage" data-field="avatarUrl"></image>
+      <image class="avatar" src="{{avatarUrl || '/avatar2/1.jpg'}}" mode="aspectFill" bindtap="chooseImage" data-field="avatarUrl"></image>
       <view class="avatar-copy">
         <text class="avatar-title">头像与公开资料</text>
         <text class="avatar-desc">修改后会同步到对外个人主页</text>

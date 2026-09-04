@@ -1,4 +1,5 @@
 const api = require('../../utils/api')
+const { runPullDownRefresh } = require('../../utils/refresh')
 
 Page({
   data: { sections: [], loading: true, loadError: false },
@@ -9,11 +10,15 @@ Page({
 
   loadServices() {
     this.setData({ loading: true, loadError: false })
-    api.getServiceList().then((data) => {
+    return api.getServiceList().then((data) => {
       this.setData({ sections: Array.isArray(data) ? data : [], loading: false })
     }).catch(() => {
       this.setData({ sections: [], loading: false, loadError: true })
     })
+  },
+
+  onPullDownRefresh() {
+    runPullDownRefresh(this, () => this.loadServices())
   },
 
   onServiceTap(e) {

@@ -2,6 +2,8 @@ const api = require("../../utils/api");
 const auth = require("../../utils/auth");
 const request = require("../../utils/request");
 const format = require("../../utils/format");
+const anonymousIdentity = require('../../utils/anonymousIdentity');
+const { runPullDownRefresh } = require("../../utils/refresh");
 
 Page({
   data: {
@@ -10,6 +12,9 @@ Page({
     post: null,
     detailImages: [],
     comments: [],
+    rawComments: [],
+    commentTotal: 0,
+    expandedReplyIds: {},
     commentSort: "hot",
     commentText: "",
     timeText: "",
@@ -31,11 +36,15 @@ Page({
     contactExpanded: true,
     commentFocus: false,
     showEmojiPanel: false,
+    commentAnonymous: false,
     commentImages: [],
     keyboardHeight: 0,
     pageHeight: 0,
     bottomBarHeight: 120,
     showSharePopup: false,
+    selectedPollIndexes: [],
+    submittingVote: false,
+    signingUpGathering: false,
     emojis: [
       "😀",
       "😂",
@@ -225,7 +234,7 @@ Page({
   noop() {},
 
   loadPost(id) {
-    api.getPostDetail(id).then((post) => {
+    return api.getPostDetail(id).then((post) => {
       if (post) {
         const followedPostIds = wx.getStorageSync("followed_post_ids") || [];
         post.isFollowed = followedPostIds.indexOf(post.id) > -1;
@@ -233,9 +242,11 @@ Page({
           post,
           detailImages: this.toDetailImages(post.images),
           contactExpanded: true,
+          selectedPollIndexes: (((post.components || []).find((item) => item.type === 'poll') || {}).selectedOptionIndexes || []),
           timeText: format.formatRelativeTime(post.createdAt) || "刚刚",
           viewText: this.formatViewCount(post.viewCount || 0) + " 浏览",
         });
+        this.refreshCommentThreads();
       } else {
         wx.showToast({ title: "帖子不存在", icon: "none" });
         setTimeout(() => wx.navigateBack(), 1500);
@@ -252,6 +263,47 @@ Page({
     return (Array.isArray(images) ? images : [])
       .filter((url) => typeof url === 'string' && url)
       .map((url) => ({ url, failed: false }))
+  },
+
+  onPollChoice(e) {
+    const selectedPollIndexes = (e.detail.value || []).map(Number)
+    if ((((this.data.post || {}).components || []).find((item) => item.type === 'poll') || {}).mode === 'single' && selectedPollIndexes.length > 1) {
+      selectedPollIndexes.splice(0, selectedPollIndexes.length - 1)
+    }
+    this.setData({ selectedPollIndexes })
+  },
+
+  onSubmitVote() {
+    if (!auth.requireLogin('投票需要先登录') || this.data.submittingVote) return
+    const indexes = this.data.selectedPollIndexes
+    if (!indexes.length) { wx.showToast({ title: '请选择投票选项', icon: 'none' }); return }
+    const post = Object.assign({}, this.data.post)
+    const applyComponents = (components) => this.setData({ post: Object.assign(post, { components }), submittingVote: false })
+    this.setData({ submittingVote: true })
+    if (request.USE_MOCK) {
+      const components = (post.components || []).map((component) => Object.assign({}, component, { options: (component.options || []).map((option) => Object.assign({}, option)), voterIds: (component.voterIds || []).slice() }))
+      const poll = components.find((item) => item.type === 'poll')
+      if (poll.selectedOptionIndexes && poll.selectedOptionIndexes.length) { this.setData({ submittingVote: false }); wx.showToast({ title: '你已经投过票了', icon: 'none' }); return }
+      indexes.forEach((index) => { poll.options[index].votes = (poll.options[index].votes || 0) + 1 })
+      poll.selectedOptionIndexes = indexes
+      applyComponents(components); wx.showToast({ title: '投票成功', icon: 'success' }); return
+    }
+    api.votePost(post.id, indexes).then((result) => { applyComponents(result.components || []); wx.showToast({ title: '投票成功', icon: 'success' }) }).catch((err) => { this.setData({ submittingVote: false }); wx.showToast({ title: err.message || '投票失败', icon: 'none' }) })
+  },
+
+  onSignUpGathering() {
+    if (!auth.requireLogin('报名需要先登录') || this.data.signingUpGathering) return
+    const post = Object.assign({}, this.data.post)
+    const finish = (components) => this.setData({ post: Object.assign(post, { components }), signingUpGathering: false })
+    this.setData({ signingUpGathering: true })
+    if (request.USE_MOCK) {
+      const components = (post.components || []).map((component) => Object.assign({}, component, { participants: (component.participants || []).slice() }))
+      const gathering = components.find((item) => item.type === 'gathering'); const user = getApp().globalData.userInfo || {}
+      if ((gathering.participants || []).some((item) => Number(item.userId) === Number(user.id))) { this.setData({ signingUpGathering: false }); wx.showToast({ title: '你已报名', icon: 'none' }); return }
+      if (gathering.participants.length >= gathering.limit) { this.setData({ signingUpGathering: false }); wx.showToast({ title: '报名人数已满', icon: 'none' }); return }
+      gathering.participants.push({ userId: user.id || 0, nickName: user.nickName || '我' }); finish(components); wx.showToast({ title: '报名成功', icon: 'success' }); return
+    }
+    api.signUpGathering(post.id).then((result) => { finish(result.components || []); wx.showToast({ title: '报名成功', icon: 'success' }) }).catch((err) => { this.setData({ signingUpGathering: false }); wx.showToast({ title: err.message || '报名失败', icon: 'none' }) })
   },
 
   onPreviewPostImage(e) {
@@ -278,21 +330,112 @@ Page({
   },
 
   loadComments(postId, sort = this.data.commentSort) {
-    api.getCommentList(postId, sort).then((res) => {
-      const list = (res.list || []).map((c) => ({
-        id: c.id,
-        userId: c.user_id || c.userId,
-        nickName: c.nick_name || c.nickName || "用户",
-        avatarUrl: c.avatar_url || c.avatarUrl || "",
-        content: c.content,
-        images: c.images || [],
-        parentNickName: c.parent_nick_name || "",
-        timeText: format.formatRelativeTime(c.created_at || c.createdAt) || "刚刚",
-        createdAt: c.created_at || c.createdAt,
-        likeCount: c.like_count || 0,
-        isLiked: !!c.is_liked,
-      }));
-      this.setData({ comments: this.sortComments(list, sort) });
+    return api.getCommentList(postId, sort).then((res) => {
+      const rawComments = (res.list || []).map((comment) => this.normalizeComment(comment));
+      this.setData({
+        rawComments,
+        commentTotal: Number(res.total) || rawComments.length,
+        comments: this.buildCommentThreads(rawComments, sort),
+      });
+    });
+  },
+
+  normalizeComment(comment) {
+    const createdAt = comment.created_at || comment.createdAt;
+    let anonymous = comment.anonymousIdentity || comment.anonymous_identity;
+    if (typeof anonymous === 'string') { try { anonymous = JSON.parse(anonymous) } catch (e) { anonymous = null } }
+    const isAnonymous = !!(comment.is_anonymous || comment.isAnonymous || (anonymous && anonymous.nickName && anonymous.avatarUrl));
+    return {
+      id: comment.id,
+      userId: comment.user_id || comment.userId,
+      nickName: isAnonymous ? anonymous.nickName : (comment.nick_name || comment.nickName || "用户"),
+      avatarUrl: isAnonymous ? anonymous.avatarUrl : (comment.avatar_url || comment.avatarUrl || ""),
+      isAnonymous,
+      content: comment.content,
+      images: comment.images || [],
+      parentId: Number(comment.parent_id || comment.parentId || 0),
+      parentNickName: comment.parent_nick_name || comment.parentNickName || "",
+      timeText: format.formatRelativeTime(createdAt) || "刚刚",
+      createdAt,
+      likeCount: Number(comment.like_count || comment.likeCount || 0),
+      isLiked: !!(comment.is_liked || comment.isLiked),
+    };
+  },
+
+  buildCommentThreads(rawComments, sort = this.data.commentSort, expandedReplyIds = this.data.expandedReplyIds) {
+    const commentsById = {};
+    const authorId = Number((this.data.post || {}).userId || 0);
+    expandedReplyIds = expandedReplyIds || {};
+    const threadsById = {};
+    const roots = [];
+
+    rawComments.forEach((comment) => {
+      commentsById[comment.id] = Object.assign({}, comment, {
+        isAuthor: authorId > 0 && Number(comment.userId) === authorId,
+      });
+    });
+
+    const findRoot = (comment) => {
+      let current = comment;
+      const visited = {};
+      while (current.parentId && commentsById[current.parentId] && !visited[current.id]) {
+        visited[current.id] = true;
+        current = commentsById[current.parentId];
+      }
+      return current;
+    };
+
+    Object.keys(commentsById).forEach((id) => {
+      const comment = commentsById[id];
+      const root = findRoot(comment);
+      if (root.id === comment.id) {
+        threadsById[comment.id] = Object.assign({}, comment, { replies: [] });
+        roots.push(threadsById[comment.id]);
+      }
+    });
+
+    Object.keys(commentsById).forEach((id) => {
+      const comment = commentsById[id];
+      const root = findRoot(comment);
+      if (root.id !== comment.id && threadsById[root.id]) {
+        threadsById[root.id].replies.push(comment);
+      }
+    });
+
+    return this.sortComments(roots, sort).map((thread) => {
+      const replies = thread.replies.slice().sort((a, b) => {
+        const timeA = new Date(a.createdAt || 0).getTime() || 0;
+        const timeB = new Date(b.createdAt || 0).getTime() || 0;
+        return timeA - timeB || Number(a.id || 0) - Number(b.id || 0);
+      });
+      const expanded = !!expandedReplyIds[thread.id];
+      return Object.assign({}, thread, {
+        replies,
+        recentReplies: replies.slice(-3),
+        expanded,
+        hasHiddenReplies: replies.length > 3,
+        hiddenReplyCount: Math.max(0, replies.length - 3),
+      });
+    });
+  },
+
+  refreshCommentThreads(rawComments = this.data.rawComments) {
+    const authorId = Number((this.data.post || {}).userId || 0);
+    const topLikedComment = this.data.topLikedComment
+      ? Object.assign({}, this.data.topLikedComment, {
+        isAuthor: authorId > 0 && Number(this.data.topLikedComment.userId) === authorId,
+      })
+      : null;
+    this.setData({ comments: this.buildCommentThreads(rawComments), topLikedComment });
+  },
+
+  updateComment(commentId, updater) {
+    const rawComments = this.data.rawComments.map((comment) => (
+      Number(comment.id) === Number(commentId) ? updater(comment) : comment
+    ));
+    this.setData({
+      rawComments,
+      comments: this.buildCommentThreads(rawComments),
     });
   },
 
@@ -316,7 +459,12 @@ Page({
 
   onCommentAvatarTap(e) {
     const userId = e.currentTarget.dataset.userid;
-    if (userId) wx.navigateTo({ url: "/pages/profile/index?id=" + userId });
+    if (!userId) return;
+    if (e.currentTarget.dataset.anonymous) {
+      wx.navigateTo({ url: '/pages/chat/index?peerId=' + userId + '&anonymous=1' });
+      return;
+    }
+    wx.navigateTo({ url: "/pages/profile/index?id=" + userId });
   },
 
   onLikePost() {
@@ -390,7 +538,7 @@ Page({
   },
 
   loadTopLikedComment(postId) {
-    api
+    return api
       .getTopLikedComment(postId)
       .then((comment) => {
         if (comment) {
@@ -398,10 +546,12 @@ Page({
             topLikedComment: {
               id: comment.id,
               userId: comment.user_id,
-              nickName: comment.nick_name || "用户",
+              nickName: comment.is_anonymous ? comment.nick_name : (comment.nick_name || "用户"),
               avatarUrl: comment.avatar_url || "",
+              isAnonymous: !!comment.is_anonymous,
               content: comment.content,
               likeCount: comment.like_count || 0,
+              isAuthor: Number(comment.user_id) === Number((this.data.post || {}).userId),
             },
           });
         } else {
@@ -416,30 +566,22 @@ Page({
   onLikeComment(e) {
     if (!auth.requireLogin("点赞需要先登录")) return;
     const commentId = e.currentTarget.dataset.id;
-    const comments = this.data.comments.map((c) => {
-      if (c.id === commentId) {
-        const liked = !c.isLiked;
-        return Object.assign({}, c, {
-          isLiked: liked,
-          likeCount: Math.max(0, (c.likeCount || 0) + (liked ? 1 : -1)),
-        });
-      }
-      return c;
+    this.updateComment(commentId, (comment) => {
+      const liked = !comment.isLiked;
+      return Object.assign({}, comment, {
+        isLiked: liked,
+        likeCount: Math.max(0, (comment.likeCount || 0) + (liked ? 1 : -1)),
+      });
     });
-    this.setData({ comments });
     api.likeComment(commentId).catch(() => {
       // 回滚
-      const rollback = this.data.comments.map((c) => {
-        if (c.id === commentId) {
-          const liked = !c.isLiked;
-          return Object.assign({}, c, {
-            isLiked: liked,
-            likeCount: Math.max(0, (c.likeCount || 0) + (liked ? 1 : -1)),
-          });
-        }
-        return c;
+      this.updateComment(commentId, (comment) => {
+        const liked = !comment.isLiked;
+        return Object.assign({}, comment, {
+          isLiked: liked,
+          likeCount: Math.max(0, (comment.likeCount || 0) + (liked ? 1 : -1)),
+        });
       });
-      this.setData({ comments: rollback });
     });
     // 刷新热门评论
     this.loadTopLikedComment(this.data.post.id);
@@ -451,6 +593,12 @@ Page({
 
   onCommentInput(e) {
     this.setData({ commentText: e.detail.value });
+  },
+
+  toggleCommentAnonymous() {
+    const commentAnonymous = !this.data.commentAnonymous;
+    this.setData({ commentAnonymous });
+    wx.showToast({ title: commentAnonymous ? '本条评论将匿名发布' : '已切换为公开评论', icon: 'none' });
   },
 
   onInputFocus(e) {
@@ -473,6 +621,7 @@ Page({
     const parentId = this.data.replyTo || 0;
     const images = this.data.commentImages.slice();
     const content = text || "[图片]";
+    const anonymous = this.data.commentAnonymous ? anonymousIdentity.generate() : null;
 
     if (request.USE_MOCK) {
       const key = "mock_comments_" + postId;
@@ -480,8 +629,10 @@ Page({
       const newComment = {
         id: Date.now(),
         user_id: this.data.currentUserId,
-        nick_name: (getApp().globalData.userInfo || {}).nickName || "我",
-        avatar_url: (getApp().globalData.userInfo || {}).avatarUrl || "",
+        nick_name: anonymous ? anonymous.nickName : ((getApp().globalData.userInfo || {}).nickName || "我"),
+        avatar_url: anonymous ? anonymous.avatarUrl : ((getApp().globalData.userInfo || {}).avatarUrl || ""),
+        anonymous_identity: anonymous,
+        is_anonymous: !!anonymous,
         content,
         images,
         parent_id: parentId,
@@ -492,20 +643,13 @@ Page({
       const post = Object.assign({}, this.data.post, {
         commentCount: (this.data.post.commentCount || 0) + 1,
       });
+      const rawComments = this.data.rawComments.concat([this.normalizeComment(Object.assign({}, newComment, {
+        parent_nick_name: this.data.replyToNick,
+      }))]);
       this.setData({
-        comments: this.sortComments(this.data.comments.concat([
-          {
-            id: newComment.id,
-            userId: newComment.user_id,
-            nickName: newComment.nick_name,
-            avatarUrl: newComment.avatar_url,
-            content: newComment.content,
-            images: newComment.images,
-            parentNickName: this.data.replyToNick,
-            timeText: format.formatDateTime(newComment.created_at),
-            createdAt: newComment.created_at,
-          },
-        ]), this.data.commentSort),
+        rawComments,
+        comments: this.buildCommentThreads(rawComments),
+        commentTotal: rawComments.length,
         commentText: "",
         commentImages: [],
         showEmojiPanel: false,
@@ -518,7 +662,7 @@ Page({
     }
 
     request
-      .post("/comment", { postId, content, parentId, images }, true)
+      .post("/comment", { postId, content, parentId, images, anonymousIdentity: anonymous }, true)
       .then(() => {
         const post = Object.assign({}, this.data.post, {
           commentCount: (this.data.post.commentCount || 0) + 1,
@@ -540,12 +684,24 @@ Page({
   },
 
   onReplyComment(e) {
+    if (!auth.requireLogin("回复需要先登录")) return;
     const id = e.currentTarget.dataset.id;
     const nick = e.currentTarget.dataset.nick;
     this.setData({
       replyTo: id,
       replyToNick: nick,
       commentFocus: true,
+    });
+  },
+
+  toggleCommentReplies(e) {
+    const id = e.currentTarget.dataset.id;
+    const expandedReplyIds = Object.assign({}, this.data.expandedReplyIds, {
+      [id]: !this.data.expandedReplyIds[id],
+    });
+    this.setData({
+      expandedReplyIds,
+      comments: this.buildCommentThreads(this.data.rawComments, this.data.commentSort, expandedReplyIds),
     });
   },
 
@@ -622,13 +778,7 @@ Page({
     const commentId = this.data.editCommentId;
 
     if (request.USE_MOCK) {
-      const comments = this.data.comments.map((c) => {
-        if (c.id === commentId) {
-          return Object.assign({}, c, { content });
-        }
-        return c;
-      });
-      this.setData({ comments });
+      this.updateComment(commentId, (comment) => Object.assign({}, comment, { content }));
       this.onCloseEditModal();
       wx.showToast({ title: "编辑成功", icon: "success" });
       return;
@@ -637,13 +787,7 @@ Page({
     request
       .put("/comment/" + commentId, { content }, true)
       .then(() => {
-        const comments = this.data.comments.map((c) => {
-          if (c.id === commentId) {
-            return Object.assign({}, c, { content });
-          }
-          return c;
-        });
-        this.setData({ comments });
+        this.updateComment(commentId, (comment) => Object.assign({}, comment, { content }));
         this.onCloseEditModal();
         wx.showToast({ title: "编辑成功", icon: "success" });
       })
@@ -660,25 +804,25 @@ Page({
       success: (res) => {
         if (res.confirm) {
           if (request.USE_MOCK) {
-            const comments = this.data.comments.filter((c) => c.id !== id);
+            const rawComments = this.data.rawComments.filter((comment) => Number(comment.id) !== Number(id));
             const post = Object.assign({}, this.data.post, {
               commentCount: Math.max(0, (this.data.post.commentCount || 0) - 1),
             });
-            this.setData({ comments, post });
+            this.setData({ rawComments, comments: this.buildCommentThreads(rawComments), commentTotal: rawComments.length, post });
             wx.showToast({ title: "删除成功", icon: "success" });
             return;
           }
           request
             .delete("/comment/" + id, {}, true)
             .then(() => {
-              const comments = this.data.comments.filter((c) => c.id !== id);
+              const rawComments = this.data.rawComments.filter((comment) => Number(comment.id) !== Number(id));
               const post = Object.assign({}, this.data.post, {
                 commentCount: Math.max(
                   0,
                   (this.data.post.commentCount || 0) - 1,
                 ),
               });
-              this.setData({ comments, post });
+              this.setData({ rawComments, comments: this.buildCommentThreads(rawComments), commentTotal: rawComments.length, post });
               wx.showToast({ title: "删除成功", icon: "success" });
             })
             .catch((err) => {
@@ -708,6 +852,10 @@ Page({
   onAvatarTap(e) {
     const userId = e.currentTarget.dataset.userid;
     if (!userId) return;
+    if ((this.data.post || {}).isAnonymous) {
+      wx.navigateTo({ url: '/pages/chat/index?peerId=' + userId + '&anonymous=1' });
+      return;
+    }
     wx.navigateTo({ url: "/pages/profile/index?id=" + userId });
   },
 
@@ -717,5 +865,18 @@ Page({
       title: post ? (post.title || post.content || '校园帖子分享') : '校园帖子分享',
       path: '/pages/post-detail/index?id=' + (post ? post.id : ''),
     };
+  },
+
+  onPullDownRefresh() {
+    const postId = (this.data.post || {}).id;
+    if (!postId) {
+      runPullDownRefresh(this);
+      return;
+    }
+    runPullDownRefresh(this, [
+      () => this.loadPost(postId),
+      () => this.loadComments(postId),
+      () => this.loadTopLikedComment(postId),
+    ]);
   },
 });

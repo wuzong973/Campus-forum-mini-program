@@ -3,6 +3,7 @@ const api = require("../../utils/api");
 const request = require("../../utils/request");
 const scheduleUtils = require("../../utils/schedule");
 const auth = require("../../utils/auth");
+const { runPullDownRefresh } = require("../../utils/refresh");
 
 const WEEK_DAYS = [
   "星期一",
@@ -211,6 +212,10 @@ Page({
     this.initFromConfig();
     this.applyCurrentWeekCourses(this.data.allCourses);
     this.loadSchedule();
+  },
+
+  onPullDownRefresh() {
+    runPullDownRefresh(this, () => this.loadSchedule());
   },
 
   initFromConfig() {

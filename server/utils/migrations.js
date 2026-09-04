@@ -38,11 +38,14 @@ async function runMigrations() {
   await ensureColumn('sys_user', 'cert_label', "VARCHAR(32) DEFAULT NULL AFTER is_verified")
   await ensureColumn('forum_post', 'title', "VARCHAR(128) DEFAULT '' AFTER user_id")
   await ensureColumn('forum_post', 'contact', 'JSON DEFAULT NULL AFTER images')
+  await ensureColumn('forum_post', 'anonymous_identity', 'JSON DEFAULT NULL AFTER contact')
+  await ensureColumn('forum_post', 'components', 'JSON DEFAULT NULL AFTER anonymous_identity')
   await ensureColumn('forum_post', 'pinned', 'TINYINT(1) NOT NULL DEFAULT 0 AFTER status')
   await ensureColumn('forum_post', 'review_note', "VARCHAR(255) DEFAULT '' AFTER pinned")
   await ensureColumn('forum_post', 'share_count', 'INT DEFAULT 0 AFTER favorite_count')
   await ensureColumn('forum_post', 'view_count', 'INT DEFAULT 0 AFTER share_count')
   await ensureColumn('forum_comment', 'images', 'JSON AFTER content')
+  await ensureColumn('forum_comment', 'anonymous_identity', 'JSON DEFAULT NULL AFTER images')
   await ensureColumn('user_schedule', 'week_type', "VARCHAR(8) DEFAULT 'all' AFTER end_week")
   await ensureColumn('user_schedule', 'updated_at', 'DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP AFTER created_at')
   await ensureColumn('errand_order', 'gender_requirement', "VARCHAR(16) NOT NULL DEFAULT '不限性别' AFTER campus")
@@ -248,13 +251,36 @@ async function runMigrations() {
       receiver_id INT UNSIGNED NOT NULL,
       content TEXT NOT NULL,
       msg_type VARCHAR(16) DEFAULT 'text',
-      status ENUM('sending','sent','delivered','read','failed') DEFAULT 'sent',
+      status ENUM('sending','sent','delivered','read','failed','recalled') DEFAULT 'sent',
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       INDEX idx_conversation (conversation_id),
       INDEX idx_receiver (receiver_id, status),
       INDEX idx_created (created_at)
     ) ENGINE=InnoDB
   `)
+  await ensureColumn('private_conversation', 'is_anonymous', 'TINYINT(1) NOT NULL DEFAULT 0 AFTER status')
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS private_message_recall_log (
+      id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+      message_id INT UNSIGNED NOT NULL,
+      operator_id INT UNSIGNED NOT NULL,
+      receiver_id INT UNSIGNED NOT NULL,
+      recalled_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      INDEX idx_recall_message (message_id),
+      INDEX idx_recall_operator_time (operator_id, recalled_at)
+    ) ENGINE=InnoDB
+  `)
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS user_blacklist (
+      id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+      user_id INT UNSIGNED NOT NULL,
+      blocked_id INT UNSIGNED NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE KEY uk_user_blocked (user_id, blocked_id),
+      INDEX idx_blocked_user (blocked_id)
+    ) ENGINE=InnoDB
+  `)
+  await pool.query("ALTER TABLE private_message MODIFY COLUMN status ENUM('sending','sent','delivered','read','failed','recalled') DEFAULT 'sent'")
   await pool.query(`
     CREATE TABLE IF NOT EXISTS repair_order (
       id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -438,6 +464,27 @@ async function runMigrations() {
   await ensureUniqueIndex('errand_order', 'uk_errand_order_no', '(order_no)')
   await ensureIndex('repair_order', 'idx_repair_user_created', '(user_id, created_at)')
   await ensureIndex('repair_order', 'idx_repair_technician_created', '(technician_user_id, created_at)')
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS rider_verification (
+      id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+      user_id INT UNSIGNED NOT NULL,
+      campus_name VARCHAR(64) DEFAULT '',
+      student_id VARCHAR(32) DEFAULT '',
+      campus_credential VARCHAR(512) DEFAULT '',
+      real_name VARCHAR(64) DEFAULT '',
+      identity_number VARCHAR(32) DEFAULT '',
+      identity_credential VARCHAR(512) DEFAULT '',
+      phone VARCHAR(20) DEFAULT '',
+      status ENUM('pending','approved','rejected') NOT NULL DEFAULT 'pending',
+      review_note VARCHAR(255) DEFAULT '',
+      reviewed_by INT UNSIGNED DEFAULT NULL,
+      reviewed_at DATETIME DEFAULT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      UNIQUE KEY uk_rider_verification_user (user_id),
+      INDEX idx_rider_verification_status (status, created_at)
+    ) ENGINE=InnoDB
+  `)
 }
 
 module.exports = {

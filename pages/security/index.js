@@ -1,13 +1,22 @@
 const auth = require('../../utils/auth')
 const request = require('../../utils/request')
+const { runPullDownRefresh } = require('../../utils/refresh')
 
 Page({
   data: { deletionRequest: null, loading: false },
 
   onShow() {
     if (!auth.isLoggedIn()) return
-    if (request.USE_MOCK) return
-    request.get('/user/deletion-request', {}, true, { silent: true })
+    this.loadDeletionRequest()
+  },
+
+  onPullDownRefresh() {
+    runPullDownRefresh(this, this.loadDeletionRequest)
+  },
+
+  loadDeletionRequest() {
+    if (request.USE_MOCK) return Promise.resolve()
+    return request.get('/user/deletion-request', {}, true, { silent: true })
       .then((deletionRequest) => this.setData({ deletionRequest }))
       .catch(() => this.setData({ deletionRequest: null }))
   },

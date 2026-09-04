@@ -1,4 +1,5 @@
 const admin = require('../../utils/admin')
+const { runPullDownRefresh } = require('../../utils/refresh')
 
 const TAB_PERMISSIONS = {
   overview: 'stats.view',
@@ -7,7 +8,8 @@ const TAB_PERMISSIONS = {
   content: 'config.manage',
   items: 'item.manage',
   users: 'user.manage',
-  withdrawals: 'payment.manage'
+  withdrawals: 'payment.manage',
+  riderVerifications: 'user.manage'
 }
 
 Page({
@@ -29,6 +31,7 @@ Page({
     items: [],
     users: [],
     withdrawals: [],
+    riderVerifications: [],
     userKeyword: '',
     form: null,
     saving: false,
@@ -55,7 +58,8 @@ Page({
         { key: 'content', name: '配置' },
         { key: 'items', name: '物品' },
         { key: 'users', name: '用户' },
-        { key: 'withdrawals', name: '提现审核' }
+        { key: 'withdrawals', name: '提现审核' },
+        { key: 'riderVerifications', name: '认证审核' }
       ].filter((tab) => this.can(access.permissions || [], TAB_PERMISSIONS[tab.key]))
       if (!tabs.length) throw new Error('无可用管理权限')
       this.setData({ ready: true, role: access.role, permissions: access.permissions || [], tabs, activeTab: tabs[0].key })
@@ -66,7 +70,7 @@ Page({
   },
 
   onPullDownRefresh() {
-    this.loadCurrent().finally(() => wx.stopPullDownRefresh())
+    runPullDownRefresh(this, this.loadCurrent)
   },
 
   can(permissions, permission) {
@@ -83,6 +87,7 @@ Page({
       if (tab === 'items') this.setData({ items: (await admin.items()).list || [] })
       if (tab === 'users') await this.loadUsers()
       if (tab === 'withdrawals') await this.loadWithdrawals()
+      if (tab === 'riderVerifications') await this.loadRiderVerifications()
     } catch (e) {}
   },
 
@@ -168,6 +173,18 @@ Page({
   async loadUsers() { const data = await admin.users({ keyword: this.data.userKeyword, page: 1, pageSize: 50 }); this.setData({ users: data.list || [] }) },
   searchUsers() { this.loadUsers() },
   async loadWithdrawals() { const data = await admin.withdrawals({ page: 1, pageSize: 50, status: 'PENDING' }); this.setData({ withdrawals: data.list || [] }) },
+  async loadRiderVerifications() { const data = await admin.riderVerifications({ page: 1, pageSize: 50 }); this.setData({ riderVerifications: data.list || [] }) },
+  async reviewRiderVerification(e) {
+    const id = Number(e.currentTarget.dataset.id)
+    const action = e.currentTarget.dataset.action
+    const label = action === 'approve' ? '通过认证' : '驳回认证'
+    if (!await this.confirm(label, '该操作将立即影响用户的接单权限。')) return
+    try {
+      await admin.reviewRiderVerification(id, action)
+      wx.showToast({ title: label + '成功', icon: 'success' })
+      this.loadRiderVerifications()
+    } catch (e) {}
+  },
   async reviewWithdrawal(e) {
     const id = Number(e.currentTarget.dataset.id); const action = e.currentTarget.dataset.action
     const label = action === 'approve' ? '通过并发起微信零钱转账' : '驳回提现申请'
@@ -201,6 +218,11 @@ Page({
   onCertInput(e) { this.setData({ certDraft: e.detail.value }) },
 
   noop() {},
+
+  previewVerifyImg(e) {
+    const src = e.currentTarget.dataset.src
+    if (src) wx.previewImage({ urls: [src], current: src })
+  },
 
   closeCertModal() {
     if (!this.data.savingCert) this.setData({ showCertModal: false, certUserId: 0, certDraft: '' })

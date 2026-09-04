@@ -11,6 +11,8 @@
     "pages/errand-publish/index",
     "pages/errand-order/index",
     "pages/errand-detail/index",
+    "pages/errand-complete/index",
+    "pages/errand-cancel/index",
     "pages/rider-verify/index",
     "pages/repair/index",
     "pages/campus-map/index",
@@ -44,7 +46,8 @@
     "navigationBarTitleText": "Campus",
     "navigationBarBackgroundColor": "#7DD3C0",
     "backgroundColor": "#F5F7FA",
-    "backgroundTextStyle": "dark"
+    "backgroundTextStyle": "dark",
+    "enablePullDownRefresh": true
   },
   "tabBar": {
     "custom": true,
@@ -63,6 +66,7 @@
     "scope.userLocation": { "desc": "用于校园地图定位" }
   },
   "requiredPrivateInfos": ["chooseLocation", "getLocation"],
+  "__usePrivacyCheck__": true,
   "style": "v2",
   "sitemapLocation": "sitemap.json",
   "lazyCodeLoading": "requiredComponents",
@@ -85,6 +89,14 @@
       {
         "api": "wx.chooseMedia",
         "purpose": "用于上传图片内容"
+      },
+      {
+        "api": "input.type=nickname",
+        "purpose": "用于同步微信昵称到用户资料"
+      },
+      {
+        "api": "button.open-type=chooseAvatar",
+        "purpose": "用于同步微信头像到用户资料"
       },
       {
         "api": "wx.saveImageToPhotosAlbum",

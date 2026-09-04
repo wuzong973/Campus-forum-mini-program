@@ -2,6 +2,7 @@ const api = require('../../utils/api')
 const bannerUtil = require('../../utils/banner')
 const request = require('../../utils/request')
 const format = require('../../utils/format')
+const { runPullDownRefresh } = require('../../utils/refresh')
 
 const POSTS_CACHE_KEY = 'home_posts_cache'
 const PENDING_POST_KEY = 'home_pending_post'
@@ -113,7 +114,7 @@ Page({
       return
     }
 
-    api.getScheduleList({ silent: true }).then((courses) => {
+    return api.getScheduleList({ silent: true }).then((courses) => {
       this.setData({ scheduleCourses: courses || [] })
       this.renderTodaySchedule(courses || [])
       this.updateBanners()
@@ -187,7 +188,7 @@ Page({
 
   loadServices() {
     this.setData({ serviceLoading: true, serviceLoadFailed: false })
-    api.getServiceList().then((sections) => {
+    return api.getServiceList().then((sections) => {
       const normalized = Array.isArray(sections) ? sections : []
       const allServices = normalized.reduce((items, section) => items.concat(section.items || []), [])
       const campusServices = (normalized.find((section) => section.title === '校园服务') || {}).items || allServices
@@ -269,7 +270,7 @@ Page({
       ? this.data.categories[this.data.activeCategory]
       : ''
     if (!silent) this.setData({ loading: true })
-    api.getPostList({ page, pageSize: this.data.pageSize, category }).then((res) => {
+    return api.getPostList({ page, pageSize: this.data.pageSize, category }).then((res) => {
       const normalizedList = (res.list || []).map((item) => api.normalizePost(item))
       const list = reset ? normalizedList : this.data.posts.concat(normalizedList)
       this.setData({
@@ -707,8 +708,11 @@ Page({
   },
 
   onPullDownRefresh() {
-    this.fetchPosts(1, true, true)
-    wx.stopPullDownRefresh()
+    runPullDownRefresh(this, [
+      () => this.fetchPosts(1, true, true),
+      () => this.loadServices(),
+      () => this.loadTodaySchedule()
+    ])
   },
 
   onReachBottom() {

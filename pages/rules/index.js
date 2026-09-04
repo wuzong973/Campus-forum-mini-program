@@ -1,3 +1,5 @@
+const { runPullDownRefresh } = require('../../utils/refresh')
+
 Page({
   data: {
     rules: [
@@ -51,5 +53,9 @@ Page({
     setTimeout(() => {
       wx.navigateBack()
     }, 1000)
+  },
+
+  onPullDownRefresh() {
+    runPullDownRefresh(this)
   }
 })

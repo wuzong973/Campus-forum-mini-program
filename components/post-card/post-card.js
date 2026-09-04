@@ -145,6 +145,10 @@ Component({
     },
 
     openProfile() {
+      if ((this.data.post || {}).isAnonymous) {
+        wx.navigateTo({ url: '/pages/chat/index?peerId=' + this.data.post.userId + '&anonymous=1' });
+        return;
+      }
       wx.navigateTo({
         url: "/pages/profile/index?id=" + this.data.post.userId,
       });

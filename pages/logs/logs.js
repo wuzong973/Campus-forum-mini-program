@@ -1,5 +1,6 @@
 // logs.js
 const format = require('../../utils/format.js')
+const { runPullDownRefresh } = require('../../utils/refresh')
 
 Page({
   data: {
@@ -14,5 +15,8 @@ Page({
         }
       })
     })
+  },
+  onPullDownRefresh() {
+    runPullDownRefresh(this)
   }
 })

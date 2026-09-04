@@ -1,4 +1,5 @@
 const request = require('../../utils/request')
+const { runPullDownRefresh } = require('../../utils/refresh')
 
 const MOCK_KEY = 'repair_mock_orders'
 
@@ -34,6 +35,10 @@ Page({
     const profile = wx.getStorageSync('userInfo') || {}
     this.setData({ contactName: profile.realName || profile.nickName || '', contactPhone: profile.phone || '' })
     this.loadTechnicians()
+  },
+
+  onPullDownRefresh() {
+    runPullDownRefresh(this, () => this.loadOrders())
   },
 
   onTab(e) {

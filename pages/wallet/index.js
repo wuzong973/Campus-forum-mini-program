@@ -1,5 +1,6 @@
 const auth = require('../../utils/auth')
 const request = require('../../utils/request')
+const { runPullDownRefresh } = require('../../utils/refresh')
 
 const STATUS_TEXT = { SUCCESS: '已到账', PENDING: '审核中', PROCESSING: '转账处理中', REJECTED: '已驳回', FAILED: '转账失败' }
 
@@ -70,7 +71,7 @@ Page({
       this.setData({ loading: false })
       return
     }
-    request.get('/wallet/summary', {}, true, { silent: true }).then(applySummary).catch(() => {}).finally(() => this.setData({ loading: false }))
+    return request.get('/wallet/summary', {}, true, { silent: true }).then(applySummary).catch(() => {}).finally(() => this.setData({ loading: false }))
   },
 
   // 加载今日已提现次数
@@ -81,6 +82,13 @@ Page({
       return recordDate === today && item.type === 'withdrawal'
     })
     this.setData({ dailyUsed: todayRecords.length })
+  },
+
+  onPullDownRefresh() {
+    runPullDownRefresh(this, [async () => {
+      await this.loadWallet()
+      this.loadDailyWithdrawCount()
+    }])
   },
 
   openWithdraw() {

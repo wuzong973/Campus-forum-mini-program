@@ -1,0 +1,49 @@
+<view class="contact-admin">
+  <view class="contact-admin-trigger" catchtap="openMenu">
+    <slot name="trigger"></slot>
+  </view>
+
+  <block wx:if="{{showMenu}}">
+    <view class="contact-admin-mask" catchtap="closeMenu"></view>
+    <view class="contact-admin-sheet" catchtap="stopPropagation">
+      <view class="contact-admin-sheet-head">
+        <view class="contact-admin-sheet-title">联系管理员</view>
+        <view class="contact-admin-close" catchtap="closeMenu">×</view>
+      </view>
+      <view class="contact-admin-options">
+        <button class="contact-admin-option online" open-type="contact" bindcontact="onCustomerServiceContact">
+          <text class="contact-admin-option-icon">◉</text>
+          <view class="contact-admin-option-copy">
+            <text class="contact-admin-option-title">在线联系</text>
+            <text class="contact-admin-option-desc">进入微信客服会话</text>
+          </view>
+          <text class="contact-admin-option-arrow">›</text>
+        </button>
+        <view class="contact-admin-option wechat" catchtap="openQr">
+          <text class="contact-admin-option-icon">⌁</text>
+          <view class="contact-admin-option-copy">
+            <text class="contact-admin-option-title">添加微信</text>
+            <text class="contact-admin-option-desc">扫码添加管理员微信</text>
+          </view>
+          <text class="contact-admin-option-arrow">›</text>
+        </view>
+      </view>
+      <view class="contact-admin-cancel" catchtap="closeMenu">取消</view>
+    </view>
+  </block>
+
+  <block wx:if="{{showQr}}">
+    <view class="contact-admin-mask" catchtap="closeQr"></view>
+    <view class="contact-admin-qr-dialog" catchtap="stopPropagation">
+      <view class="contact-admin-qr-head">
+        <view>
+          <text class="contact-admin-qr-title">添加管理员微信</text>
+          <text class="contact-admin-qr-desc">长按二维码保存或识别</text>
+        </view>
+        <view class="contact-admin-close" catchtap="closeQr">×</view>
+      </view>
+      <image class="contact-admin-qr" src="/avatar2/管理员微信.png" mode="widthFix"></image>
+      <view class="contact-admin-qr-tip">扫码后请备注「校园论坛」</view>
+    </view>
+  </block>
+</view>

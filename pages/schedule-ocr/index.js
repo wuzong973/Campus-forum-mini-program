@@ -2,6 +2,7 @@ const mock = require("../../utils/mock");
 const request = require("../../utils/request");
 const api = require("../../utils/api");
 const scheduleUtils = require("../../utils/schedule");
+const { runPullDownRefresh } = require("../../utils/refresh");
 
 function normalizeRecognizedCourses(list) {
   return (list || [])
@@ -32,6 +33,10 @@ Page({
     showResult: false,
     colorList: mock.courseColors,
     qualityTips: [],
+  },
+
+  onPullDownRefresh() {
+    runPullDownRefresh(this);
   },
 
   onUpload() {

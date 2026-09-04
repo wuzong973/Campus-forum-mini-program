@@ -1,3 +1,5 @@
+const { runPullDownRefresh } = require('../../utils/refresh')
+
 Page({
   data: {
     searchKey: '',
@@ -305,11 +307,8 @@ Page({
     this.setData({ filteredFaqs: faqs })
   },
 
-  onContactService(e) {
-    const result = (e.detail || {}).errMsg || ''
-    if (result.indexOf('fail') !== -1) {
-      wx.showToast({ title: '客服暂不可用，请稍后重试', icon: 'none' })
-    }
+  onPullDownRefresh() {
+    runPullDownRefresh(this)
   },
 
 })

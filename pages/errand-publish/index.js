@@ -1,10 +1,17 @@
 const auth = require('../../utils/auth')
 const request = require('../../utils/request')
 const wechat = require('../../utils/wechat')
+const { runPullDownRefresh } = require('../../utils/refresh')
 const COMMON_ADDR_KEY = 'common_address'
 
 Page({
   data: {
+    statusBarHeight: 20,
+    navBarHeight: 44,
+    title: '',
+    privateInfo: '',
+    wechatId: '',
+    useLastContact: false,
     // 收件信息
     campusGroups: [
       { name: '广州校区', campuses: ['新港校区', '琶洲校区'] },
@@ -49,11 +56,17 @@ Page({
   },
 
   onLoad() {
+    const app = getApp()
+    this.setData({ statusBarHeight: app.globalData.statusBarHeight || 20, navBarHeight: app.globalData.navBarHeight || 44 })
     if (!auth.requireLogin('发布跑腿需要先登录')) {
       setTimeout(() => wx.navigateBack(), 500)
     }
     this.setData({ commonAddress: wx.getStorageSync(COMMON_ADDR_KEY) || '' })
     this.initAppointmentPicker()
+  },
+
+  onPullDownRefresh() {
+    runPullDownRefresh(this)
   },
 
   // 输入处理
@@ -62,6 +75,10 @@ Page({
     this.setData({ [field]: e.detail.value })
   },
 
+  goBack() { wx.navigateBack() },
+
+  onToggleLastContact(e) { this.setData({ useLastContact: !!e.detail.value }) },
+
   // 基础金额输入（整数，不低于2）
   onBaseAmountInput(e) {
     let val = e.detail.value.replace(/\D/g, '')
@@ -69,7 +86,7 @@ Page({
       this.setData({ baseAmount: '', totalAmount: '' })
       return
     }
-    const num = parseInt(val, 10)
+    let num = parseInt(val, 10)
     if (num < 2) num = 2
     this.setData({ baseAmount: String(num) })
     this._recalcTotal()
@@ -284,47 +301,18 @@ Page({
 
   // 发布并支付
   onSubmit() {
-    const { receiverName, receiverPhone, pickupAddr, deliveryAddr, deliveryBuilding, deliveryRoom, remark, baseAmount } = this.data
-    if (this.data.activeCampus < 0 || !this.data.activeSubCampus) {
-      wx.showToast({ title: '请选择校区', icon: 'none' })
-      return
-    }
-    if (!receiverName.trim()) {
-      wx.showToast({ title: '请填写收件人姓名', icon: 'none' })
-      return
-    }
-    if (!receiverPhone.trim()) {
-      wx.showToast({ title: '请填写联系方式', icon: 'none' })
-      return
-    }
-    if (!pickupAddr.trim()) {
-      wx.showToast({ title: '请填写取件地址', icon: 'none' })
-      return
-    }
-    if (!deliveryAddr.trim()) {
-      wx.showToast({ title: '请填写送达地址', icon: 'none' })
-      return
-    }
-    if (!deliveryBuilding.trim()) {
-      wx.showToast({ title: '请填写送达楼栋', icon: 'none' })
-      return
-    }
-    if (!deliveryRoom.trim()) {
-      wx.showToast({ title: '请填写宿舍号', icon: 'none' })
-      return
-    }
+    const { receiverName, receiverPhone, pickupAddr, deliveryAddr, deliveryBuilding, deliveryRoom, remark, baseAmount, title } = this.data
+    if (!title || !title.trim()) { wx.showToast({ title: '请填写标题', icon: 'none' }); return }
     if (!remark.trim()) {
       wx.showToast({ title: '请填写备注信息', icon: 'none' })
       return
     }
-    if (this.data.activeGenderRestriction < 0) {
-      wx.showToast({ title: '请选择性别限制', icon: 'none' })
-      return
-    }
+    const genderIndex = this.data.activeGenderRestriction < 0 ? 2 : this.data.activeGenderRestriction
+    if (this.data.activeGenderRestriction < 0) this.setData({ activeGenderRestriction: genderIndex })
 
     const baseNum = parseInt(baseAmount) || 0
-    if (baseNum < 2) {
-      wx.showToast({ title: '基础金额不能低于2元', icon: 'none' })
+    if (baseNum < 2 || baseNum > 500) {
+      wx.showToast({ title: '金额需为2-500元', icon: 'none' })
       return
     }
     if (this.data.submitting) return
@@ -332,11 +320,12 @@ Page({
 
     const fee = this.getFeeDetail()
     const payload = {
+      title: title.trim(),
       type: this.data.orderTypes[this.data.activeOrderType],
-      campus: this.data.activeSubCampus,
-      genderRequirement: this.data.genderRestrictions[this.data.activeGenderRestriction],
-      receiverName: receiverName.trim(),
-      receiverPhone: receiverPhone.trim(),
+      campus: this.data.activeSubCampus || '不限校区',
+      genderRequirement: this.data.genderRestrictions[genderIndex],
+      receiverName: receiverName.trim() || '待联系',
+      receiverPhone: receiverPhone.trim() || this.data.wechatId.trim(),
       pickupAddr: pickupAddr.trim(),
       deliveryAddr: deliveryAddr.trim(),
       deliveryBuilding: deliveryBuilding.trim(),
@@ -344,6 +333,8 @@ Page({
       pickupTimeType: this.data.pickupTimeType,
       appointmentTime: this.data.pickupTimeType === '预约' ? this.data.appointmentTime : '',
       remark: remark.trim(),
+      privateInfo: this.data.privateInfo.trim(),
+      wechatId: this.data.wechatId.trim(),
       images: this.data.images,
       baseAmount: parseFloat(fee.baseAmount),
       totalAmount: parseFloat(fee.total),

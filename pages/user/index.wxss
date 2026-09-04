@@ -1,12 +1,14 @@
 .page {
   min-height: 100vh;
+  box-sizing: border-box;
+  padding-bottom: calc(150rpx + env(safe-area-inset-bottom));
   background:
     radial-gradient(circle at 94% 4%, rgba(18, 184, 166, 0.18), transparent 280rpx),
     linear-gradient(180deg, #eef4ff 0%, #f4f6fa 390rpx, #f4f6fa 100%);
 }
 
 .header {
-  padding-bottom: 54rpx;
+  padding-bottom: 44rpx;
   border-radius: 0 0 44rpx 44rpx;
   box-shadow: 0 18rpx 44rpx rgba(49, 92, 255, 0.12);
 }
@@ -25,7 +27,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 100rpx 28rpx 40rpx;
+  padding: 96rpx 28rpx 32rpx;
 }
 
 .user-info {
@@ -110,8 +112,8 @@
 }
 
 .shortcuts {
-  margin: 24rpx 24rpx 24rpx;
-  padding: 34rpx 0 30rpx;
+  margin: 20rpx 24rpx;
+  padding: 30rpx 0 26rpx;
   display: flex;
   position: relative;
   z-index: 2;
@@ -121,7 +123,7 @@
 
 .interaction-shortcuts {
   margin-top: 0;
-  padding: 28rpx 0;
+  padding: 26rpx 0;
 }
 
 .shortcut-item {
@@ -246,24 +248,4 @@
 
 .customer-service-row {
   position: relative;
-}
-
-.customer-service-hit {
-  position: absolute;
-  z-index: 2;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  left: 0;
-  width: auto;
-  min-height: 0;
-  margin: 0;
-  padding: 0;
-  background: transparent;
-  border: 0;
-  border-radius: 0;
-}
-
-.customer-service-hit::after {
-  border: none;
 }

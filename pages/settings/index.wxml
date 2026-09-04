@@ -8,7 +8,7 @@
         <text class="menu-label">头像</text>
       </view>
       <view class="menu-right">
-        <image class="avatar-preview" src="{{userInfo.avatarUrl || '/assets/avatars/avatar-boy-1.png'}}" mode="aspectFill"></image>
+        <image class="avatar-preview" src="{{userInfo.avatarUrl || '/avatar2/1.jpg'}}" mode="aspectFill" lazy-load></image>
         <text class="arrow">></text>
       </view>
     </view>
@@ -18,7 +18,7 @@
         <text class="menu-label">昵称</text>
       </view>
       <view class="menu-right">
-        <text class="menu-value {{!userInfo.nickName ? 'placeholder' : ''}}">{{userInfo.nickName || '昵称未命名'}}</text>
+        <text class="menu-value {{!userInfo.nickName ? 'placeholder' : ''}}">{{userInfo.nickName || '校园用户'}}</text>
         <text class="arrow">></text>
       </view>
     </view>
@@ -131,8 +131,14 @@
   <view class="modal-mask {{showAvatarSource ? 'show' : ''}}" bindtap="closeAvatarSource"></view>
   <view class="modal-bottom {{showAvatarSource ? 'show' : ''}}">
     <view class="modal-bottom-title">选择头像来源</view>
-    <button class="modal-bottom-item avatar-source-btn" open-type="chooseAvatar" bindchooseavatar="onChooseWechatAvatar">使用微信头像</button>
-    <view class="modal-bottom-item" bindtap="onChooseAlbumAvatar">从相册选择</view>
+    <button class="modal-bottom-item avatar-source-btn" open-type="chooseAvatar" bindchooseavatar="onChooseWechatAvatar" loading="{{syncingWechatAvatar}}" disabled="{{syncingWechatAvatar}}">
+      <text>{{syncingWechatAvatar ? '正在同步微信头像...' : '使用微信头像'}}</text>
+      <text wx:if="{{syncPref.avatarSource === 'wechat'}}" class="last-used-tag">上次使用</text>
+    </button>
+    <view class="modal-bottom-item" bindtap="onChooseAlbumAvatar">
+      <text>上传本地图片</text>
+      <text wx:if="{{syncPref.avatarSource === 'album'}}" class="last-used-tag">上次使用</text>
+    </view>
     <view class="modal-bottom-cancel" bindtap="closeAvatarSource">取消</view>
   </view>
 
@@ -149,7 +155,7 @@
       <view class="profile-row avatar-row">
         <text class="profile-label">头像</text>
         <view class="avatar-edit-wrap" bindtap="onModalAvatarTap">
-          <image class="avatar-large" src="{{editAvatar || '/assets/avatars/avatar-boy-1.png'}}" mode="aspectFill"></image>
+          <image class="avatar-large" src="{{editAvatar || '/avatar2/1.jpg'}}" mode="aspectFill"></image>
           <view class="avatar-camera-icon">
             <image class="camera-icon-img" src="/assets/icons/camera.png" mode="aspectFit"></image>
           </view>
@@ -160,8 +166,8 @@
       <view class="profile-row">
         <text class="profile-label">昵称</text>
         <view class="nickname-edit">
-          <input class="profile-input" type="nickname" focus="{{nicknameFocus}}" placeholder="请输入昵称" value="{{editNickname}}" bindinput="onNicknameInput" />
-          <view class="wechat-fill-btn" bindtap="onUseWechatNickname">使用微信昵称</view>
+          <input class="profile-input" type="nickname" focus="{{nicknameFocus}}" placeholder="请输入昵称" value="{{editNickname}}" bindinput="onNicknameInput" bindnicknamereview="onWechatNicknameReview" />
+          <button class="wechat-fill-btn" loading="{{syncingWechatNickname}}" disabled="{{syncingWechatNickname}}" bindtap="onUseWechatNickname">{{syncingWechatNickname ? '同步中...' : '使用微信昵称'}}</button>
         </view>
       </view>
 
@@ -200,7 +206,7 @@
     </scroll-view>
 
     <view class="profile-modal-footer">
-      <view class="confirm-btn" bindtap="onConfirmProfile">确定</view>
+      <view class="confirm-btn {{savingProfile ? 'confirm-btn-disabled' : ''}}" bindtap="onConfirmProfile">{{savingProfile ? '保存中...' : '确定'}}</view>
     </view>
   </view>
 </view>

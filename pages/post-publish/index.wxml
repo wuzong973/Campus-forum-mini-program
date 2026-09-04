@@ -1,72 +1,35 @@
 <view class="page">
-
-
   <scroll-view class="publish-scroll" scroll-y enhanced show-scrollbar="{{false}}">
     <view class="editor-card">
       <view class="notice-tip"><text class="notice-mark">!</text> 禁止发布重复信息、广告营销类、含二维码等内容</view>
       <textarea class="content-input" placeholder="请输入投稿内容..." maxlength="500" value="{{content}}" bindinput="onInput" auto-height></textarea>
-      <view class="image-grid">
-        <view class="image-item" wx:for="{{mediaList}}" wx:key="path">
-          <image src="{{item.thumb || item.path}}" mode="aspectFill" class="thumb"></image>
-          <view class="image-remove" data-index="{{index}}" bindtap="onRemoveImage">×</view>
-        </view>
-        <view class="image-add" bindtap="onChooseImage" wx:if="{{mediaList.length < 9}}">
-          <image src="/assets/icons/camera.png" class="camera-icon" mode="aspectFit"></image>
-          <text>{{mediaList.length}} / 9</text>
-        </view>
-      </view>
+      <view class="image-grid"><view class="image-item" wx:for="{{mediaList}}" wx:key="path"><image src="{{item.thumb || item.path}}" mode="aspectFill" class="thumb"></image><view class="image-remove" data-index="{{index}}" bindtap="onRemoveImage">×</view></view><view class="image-add" bindtap="onChooseImage" wx:if="{{mediaList.length < 9}}"><image src="/assets/icons/camera.png" class="camera-icon" mode="aspectFit"></image><text>{{mediaList.length}} / 9</text></view></view>
+    </view>
+
+    <view class="component-card">
+      <view class="component-title-row"><view><text class="component-title">添加组件</text><text class="component-subtitle">让帖子更好互动</text></view><view class="add-component-btn" bindtap="openComponentSheet"><text class="add-symbol">＋</text><text>添加</text></view></view>
+      <view class="component-summary" wx:if="{{poll}}"><view><text class="summary-icon">☆</text><text class="summary-title">投票</text><text class="summary-text">{{poll.question || '未填写投票问题'}}</text></view><text class="remove-component" data-type="poll" bindtap="removeComponent">移除</text></view>
+      <view class="component-summary" wx:if="{{gathering}}"><view><text class="summary-icon">♧</text><text class="summary-title">组局</text><text class="summary-text">{{gathering.type}} · {{gathering.date || '待定'}}</text></view><text class="remove-component" data-type="gathering" bindtap="removeComponent">移除</text></view>
     </view>
 
     <view class="settings-card">
-      <view class="setting-row" bindtap="openContactSheet">
-        <text class="setting-title">填写联系方式</text>
-        <view class="setting-value"><text>{{contactSummary}}</text><text class="chevron">›</text></view>
-      </view>
-      <view class="setting-row">
-        <text class="setting-title">切换第二身份</text>
-        <switch checked="{{secondIdentity}}" color="#3478f6" bindchange="onSecondIdentityChange"></switch>
-      </view>
-      <view class="setting-row" bindtap="openTagPicker">
-        <text class="setting-title">主题分类</text>
-        <view class="setting-value"><text>{{categoryIndex >= 0 ? categories[categoryIndex] : '未选择'}}</text><text class="chevron">›</text></view>
-      </view>
+      <view class="setting-row" bindtap="openContactSheet"><text class="setting-title">填写联系方式</text><view class="setting-value"><text>{{contactSummary}}</text><text class="chevron">›</text></view></view>
+      <view class="setting-row"><view><text class="setting-title">匿名发布</text><text class="anonymous-state" wx:if="{{secondIdentity}}">将随机使用匿名头像和名称</text></view><switch checked="{{secondIdentity}}" color="#3478f6" bindchange="onSecondIdentityChange"></switch></view>
+      <view class="anonymous-preview" wx:if="{{secondIdentity && anonymousPreview}}"><image src="{{anonymousPreview.avatarUrl}}" mode="aspectFill"></image><text>发布后将显示为 {{anonymousPreview.nickName}}</text></view>
+      <view class="setting-row" bindtap="openTagPicker"><text class="setting-title">主题分类</text><view class="setting-value"><text>{{categoryIndex >= 0 ? categories[categoryIndex] : '未选择'}}</text><text class="chevron">›</text></view></view>
     </view>
-
-    <view class="forum-tips">
-      <view class="tips-title"><text class="notice-mark">!</text> 论坛小贴士</view>
-      <text class="tips-content">普通消息免费发布；商业推广、招聘及营销内容请先联系管理员审核。请文明发言，遵守社区规则。</text>
-      <text class="tips-rules" bindtap="openRules">查看《社区规则》</text>
-    </view>
+    <view class="forum-tips"><view class="tips-title"><text class="notice-mark">!</text> 论坛小贴士</view><view class="tips-content"><text>普通消息免费发布；商业推广、招聘及营销内容请先</text><contact-admin class="inline-contact"><view slot="trigger" class="contact-admin">联系管理员</view></contact-admin><text>审核。请文明发言，遵守社区规则。</text></view><text class="tips-rules" bindtap="openRules">查看《社区规则》</text></view>
   </scroll-view>
 
-  <view class="tag-mask" wx:if="{{showTagPicker}}" bindtap="closeTagPicker"></view>
-  <view class="tag-popup" wx:if="{{showTagPicker}}" catchtap="noop">
-    <view class="sheet-header"><text></text><text class="sheet-title">请选择主题分类</text><text class="sheet-close" bindtap="closeTagPicker">×</text></view>
-    <text class="sheet-subtitle">选择主题</text>
-    <view class="category-grid">
-      <view wx:for="{{categories}}" wx:key="*this" data-index="{{index}}" bindtap="onTempTagSelect" class="category-option {{tempCategoryIndex === index ? 'active' : ''}}">{{item}}</view>
-    </view>
-    <button class="sheet-confirm" bindtap="confirmTag">确认</button>
-  </view>
+  <view class="tag-mask" wx:if="{{showTagPicker || showContactSheet || showComponentSheet || componentEditor}}" bindtap="closeAllSheets"></view>
+  <view class="tag-popup" wx:if="{{showTagPicker}}" catchtap="noop"><view class="sheet-header"><text></text><text class="sheet-title">请选择主题分类</text><text class="sheet-close" bindtap="closeTagPicker">×</text></view><text class="sheet-subtitle">选择主题</text><view class="category-grid"><view wx:for="{{categories}}" wx:key="*this" data-index="{{index}}" bindtap="onTempTagSelect" class="category-option {{tempCategoryIndex === index ? 'active' : ''}}">{{item}}</view></view><button class="sheet-confirm" bindtap="confirmTag">确认</button></view>
 
-  <view class="tag-mask" wx:if="{{showContactSheet}}" bindtap="closeContactSheet"></view>
-  <view class="contact-popup" wx:if="{{showContactSheet}}" catchtap="noop">
-    <view class="sheet-header"><text></text><text class="sheet-title">请填写联系方式</text><text class="sheet-close" bindtap="closeContactSheet">×</text></view>
-    <view class="contact-card">
-      <text class="contact-label">联系姓名</text>
-      <input class="contact-input" value="{{contactName}}" placeholder="例如：小明" bindinput="onContactNameInput"></input>
-    </view>
-    <view class="contact-card">
-      <text class="contact-label">联系方式</text>
-      <view class="contact-types">
-        <view wx:for="{{contactTypes}}" wx:key="*this" class="contact-type {{contactType === item ? 'active' : ''}}" data-value="{{item}}" bindtap="onContactTypeSelect"><text class="radio-dot"></text>{{item}}</view>
-      </view>
-      <input class="contact-input" value="{{contactValue}}" placeholder="{{contactType}}" bindinput="onContactValueInput"></input>
-    </view>
-    <button class="sheet-confirm" bindtap="confirmContact">确认</button>
-  </view>
+  <view class="contact-popup" wx:if="{{showContactSheet}}" catchtap="noop"><view class="sheet-header"><text></text><text class="sheet-title">请填写联系方式</text><text class="sheet-close" bindtap="closeContactSheet">×</text></view><view class="contact-card"><text class="contact-label">联系姓名</text><input class="contact-input" value="{{contactName}}" placeholder="例如：小明" bindinput="onContactNameInput"></input></view><view class="contact-card"><text class="contact-label">联系方式</text><view class="contact-types"><view wx:for="{{contactTypes}}" wx:key="*this" class="contact-type {{contactType === item ? 'active' : ''}}" data-value="{{item}}" bindtap="onContactTypeSelect"><text class="radio-dot"></text>{{item}}</view></view><input class="contact-input" value="{{contactValue}}" placeholder="{{contactType}}" bindinput="onContactValueInput"></input></view><button class="sheet-confirm" bindtap="confirmContact">确认</button></view>
 
-  <view class="submit-wrap">
-    <button class="submit-btn {{canSubmit ? 'active' : ''}}" loading="{{submitting}}" bindtap="onSubmit">{{submitting ? '发布中' : '确认发布'}}</button>
-  </view>
+  <view class="component-sheet" wx:if="{{showComponentSheet}}" catchtap="noop"><view class="sheet-header"><text></text><text class="sheet-title">添加组件</text><text class="sheet-close" bindtap="closeComponentSheet">×</text></view><text class="sheet-subtitle">每种组件每篇帖子限添加一个</text><view class="component-choice-row"><view class="component-choice" data-type="poll" bindtap="openComponentEditor"><text class="choice-icon">☆</text><text>投票</text></view><view class="component-choice" data-type="gathering" bindtap="openComponentEditor"><text class="choice-icon">♧</text><text>组局</text></view></view></view>
+
+  <view class="component-editor" wx:if="{{componentEditor === 'poll'}}" catchtap="noop"><view class="sheet-header"><text></text><text class="sheet-title">添加投票</text><text class="sheet-close" bindtap="closeComponentEditor">×</text></view><input class="form-input" value="{{poll.question}}" placeholder="投票标题" maxlength="80" bindinput="onPollQuestionInput"></input><view class="form-label-row"><text class="form-label">投票选项</text><view class="mode-switch"><text class="mode-item {{poll.mode === 'single' ? 'active' : ''}}" data-mode="single" bindtap="setPollMode">单选</text><text class="mode-item {{poll.mode === 'multiple' ? 'active' : ''}}" data-mode="multiple" bindtap="setPollMode">多选</text></view></view><view wx:for="{{poll.options}}" wx:key="index" class="option-input-row"><input class="form-input option-input" value="{{item.value}}" placeholder="选项 {{index + 1}}" data-index="{{index}}" bindinput="onPollOptionInput"></input><text class="option-remove" wx:if="{{poll.options.length > 2}}" data-index="{{index}}" bindtap="removePollOption">×</text></view><view class="add-option" bindtap="addPollOption">＋ 添加选项</view><button class="sheet-confirm" bindtap="saveComponentEditor">保存投票</button></view>
+
+  <view class="component-editor gathering-editor" wx:if="{{componentEditor === 'gathering'}}" catchtap="noop"><view class="sheet-header"><text></text><text class="sheet-title">发起组局</text><text class="sheet-close" bindtap="closeComponentEditor">×</text></view><text class="form-label">活动类型</text><view class="activity-types"><text wx:for="{{activityTypes}}" wx:key="*this" data-value="{{item}}" bindtap="onGatheringType" class="activity-type {{gathering.type === item ? 'active' : ''}}">{{item}}</text></view><input wx:if="{{gathering.type === '其他'}}" class="form-input" value="{{gathering.customType}}" placeholder="自定义活动类型" data-field="customType" bindinput="onGatheringInput"></input><view class="form-grid"><picker mode="date" value="{{gathering.date}}" bindchange="onGatheringInput" data-field="date"><view class="picker-input">{{gathering.date || '选择日期'}}</view></picker><picker mode="time" value="{{gathering.time}}" bindchange="onGatheringInput" data-field="time"><view class="picker-input">{{gathering.time || '选择时间'}}</view></picker></view><input class="form-input" value="{{gathering.location}}" placeholder="活动地点" data-field="location" bindinput="onGatheringInput"></input><view class="form-label-row"><text class="form-label">参与人数上限</text><input class="limit-input" type="number" value="{{gathering.limit}}" bindinput="onGatheringLimitChange"></input></view><input class="form-input" value="{{gathering.contact}}" placeholder="发起人联系方式（可选公开）" data-field="contact" bindinput="onGatheringInput"></input><view class="public-contact"><text>公开联系方式</text><switch checked="{{gathering.contactPublic}}" color="#3478f6" bindchange="onGatheringContactPublic"></switch></view><textarea class="form-textarea" value="{{gathering.description}}" placeholder="活动简要描述" maxlength="240" data-field="description" bindinput="onGatheringInput"></textarea><button class="sheet-confirm" bindtap="saveComponentEditor">保存组局</button></view>
+  <view class="submit-wrap"><button class="submit-btn {{canSubmit ? 'active' : ''}}" loading="{{submitting}}" bindtap="onSubmit">{{submitting ? '发布中' : '确认发布'}}</button></view>
 </view>

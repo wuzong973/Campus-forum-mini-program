@@ -2,5 +2,8 @@
   "navigationBarTitleText": "常见问题",
   "navigationBarBackgroundColor": "#ffffff",
   "navigationBarTextStyle": "black",
-  "backgroundColor": "#F5F7FA"
+  "backgroundColor": "#F5F7FA",
+  "usingComponents": {
+    "contact-admin": "/components/contact-admin/contact-admin"
+  }
 }

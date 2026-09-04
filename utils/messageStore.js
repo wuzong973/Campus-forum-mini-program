@@ -64,6 +64,10 @@ function updateCacheStatus(peerId, messageId, status) {
   }
 }
 
+function removeCachedMessage(peerId, messageId) {
+  saveCache(peerId, loadCache(peerId).filter((item) => Number(item.id) !== Number(messageId)))
+}
+
 function saveConversations(list) {
   wx.setStorageSync(CONV_CACHE_KEY, list)
 }
@@ -133,6 +137,10 @@ function connect() {
     if (msg.type === 'pong') return
     if (msg.type === 'private_message') {
       handleIncomingMessage(msg.data)
+    }
+    if (msg.type === 'private_message_recalled') {
+      removeCachedMessage(msg.data.peerId, msg.data.id)
+      notifyHandlers({ type: 'message_recalled', peerId: msg.data.peerId, data: msg.data })
     }
     if (msg.type === 'notification') {
       notifyHandlers({ type: 'notification', data: msg.data })
@@ -244,21 +252,26 @@ function notifyHandlers(payload) {
 }
 
 // ===== API 调用 =====
-function sendMessage(receiverId, content, msgType = 'text') {
+function sendMessage(receiverId, content, msgType = 'text', anonymous = false) {
   if (request.USE_MOCK) {
     const message = { id: Date.now(), senderId: (getAppInstance().globalData.userInfo || {}).id || 1, receiverId, content, msgType, status: 'sent', createdAt: new Date().toISOString(), isMine: true }
     appendCache(receiverId, message)
     return Promise.resolve(message)
   }
-  return request.post('/message/send', { receiverId, content, msgType }, true)
+  return request.post('/message/send', { receiverId, content, msgType, anonymous }, true)
 }
 
-function getHistory(peerId, page, pageSize) {
+function getHistory(peerId, page, pageSize, anonymous = false) {
   if (request.USE_MOCK) {
     const list = loadCache(peerId)
     return Promise.resolve({ list: list, total: list.length, hasMore: false })
   }
-  return request.get('/message/history', { peerId, page, pageSize }, true)
+  return request.get('/message/history', { peerId, page, pageSize, anonymous: anonymous ? 1 : 0 }, true)
+}
+
+function recallMessage(peerId, messageId) {
+  if (request.USE_MOCK) { removeCachedMessage(peerId, messageId); return Promise.resolve(null) }
+  return request.post('/message/' + messageId + '/recall', {}, true).then((res) => { removeCachedMessage(peerId, messageId); return res })
 }
 
 function getConversations() {
@@ -287,6 +300,21 @@ function updateMessageStatus(messageId, status) {
   return request.put('/message/status', { messageId, status }, true, { silent: true })
 }
 
+function blockPeer(peerId) {
+  if (request.USE_MOCK) return Promise.resolve({ blocked: true })
+  return request.post('/message/block', { peerId }, true)
+}
+
+function unblockPeer(peerId) {
+  if (request.USE_MOCK) return Promise.resolve({ blocked: false })
+  return request.post('/message/unblock', { peerId }, true)
+}
+
+function getBlacklist() {
+  if (request.USE_MOCK) return Promise.resolve({ list: [] })
+  return request.get('/message/blacklist', {}, true)
+}
+
 // 同步未读数到本地
 function syncUnreadCount() {
   return getUnreadCount().then((res) => {
@@ -297,12 +325,13 @@ function syncUnreadCount() {
 
 module.exports = {
   // 缓存
-  loadCache, saveCache, appendCache, updateCacheStatus,
+  loadCache, saveCache, appendCache, updateCacheStatus, removeCachedMessage,
   loadConversations, saveConversations,
   getUnreadTotal, setUnreadTotal, updateTabBarBadge,
   // WebSocket
   connect, disconnect, onMessage,
   // API
-  sendMessage, getHistory, getConversations, markRead,
-  getUnreadCount, updateMessageStatus, syncUnreadCount
+  sendMessage, getHistory, recallMessage, getConversations, markRead,
+  getUnreadCount, updateMessageStatus, syncUnreadCount,
+  blockPeer, unblockPeer, getBlacklist
 }

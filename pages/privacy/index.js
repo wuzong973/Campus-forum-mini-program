@@ -1,3 +1,9 @@
+const { runPullDownRefresh } = require('../../utils/refresh')
+
 Page({
-  data: {}
+  data: {},
+
+  onPullDownRefresh() {
+    runPullDownRefresh(this)
+  }
 })

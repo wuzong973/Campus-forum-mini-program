@@ -1,3 +1,5 @@
+const { runPullDownRefresh } = require('../../utils/refresh')
+
 const ALLOWED_HOSTS = new Set([
   'jw.gdipu.edu.cn',
   'mobilelib.wx.chaoxing.com',
@@ -17,5 +19,9 @@ Page({
     } else if (url) {
       wx.showToast({ title: '该服务链接未通过安全校验', icon: 'none' })
     }
+  },
+
+  onPullDownRefresh() {
+    runPullDownRefresh(this)
   }
 })

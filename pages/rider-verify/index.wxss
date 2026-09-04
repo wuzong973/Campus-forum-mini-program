@@ -9,6 +9,17 @@
 .hero-title { display: block; font-size: 68rpx; line-height: 1; font-weight: 800; color: #0e2149; }
 .hero-desc { display: block; margin-top: 18rpx; font-size: 25rpx; color: #4f6590; }
 .hero-contact { display: inline-block; margin-top: 24rpx; color: #2d7cf6; font-size: 26rpx; }
+.status-banner { margin: 18rpx; padding: 28rpx; border-radius: 20rpx; display: flex; align-items: flex-start; gap: 20rpx; box-shadow: 0 8rpx 24rpx rgba(31, 55, 101, 0.06); }
+.status-banner.status-pending { background: #fff7e6; }
+.status-banner.status-approved { background: #e8f8ef; }
+.status-banner.status-rejected { background: #fff0f0; }
+.status-icon { font-size: 48rpx; flex-shrink: 0; line-height: 1; }
+.status-content { display: flex; flex-direction: column; gap: 8rpx; flex: 1; min-width: 0; }
+.status-content .status-title { font-size: 30rpx; font-weight: 700; }
+.status-banner.status-pending .status-title { color: #ed831a; }
+.status-banner.status-approved .status-title { color: #25a56b; }
+.status-banner.status-rejected .status-title { color: #e04040; }
+.status-content .status-desc { font-size: 24rpx; color: #68748a; line-height: 1.5; }
 .steps { display: flex; align-items: center; justify-content: space-between; gap: 10rpx; margin: -28rpx 18rpx 20rpx; padding: 20rpx 18rpx; border-radius: 18rpx; background: #337ef0; color: #dfeaff; font-size: 24rpx; }
 .steps.light { margin: 24rpx 18rpx 20rpx; background: #fff; color: #68748a; box-shadow: 0 6rpx 18rpx rgba(35, 63, 120, 0.06); }
 .step.active { color: #fff; font-weight: 700; }.steps.light .step.active { color: #2478f3; }.step.done { color: #2478f3; }

@@ -1,4 +1,5 @@
 const api = require("../../utils/api");
+const { runPullDownRefresh } = require("../../utils/refresh");
 
 Page({
   data: {
@@ -35,6 +36,10 @@ Page({
     if (this.data.profileId) {
       this.loadPageData(true);
     }
+  },
+
+  onPullDownRefresh() {
+    runPullDownRefresh(this, () => this.loadPageData(true));
   },
 
   loadPageData(silent) {

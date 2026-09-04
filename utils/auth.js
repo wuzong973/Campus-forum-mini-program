@@ -1,6 +1,7 @@
 const request = require('./request')
 const loginExpiry = require('./login-expiry')
 const syncQueue = require('./syncQueue')
+const avatar = require('./avatar')
 
 function getAppSafe() {
   try {
@@ -68,7 +69,9 @@ function getRunnerVerification() {
   return {
     campusVerified: !!verification.campusVerified,
     realNameVerified: !!verification.realNameVerified,
-    phoneBound: !!user.phone
+    phoneBound: !!user.phone,
+    verificationStatus: verification.verificationStatus || 'none',
+    reviewNote: verification.reviewNote || ''
   }
 }
 
@@ -95,10 +98,24 @@ function saveUser(user) {
     app.globalData.token = user.token
     wx.setStorageSync('token', user.token)
   }
+  const current = app.globalData.userInfo || wx.getStorageSync('userInfo') || {}
+  const sameUser = user && user.id && String(current.id) === String(user.id)
+  const defaultProfile = avatar.getDefaultProfile()
+  const currentAvatar = sameUser && avatar.isStoredAvatar(current.avatarUrl) ? current.avatarUrl : ''
+  const serverAvatar = avatar.isStoredAvatar(user.avatarUrl || user.avatar_url)
+    ? (user.avatarUrl || user.avatar_url)
+    : ''
+  const avatarUrl = serverAvatar || currentAvatar || defaultProfile.avatarUrl
+  const serverNickName = user.nickName || user.nick_name || ''
+  const nickName = !avatar.isDefaultName(serverNickName)
+    ? serverNickName
+    : (sameUser && !avatar.isDefaultName(current.nickName)
+      ? current.nickName
+      : defaultProfile.nickName)
   const info = {
     id: user.id,
-    nickName: user.nickName || user.nick_name || '校园用户',
-    avatarUrl: user.avatarUrl || user.avatar_url || '',
+    nickName,
+    avatarUrl,
     studentId: user.studentId || user.student_id || '',
     gender: user.gender,
     campus: user.campus,
@@ -111,6 +128,7 @@ function saveUser(user) {
   wx.setStorageSync('userInfo', info)
   // 登录成功后记录活跃时间，启动 90 天时效计时
   loginExpiry.recordActiveTime()
+  return info
 }
 
 function logout() {

@@ -13,7 +13,31 @@
       <view class="hero">
         <text class="hero-title">骑手认证</text>
         <text class="hero-desc">认证审核通过后就可以接单赚米啦～</text>
-        <text class="hero-contact" bindtap="contactAdmin">联系管理员 ›</text>
+        <contact-admin>
+          <view slot="trigger" class="hero-contact">联系管理员 ›</view>
+        </contact-admin>
+      </view>
+
+      <view wx:if="{{verificationStatus === 'pending'}}" class="status-banner status-pending">
+        <text class="status-icon">⏳</text>
+        <view class="status-content">
+          <text class="status-title">认证审核中</text>
+          <text class="status-desc">您提交的认证信息正在审核中，请耐心等待</text>
+        </view>
+      </view>
+      <view wx:elif="{{verificationStatus === 'approved'}}" class="status-banner status-approved">
+        <text class="status-icon">✅</text>
+        <view class="status-content">
+          <text class="status-title">认证已通过</text>
+          <text class="status-desc">您已获得接单资格，快去接单吧！</text>
+        </view>
+      </view>
+      <view wx:elif="{{verificationStatus === 'rejected'}}" class="status-banner status-rejected">
+        <text class="status-icon">❌</text>
+        <view class="status-content">
+          <text class="status-title">认证未通过</text>
+          <text class="status-desc">{{reviewNote || '请检查提交的信息后重新申请'}}</text>
+        </view>
       </view>
 
       <view class="steps">

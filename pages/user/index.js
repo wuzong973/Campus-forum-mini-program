@@ -1,6 +1,8 @@
 const app = getApp();
 const messageStore = require("../../utils/messageStore");
 const api = require("../../utils/api");
+const avatar = require("../../utils/avatar");
+const { runPullDownRefresh } = require("../../utils/refresh");
 
 Page({
   data: {
@@ -9,6 +11,8 @@ Page({
     isLogin: false,
     isAdmin: false,
     unreadCount: 0,
+    showContactPopup: false,
+    showQrPopup: false,
     shortcuts: [
       { icon: "/assets/icons/order.png", name: "订单" },
       { icon: "/assets/icons/post.png", name: "帖子" },
@@ -31,6 +35,7 @@ Page({
       { icon: "/assets/icons/service.png", name: "联系管理员" },
       { icon: "/assets/icons/feedback.png", name: "用户反馈" },
       { icon: "/assets/icons/help.png", name: "常见问题" },
+      { icon: "/assets/icons/rider.jpg", name: "骑手认证" },
     ],
   },
 
@@ -52,10 +57,14 @@ Page({
     const tabBar = this.getTabBar && this.getTabBar()
     if (tabBar) tabBar.setSelected(3)
     const app = getApp();
+    const defaultProfile = avatar.getDefaultProfile()
     const userInfo = Object.assign(
+      defaultProfile,
       { school: "广东轻工职业技术大学" },
       app.globalData.userInfo || {},
     );
+    if (!avatar.isStoredAvatar(userInfo.avatarUrl)) userInfo.avatarUrl = defaultProfile.avatarUrl
+    if (avatar.isDefaultName(userInfo.nickName)) userInfo.nickName = defaultProfile.nickName
     this.setData({
       statusBarHeight: app.globalData.statusBarHeight,
       userInfo,
@@ -64,6 +73,10 @@ Page({
       unreadCount: messageStore.getUnreadTotal(),
     });
     this.loadInteractionStats();
+  },
+
+  onPullDownRefresh() {
+    runPullDownRefresh(this, () => this.loadInteractionStats());
   },
 
   goLogin() {
@@ -90,22 +103,15 @@ Page({
     const name = e.currentTarget.dataset.name;
     const routes = {
       编辑个人主页: "/pages/profile-edit/index",
-      联系管理员: "/pages/chat/index?type=customer_service",
       用户反馈: "/pages/feedback/index",
       常见问题: "/pages/help/index",
+      骑手认证: "/pages/rider-verify/index",
     };
     const url = routes[name];
     if (url) {
       wx.navigateTo({ url });
     } else {
       wx.showToast({ title: name, icon: "none" });
-    }
-  },
-
-  onCustomerServiceContact(e) {
-    const result = (e.detail || {}).errMsg || "";
-    if (result.indexOf("fail") !== -1) {
-      wx.showToast({ title: "客服暂不可用，请稍后重试", icon: "none" });
     }
   },
 
