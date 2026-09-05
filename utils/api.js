@@ -537,12 +537,8 @@ function favoritePost(postId) {
   );
 }
 
-function votePost(postId, optionIndexes) {
-  return request.post('/post/' + postId + '/vote', { optionIndexes }, true)
-}
-
-function signUpGathering(postId) {
-  return request.post('/post/' + postId + '/gathering/signup', {}, true)
+function votePost(postId, optionIndexes, pollIndex) {
+  return request.post('/post/' + postId + '/vote', { optionIndexes, pollIndex }, true)
 }
 
 function updatePostReviewNote(postId, reviewNote) {
@@ -631,7 +627,22 @@ function getShareList(postId) {
   return request.get("/share/" + postId, { page: 1, pageSize: 20 }, false);
 }
 
+function getBlacklist() {
+  return request.get("/message/blacklist", {}, true);
+}
+
+function unblockUser(peerId) {
+  return request.post("/message/unblock", { peerId }, true);
+}
+
+function bindPhone(phoneCode) {
+  return request.post("/user/phone", { phoneCode }, true);
+}
+
 module.exports = {
+  getBlacklist,
+  unblockUser,
+  bindPhone,
   withMock,
   mapPost,
   getPostList,
@@ -653,7 +664,6 @@ module.exports = {
   getUserPosts,
   favoritePost,
   votePost,
-  signUpGathering,
   updatePostReviewNote,
   deletePost,
   markPostNotInterested,

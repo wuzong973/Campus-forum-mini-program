@@ -5,14 +5,82 @@
   background: #ededed;
 }
 
-/* 顶部安全提示栏 */
+/* 自定义导航栏 */
+.custom-nav {
+  background: #7dd3c0;
+}
+
+.nav-content {
+  position: relative;
+  display: flex;
+  align-items: center;
+  /* 右侧预留胶囊按钮区域，避免标题组与其重叠 */
+  padding: 0 200rpx 0 16rpx;
+}
+
+.nav-back {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 72rpx;
+  height: 100%;
+  flex-shrink: 0;
+}
+
+.nav-back-icon {
+  color: #ffffff;
+  font-size: 56rpx;
+  line-height: 1;
+  margin-top: -6rpx;
+}
+
+.nav-back-hover {
+  opacity: 0.6;
+}
+
+.nav-title-wrap {
+  /* 相对整个导航栏绝对定位，保证「回到帖子」在屏幕水平正中（不受右侧胶囊预留区影响） */
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.back-post-btn {
+  padding: 6rpx 20rpx;
+  border: 1rpx solid rgba(255, 255, 255, 0.75);
+  border-radius: 999rpx;
+  background: rgba(255, 255, 255, 0.22);
+  color: #ffffff;
+  font-size: 22rpx;
+  line-height: 1.5;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition:
+    background-color 0.2s ease,
+    opacity 0.2s ease;
+}
+
+.back-post-hover {
+  background: rgba(255, 255, 255, 0.4);
+}
+
+.back-post-btn.is-returning {
+  opacity: 0.55;
+}
+
+/* 顶部安全提示栏（整体单行显示） */
 .chat-notice {
   background: #f0f1f2;
-  padding: 14rpx 32rpx;
+  padding: 12rpx 16rpx;
 }
 .notice-line {
-  text-align: center;
-  line-height: 1.7;
+  /* flex 单行布局：contact-admin 组件内部是块级元素会强制换行，
+     改为 flex 后各段作为子项排在一行 */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
 }
 .notice-text {
   color: #7f8792;
@@ -24,14 +92,19 @@
   margin: 0;
   background: none;
   border: none;
-  color: #2b2f36;
+  color: #3d7dff;
   font-size: 24rpx;
   font-weight: 600;
   line-height: 1.7;
   vertical-align: baseline;
+  text-decoration: underline;
 }
-.notice-contact::after { border: none; }
-contact-admin.inline-contact { display: inline; }
+.notice-contact::after {
+  border: none;
+}
+contact-admin.inline-contact {
+  display: inline;
+}
 .notice-diamond {
   font-size: 20rpx;
   margin-right: 4rpx;
@@ -39,16 +112,19 @@ contact-admin.inline-contact { display: inline; }
 .notice-block {
   color: #3d7dff;
   font-size: 24rpx;
+  text-decoration: underline;
 }
 .notice-block.is-blocked {
   color: #fa5151;
 }
-.notice-press { opacity: 0.55; }
+.notice-press {
+  opacity: 0.55;
+}
 
 /* 消息列表 */
 .message-list {
   flex: 1;
-  padding: 24rpx 24rpx 12rpx;
+  padding: 24rpx 0 12rpx;
   overflow-y: auto;
 }
 
@@ -56,6 +132,10 @@ contact-admin.inline-contact { display: inline; }
   display: flex;
   margin-bottom: 24rpx;
   align-items: flex-start;
+  /* 水平留白放在消息行上：scroll-view 的水平 padding 在部分端上不生效，
+     会导致右侧头像贴边被裁剪 */
+  padding: 0 24rpx;
+  box-sizing: border-box;
 }
 
 .message-item.self {
@@ -108,8 +188,15 @@ contact-admin.inline-contact { display: inline; }
   display: block;
 }
 
-.message-bubble.image-bubble { padding: 0; overflow: hidden; }
-.message-emoji { display: block; font-size: 56rpx; line-height: 1.2; }
+.message-bubble.image-bubble {
+  padding: 0;
+  overflow: hidden;
+}
+.message-emoji {
+  display: block;
+  font-size: 56rpx;
+  line-height: 1.2;
+}
 
 .time {
   font-size: 22rpx;
@@ -130,9 +217,24 @@ contact-admin.inline-contact { display: inline; }
   border-top: 1rpx solid #d7d7d7;
   padding-bottom: env(safe-area-inset-bottom);
 }
-.anonymous-chat-tip, .send-limit-tip { padding: 12rpx 24rpx; color: #63748a; background: #eef5ff; font-size: 22rpx; line-height: 1.45; }
-.send-limit-tip { border-top: 1rpx solid #dce8f7; color: #3971c9; background: #f5f9ff; }
-.send-limit-tip.block-tip { color: #b25000; background: #fff7e8; border-top-color: #f3e3c8; }
+.anonymous-chat-tip,
+.send-limit-tip {
+  padding: 12rpx 24rpx;
+  color: #63748a;
+  background: #eef5ff;
+  font-size: 22rpx;
+  line-height: 1.45;
+}
+.send-limit-tip {
+  border-top: 1rpx solid #dce8f7;
+  color: #3971c9;
+  background: #f5f9ff;
+}
+.send-limit-tip.block-tip {
+  color: #b25000;
+  background: #fff7e8;
+  border-top-color: #f3e3c8;
+}
 
 .input-toolbar {
   display: flex;
@@ -202,9 +304,27 @@ contact-admin.inline-contact { display: inline; }
   border-top: 1rpx solid #e5e5e5;
 }
 
-.tool-panel-item { width: 120rpx; display: flex; flex-direction: column; align-items: center; gap: 10rpx; }
-.tool-panel-icon { width: 88rpx; height: 88rpx; line-height: 88rpx; text-align: center; border-radius: 12rpx; background: #ffffff; color: #4b5563; font-size: 52rpx; }
-.tool-panel-label { color: #555; font-size: 23rpx; }
+.tool-panel-item {
+  width: 120rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10rpx;
+}
+.tool-panel-icon {
+  width: 88rpx;
+  height: 88rpx;
+  line-height: 88rpx;
+  text-align: center;
+  border-radius: 12rpx;
+  background: #ffffff;
+  color: #4b5563;
+  font-size: 52rpx;
+}
+.tool-panel-label {
+  color: #555;
+  font-size: 23rpx;
+}
 
 /* 表情面板 */
 .emoji-panel {
@@ -221,7 +341,11 @@ contact-admin.inline-contact { display: inline; }
   gap: 12rpx;
 }
 
-.emoji-item { font-size: 40rpx; text-align: center; padding: 8rpx; }
+.emoji-item {
+  font-size: 40rpx;
+  text-align: center;
+  padding: 8rpx;
+}
 
 .emoji-item:active {
   background: #f5f5f5;

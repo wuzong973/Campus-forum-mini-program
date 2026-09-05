@@ -49,6 +49,9 @@
     <view class="notice-bar">
       <image class="notice-icon-img icon-sm" src="/assets/icons/notice.png" mode="aspectFit"></image>
       <text class="notice-text">{{notice}}</text>
+      <contact-admin class="notice-admin-wrap" direct>
+        <view slot="trigger" class="notice-admin">管理员</view>
+      </contact-admin>
       <text class="notice-tail">更新中</text>
     </view>
 

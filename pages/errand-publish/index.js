@@ -3,6 +3,7 @@ const request = require('../../utils/request')
 const wechat = require('../../utils/wechat')
 const { runPullDownRefresh } = require('../../utils/refresh')
 const COMMON_ADDR_KEY = 'common_address'
+const LAST_FORM_KEY = 'errand_last_form'
 
 Page({
   data: {
@@ -12,6 +13,8 @@ Page({
     privateInfo: '',
     wechatId: '',
     useLastContact: false,
+    useLastPickup: false,
+    useLastDelivery: false,
     // 收件信息
     campusGroups: [
       { name: '广州校区', campuses: ['新港校区', '琶洲校区'] },
@@ -42,12 +45,10 @@ Page({
     isLargeItem: false,
     isUrgent: false,
     pickupTimeType: '尽快',
-    appointmentDates: [],
-    appointmentDateOptions: [],
-    appointmentTimeOptions: [],
-    appointmentPickerRange: [[], []],
+    appointmentPickerRange: [[], [], []],
     appointmentDateIndex: 0,
-    appointmentTimeIndex: 0,
+    appointmentHourIndex: 0,
+    appointmentMinuteIndex: 0,
     appointmentTime: '',
     appointmentValue: '',
     submitting: false,
@@ -77,7 +78,73 @@ Page({
 
   goBack() { wx.navigateBack() },
 
-  onToggleLastContact(e) { this.setData({ useLastContact: !!e.detail.value }) },
+  // ===== 使用上次：开关打开时，从本地存储读取上次成功发布的表单信息并填充 =====
+  getLastForm() {
+    return wx.getStorageSync(LAST_FORM_KEY) || null
+  },
+
+  onToggleLastContact(e) {
+    const on = !!e.detail.value
+    this.setData({ useLastContact: on })
+    if (!on) return
+    const last = this.getLastForm()
+    if (!last || (!last.wechatId && !last.receiverPhone)) {
+      wx.showToast({ title: '暂无上次的联系方式', icon: 'none' })
+      this.setData({ useLastContact: false })
+      return
+    }
+    this.setData({ wechatId: last.wechatId || '', receiverPhone: last.receiverPhone || '' })
+  },
+
+  onToggleLastPickup(e) {
+    const on = !!e.detail.value
+    this.setData({ useLastPickup: on })
+    if (!on) return
+    const last = this.getLastForm()
+    if (!last || !last.pickupAddr) {
+      wx.showToast({ title: '暂无上次的取件信息', icon: 'none' })
+      this.setData({ useLastPickup: false })
+      return
+    }
+    this.setData({ pickupAddr: last.pickupAddr })
+  },
+
+  onToggleLastDelivery(e) {
+    const on = !!e.detail.value
+    this.setData({ useLastDelivery: on })
+    if (!on) return
+    const last = this.getLastForm()
+    if (!last || !last.deliveryAddr) {
+      wx.showToast({ title: '暂无上次的送达信息', icon: 'none' })
+      this.setData({ useLastDelivery: false })
+      return
+    }
+    const activeCampus = Number(last.activeCampus)
+    const group = this.data.campusGroups[activeCampus]
+    this.setData({
+      deliveryAddr: last.deliveryAddr,
+      deliveryBuilding: last.deliveryBuilding || '',
+      deliveryRoom: last.deliveryRoom || '',
+      activeCampus: group ? activeCampus : -1,
+      subCampuses: group ? group.campuses : [],
+      activeSubCampus: last.activeSubCampus || ''
+    })
+  },
+
+  // 发布成功后记录本次表单，供“使用上次”填充
+  _saveLastForm() {
+    const d = this.data
+    wx.setStorageSync(LAST_FORM_KEY, {
+      pickupAddr: d.pickupAddr.trim(),
+      deliveryAddr: d.deliveryAddr.trim(),
+      deliveryBuilding: d.deliveryBuilding.trim(),
+      deliveryRoom: d.deliveryRoom.trim(),
+      activeCampus: d.activeCampus,
+      activeSubCampus: d.activeSubCampus,
+      wechatId: d.wechatId.trim(),
+      receiverPhone: d.receiverPhone.trim()
+    })
+  },
 
   // 基础金额输入（整数，不低于2）
   onBaseAmountInput(e) {
@@ -130,45 +197,47 @@ Page({
     this._recalcTotal()
   },
 
-  initAppointmentPicker() {
+  // ===== 期望完成时间选择器（今天/明天 + 时 + 分，5分钟间隔） =====
+  // 纯函数：根据选中索引构建三列数据，今天从当前时间起可选，已过时段不进入列表
+  buildTimeColumns(dateIndex, hourIndex, minuteIndex) {
     const now = new Date()
-    const appointmentDates = []
-    const dateLabels = ['今天', '明天', '后天']
-    for (let offset = 0; offset < 3; offset++) {
-      const date = new Date(now.getFullYear(), now.getMonth(), now.getDate() + offset)
-      const slots = this.getAppointmentSlots(date, offset === 0 ? now : null)
-      if (slots.length) {
-        appointmentDates.push({
-          value: this.formatDateValue(date),
-          label: dateLabels[offset] + ' ' + this.formatDateLabel(date),
-          slots
-        })
+    const labels = ['今天', '明天']
+    const dates = []
+    for (let offset = 0; offset < 2; offset++) {
+      // 今天：当前时间 +5 分钟已超过当天最后时段（23:55）则整天不可选，自动只剩明天
+      if (offset === 0) {
+        const dayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 55)
+        if (now.getTime() + 5 * 60 * 1000 > dayEnd.getTime()) continue
       }
+      dates.push({ value: this.formatDateValue(new Date(now.getFullYear(), now.getMonth(), now.getDate() + offset)), label: labels[offset] + ' ' + this.formatDateLabel(new Date(now.getFullYear(), now.getMonth(), now.getDate() + offset)) })
     }
-    const first = appointmentDates[0] || { slots: [] }
-    this.setData({
-      appointmentDates,
-      appointmentDateOptions: appointmentDates.map((item) => item.label),
-      appointmentTimeOptions: first.slots,
-      appointmentPickerRange: [appointmentDates.map((item) => item.label), first.slots],
-      appointmentDateIndex: 0,
-      appointmentTimeIndex: 0
-    })
+    const safeDateIndex = Math.min(Math.max(dateIndex, 0), Math.max(dates.length - 1, 0))
+    const date = dates[safeDateIndex]
+    const todayValue = this.formatDateValue(now)
+    const isToday = date && date.value === todayValue
+    // 小时列：今天从当前小时开始，明天从 00 时开始
+    const startHour = isToday ? now.getHours() : 0
+    const hours = []
+    for (let h = startHour; h < 24; h++) hours.push(String(h).padStart(2, '0') + '时')
+    const safeHourIndex = Math.min(Math.max(hourIndex, 0), Math.max(hours.length - 1, 0))
+    const selectedHour = startHour + safeHourIndex
+    // 分钟列：今天当前小时内从当前时间向上取整到 5 分钟格点，其余整点从 00 分开始
+    let startMinute = 0
+    if (isToday && selectedHour === now.getHours()) startMinute = Math.ceil(now.getMinutes() / 5) * 5
+    const minutes = []
+    for (let m = startMinute; m < 60; m += 5) minutes.push(String(m).padStart(2, '0') + '分')
+    const safeMinuteIndex = Math.min(Math.max(minuteIndex, 0), Math.max(minutes.length - 1, 0))
+    return { dates, hours, minutes, dateIndex: safeDateIndex, hourIndex: safeHourIndex, minuteIndex: safeMinuteIndex }
   },
 
-  getAppointmentSlots(date, now) {
-    const slots = []
-    let startMinutes = 0
-    if (now) {
-      startMinutes = now.getHours() * 60 + now.getMinutes()
-      startMinutes = Math.ceil(startMinutes / 30) * 30
-    }
-    for (let minutes = startMinutes; minutes < 24 * 60; minutes += 30) {
-      const hour = String(Math.floor(minutes / 60)).padStart(2, '0')
-      const minute = String(minutes % 60).padStart(2, '0')
-      slots.push(hour + ':' + minute)
-    }
-    return slots
+  initAppointmentPicker() {
+    const cols = this.buildTimeColumns(0, 0, 0)
+    this.setData({
+      appointmentPickerRange: [cols.dates.map((item) => item.label), cols.hours, cols.minutes],
+      appointmentDateIndex: cols.dateIndex,
+      appointmentHourIndex: cols.hourIndex,
+      appointmentMinuteIndex: cols.minuteIndex
+    })
   },
 
   formatDateValue(date) {
@@ -176,38 +245,44 @@ Page({
   },
 
   formatDateLabel(date) {
-    return date.getFullYear() + '年' + String(date.getMonth() + 1).padStart(2, '0') + '月' + String(date.getDate()).padStart(2, '0') + '日'
+    return String(date.getMonth() + 1).padStart(2, '0') + '月' + String(date.getDate()).padStart(2, '0') + '日'
   },
 
   onPickupTimeTypeSelect(e) {
     this.setData({ pickupTimeType: e.currentTarget.dataset.type })
   },
 
+  // 列变化：仅刷新列数据与合法索引，不落定最终选择
   onAppointmentColumnChange(e) {
-    if (e.detail.column !== 0) return
-    const dateIndex = e.detail.value
-    const date = this.data.appointmentDates[dateIndex]
-    const slots = date ? date.slots : []
+    const { column, value } = e.detail
+    const dateIndex = column === 0 ? value : this.data.appointmentDateIndex
+    const hourIndex = column === 1 ? value : this.data.appointmentHourIndex
+    const minuteIndex = column === 2 ? value : this.data.appointmentMinuteIndex
+    const cols = this.buildTimeColumns(dateIndex, hourIndex, minuteIndex)
     this.setData({
-      appointmentDateIndex: dateIndex,
-      appointmentTimeIndex: 0,
-      appointmentTimeOptions: slots,
-      appointmentPickerRange: [this.data.appointmentDateOptions, slots]
+      appointmentPickerRange: [cols.dates.map((item) => item.label), cols.hours, cols.minutes],
+      appointmentDateIndex: cols.dateIndex,
+      appointmentHourIndex: cols.hourIndex,
+      appointmentMinuteIndex: cols.minuteIndex
     })
   },
 
+  // 确认选择：落定最终时间
   onAppointmentChange(e) {
-    const indices = e.detail.value
-    const date = this.data.appointmentDates[indices[0]]
-    const time = date && date.slots[indices[1]]
-    if (!date || !time) return
-    const appointmentTime = date.value + ' ' + time + ':00'
+    const value = e.detail.value || []
+    const cols = this.buildTimeColumns(value[0] || 0, value[1] || 0, value[2] || 0)
+    const date = cols.dates[cols.dateIndex]
+    if (!date || !cols.hours.length || !cols.minutes.length) return
+    const hour = String(cols.dateIndex >= 0 ? parseInt(cols.hours[cols.hourIndex], 10) : 0).padStart(2, '0')
+    const minute = String(parseInt(cols.minutes[cols.minuteIndex], 10)).padStart(2, '0')
     this.setData({
       pickupTimeType: '预约',
-      appointmentDateIndex: indices[0],
-      appointmentTimeIndex: indices[1],
-      appointmentTime,
-      appointmentValue: '预约 ' + this.formatDateLabel(new Date(date.value + 'T00:00:00')) + ' ' + time
+      appointmentPickerRange: [cols.dates.map((item) => item.label), cols.hours, cols.minutes],
+      appointmentDateIndex: cols.dateIndex,
+      appointmentHourIndex: cols.hourIndex,
+      appointmentMinuteIndex: cols.minuteIndex,
+      appointmentTime: date.value + ' ' + hour + ':' + minute + ':00',
+      appointmentValue: date.label + ' ' + hour + ':' + minute
     })
   },
 
@@ -307,6 +382,10 @@ Page({
       wx.showToast({ title: '请填写备注信息', icon: 'none' })
       return
     }
+    if (!pickupAddr.trim()) { wx.showToast({ title: '请填写取件地址', icon: 'none' }); return }
+    if (!deliveryAddr.trim()) { wx.showToast({ title: '请填写送达地址', icon: 'none' }); return }
+    if (!deliveryBuilding.trim()) { wx.showToast({ title: '请填写楼栋', icon: 'none' }); return }
+    if (!deliveryRoom.trim()) { wx.showToast({ title: '请填写宿舍号', icon: 'none' }); return }
     const genderIndex = this.data.activeGenderRestriction < 0 ? 2 : this.data.activeGenderRestriction
     if (this.data.activeGenderRestriction < 0) this.setData({ activeGenderRestriction: genderIndex })
 
@@ -356,6 +435,7 @@ Page({
       )
       mock.myPublishedOrders.unshift(order)
       mock.errandOrders.unshift(order)
+      this._saveLastForm()
       wx.showToast({ title: '发布成功', icon: 'success' })
       setTimeout(() => wx.navigateBack(), 1200)
       this.setData({ submitting: false })
@@ -380,6 +460,7 @@ Page({
         fail: reject
       }))).then(() => this.waitForPaymentStatus(order.id))
     }).then(() => {
+      this._saveLastForm()
       wx.showToast({ title: '发布成功', icon: 'success' })
       setTimeout(() => wx.navigateBack(), 1200)
     }).catch((error) => {

@@ -1,4 +1,11 @@
 <view class="page">
+  <!-- 收益卡片（与"我的"钱包数据互通，提现需前往钱包申请） -->
+  <view class="earn-card gradient-nav" bindtap="goWallet">
+    <text class="earn-label">可提现余额（请点击余额前往提现）</text>
+    <text class="earn-value">¥{{wallet.balance}}</text>
+    <text class="earn-meta">累计收益 ¥{{wallet.earned}}</text>
+  </view>
+
   <!-- 订单数量 -->
   <view class="stats-card">
     <view class="stat-item">

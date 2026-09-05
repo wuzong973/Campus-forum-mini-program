@@ -3,10 +3,22 @@ const wechat = require('../../utils/wechat')
 const request = require('../../utils/request')
 const { runPullDownRefresh } = require('../../utils/refresh')
 
+// 帖子相关页面路由：从这些页面进入聊天时，顶部展示「回到帖子」按钮
+const POST_PAGE_ROUTES = [
+  'pages/post-detail/index', // 帖子详情页
+  'pages/index/index', // 首页帖子列表
+  'pages/search/index' // 搜索结果列表
+]
+
 function formatTime(value) {
   const date = value ? new Date(value) : new Date()
   if (Number.isNaN(date.getTime())) return ''
   return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
+}
+
+// 安全解码 URL 参数（入口以 encodeURIComponent 传入；含非法 % 序列时回退原值）
+function safeDecode(value) {
+  try { return decodeURIComponent(value) } catch (e) { return value }
 }
 
 Page({
@@ -29,6 +41,10 @@ Page({
     loadingMore: false,
     hasMore: false,
     page: 1,
+    showBackToPost: false,
+    returning: false,
+    statusBarHeight: 20,
+    navBarHeight: 44,
     emojiList: [
       '😀', '😁', '😂', '🤣', '😃', '😄', '😅', '😆',
       '😉', '😊', '😋', '😎', '😍', '😘', '🥰', '😗',
@@ -45,16 +61,31 @@ Page({
     const peerId = parseInt(options.peerId || legacyUser.id, 10)
     const anonymousMode = options.anonymous === '1'
     const otherUser = anonymousMode ? { nickname: '匿名用户', avatar: '/assets/icons/avatar.png' } : {
-      nickname: options.nick || legacyUser.nickname || '维修人员',
-      avatar: options.avatar || legacyUser.avatar || '/assets/icons/repair-logo.jpg'
+      nickname: options.nick ? safeDecode(options.nick) : (legacyUser.nickname || '维修人员'),
+      avatar: options.avatar ? safeDecode(options.avatar) : (legacyUser.avatar || '/assets/icons/repair-logo.jpg')
     }
     if (!peerId) {
       wx.showToast({ title: '未找到聊天对象', icon: 'none' })
       setTimeout(() => wx.navigateBack(), 300)
       return
     }
-    this.setData({ peerId, otherUser, anonymousMode })
-    wx.setNavigationBarTitle({ title: anonymousMode ? '匿名聊天' : otherUser.nickname })
+    // 扫描页面栈找到最近的帖子页面（帖子详情/列表），计算返回层级
+    // 兼容 帖子页→聊天页 (delta 1) 与 帖子页→个人主页→聊天页 (delta 2) 等路径
+    const pages = getCurrentPages()
+    let backToPostDelta = 0
+    for (let i = pages.length - 2; i >= 0; i--) {
+      if (POST_PAGE_ROUTES.indexOf(pages[i].route) > -1) { backToPostDelta = pages.length - 1 - i; break }
+    }
+    this._backToPostDelta = backToPostDelta
+    const app = getApp()
+    this.setData({
+      peerId,
+      otherUser,
+      anonymousMode,
+      showBackToPost: backToPostDelta > 0,
+      statusBarHeight: (app.globalData && app.globalData.statusBarHeight) || 20,
+      navBarHeight: (app.globalData && app.globalData.navBarHeight) || 44
+    })
     this.unsubscribe = messageStore.onMessage((payload) => {
       // 拉黑后客户端兜底过滤，正常情况下服务端已拒绝投递
       if (payload.type === 'message' && payload.peerId === peerId && !this.data.peerBlocked) this.appendMessage(payload.data)
@@ -65,6 +96,24 @@ Page({
 
   onUnload() {
     if (this.unsubscribe) this.unsubscribe()
+  },
+
+  // 自定义导航栏返回按钮；无上级页面时兜底回首页
+  onNavBack() {
+    wx.navigateBack({
+      fail: () => wx.switchTab({ url: '/pages/index/index' })
+    })
+  },
+
+  // 「回到帖子」：返回之前的帖子页面（页面实例保留在栈中，滚动位置与状态自动恢复）
+  onBackToPost() {
+    if (this.data.returning) return // 防重复点击
+    const delta = this._backToPostDelta || 1
+    this.setData({ returning: true })
+    wx.navigateBack({
+      delta,
+      complete: () => this.setData({ returning: false })
+    })
   },
 
   toViewMessage(message) {

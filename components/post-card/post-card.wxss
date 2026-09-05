@@ -8,9 +8,9 @@
 .post-cert-label { flex: 0 0 auto; padding: 2rpx 10rpx; border-radius: 4rpx; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #fff; font-size: 20rpx; font-weight: 500; line-height: 1.4; }
 .post-time { color: #a5afbc; font-size: 21rpx; }
 .post-meta { display: flex; align-items: center; gap: 9rpx; color: #9ea9b7; font-size: 21rpx; }
-.meta-divider { color: #d3d9e0; }
-.post-review-note { display: block; margin-top: 16rpx; padding: 12rpx 14rpx; border: 2rpx solid #ef5b73; border-radius: 6rpx; background: #fff1f3; color: #b4233e; font-size: 24rpx; font-weight: 600; line-height: 1.5; word-break: break-word; }
-.post-review-note-label { margin-right: 10rpx; color: #8d1830; font-weight: 700; }
+.meta-dot { color: #d3d9e0; }
+.meta-category { flex: 0 1 auto; max-width: 168rpx; overflow: hidden; padding: 2rpx 10rpx; border-radius: 6rpx; background: #f0edff; color: #7268b8; font-size: 20rpx; text-overflow: ellipsis; white-space: nowrap; }
+.post-review-note { display: inline-flex; align-items: center; flex: 0 1 auto; min-width: 0; max-width: 240rpx; overflow: hidden; padding: 2rpx 10rpx; border: 2rpx solid #ef5b73; border-radius: 6rpx; background: #fff1f3; color: #b4233e; font-size: 20rpx; font-weight: 600; line-height: 1.5; text-overflow: ellipsis; white-space: nowrap; }
 .more-btn { display: flex; align-items: center; justify-content: center; width: 48rpx; height: 48rpx; }
 .more-btn image { width: 30rpx; height: 30rpx; opacity: .62; }
 .post-title { display: block; margin-top: 18rpx; color: #1c2e44; font-size: 30rpx; font-weight: 700; line-height: 1.45; }
@@ -28,8 +28,6 @@
 .image-count { position: absolute; right: 8rpx; bottom: 8rpx; min-width: 44rpx; height: 32rpx; padding: 0 8rpx; border-radius: 16rpx; background: rgba(0, 0, 0, .56); color: #fff; font-size: 20rpx; line-height: 32rpx; text-align: center; }
 .post-footer { display: flex; align-items: center; justify-content: space-between; gap: 16rpx; margin-top: 18rpx; padding-top: 14rpx; border-top: 1rpx solid #f0f2f5; }
 .post-topic-meta { display: flex; align-items: center; min-width: 0; gap: 10rpx; }
-.topic-tag { max-width: 150rpx; overflow: hidden; color: #99a5b4; font-size: 22rpx; text-overflow: ellipsis; white-space: nowrap; }
-.topic-tag text { display: inline-flex; align-items: center; justify-content: center; width: 23rpx; height: 23rpx; margin-right: 4rpx; border-radius: 50%; background: #e8edf3; color: #97a2b0; font-size: 18rpx; }
 .campus-tag { max-width: 138rpx; overflow: hidden; padding: 3rpx 8rpx; border-radius: 4rpx; background: #f0f5ff; color: #5e7fb6; font-size: 20rpx; text-overflow: ellipsis; white-space: nowrap; }
 .footer-actions { display: flex; align-items: center; justify-content: flex-end; gap: 14rpx; flex: 1; min-width: 0; }
 .footer-action { display: flex; align-items: center; gap: 4rpx; color: #99a5b4; font-size: 20rpx; white-space: nowrap; }

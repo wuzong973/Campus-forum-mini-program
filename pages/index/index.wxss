@@ -182,6 +182,17 @@
   white-space: nowrap;
 }
 
+.notice-admin-wrap {
+  flex-shrink: 0;
+}
+
+.notice-admin {
+  color: #0066cc;
+  font-size: 24rpx;
+  font-weight: 600;
+  text-decoration: underline;
+}
+
 .notice-tail {
   margin-left: 16rpx;
   padding: 4rpx 10rpx;

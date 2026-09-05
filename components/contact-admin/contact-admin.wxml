@@ -42,8 +42,8 @@
         </view>
         <view class="contact-admin-close" catchtap="closeQr">×</view>
       </view>
-      <image class="contact-admin-qr" src="/avatar2/管理员微信.png" mode="widthFix"></image>
-      <view class="contact-admin-qr-tip">扫码后请备注「校园论坛」</view>
+      <image class="contact-admin-qr" src="/assets/avatar2/管理员微信.png" mode="widthFix"></image>
+      <view class="contact-admin-qr-tip"></view>
     </view>
   </block>
 </view>

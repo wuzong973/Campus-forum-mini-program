@@ -1,0 +1,18 @@
+<view class="page">
+  <view class="black-card">
+    <view class="black-row" wx:for="{{list}}" wx:key="userId">
+      <image class="black-avatar" src="{{item.avatar || '/assets/icons/avatar.png'}}" mode="aspectFill"></image>
+      <view class="black-info">
+        <text class="black-nick">{{item.nick || '已注销用户'}}</text>
+        <text class="black-date">拉黑于 {{item.dateText}}</text>
+      </view>
+      <view class="unblock-btn" hover-class="btn-hover" bindtap="onUnblock" data-index="{{index}}">解除拉黑</view>
+    </view>
+    <view class="black-empty" wx:if="{{!loading && loaded && list.length === 0}}">
+      <image class="empty-icon" src="/assets/icons/ic-lock-purple.png" mode="aspectFit"></image>
+      <text class="empty-text">黑名单还是空的</text>
+      <text class="empty-sub">在聊天或帖子中拉黑的用户会显示在这里</text>
+    </view>
+    <view class="black-loading" wx:if="{{loading && !list.length}}">加载中...</view>
+  </view>
+</view>

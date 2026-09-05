@@ -1,12 +1,27 @@
 <view class="chat-container">
+  <!-- 自定义导航栏 -->
+  <view class="custom-nav" style="padding-top: {{statusBarHeight}}px;">
+    <view class="nav-content" style="height: {{navBarHeight}}px;">
+      <view class="nav-back" hover-class="nav-back-hover" hover-stay-time="80" bindtap="onNavBack"><text class="nav-back-icon">‹</text></view>
+      <view class="nav-title-wrap">
+        <view
+          class="back-post-btn {{returning ? 'is-returning' : ''}}"
+          wx:if="{{showBackToPost}}"
+          hover-class="back-post-hover"
+          hover-stay-time="80"
+          catchtap="onBackToPost"
+        >回到帖子</view>
+      </view>
+    </view>
+  </view>
   <!-- 安全提示栏 -->
   <view class="chat-notice">
     <view class="notice-line">
       <text class="notice-text">如遇骚扰、广告请立即联系</text>
       <contact-admin class="inline-contact">
-        <view slot="trigger" class="notice-contact"><text class="notice-diamond">◆</text>管理员</view>
+        <view slot="trigger" class="notice-contact"><text class="notice-diamond"></text>管理员</view>
       </contact-admin>
-      <text class="notice-text">，平台严禁通过私聊功能对用户进行骚扰</text>
+      <text class="notice-text">，严禁私聊骚扰</text>
       <text class="notice-block {{peerBlocked ? 'is-blocked' : ''}}" bindtap="onToggleBlock" hover-class="notice-press">{{peerBlocked ? '已拉黑 · 解除' : '…拉黑对方'}}</text>
     </view>
   </view>

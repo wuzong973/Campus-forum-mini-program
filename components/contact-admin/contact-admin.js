@@ -3,6 +3,14 @@ Component({
     multipleSlots: true,
   },
 
+  properties: {
+    // direct 为 true 时，点击触发区直接打开二维码弹窗（跳过联系菜单）
+    direct: {
+      type: Boolean,
+      value: false,
+    },
+  },
+
   data: {
     showMenu: false,
     showQr: false,
@@ -10,6 +18,10 @@ Component({
 
   methods: {
     openMenu() {
+      if (this.data.direct) {
+        this.openQr();
+        return;
+      }
       this.setData({ showMenu: true });
     },
 

@@ -3,10 +3,27 @@ const auth = require('../../utils/auth')
 const request = require('../../utils/request')
 const { runPullDownRefresh } = require('../../utils/refresh')
 
+const STATUS_TEXT = {
+  pending: '待接单',
+  accepted: '进行中',
+  done: '已完成',
+  unpaid: '待支付',
+  cancelled: '已取消',
+  refunding: '退款中'
+}
+
+const TAB_EMPTY_TEXT = ['当前筛选下暂无可接订单', '还没有接过的订单', '还没有发布的订单', '暂无已完成的订单']
+
 Page({
   data: {
     statusBarHeight: 20,
     navBarHeight: 44,
+    // 订单标签页：等待帮助→我接的单、我帮助的→已完成的
+    listTabs: ['全部订单', '我接的单', '我发布的', '已完成的'],
+    activeListTab: 0,
+    showNoticeA: true,
+    showNoticeB: true,
+    emptyText: TAB_EMPTY_TEXT[0],
     // 接单大厅筛选
     campusGroups: [
       { name: '广州校区', campuses: ['新港校区', '琶洲校区'] },
@@ -17,10 +34,6 @@ Page({
     activeRegion: -1,
     subCampuses: [],
     activeSubCampus: '',
-    types: ['全部类型', '外卖', '快递', '帮买'],
-    activeType: 0,
-    prices: ['全部价格', '1-3元', '3-5元', '5元以上'],
-    activePrice: 0,
     orders: [],
     loading: false,
     // 底部Tab
@@ -33,26 +46,42 @@ Page({
       statusBarHeight: app.globalData.statusBarHeight,
       navBarHeight: app.globalData.navBarHeight
     })
+    this._mineCache = { published: null, accepted: null }
     this.initCampusFilter()
-    this.loadOrders()
+    this.loadCurrentTab()
   },
 
   onShow() {
     const tabBar = this.getTabBar && this.getTabBar()
     if (tabBar) tabBar.setSelected(2)
-    this.loadOrders()
+    this.loadCurrentTab()
   },
 
   onPullDownRefresh() {
-    runPullDownRefresh(this, () => this.loadOrders())
+    runPullDownRefresh(this, () => this.loadCurrentTab())
   },
 
+  // ===== 标签页调度 =====
+  onListTab(e) {
+    const index = Number(e.currentTarget.dataset.index)
+    if (index === this.data.activeListTab) return
+    this.setData({ activeListTab: index, orders: [], emptyText: TAB_EMPTY_TEXT[index] })
+    this.loadCurrentTab()
+  },
+
+  loadCurrentTab() {
+    const tab = this.data.activeListTab
+    if (tab === 0) return this.loadOrders()
+    if (tab === 3) return this.loadMine(['published', 'accepted'], 'done')
+    if (tab === 1) return this.loadMine(['accepted'])
+    return this.loadMine(['published'])
+  },
+
+  // ===== 全部订单（接单大厅） =====
   loadOrders() {
-    const type = this.getTypeFilter()
     const campus = this.getRegionFilter()
     this.setData({ loading: true })
-    const price = this.getPriceRange() || {}
-    api.getErrandList({ type, campus, minPrice: price.min, maxPrice: price.max, page: 1, pageSize: 20 }).then((res) => {
+    api.getErrandList({ campus, page: 1, pageSize: 20 }).then((res) => {
       const orders = (res.list || []).map((o) => this.normalizeOrder(o))
       this.setData({ orders, loading: false })
     }).catch(() => {
@@ -60,9 +89,29 @@ Page({
     })
   },
 
-  getTypeFilter() {
-    const t = this.data.types[this.data.activeType]
-    return t === '全部类型' ? '' : t
+  // ===== 我接的单 / 我发布的 / 已完成的 =====
+  loadMine(sources, onlyStatus) {
+    this.setData({ loading: true })
+    const need = sources.filter((key) => !this._mineCache[key])
+    const loads = need.map((key) => {
+      if (request.USE_MOCK) {
+        const mock = require('../../utils/mock')
+        const list = key === 'published' ? mock.myPublishedOrders.slice() : mock.myAcceptedOrders.slice()
+        return Promise.resolve({ key, list })
+      }
+      const url = key === 'published' ? '/errand/my-published' : '/errand/my-accepted'
+      return request.get(url, {}, true, { silent: true }).then((res) => ({ key, list: (res && res.list) || [] }))
+    })
+    Promise.all(loads).then((results) => {
+      results.forEach(({ key, list }) => { this._mineCache[key] = list })
+      let all = []
+      sources.forEach((key) => { all = all.concat(this._mineCache[key] || []) })
+      if (onlyStatus) all = all.filter((o) => this.effectiveStatus(o) === onlyStatus)
+      const orders = all.map((o) => this.normalizeOrder(o))
+      this.setData({ orders, loading: false })
+    }).catch(() => {
+      this.setData({ loading: false, emptyText: '加载失败，请下拉重试' })
+    })
   },
 
   getRegionFilter() {
@@ -85,49 +134,62 @@ Page({
     })
   },
 
-  getPriceRange() {
-    const p = this.data.prices[this.data.activePrice]
-    if (p === '1-3元') return { min: 1, max: 3 }
-    if (p === '3-5元') return { min: 3, max: 5 }
-    if (p === '5元以上') return { min: 5, max: 999 }
-    return null
+  // 支付状态修正：发布者未支付的待接单记为待支付；取消退款中记为退款中
+  effectiveStatus(o) {
+    const paymentStatus = String(o.paymentStatus || o.payment_status || 'SUCCESS').toUpperCase()
+    const isPublisher = o.role === 'publisher'
+    if (isPublisher && (o.status === 'pending' || !o.status) && !['SUCCESS', 'REFUNDING', 'REFUNDED'].includes(paymentStatus)) return 'unpaid'
+    if (o.status === 'cancelled' && paymentStatus === 'REFUNDING') return 'refunding'
+    if (o.status === 'finished') return 'done'
+    return o.status || 'pending'
   },
 
   normalizeOrder(o) {
-    if (o.statusClass) return o
     const format = require('../../utils/format')
-    const timeLimit = o.pickupTimeType || o.pickup_time_type || '尽快'
-    const genderReq = o.genderRequirement || o.gender_requirement || o.genderReq || '不限性别'
-    const isLargeItem = o.isLargeItem || o.is_large_item || false
-    const isUrgent = o.isUrgent || o.is_urgent || false
-    const extraTags = []
-    if (isLargeItem) extraTags.push('大件')
-    if (isUrgent) extraTags.push('加急')
+    const statusKey = this.effectiveStatus(o)
+    const tab = this.data.activeListTab
+    const expectText = o.expectTime || o.expect_time || o.appointmentTime ||
+      (o.pickupTimeType === 'scheduled' && (o.pickupTime || o.pickup_time) ? (o.pickupTime || o.pickup_time) : '越快越好')
     return {
       id: o.id,
-      status: o.status === 'pending' ? '待接单' : '已接单',
-      statusClass: o.status === 'pending' ? 'pending' : 'accepted',
+      status: STATUS_TEXT[statusKey] || '待接单',
+      statusClass: statusKey,
       price: o.reward || o.totalAmount,
       title: o.title || ((o.type || '快递') + '代拿'),
       campus: o.campus || '未填写校区',
-      pickupAddr: o.pickupAddr || o.pickup_addr || '',
-      deliveryAddr: o.deliveryAddr || o.delivery_addr || '',
-      itemCount: 1,
-      smallCount: 1,
-      timeLimit: timeLimit,
-      genderReq: genderReq,
-      noUpstairs: false,
-      extraTags: extraTags,
+      authorName: o.nickname || o.authorName || o.userNickname || o.publisherName || o.publisher_name || '匿名同学',
+      avatarUrl: o.avatarUrl || o.userAvatar || '/assets/icons/avatar.png',
+      expectText: expectText,
       type: o.type,
+      action: this.cardAction(statusKey, tab, o),
       publishTime: format.formatRelativeTime(o.createdAt || o.created_at) || '刚刚',
       raw: o
     }
+  },
+
+  // 各标签下的主操作按钮
+  cardAction(statusKey, tab, o) {
+    if (tab === 0) return statusKey === 'pending' ? 'grab' : ''
+    if (tab === 1) return statusKey === 'accepted' ? 'finish' : ''
+    if (tab === 2) {
+      if (statusKey === 'unpaid') return 'pay'
+      if (statusKey === 'pending') return 'cancel'
+      if (statusKey === 'accepted') return 'contact'
+      return ''
+    }
+    return ''
   },
 
   goBack() {
     wx.switchTab({ url: '/pages/index/index' })
   },
 
+  // ===== 公告关闭 =====
+  onCloseNotice(e) {
+    this.setData({ [e.currentTarget.dataset.key]: false })
+  },
+
+  // ===== 区域筛选 =====
   onRegionSelect(e) {
     const activeRegion = Number(e.currentTarget.dataset.index)
     const group = this.data.visibleCampusGroups[activeRegion]
@@ -149,18 +211,9 @@ Page({
     this.loadOrders()
   },
 
-  onTypeSelect(e) {
-    this.setData({ activeType: Number(e.currentTarget.dataset.index) })
-    this.loadOrders()
-  },
-
-  onPriceSelect(e) {
-    this.setData({ activePrice: Number(e.currentTarget.dataset.index) })
-    this.loadOrders()
-  },
-
+  // ===== 卡片操作 =====
   onAccept(e) {
-    const order = e.detail && e.detail.order ? e.detail.order : (e.currentTarget.dataset.order || {})
+    const order = e.currentTarget.dataset.order || {}
     const orderId = order.id || (order.raw && order.raw.id)
     if (!auth.requireRunnerReady()) return
     wx.showModal({
@@ -174,9 +227,58 @@ Page({
         }
         request.post('/errand/' + orderId + '/accept', {}, true).then(() => {
           wx.showToast({ title: '接单成功', icon: 'success' })
-          this.loadOrders()
+          this._mineCache = { published: null, accepted: null }
+          this.loadCurrentTab()
         })
       }
+    })
+  },
+
+  onPay(e) {
+    const order = e.currentTarget.dataset.order || {}
+    const orderId = order.id || (order.raw && order.raw.id)
+    if (!orderId) return
+    request.post('/errand/' + orderId + '/pay', {}, true, { idempotencyKey: 'errand_repay_' + orderId }).then((payment) => {
+      return new Promise((resolve, reject) => wx.requestPayment({ ...payment, success: resolve, fail: reject }))
+    }).then(() => {
+      wx.showToast({ title: '支付成功，正在确认', icon: 'success' })
+      this._mineCache = { published: null, accepted: null }
+      setTimeout(() => this.loadCurrentTab(), 1000)
+    }).catch((error) => {
+      const message = String((error && (error.errMsg || error.message)) || '')
+      if (/cancel/.test(message)) wx.showToast({ title: '已取消支付', icon: 'none' })
+    })
+  },
+
+  onFinish(e) {
+    const order = e.currentTarget.dataset.order || {}
+    const orderId = order.id || (order.raw && order.raw.id)
+    if (!orderId) return
+    wx.navigateTo({ url: '/pages/errand-complete/index?id=' + orderId })
+  },
+
+  onCancelOrder(e) {
+    const order = e.currentTarget.dataset.order || {}
+    const orderId = order.id || (order.raw && order.raw.id)
+    if (!orderId) return
+    wx.navigateTo({ url: '/pages/errand-cancel/index?id=' + orderId })
+  },
+
+  onContact(e) {
+    const order = e.currentTarget.dataset.order || {}
+    const raw = order.raw || {}
+    const accepterId = Number(raw.accepterId || raw.accepter_id || raw.acceptorId || raw.acceptor_id || 0)
+    if (!accepterId) {
+      wx.showToast({ title: '对方暂未接单，暂无法联系', icon: 'none' })
+      return
+    }
+    const otherUser = {
+      id: accepterId,
+      nickname: raw.accepterName || raw.accepter_name || '接单者',
+      avatar: '/assets/icons/avatar.png'
+    }
+    wx.navigateTo({
+      url: '/pages/chat/index?peerId=' + accepterId + '&otherUser=' + encodeURIComponent(JSON.stringify(otherUser))
     })
   },
 
@@ -190,6 +292,11 @@ Page({
   goPublish() {
     if (!auth.requireLogin('发布跑腿需要先登录')) return
     wx.navigateTo({ url: '/pages/errand-publish/index' })
+  },
+
+  goUserCenter() {
+    if (!auth.requireLogin('查看订单需要先登录')) return
+    wx.navigateTo({ url: '/pages/errand-order/index' })
   },
 
   // 底部Tab切换

@@ -49,6 +49,33 @@
   width: 100%;
 }
 
+/* 收益卡片（图二样式，数据与钱包互通，点击前往钱包提现） */
+.earn-card {
+  margin: 20rpx 24rpx 0;
+  padding: 36rpx 32rpx;
+  border-radius: 16rpx;
+  color: #fff;
+}
+
+.earn-label {
+  display: block;
+  font-size: 26rpx;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.earn-value {
+  display: block;
+  font-size: 64rpx;
+  font-weight: 700;
+  margin: 12rpx 0 16rpx;
+}
+
+.earn-meta {
+  display: block;
+  font-size: 24rpx;
+  color: rgba(255, 255, 255, 0.85);
+}
+
 /* 统计卡片 */
 .stats-card {
   display: flex;

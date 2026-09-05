@@ -1,7 +1,5 @@
 {
-  "navigationBarTitleText": "聊天",
-  "navigationBarBackgroundColor": "#7DD3C0",
-  "navigationBarTextStyle": "white",
+  "navigationStyle": "custom",
   "usingComponents": {
     "contact-admin": "/components/contact-admin/contact-admin"
   }

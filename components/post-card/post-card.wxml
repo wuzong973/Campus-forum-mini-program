@@ -4,14 +4,19 @@
     <view class="post-user-info">
       <view class="post-nick-row">
         <text class="post-nick">{{authorName}}</text>
+        <text class="post-review-note" wx:if="{{post.reviewNote}}">备注：{{post.reviewNote}}</text>
         <text class="post-cert-label" wx:if="{{certLabel}}">{{certLabel}}</text>
       </view>
-      <view class="post-meta"><text>{{timeText}}</text><text class="meta-divider">|</text><text>{{viewText}}</text></view>
+      <view class="post-meta">
+        <text class="meta-category">{{post.category || '日常话题'}}</text>
+        <text class="meta-dot">·</text>
+        <text>{{timeText}}</text>
+        <text class="meta-dot">·</text>
+        <text>{{viewText}}</text>
+      </view>
     </view>
     <view class="more-btn" catchtap="onClose"><image src="/assets/icons/more.png" mode="aspectFit"></image></view>
   </view>
-
-  <view class="post-review-note" wx:if="{{post.reviewNote}}"><text class="post-review-note-label">管理员备注</text><text>{{post.reviewNote}}</text></view>
 
   <text class="post-title" wx:if="{{post.title}}">{{post.title}}</text>
   <view class="post-content">
@@ -28,7 +33,6 @@
 
   <view class="post-footer" wx:if="{{showFooter}}">
     <view class="post-topic-meta">
-      <view class="topic-tag"><text>#</text> {{post.category || '日常话题'}}</view>
       <view class="campus-tag">{{post.campus || '未设置校区'}}</view>
     </view>
     <view class="footer-actions">

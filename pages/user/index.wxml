@@ -2,7 +2,7 @@
   <view class="header header-cyan" style="padding-top: {{statusBarHeight}}px;">
     <view class="header-content">
       <view class="user-info" bindtap="goLogin">
-        <image class="avatar-img" src="{{userInfo.avatarUrl || '/avatar2/1.jpg'}}" mode="aspectFill" lazy-load></image>
+        <image class="avatar-img" src="{{userInfo.avatarUrl || '/assets/avatar2/1.jpg'}}" mode="aspectFill" lazy-load></image>
         <view class="user-detail">
           <view class="user-name-row">
             <text class="user-name">{{userInfo.nickName || '校园用户'}}</text>

@@ -8,7 +8,7 @@
         <text class="menu-label">头像</text>
       </view>
       <view class="menu-right">
-        <image class="avatar-preview" src="{{userInfo.avatarUrl || '/avatar2/1.jpg'}}" mode="aspectFill" lazy-load></image>
+        <image class="avatar-preview" src="{{userInfo.avatarUrl || '/assets/avatar2/1.jpg'}}" mode="aspectFill" lazy-load></image>
         <text class="arrow">></text>
       </view>
     </view>
@@ -155,7 +155,7 @@
       <view class="profile-row avatar-row">
         <text class="profile-label">头像</text>
         <view class="avatar-edit-wrap" bindtap="onModalAvatarTap">
-          <image class="avatar-large" src="{{editAvatar || '/avatar2/1.jpg'}}" mode="aspectFill"></image>
+          <image class="avatar-large" src="{{editAvatar || '/assets/avatar2/1.jpg'}}" mode="aspectFill"></image>
           <view class="avatar-camera-icon">
             <image class="camera-icon-img" src="/assets/icons/camera.png" mode="aspectFit"></image>
           </view>

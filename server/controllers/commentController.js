@@ -13,7 +13,7 @@ function parseAnonymousIdentity(identity) {
   const value = parseJson(identity)
   if (!value || !value.nickName || !value.avatarUrl) return null
   const avatarUrl = String(value.avatarUrl).trim()
-  if (!avatarUrl.startsWith('/avatar1/')) return null
+  if (!avatarUrl.startsWith('/assets/avatar1/')) return null
   return { nickName: String(value.nickName).trim().slice(0, 32), avatarUrl }
 }
 

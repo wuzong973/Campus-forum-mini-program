@@ -1,56 +1,162 @@
-<view class="page page-enter">
-  <view class="cover-preview" bindtap="chooseImage" data-field="coverUrl">
-    <image class="cover-img" src="{{coverUrl}}" mode="aspectFill"></image>
-    <view class="cover-mask"></view>
-    <text class="cover-text">更换主页背景</text>
+<view class="page">
+  <!-- 自定义导航栏：白色圆角胶囊返回 + 居中标题 -->
+  <view class="custom-nav" style="padding-top: {{statusBarHeight}}px;">
+    <view class="nav-inner">
+      <view class="nav-back" hover-class="nav-back-hover" bindtap="goBack">‹ 返回</view>
+      <text class="nav-title">个人中心</text>
+    </view>
+  </view>
+  <view class="nav-space" style="height: {{statusBarHeight + 56}}px;"></view>
+
+  <!-- 用户信息卡 -->
+  <view class="card user-card">
+    <view class="avatar-wrap" bindtap="onUploadAvatar">
+      <image class="user-avatar" src="{{avatarUrl || '/assets/avatar2/1.jpg'}}" mode="aspectFill"></image>
+      <view class="avatar-badge"><image class="badge-icon" src="/assets/icons/ic-edit-blue.png" mode="aspectFit"></image></view>
+    </view>
+    <view class="user-mid" hover-class="row-pressed" bindtap="openNickEdit">
+      <view class="nick-row">
+        <text class="nick">{{nickName || '未设置昵称'}}</text>
+        <image class="pencil" src="/assets/icons/ic-edit-blue.png" mode="aspectFit"></image>
+      </view>
+      <text class="user-sub">点击修改昵称</text>
+    </view>
+    <text class="lv-badge">Lv.1</text>
   </view>
 
-  <view class="profile-form card">
-    <view class="avatar-row">
-      <image class="avatar" src="{{avatarUrl || '/avatar2/1.jpg'}}" mode="aspectFill" bindtap="chooseImage" data-field="avatarUrl"></image>
-      <view class="avatar-copy">
-        <text class="avatar-title">头像与公开资料</text>
-        <text class="avatar-desc">修改后会同步到对外个人主页</text>
+  <!-- 个人简介卡 -->
+  <view class="card sig-card">
+    <view class="sig-head">
+      <text class="card-title">个人简介</text>
+      <view class="row-right" hover-class="row-pressed" catchtap="goProfile">
+        <text class="row-link">进入主页</text>
+        <text class="chev">›</text>
       </view>
     </view>
-
-    <view class="form-item">
-      <text class="label">昵称</text>
-      <input class="input" value="{{nickName}}" maxlength="" data-field="nickName" bindinput="onInput" />
-    </view>
-    <view class="form-item">
-      <text class="label">个人简介</text>
-      <textarea class="textarea" value="{{signature}}" maxlength="80" data-field="signature" bindinput="onInput" />
-    </view>
-    <view class="form-item">
-      <text class="label">社交账号</text>
-      <input class="input" value="{{socialAccount}}" placeholder="微信/QQ/社团主页等，可选" data-field="socialAccount" bindinput="onInput" />
+    <view class="sig-body" hover-class="row-pressed" bindtap="openSignatureEdit">
+      <text class="sig-text {{signature ? '' : 'sig-empty'}}">{{signature || '点击编辑个人简介…'}}</text>
+      <image class="pencil" src="/assets/icons/ic-edit-blue.png" mode="aspectFit"></image>
     </view>
   </view>
 
-  <view class="module-card card">
-    <view class="module-title">主页模块与展示权限</view>
-    <view class="module-item" wx:for="{{modules}}" wx:key="key">
-      <view class="module-info">
-        <text class="module-label">{{item.label}}</text>
-        <text class="module-desc">可见后将在个人主页展示</text>
-      </view>
-      <view class="module-actions">
-        <text class="sort-btn" data-index="{{index}}" data-dir="up" bindtap="moveModule">上移</text>
-        <text class="sort-btn" data-index="{{index}}" data-dir="down" bindtap="moveModule">下移</text>
-        <switch checked="{{item.visible}}" data-index="{{index}}" bindchange="onToggleModule" color="#315CFF" />
+  <!-- 头像设置卡 -->
+  <view class="card action-card">
+    <view class="action-row" hover-class="row-pressed" bindtap="onChangeDefaultAvatar">
+      <image class="action-icon" src="/assets/icons/ic-user-blue.png" mode="aspectFit"></image>
+      <text class="action-text">更换默认头像</text>
+      <text class="chev">›</text>
+    </view>
+  </view>
+
+  <!-- 头衔设置卡 -->
+  <view class="card action-card">
+    <view class="action-row" hover-class="row-pressed" bindtap="openTitleSheet">
+      <image class="action-icon" src="/assets/icons/ic-medal-orange.png" mode="aspectFit"></image>
+      <text class="action-text">我的头衔</text>
+      <view class="row-right">
+        <text class="value-text">{{myTitle || '无'}}</text>
+        <text class="chev">›</text>
       </view>
     </view>
+    <view class="action-row" hover-class="row-pressed" bindtap="openColorSheet">
+      <image class="action-icon" src="/assets/icons/ic-palette-pink.png" mode="aspectFit"></image>
+      <text class="action-text">头衔颜色</text>
+      <view class="row-right">
+        <text wx:if="{{titleColor && myTitle}}" class="title-capsule" style="color: {{titleColor}}; border-color: {{titleColor}};">{{myTitle}}</text>
+        <text wx:else class="value-badge">无</text>
+        <text class="chev">›</text>
+      </view>
+    </view>
+    <view class="action-row" hover-class="row-pressed" bindtap="openExchangeSheet">
+      <image class="action-icon" src="/assets/icons/ic-gift-purple.png" mode="aspectFit"></image>
+      <text class="action-text">兑换头衔</text>
+      <text class="chev">›</text>
+    </view>
   </view>
 
-  <view class="preview-card card" wx:if="{{previewing}}">
-    <text class="preview-title">{{nickName || '校园用户'}}</text>
-    <text class="preview-desc">{{signature || '该用户还没有填写签名...'}}</text>
+  <!-- 黑名单管理卡 -->
+  <view class="card action-card">
+    <view class="action-row" hover-class="row-pressed" bindtap="goBlacklist">
+      <image class="action-icon" src="/assets/icons/ic-lock-purple.png" mode="aspectFit"></image>
+      <text class="action-text">黑名单管理</text>
+      <text class="chev">›</text>
+    </view>
   </view>
 
-  <view class="bottom-actions">
-    <button class="ghost-btn" bindtap="onRollback">回滚</button>
-    <button class="ghost-btn" bindtap="onPreview">预览</button>
-    <button class="save-btn" loading="{{saving}}" bindtap="onSave">保存</button>
+  <!-- 账号安全卡 -->
+  <view class="card action-card">
+    <button class="phone-row" open-type="getPhoneNumber" bindgetphonenumber="onGetPhoneNumber">
+      <image class="action-icon" src="/assets/icons/ic-phone-green.png" mode="aspectFit"></image>
+      <text class="action-text">绑定手机</text>
+      <text class="value-text phone-masked">{{phoneMasked || '未绑定'}}</text>
+      <text class="chev">›</text>
+    </button>
+  </view>
+
+  <!-- 弹层遮罩 -->
+  <view class="sheet-mask" wx:if="{{showSheet}}" catchtap="closeSheet"></view>
+
+  <!-- 简介编辑弹层 -->
+  <view class="sheet" wx:if="{{showSheet === 'signature'}}" catchtap="noop">
+    <view class="sheet-header"><text class="sheet-title">编辑个人简介</text><text class="sheet-count">{{signatureDraft.length}}/80</text></view>
+    <textarea class="sheet-textarea" value="{{signatureDraft}}" maxlength="80" bindinput="onSignatureInput" placeholder="介绍一下自己吧（80字以内）"></textarea>
+    <button class="sheet-confirm" hover-class="btn-hover" bindtap="saveSignature">保存</button>
+  </view>
+
+  <!-- 昵称编辑弹层 -->
+  <view class="sheet" wx:if="{{showSheet === 'nick'}}" catchtap="noop">
+    <view class="sheet-header"><text class="sheet-title">修改昵称</text></view>
+    <input class="sheet-input" value="{{nickDraft}}" maxlength="20" bindinput="onNickInput" placeholder="请输入新昵称（20字以内）"></input>
+    <button class="sheet-confirm" hover-class="btn-hover" bindtap="saveNick">保存</button>
+  </view>
+
+  <!-- 我的头衔弹层 -->
+  <view class="sheet" wx:if="{{showSheet === 'title'}}" catchtap="noop">
+    <view class="sheet-header"><text class="sheet-title">我的头衔</text></view>
+    <view class="option-list">
+      <view class="option-item {{myTitle === item ? 'active' : ''}}" wx:for="{{ownedTitles}}" wx:key="*this" hover-class="row-pressed" bindtap="pickTitle" data-title="{{item}}">{{item}}</view>
+    </view>
+  </view>
+
+  <!-- 头衔颜色弹层 -->
+  <view class="sheet" wx:if="{{showSheet === 'color'}}" catchtap="noop">
+    <view class="sheet-header"><text class="sheet-title">头衔颜色</text></view>
+    <view class="color-list">
+      <view class="color-item" wx:for="{{colorOptions}}" wx:key="value" hover-class="row-pressed" bindtap="pickColor" data-index="{{index}}">
+        <text class="color-dot" style="background: {{item.value || '#c0c6cf'}};"></text>
+        <text class="color-name">{{item.name}}</text>
+        <text wx:if="{{titleColor === item.value}}" class="color-check">✓</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 兑换头衔弹层 -->
+  <view class="sheet" wx:if="{{showSheet === 'exchange'}}" catchtap="noop">
+    <view class="sheet-header"><text class="sheet-title">兑换头衔</text></view>
+    <view class="option-list">
+      <view class="exchange-item" wx:for="{{exchangeTitles}}" wx:key="name" hover-class="row-pressed" bindtap="exchangeTitle" data-index="{{index}}">
+        <text class="exchange-name">{{item.name}}</text>
+        <text class="exchange-cost">{{item.cost}} 积分</text>
+        <text class="exchange-btn">兑换</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 头像选择弹层（自选模式） -->
+  <view class="sheet avatar-sheet" wx:if="{{showSheet === 'avatar'}}" catchtap="noop">
+    <view class="sheet-header"><text class="sheet-title">选择头像</text><text class="sheet-count">{{avatarList.length}} 张</text></view>
+    <scroll-view class="avatar-scroll" scroll-y>
+      <view class="avatar-grid">
+        <view class="avatar-cell {{pickedIndex === index ? 'picked' : ''}}" wx:for="{{avatarList}}" wx:key="*this" bindtap="pickAvatar" data-index="{{index}}">
+          <image class="grid-avatar" src="{{item}}" mode="aspectFill"></image>
+          <view wx:if="{{pickedIndex === index}}" class="pick-check">✓</view>
+          <view wx:if="{{currentAvatarIndex === index && pickedIndex !== index}}" class="current-tag">当前</view>
+        </view>
+      </view>
+    </scroll-view>
+    <view class="avatar-actions">
+      <button class="sheet-cancel" hover-class="btn-hover" bindtap="closeSheet">取消</button>
+      <button class="sheet-confirm avatar-confirm {{pickedIndex < 0 ? 'disabled' : ''}}" hover-class="btn-hover" bindtap="confirmAvatar">使用该头像</button>
+    </view>
   </view>
 </view>

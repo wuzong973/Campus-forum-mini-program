@@ -1,12 +1,57 @@
 <view class="page">
-  <!-- 订单数量 -->
-  <view class="order-count-bar">
-    <text class="order-count-label">目前接单大厅总共有待接订单</text>
-    <text class="order-count-num">{{orders.length}} 单</text>
+  <!-- 顶部快捷入口（发布需求 / 个人中心） -->
+  <view class="quick-card">
+    <view class="quick-item" bindtap="goPublish">
+      <image class="quick-icon" src="/assets/icons/errand-quick-publish.png" mode="aspectFit"></image>
+      <view class="quick-copy">
+        <text class="quick-title">发布需求</text>
+        <text class="quick-desc">帮买帮取帮送</text>
+      </view>
+    </view>
+    <view class="quick-divider"></view>
+    <view class="quick-item" bindtap="goUserCenter">
+      <image class="quick-icon" src="/assets/icons/errand-quick-user.png" mode="aspectFit"></image>
+      <view class="quick-copy">
+        <text class="quick-title">个人中心</text>
+        <text class="quick-desc">查看收益</text>
+      </view>
+    </view>
   </view>
 
-  <!-- 区域筛选 -->
-  <view class="filter-section">
+  <!-- 警示横幅 -->
+  <view class="warn-banner">
+    <text class="warn-chip">！警示</text>
+    <text class="warn-text">取消订单后台有记录<text class="warn-u">完成率过低</text>将冻结账户<text class="warn-u">禁止接单</text></text>
+  </view>
+
+  <!-- 公告栏 -->
+  <view class="notice-bar notice-yellow" wx:if="{{showNoticeA}}">
+    <text class="notice-icon">⚠</text>
+    <text class="notice-text">跑腿互助订单可随时取消哦，不用担心资金问题，找跑腿上</text>
+    <text class="notice-close" data-key="showNoticeA" bindtap="onCloseNotice">✕</text>
+  </view>
+  <view class="notice-bar notice-red" wx:if="{{showNoticeB}}">
+    <text class="notice-icon">⚠</text>
+    <text class="notice-text">接单人如引导您私下交易；引导您主动取消订单，欢迎联系</text>
+    <text class="notice-close" data-key="showNoticeB" bindtap="onCloseNotice">✕</text>
+  </view>
+
+  <!-- 订单标签页 -->
+  <view class="list-tabs">
+    <view
+      class="list-tab {{activeListTab === index ? 'active' : ''}}"
+      wx:for="{{listTabs}}"
+      wx:key="*this"
+      data-index="{{index}}"
+      bindtap="onListTab"
+    >
+      <text class="list-tab-text">{{item}}</text>
+      <view class="tab-line"></view>
+    </view>
+  </view>
+
+  <!-- 区域筛选（仅全部订单标签下显示） -->
+  <view class="filter-section" wx:if="{{activeListTab === 0}}">
     <view class="filter-label">区域</view>
     <view class="filter-row">
       <view class="filter-btn {{activeRegion < 0 ? 'active' : ''}}" wx:if="{{isAdmin}}" bindtap="onAllRegionSelect">全部区域</view>
@@ -29,76 +74,36 @@
     </view>
   </view>
 
-  <!-- 类型筛选 -->
-  <view class="filter-section">
-    <view class="filter-label">类型</view>
-    <view class="filter-row">
-      <view
-        class="filter-btn {{activeType === index ? 'active' : ''}}"
-        wx:for="{{types}}"
-        wx:key="*this"
-        data-index="{{index}}"
-        bindtap="onTypeSelect"
-      >{{item}}</view>
-    </view>
-  </view>
-
-  <!-- 价格筛选 -->
-  <view class="filter-section">
-    <view class="filter-label">价格</view>
-    <view class="filter-row">
-      <view
-        class="filter-btn {{activePrice === index ? 'active' : ''}}"
-        wx:for="{{prices}}"
-        wx:key="*this"
-        data-index="{{index}}"
-        bindtap="onPriceSelect"
-      >{{item}}</view>
-    </view>
-  </view>
-
   <!-- 订单列表 -->
   <view class="order-list">
     <block wx:for="{{orders}}" wx:key="id">
       <view class="order-card" data-order="{{item}}" bindtap="onOpenDetail">
-        <view class="order-header">
-          <view class="order-status">
-            <view class="status-dot {{item.statusClass}}"></view>
-            <text class="status-text {{item.statusClass}}">{{item.status}}</text>
+        <view class="card-head">
+          <image class="card-avatar" src="{{item.avatarUrl}}" mode="aspectFill"></image>
+          <view class="card-user">
+            <view class="card-name-row">
+              <text class="card-name">{{item.authorName}}</text>
+              <text class="campus-tag">{{item.campus}}</text>
+            </view>
+            <text class="card-time">{{item.publishTime}} 发布</text>
           </view>
-          <text class="order-time">{{item.publishTime}}</text>
+          <text class="status-pill {{item.statusClass}}">{{item.status}}</text>
         </view>
-        <view class="order-title-row">
-          <view class="order-title-with-campus">
-            <text class="order-title">{{item.title}}</text>
-            <text class="order-campus">{{item.campus}}</text>
-          </view>
-          <text class="order-price">¥{{item.price}}</text>
+        <view class="card-body">
+          <text class="card-title">{{item.title}}</text>
+          <text class="card-expect">期望完成时间：{{item.expectText}}</text>
         </view>
-        <view class="order-address-row">
-          <text class="address-mark pickup">取</text>
-          <text class="address-text">{{item.pickupAddr}}</text>
-        </view>
-        <view class="order-address-row">
-          <text class="address-mark delivery">送</text>
-          <text class="address-text">{{item.deliveryAddr}}</text>
-        </view>
-        <view class="order-tags">
-          <view class="tag" wx:if="{{item.itemCount}}">
-            <image class="tag-icon" src="/assets/icons/tag-list.png" mode="aspectFit"></image>
-            <text>共{{item.itemCount}}件快递，小件{{item.smallCount || 1}}件</text>
+        <view class="card-foot">
+          <view class="amount-wrap">
+            <text class="amount-label">订单金额</text>
+            <text class="amount-price">¥{{item.price}}</text>
           </view>
-          <view class="tag" wx:if="{{item.timeLimit}}">
-            <image class="tag-icon" src="/assets/icons/tag-clock.png" mode="aspectFit"></image>
-            <text>{{item.timeLimit}}</text>
-          </view>
-          <view class="tag" wx:if="{{item.genderReq}}">
-            <image class="tag-icon" src="/assets/icons/tag-person.png" mode="aspectFit"></image>
-            <text>{{item.genderReq}}</text>
-          </view>
-          <view class="tag" wx:for="{{item.extraTags}}" wx:key="*this">
-            <image class="tag-icon" src="/assets/icons/tag-list.png" mode="aspectFit"></image>
-            <text>{{item}}</text>
+          <view class="foot-actions">
+            <view class="card-btn" wx:if="{{item.action === 'grab'}}" catchtap="onAccept" data-order="{{item}}">立即抢单</view>
+            <view class="card-btn btn-pay" wx:elif="{{item.action === 'pay'}}" catchtap="onPay" data-order="{{item}}">去支付</view>
+            <view class="card-btn btn-finish" wx:elif="{{item.action === 'finish'}}" catchtap="onFinish" data-order="{{item}}">立即完成</view>
+            <view class="card-btn btn-ghost" wx:elif="{{item.action === 'cancel'}}" catchtap="onCancelOrder" data-order="{{item}}">取消订单</view>
+            <view class="card-btn btn-ghost" wx:elif="{{item.action === 'contact'}}" catchtap="onContact" data-order="{{item}}">联系对方</view>
           </view>
         </view>
       </view>
@@ -106,10 +111,10 @@
   </view>
 
   <!-- 空状态 -->
-  <view class="empty-state" wx:if="{{orders.length === 0}}">
-    <text class="empty-title">当前筛选下暂无可接订单</text>
+  <view class="empty-state" wx:if="{{!loading && orders.length === 0}}">
+    <text class="empty-title">{{emptyText}}</text>
     <text class="empty-desc">你可以调整筛选条件，或稍后下拉刷新再看看。</text>
-    <view class="empty-btn" bindtap="goPublish">去发布需求</view>
+    <view class="empty-btn" bindtap="goPublish" wx:if="{{activeListTab !== 1}}">去发布需求</view>
   </view>
 
   <!-- 底部Tabbar -->

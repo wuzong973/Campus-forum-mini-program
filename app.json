@@ -23,6 +23,7 @@
     "pages/chat/index",
     "pages/profile/index",
     "pages/profile-edit/index",
+    "pages/blacklist/index",
     "pages/user/index",
     "pages/settings/index",
     "pages/agreement/index",

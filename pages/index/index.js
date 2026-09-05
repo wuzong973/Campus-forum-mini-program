@@ -15,7 +15,7 @@ Page({
     bannerCurrent: 0,
     bannerInterval: 4200,
     bannerDuration: 520,
-    notice: '课表 AI 识别、社区私信链路和校园服务导航已完成新一轮优化升级',
+    notice: '如果你在使用中遇到了问题，请尽快点击联系',
     services: [],
     allServices: [],
     serviceIndicators: [0, 1, 2, 3, 4],

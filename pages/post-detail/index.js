@@ -33,7 +33,7 @@ Page({
     noteInputFocus: false,
     noteKeyboardHeight: 0,
     savingNote: false,
-    contactExpanded: true,
+    contactExpanded: false,
     commentFocus: false,
     showEmojiPanel: false,
     commentAnonymous: false,
@@ -42,9 +42,9 @@ Page({
     pageHeight: 0,
     bottomBarHeight: 120,
     showSharePopup: false,
-    selectedPollIndexes: [],
+    pollSelections: [],
+    pollChecked: [],
     submittingVote: false,
-    signingUpGathering: false,
     emojis: [
       "😀",
       "😂",
@@ -105,10 +105,10 @@ Page({
     const isAdmin = ['super_admin', 'content_admin'].indexOf(userInfo.role) > -1;
     const isAuthor = Number(userInfo.id) === Number((this.data.post || {}).userId);
     const itemList = isAdmin
-      ? ['删除', '添加备注', '不感兴趣']
+      ? ['删除', '添加备注', '拉黑']
       : isAuthor
         ? ['删除']
-        : ['不感兴趣', '举报内容'];
+        : ['拉黑', '举报内容'];
     wx.showActionSheet({
       itemList,
       success: async (res) => {
@@ -117,7 +117,7 @@ Page({
           await this.deletePost();
         } else if (selected === '添加备注') {
           this.openNoteEditor();
-        } else if (selected === '不感兴趣') {
+        } else if (selected === '拉黑') {
           await this.markNotInterested();
         } else {
           await this.reportPost();
@@ -150,10 +150,10 @@ Page({
 
   async markNotInterested() {
     const post = this.data.post || {};
-    if (!await this.confirmAction('减少此类内容', '将永久隐藏此帖子及同分类内容，确认继续吗？')) return;
+    if (!await this.confirmAction('拉黑确认', '将永久隐藏此帖子及同分类内容，确认继续吗？')) return;
     try {
       if (!request.USE_MOCK) await api.markPostNotInterested(post.id);
-      wx.showToast({ title: '已减少此类内容', icon: 'success' });
+      wx.showToast({ title: '已拉黑', icon: 'success' });
       setTimeout(() => wx.navigateBack(), 350);
     } catch (err) {
       wx.showToast({ title: err.message || '设置失败', icon: 'none' });
@@ -238,11 +238,13 @@ Page({
       if (post) {
         const followedPostIds = wx.getStorageSync("followed_post_ids") || [];
         post.isFollowed = followedPostIds.indexOf(post.id) > -1;
+        const pollSelections = (post.components || []).map((item) => (item.type === 'poll' && Array.isArray(item.selectedOptionIndexes)) ? item.selectedOptionIndexes.slice() : []);
         this.setData({
           post,
           detailImages: this.toDetailImages(post.images),
-          contactExpanded: true,
-          selectedPollIndexes: (((post.components || []).find((item) => item.type === 'poll') || {}).selectedOptionIndexes || []),
+          contactExpanded: false,
+          pollSelections,
+          pollChecked: this.buildPollChecked(post.components || [], pollSelections),
           timeText: format.formatRelativeTime(post.createdAt) || "刚刚",
           viewText: this.formatViewCount(post.viewCount || 0) + " 浏览",
         });
@@ -265,45 +267,53 @@ Page({
       .map((url) => ({ url, failed: false }))
   },
 
-  onPollChoice(e) {
-    const selectedPollIndexes = (e.detail.value || []).map(Number)
-    if ((((this.data.post || {}).components || []).find((item) => item.type === 'poll') || {}).mode === 'single' && selectedPollIndexes.length > 1) {
-      selectedPollIndexes.splice(0, selectedPollIndexes.length - 1)
-    }
-    this.setData({ selectedPollIndexes })
+  // WXML 模板不支持方法调用（如 indexOf），选中态需在此预计算为布尔矩阵
+  buildPollChecked(components, selections) {
+    return (components || []).map((item, idx) => {
+      if (item.type !== 'poll' || !Array.isArray(item.options)) return []
+      const selected = selections[idx] || []
+      return item.options.map((_, i) => selected.indexOf(i) > -1)
+    })
   },
 
-  onSubmitVote() {
+  onPollChoice(e) {
+    const pollIndex = Number(e.currentTarget.dataset.pollIndex || 0)
+    const poll = ((this.data.post || {}).components || [])[pollIndex] || {}
+    // checkbox-group 返回数组，radio-group 返回单个字符串，统一归一化为数组
+    const rawValue = e.detail.value
+    const valueList = Array.isArray(rawValue) ? rawValue : (rawValue === undefined || rawValue === null || rawValue === '' ? [] : [rawValue])
+    let selected = valueList.map(Number)
+    if (poll.mode === 'single' && selected.length > 1) selected = selected.slice(-1)
+    const pollSelections = this.data.pollSelections.slice()
+    pollSelections[pollIndex] = selected
+    this.setData({ pollSelections, pollChecked: this.buildPollChecked(this.data.post.components || [], pollSelections) })
+  },
+
+  onSubmitVote(e) {
     if (!auth.requireLogin('投票需要先登录') || this.data.submittingVote) return
-    const indexes = this.data.selectedPollIndexes
+    const pollIndex = Number((e && e.currentTarget && e.currentTarget.dataset.pollIndex) || 0)
+    const indexes = this.data.pollSelections[pollIndex] || []
     if (!indexes.length) { wx.showToast({ title: '请选择投票选项', icon: 'none' }); return }
     const post = Object.assign({}, this.data.post)
-    const applyComponents = (components) => this.setData({ post: Object.assign(post, { components }), submittingVote: false })
+    const applyComponents = (components) => {
+      const pollSelections = (components || []).map((item) => (item.type === 'poll' && Array.isArray(item.selectedOptionIndexes)) ? item.selectedOptionIndexes.slice() : [])
+      this.setData({
+        post: Object.assign(post, { components }),
+        pollSelections,
+        pollChecked: this.buildPollChecked(components || [], pollSelections)
+      })
+    }
     this.setData({ submittingVote: true })
     if (request.USE_MOCK) {
       const components = (post.components || []).map((component) => Object.assign({}, component, { options: (component.options || []).map((option) => Object.assign({}, option)), voterIds: (component.voterIds || []).slice() }))
-      const poll = components.find((item) => item.type === 'poll')
+      const poll = components[pollIndex]
+      if (!poll || poll.type !== 'poll') { this.setData({ submittingVote: false }); wx.showToast({ title: '投票不存在', icon: 'none' }); return }
       if (poll.selectedOptionIndexes && poll.selectedOptionIndexes.length) { this.setData({ submittingVote: false }); wx.showToast({ title: '你已经投过票了', icon: 'none' }); return }
       indexes.forEach((index) => { poll.options[index].votes = (poll.options[index].votes || 0) + 1 })
       poll.selectedOptionIndexes = indexes
       applyComponents(components); wx.showToast({ title: '投票成功', icon: 'success' }); return
     }
-    api.votePost(post.id, indexes).then((result) => { applyComponents(result.components || []); wx.showToast({ title: '投票成功', icon: 'success' }) }).catch((err) => { this.setData({ submittingVote: false }); wx.showToast({ title: err.message || '投票失败', icon: 'none' }) })
-  },
-
-  onSignUpGathering() {
-    if (!auth.requireLogin('报名需要先登录') || this.data.signingUpGathering) return
-    const post = Object.assign({}, this.data.post)
-    const finish = (components) => this.setData({ post: Object.assign(post, { components }), signingUpGathering: false })
-    this.setData({ signingUpGathering: true })
-    if (request.USE_MOCK) {
-      const components = (post.components || []).map((component) => Object.assign({}, component, { participants: (component.participants || []).slice() }))
-      const gathering = components.find((item) => item.type === 'gathering'); const user = getApp().globalData.userInfo || {}
-      if ((gathering.participants || []).some((item) => Number(item.userId) === Number(user.id))) { this.setData({ signingUpGathering: false }); wx.showToast({ title: '你已报名', icon: 'none' }); return }
-      if (gathering.participants.length >= gathering.limit) { this.setData({ signingUpGathering: false }); wx.showToast({ title: '报名人数已满', icon: 'none' }); return }
-      gathering.participants.push({ userId: user.id || 0, nickName: user.nickName || '我' }); finish(components); wx.showToast({ title: '报名成功', icon: 'success' }); return
-    }
-    api.signUpGathering(post.id).then((result) => { finish(result.components || []); wx.showToast({ title: '报名成功', icon: 'success' }) }).catch((err) => { this.setData({ signingUpGathering: false }); wx.showToast({ title: err.message || '报名失败', icon: 'none' }) })
+    api.votePost(post.id, indexes, pollIndex).then((result) => { applyComponents(result.components || []); wx.showToast({ title: '投票成功', icon: 'success' }) }).catch((err) => { this.setData({ submittingVote: false }); wx.showToast({ title: err.message || '投票失败', icon: 'none' }) })
   },
 
   onPreviewPostImage(e) {
@@ -373,6 +383,13 @@ Page({
       commentsById[comment.id] = Object.assign({}, comment, {
         isAuthor: authorId > 0 && Number(comment.userId) === authorId,
       });
+    });
+
+    // 回复前缀规则：仅“回复回复”（嵌套回复）显示“回复 xxx:”，直接回复根评论不显示
+    Object.keys(commentsById).forEach((id) => {
+      const comment = commentsById[id];
+      const parent = comment.parentId ? commentsById[comment.parentId] : null;
+      comment.replyToNick = parent && parent.parentId ? parent.nickName : '';
     });
 
     const findRoot = (comment) => {

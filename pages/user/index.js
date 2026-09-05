@@ -31,11 +31,11 @@ Page({
       { key: "favorited", icon: "/assets/icons/star-outline.png", name: "已收藏" },
     ],
     menus: [
-      { icon: "/assets/icons/edit.png", name: "编辑个人主页" },
+      { icon: "/assets/icons/avatar.png", name: "个人中心" },
       { icon: "/assets/icons/service.png", name: "联系管理员" },
       { icon: "/assets/icons/feedback.png", name: "用户反馈" },
       { icon: "/assets/icons/help.png", name: "常见问题" },
-      { icon: "/assets/icons/rider.jpg", name: "骑手认证" },
+      { icon: "/assets/icons/rider.png", name: "骑手认证" },
     ],
   },
 
@@ -102,7 +102,7 @@ Page({
   onMenuTap(e) {
     const name = e.currentTarget.dataset.name;
     const routes = {
-      编辑个人主页: "/pages/profile-edit/index",
+      个人中心: "/pages/profile-edit/index",
       用户反馈: "/pages/feedback/index",
       常见问题: "/pages/help/index",
       骑手认证: "/pages/rider-verify/index",

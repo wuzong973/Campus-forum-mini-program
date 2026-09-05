@@ -15,7 +15,7 @@ const DEFAULT_AVATARS = [
   '1.jpg'
 ]
 
-// Bundled from avatar2/name.txt because mini-program code cannot read files
+// Bundled from assets/avatar2/name.txt because mini-program code cannot read files
 // from the project directory at runtime.
 const DEFAULT_NAMES = [
   '蜿蜒的小溪', '平静的湖面', '汹涌的海浪', '清澈的泉水', '浑浊的黄河',
@@ -51,7 +51,7 @@ const DEFAULT_PROFILE_KEY = 'default_guest_profile'
 
 function getRandomAvatar() {
   const filename = DEFAULT_AVATARS[Math.floor(Math.random() * DEFAULT_AVATARS.length)]
-  return '/avatar2/' + encodeURIComponent(filename)
+  return '/assets/avatar2/' + encodeURIComponent(filename)
 }
 
 function getRandomName() {
@@ -77,7 +77,9 @@ function isTemporaryAvatar(value) {
 
 function isStoredAvatar(value) {
   const url = String(value || '').trim()
-  return /^https:\/\//i.test(url) || url.indexOf('/avatar1/') === 0 || url.indexOf('/avatar2/') === 0 || url.indexOf('/assets/') === 0
+  // Bundled default avatars now live under /assets/ (avatar1/avatar2 included);
+  // uploaded avatars are https URLs.
+  return /^https:\/\//i.test(url) || url.indexOf('/assets/') === 0
 }
 
 module.exports = { DEFAULT_AVATARS, DEFAULT_NAMES, getRandomAvatar, getRandomName, getDefaultProfile, isDefaultName, isTemporaryAvatar, isStoredAvatar }

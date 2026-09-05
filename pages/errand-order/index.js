@@ -8,6 +8,8 @@ Page({
     navBarHeight: 44,
     // 统计
     counts: { unpaid: 0, pending: 0, inProgress: 0, done: 0, cancelled: 0 },
+    // 收益卡片（与"我的"钱包数据互通）
+    wallet: { balance: '0.00', earned: '0.00' },
     // 标签
     tabs: ['我发布的', '我接的单'],
     activeTab: 0,
@@ -36,11 +38,35 @@ Page({
   },
 
   refresh() {
+    this.loadWallet()
     if (!request.USE_MOCK) {
       this._loadFromServer()
     } else {
       this._loadFromMock()
     }
+  },
+
+  // 收益卡片数据：与钱包页共用 /wallet/summary，提现只能在钱包页发起
+  loadWallet() {
+    if (!auth.isLoggedIn()) return
+    const apply = (data) => {
+      if (!data) return
+      this.setData({
+        wallet: {
+          balance: Number(data.available || 0).toFixed(2),
+          earned: Number(data.earned || 0).toFixed(2)
+        }
+      })
+    }
+    if (request.USE_MOCK) {
+      apply(require('../../utils/mock').walletSummary)
+      return
+    }
+    request.get('/wallet/summary', {}, true, { silent: true }).then(apply).catch(() => {})
+  },
+
+  goWallet() {
+    wx.navigateTo({ url: '/pages/wallet/index' })
   },
 
   _loadFromMock() {

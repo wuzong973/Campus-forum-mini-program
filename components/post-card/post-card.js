@@ -231,10 +231,10 @@ Component({
       const isAdmin = ['super_admin', 'content_admin'].indexOf(userInfo.role) > -1;
       const isAuthor = Number(userInfo.id) === Number((this.data.post || {}).userId);
       const itemList = isAdmin
-        ? ['删除', '添加备注', '不感兴趣']
+        ? ['删除', '添加备注', '拉黑']
         : isAuthor
           ? ['删除']
-          : ['不感兴趣', '举报内容'];
+          : ['拉黑', '举报内容'];
       wx.showActionSheet({
         itemList,
         success: async (res) => {
@@ -243,7 +243,7 @@ Component({
             await this.deletePost();
           } else if (selected === "添加备注") {
             this.openNoteEditor();
-          } else if (selected === "不感兴趣") {
+          } else if (selected === "拉黑") {
             await this.markNotInterested();
           } else {
             await this.reportPost();
@@ -276,11 +276,11 @@ Component({
 
     async markNotInterested() {
       const post = this.data.post || {};
-      if (!await this.confirmAction('减少此类内容', '将永久隐藏此帖子及同分类内容，确认继续吗？')) return;
+      if (!await this.confirmAction('拉黑确认', '将永久隐藏此帖子及同分类内容，确认继续吗？')) return;
       try {
         if (!request.USE_MOCK) await api.markPostNotInterested(post.id);
         this.triggerEvent('close', { postId: post.id });
-        wx.showToast({ title: '已减少此类内容', icon: 'success' });
+        wx.showToast({ title: '已拉黑', icon: 'success' });
       } catch (err) {
         wx.showToast({ title: err.message || '设置失败', icon: 'none' });
       }
