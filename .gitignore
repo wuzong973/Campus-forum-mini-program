@@ -31,6 +31,10 @@ dist/
 build/
 coverage/
 
+# Python bytecode (deploy 脚本运行产物，会触发小程序保留目录报错)
+__pycache__/
+*.pyc
+
 # Temporary files
 *.tmp
 *.temp

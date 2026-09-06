@@ -4,8 +4,9 @@
     <view class="post-user-info">
       <view class="post-nick-row">
         <text class="post-nick">{{authorName}}</text>
+        <view class="post-anonymous-label"><text class="post-anonymous-main">帖子</text><text class="post-anonymous-tag" wx:if="{{post.isAnonymous}}">AN</text><text class="post-pin-tag" wx:if="{{post.pinned}}">置顶</text></view>
         <text class="post-review-note" wx:if="{{post.reviewNote}}">备注：{{post.reviewNote}}</text>
-        <text class="post-cert-label" wx:if="{{certLabel}}">{{certLabel}}</text>
+        <text class="post-cert-label" wx:if="{{certLabel && !post.isAnonymous}}">{{certLabel}}</text>
       </view>
       <view class="post-meta">
         <text class="meta-category">{{post.category || '日常话题'}}</text>
@@ -15,8 +16,10 @@
         <text>{{viewText}}</text>
       </view>
     </view>
-    <view class="more-btn" catchtap="onClose"><image src="/assets/icons/more.png" mode="aspectFit"></image></view>
+    <view class="more-btn" wx:if="{{!readonly}}" catchtap="onClose"><image class="more-btn-icon" src="/assets/icons/more.png" mode="aspectFit"></image></view>
   </view>
+
+  <view class="post-deleted-stamp" wx:if="{{readonly}}">已删除</view>
 
   <text class="post-title" wx:if="{{post.title}}">{{post.title}}</text>
   <view class="post-content">
@@ -36,8 +39,8 @@
       <view class="campus-tag">{{post.campus || '未设置校区'}}</view>
     </view>
     <view class="footer-actions">
-      <view class="footer-action {{post.isLiked ? 'active-like' : ''}}" catchtap="onLike"><image src="/assets/icons/heart-outline.png" mode="aspectFit"></image><text>点赞{{post.likeCount ? ' ' + post.likeCount : ''}}</text></view>
-      <view class="footer-action" catchtap="onComment"><image src="/assets/icons/comment.png" mode="aspectFit"></image><text>评论{{post.commentCount ? ' ' + post.commentCount : ''}}</text></view>
+      <view class="footer-action {{post.isLiked ? 'active-like' : ''}}" catchtap="onLike"><image class="footer-action-icon" src="/assets/icons/heart-outline.png" mode="aspectFit"></image><text>{{post.likeCount > 0 ? post.likeCount : '点赞'}}</text></view>
+      <view class="footer-action" catchtap="onComment"><image class="footer-action-icon" src="/assets/icons/comment.png" mode="aspectFit"></image><text>{{post.commentCount > 0 ? post.commentCount : '评论'}}</text></view>
     </view>
   </view>
 
@@ -56,11 +59,41 @@
 
   <share-popup
     visible="{{showSharePopup}}"
-    postId="{{post.id}}"
-    postTitle="{{post.title}}"
-    postContent="{{post.content}}"
+    postId="{{post.id || 0}}"
+    postTitle="{{post.title || ''}}"
+    postContent="{{post.content || ''}}"
     bind:close="onCloseSharePopup"
     bind:shareToFriend="onShareToFriend"
     bind:sharePoster="onSharePoster"
   />
+
+  <view class="anon-sheet-mask" wx:if="{{anonPopup}}" catchtap="onCloseAnonPopup"></view>
+  <view class="anon-sheet" wx:if="{{anonPopup}}" catchtap="noop">
+    <view class="anon-sheet-close" catchtap="onCloseAnonPopup">×</view>
+    <view class="anon-sheet-user">
+      <image class="anon-sheet-avatar" src="{{anonPopup.avatar || '/assets/icons/avatar.png'}}" mode="aspectFill"></image>
+      <text class="anon-sheet-nick">{{anonPopup.nick}}</text>
+      <view class="anon-sheet-owner" wx:if="{{anonPopup.isOwner}}">
+        <text class="anon-sheet-owner-text">帖主</text>
+        <text class="anon-sheet-owner-op">OP</text>
+      </view>
+    </view>
+    <button class="anon-sheet-msg-btn" catchtap="onAnonPopupMessage">私信</button>
+    <text class="anon-sheet-tip">这是一位分身用户</text>
+  </view>
+
+  <view class="anon-sheet-mask" wx:if="{{authorPopup}}" catchtap="onCloseAuthorPopup"></view>
+  <view class="anon-sheet" wx:if="{{authorPopup}}" catchtap="noop">
+    <view class="anon-sheet-close" catchtap="onCloseAuthorPopup">×</view>
+    <view class="anon-sheet-user">
+      <image class="anon-sheet-avatar" src="{{authorPopup.avatar || '/assets/icons/avatar.png'}}" mode="aspectFill"></image>
+      <text class="anon-sheet-nick">{{authorPopup.nick}}</text>
+      <view class="author-sheet-badge" wx:if="{{authorPopup.certLabel}}"><text class="author-sheet-badge-text">{{authorPopup.certLabel}}</text></view>
+    </view>
+    <view class="author-sheet-actions">
+      <button class="author-sheet-btn ghost" catchtap="onAuthorPopupProfile">个人主页</button>
+      <button class="author-sheet-btn primary" catchtap="onAuthorPopupMessage">分身私信</button>
+    </view>
+    <text class="anon-sheet-tip">帖主允许分身私信，进入主页可以进行普通私信</text>
+  </view>
 </view>

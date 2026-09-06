@@ -1,1 +1,153 @@
-<view class="page"><view class="topbar" style="padding-top:{{statusBarHeight}}px"><view class="topbar-inner" style="height:{{navBarHeight}}px"><view class="back" bindtap="goBack">‹</view><text class="nav-title">信院论坛</text><view class="more">•••</view></view></view><view class="nav-space" style="height:{{statusBarHeight+navBarHeight}}px"></view><text class="progress">进行中···</text><view class="card order-card"><view class="order-head"><view class="user"><view class="avatar">👨🏻</view><text>神秘同学177418526</text></view><text class="reward">悬赏佣金 <text>¥{{order.reward || '2.55'}}</text></text></view><view class="title">{{order.title || '在学校服务中心二楼打印个东西'}}</view><view class="row"><text>所在校区</text><text>{{order.campus || '不限校区'}}</text></view><view class="row"><text>下单时间</text><text>{{order.createdText || '2026-08-15 09:15:54'}}</text></view><button class="contact" bindtap="onContact">♧ 联系需求方</button></view><view class="card info-card"><text class="section-title">订单信息</text><view class="row"><text>订单编号</text><text>e2026081509155432　复制</text></view><view class="row"><text>接单时间</text><text>2026-08-16 02:16:53</text></view><view class="row"><text>订单记录</text><text>查看记录 ›</text></view></view><view class="card guide"><text>平台周间保障、单独推送、效率更高</text><view class="guide-row"><text>◉<small>查看需求</small></text><text>♧<small>接单帮忙</small></text><text>◷<small>完成订单</small></text><text>♢<small>佣金到账</small></text></view></view><view class="bottom"><text>到手佣金 <em>¥{{order.reward || '2.55'}}</em></text><button class="cancel" bindtap="openCancel">取消接单</button><button class="finish" bindtap="openComplete">提交完成</button></view></view>
+<view class="page">
+  <view class="topbar" style="padding-top: {{statusBarHeight}}px;"><view class="topbar-inner" style="height: {{navBarHeight}}px;"><view class="back" bindtap="goBack">‹</view><text class="nav-title">广轻工论坛</text><view class="topbar-right"></view></view></view>
+  <view class="nav-space" style="height: {{statusBarHeight + navBarHeight}}px;"></view>
+
+  <view wx:if="{{loading && !order}}" class="loading-tip">加载中…</view>
+
+  <block wx:if="{{order}}">
+    <text class="progress">{{statusText}}</text>
+
+    <!-- 需求信息 -->
+    <view class="card order-card">
+      <view class="order-head">
+        <view class="user">
+          <image wx:if="{{order.publisherAvatar}}" class="avatar" src="{{order.publisherAvatar}}" mode="aspectFill"></image>
+          <view wx:else class="avatar">{{order.publisherEmoji}}</view>
+          <text class="user-name">{{order.publisherName}}</text>
+        </view>
+        <text class="reward">悬赏佣金 <text class="reward-num">¥{{order.rewardText}}</text></text>
+      </view>
+      <view class="desc-box"><text>{{order.remark || order.description || order.title}}</text></view>
+      <view class="row"><text class="row-label">所在校区</text><text class="row-value">{{order.campus || '不限校区'}}</text></view>
+      <view class="row"><text class="row-label">下单时间</text><text class="row-value">{{order.createdText}}</text></view>
+      <view class="row" wx:if="{{order.pickupAddr}}"><text class="row-label">取件地址</text><text class="row-value">{{order.pickupAddr}}</text></view>
+      <view class="row" wx:if="{{order.deliveryAddr}}"><text class="row-label">送达地址</text><text class="row-value">{{order.deliveryAddr}}</text></view>
+      <button class="contact" bindtap="onContact"><text class="contact-icon">✆</text>{{order.role === 'publisher' ? '联系接单方' : '联系需求方'}}</button>
+    </view>
+
+    <!-- 订单信息 -->
+    <view class="card info-card">
+      <text class="section-title">订单信息</text>
+      <view class="row">
+        <text class="row-label">订单编号</text>
+        <view class="row-value-wrap"><text class="row-value">{{order.orderNoText}}</text><text class="copy-btn" bindtap="copyOrderNo">复制</text></view>
+      </view>
+      <view class="row">
+        <text class="row-label">接单时间</text>
+        <text class="row-value">{{order.acceptedText || '--'}}</text>
+      </view>
+      <view class="row" wx:if="{{order.finishedText}}">
+        <text class="row-label">完成时间</text>
+        <text class="row-value">{{order.finishedText}}</text>
+      </view>
+      <view class="row" bindtap="openLogs">
+        <text class="row-label">订单记录</text>
+        <view class="row-value-wrap"><text class="row-value link">查看记录</text><text class="arrow">›</text></view>
+      </view>
+    </view>
+
+    <!-- 完成信息（已完成订单） -->
+    <view class="card" wx:if="{{order.status === 'finished' && canViewRemark}}">
+      <text class="section-title">完成信息</text>
+      <view class="finish-desc">{{order.finishDescription || order.finish_description || '未填写完成说明'}}</view>
+      <view class="finish-images" wx:if="{{order.finishImages.length}}">
+        <image wx:for="{{order.finishImages}}" wx:key="*this" src="{{item}}" mode="aspectFill" data-src="{{item}}" bindtap="previewFinishImage"/>
+      </view>
+    </view>
+
+    <!-- 取消接单申请（接单方提交、发单人审批） -->
+    <view class="card request-card" wx:if="{{cancelRequest && cancelRequest.status === 'pending'}}">
+      <view class="request-head">
+        <text class="section-title">取消接单申请</text>
+        <text class="request-tag">{{cancelRequest.reasonSide === 'publisher' ? '发单人原因' : '自身原因'}}</text>
+      </view>
+      <text class="request-reason">{{cancelRequest.reason}}</text>
+      <view class="request-images" wx:if="{{cancelRequest.images.length}}">
+        <image wx:for="{{cancelRequest.images}}" wx:key="*this" src="{{item}}" mode="aspectFill" data-src="{{item}}" bindtap="previewRequestImage"/>
+      </view>
+      <view class="request-actions" wx:if="{{canHandleRequest}}">
+        <button class="btn-reject" bindtap="respondRequest" data-approve="0">拒绝</button>
+        <button class="btn-approve" bindtap="respondRequest" data-approve="1">同意取消</button>
+      </view>
+      <text class="request-tip" wx:else>等待发单人处理，处理结果将通过消息通知</text>
+    </view>
+
+    <!-- 平台保障指引 -->
+    <view class="card guide">
+      <text class="guide-title">平台居间保障、单独推送、效率更高</text>
+      <view class="guide-row">
+        <view class="guide-step {{guideStep === 1 ? 'active' : ''}}"><view class="guide-icon">◉</view><text class="guide-label">查看需求</text></view>
+        <text class="guide-arrow">»</text>
+        <view class="guide-step {{guideStep === 2 ? 'active' : ''}}"><view class="guide-icon">♧</view><text class="guide-label">接单帮忙</text></view>
+        <text class="guide-arrow">»</text>
+        <view class="guide-step {{guideStep === 3 ? 'active' : ''}}"><view class="guide-icon">◷</view><text class="guide-label">完成订单</text></view>
+        <text class="guide-arrow">»</text>
+        <view class="guide-step {{guideStep === 4 ? 'active' : ''}}"><view class="guide-icon">♢</view><text class="guide-label">佣金到账</text></view>
+      </view>
+    </view>
+
+    <!-- 右侧浮动导航 -->
+    <view class="float-nav">
+      <view class="float-item" bindtap="goPublish"><text class="float-icon">✚</text><text class="float-label">发布</text></view>
+      <view class="float-item" bindtap="goMessages"><text class="float-icon">✉</text><text class="float-label">消息</text></view>
+      <view class="float-item" bindtap="goHallHome"><text class="float-icon">⌂</text><text class="float-label">首页</text></view>
+    </view>
+
+    <!-- 底部操作栏（金额必须用 <text> 嵌套，<em> 在 WXML 中不渲染） -->
+    <view class="bottom-bar" wx:if="{{bottomMode === 'acceptor' && !requestPending}}">
+      <text class="income">到手佣金 <text class="income-num">¥{{order.rewardText}}</text></text>
+      <button class="btn-cancel" bindtap="openCancel">取消接单</button>
+      <button class="btn-finish" bindtap="openComplete">提交完成</button>
+    </view>
+    <view class="bottom-bar pending-note" wx:elif="{{bottomMode === 'acceptor' && requestPending}}">
+      <text>取消接单申请待发单人处理，请耐心等待或继续完成订单</text>
+    </view>
+    <view class="bottom-bar" wx:elif="{{bottomMode === 'publisher'}}">
+      <text class="income">悬赏佣金 <text class="income-num">¥{{order.rewardText}}</text></text>
+      <button class="btn-cancel" bindtap="onContact">联系接单方</button>
+      <button class="btn-finish" bindtap="openCancelPublisher">取消订单</button>
+    </view>
+    <view class="bottom-bar" wx:elif="{{bottomMode === 'ownerPending'}}">
+      <text class="income">悬赏佣金 <text class="income-num">¥{{order.rewardText}}</text></text>
+      <button class="btn-finish" bindtap="openCancelPublisher">取消订单</button>
+    </view>
+    <view class="bottom-bar" wx:elif="{{bottomMode === 'pending'}}">
+      <text class="income">悬赏佣金 <text class="income-num">¥{{order.rewardText}}</text></text>
+      <button class="btn-finish" bindtap="onAccept" disabled="{{accepting}}">立即接单</button>
+    </view>
+    <view class="bottom-bar" wx:elif="{{bottomMode === 'finished'}}">
+      <text class="income">到手佣金 <text class="income-num">¥{{order.rewardText}}</text></text>
+      <button class="btn-finish" bindtap="openReview">去评价</button>
+    </view>
+  </block>
+
+  <!-- 订单记录弹窗 -->
+  <view class="mask" wx:if="{{showLogs}}" bindtap="closeLogs">
+    <view class="logs-popup" catchtap="noop">
+      <text class="logs-title">订单记录</text>
+      <scroll-view scroll-y class="logs-list">
+        <view class="log-item" wx:for="{{logs}}" wx:key="id">
+          <view class="log-dot"></view>
+          <view class="log-body">
+            <text class="log-text">{{item.text}}</text>
+            <text class="log-time">{{item.timeText}}</text>
+          </view>
+        </view>
+        <view wx:if="{{!logs.length}}" class="logs-empty">暂无记录</view>
+      </scroll-view>
+      <view class="logs-close" bindtap="closeLogs">关闭</view>
+    </view>
+  </view>
+
+  <!-- 评价弹窗 -->
+  <view class="mask" wx:if="{{showReview}}" bindtap="closeReview">
+    <view class="review-popup" catchtap="noop">
+      <text class="logs-title">评价该订单</text>
+      <view class="stars">
+        <text wx:for="{{[1,2,3,4,5]}}" wx:key="*this" class="star {{reviewRating >= item ? 'on' : ''}}" data-rating="{{item}}" bindtap="chooseRating">★</text>
+      </view>
+      <textarea class="review-text" placeholder="说说这次跑腿体验吧…" maxlength="200" value="{{reviewContent}}" bindinput="onReviewInput"/>
+      <button class="review-submit" bindtap="submitReview" disabled="{{reviewing}}">提交评价</button>
+    </view>
+  </view>
+</view>

@@ -34,7 +34,7 @@
 }
 
 .nav-back,
-.nav-more {
+.nav-placeholder {
   width: 64rpx;
 }
 
@@ -48,7 +48,13 @@
   font-weight: 600;
 }
 
-.nav-more {
+/* 三个点固定在封面右下角（底部被资料面板上移遮挡 76rpx，故留出间距） */
+.hero-more {
+  position: absolute;
+  z-index: 2;
+  right: 28rpx;
+  bottom: 96rpx;
+  color: #fff;
   font-size: 28rpx;
   text-align: right;
   letter-spacing: 0;
@@ -92,6 +98,8 @@
   background: #edf1f7;
   flex-shrink: 0;
 }
+
+.profile-avatar-editable:active { opacity: .76; transform: scale(.97); }
 
 .profile-info {
   min-width: 0;

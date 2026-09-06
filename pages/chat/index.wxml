@@ -36,9 +36,10 @@
     <view class="message-item {{item.isSelf ? 'self' : 'other'}}" wx:for="{{messages}}" wx:key="id" id="msg-{{item.id}}">
       <image class="avatar" src="{{item.avatar}}" mode="aspectFill"></image>
       <view class="message-content">
-        <view class="message-bubble {{item.type === 'image' ? 'image-bubble' : ''}}" bindlongpress="onRecallMessage" data-id="{{item.id}}">
+        <view class="message-bubble {{item.type === 'image' || item.type === 'video' ? 'media-bubble' : ''}}" bindlongpress="onRecallMessage" data-id="{{item.id}}">
           <text wx:if="{{item.type === 'text'}}" class="message-text">{{item.content}}</text>
           <image wx:elif="{{item.type === 'image'}}" class="message-image" src="{{item.content}}" mode="widthFix" data-src="{{item.content}}" catchtap="onPreviewImage"></image>
+          <video wx:elif="{{item.type === 'video'}}" class="message-video" src="{{item.content}}" controls object-fit="contain"></video>
           <text wx:else class="message-emoji">{{item.content}}</text>
         </view>
         <text class="time">{{item.timeText}}</text>
@@ -49,7 +50,7 @@
 
   <!-- 微信式输入区 -->
   <view class="input-area">
-    <view class="anonymous-chat-tip" wx:if="{{anonymousMode}}">匿名聊天不会展示双方真实姓名与头像，仅支持文字消息</view>
+    <view class="anonymous-chat-tip" wx:if="{{anonymousMode}}">{{anonSelfMode ? '分身私信不会展示你的真实姓名与头像' : '匿名聊天不会展示双方真实姓名与头像'}}</view>
     <view class="send-limit-tip block-tip" wx:if="{{peerBlocked}}">已拉黑对方，解除拉黑后才能继续发送消息</view>
     <view class="send-limit-tip block-tip" wx:elif="{{blockedByPeer}}">对方已将你加入黑名单，消息将无法送达</view>
     <view class="send-limit-tip" wx:elif="{{!canSend}}">等待对方回复后才能继续发送。长按上一条消息可撤回并重发。</view>
@@ -65,31 +66,42 @@
       </view>
     </view>
 
-    <view class="tool-panel" wx:if="{{activePanel === 'tools' && !anonymousMode}}">
-      <view class="tool-panel-item" bindtap="onChooseImage">
-        <text class="tool-panel-icon">▣</text>
+    <!-- ＋ 功能面板：照片 / 视频 -->
+    <view class="tool-panel" wx:if="{{activePanel === 'tools'}}">
+      <view class="tool-panel-item" hover-class="tool-item-hover" hover-stay-time="80" bindtap="onChooseImage">
+        <view class="tool-tile"><view class="tool-icon-photo"></view></view>
         <text class="tool-panel-label">照片</text>
+      </view>
+      <view class="tool-panel-item" hover-class="tool-item-hover" hover-stay-time="80" bindtap="onChooseVideo">
+        <view class="tool-tile"><view class="tool-icon-video"></view></view>
+        <text class="tool-panel-label">视频</text>
       </view>
     </view>
 
+    <!-- 微信原生风格输入栏：语音 / 输入框 / 表情 / 加号(发送) -->
     <view class="input-toolbar">
-      <view class="tool-btn voice-btn" bindtap="onToggleVoice"><text>{{voiceMode ? '⌨' : '◉'}}</text></view>
-      <view class="input-wrapper" wx:if="{{!voiceMode}}">
-        <input
-          class="message-input"
-          placeholder=""
-          value="{{inputValue}}"
-          bindinput="onInput"
-          bindfocus="onInputFocus"
-          bindconfirm="onSend"
-          confirm-type="send"
-          focus="{{inputFocus}}"
-        />
+      <view class="tool-btn" hover-class="tool-btn-hover" hover-stay-time="80" bindtap="onToggleVoice">
+        <view class="icon-voice {{voiceMode ? 'is-keyboard' : ''}}"></view>
       </view>
-      <view class="voice-input" wx:else bindtouchstart="onVoiceHint">按住说话</view>
-      <view class="tool-btn" bindtap="onToggleEmoji"><text>☺</text></view>
-      <view class="tool-btn" wx:if="{{!inputValue && !anonymousMode}}" bindtap="onToggleTools"><text>＋</text></view>
-      <view class="send-btn" wx:else bindtap="onSend">发送</view>
+      <input
+        wx:if="{{!voiceMode}}"
+        class="message-input"
+        placeholder=""
+        value="{{inputValue}}"
+        bindinput="onInput"
+        bindfocus="onInputFocus"
+        bindconfirm="onSend"
+        confirm-type="send"
+        focus="{{inputFocus}}"
+      />
+      <view class="voice-input" wx:else hover-class="voice-hover" bindtouchstart="onVoiceHint">按住 说话</view>
+      <view class="tool-btn" hover-class="tool-btn-hover" hover-stay-time="80" bindtap="onToggleEmoji">
+        <view class="icon-emoji"></view>
+      </view>
+      <view class="tool-btn" wx:if="{{!inputValue}}" hover-class="tool-btn-hover" hover-stay-time="80" bindtap="onToggleTools">
+        <view class="icon-plus"></view>
+      </view>
+      <view class="send-btn" wx:else hover-class="send-btn-hover" hover-stay-time="80" bindtap="onSend">发送</view>
     </view>
   </view>
 </view>

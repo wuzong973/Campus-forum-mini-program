@@ -1,8 +1,6 @@
 .page { min-height: 100vh; padding: 0 24rpx 40rpx; box-sizing: border-box; background: #f6f7f9; }
 .search-hero { display: flex; height: 270rpx; align-items: center; justify-content: center; margin: 0 -24rpx -56rpx; padding-bottom: 56rpx; background: #b9dcfb; }
-.search-mark { display: flex; width: 126rpx; height: 126rpx; align-items: center; justify-content: center; border-radius: 20rpx; background: #3478f6; transform: rotate(-9deg); }
-.search-mark-inner { display: flex; width: 82rpx; height: 82rpx; align-items: center; justify-content: center; border-radius: 50%; background: #fff; }
-.search-mark image { width: 52rpx; height: 52rpx; }
+.search-mark { width: 150rpx; height: 150rpx; border-radius: 50%; box-shadow: 0 12rpx 26rpx rgba(30, 80, 140, .18); }
 .search-box { position: relative; z-index: 1; display: flex; height: 84rpx; align-items: center; padding: 0 10rpx 0 24rpx; border: 2rpx solid #c7ddf5; border-radius: 44rpx; background: #fff; box-shadow: 0 6rpx 18rpx rgba(54, 99, 151, .09); }
 .search-icon { width: 34rpx; height: 34rpx; margin-right: 14rpx; opacity: .58; }
 .search-input { flex: 1; min-width: 0; height: 100%; color: #203147; font-size: 28rpx; }

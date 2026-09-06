@@ -1,0 +1,148 @@
+.page {
+  min-height: 100vh;
+  padding-bottom: 60rpx;
+  box-sizing: border-box;
+  background: #f5f6f8;
+}
+
+.custom-nav {
+  position: fixed;
+  z-index: 20;
+  top: 0;
+  right: 0;
+  left: 0;
+  background: #f5f6f8;
+}
+
+.nav-inner {
+  position: relative;
+  display: flex;
+  height: 56px;
+  align-items: center;
+  padding: 0 24rpx;
+  box-sizing: border-box;
+}
+
+.nav-back {
+  position: relative;
+  z-index: 2;
+  padding: 10rpx 26rpx;
+  border-radius: 999rpx;
+  background: #ffffff;
+  box-shadow: 0 4rpx 14rpx rgba(32, 48, 76, .12);
+  color: #27364a;
+  font-size: 28rpx;
+  font-weight: 600;
+}
+
+.nav-back-pressed {
+  background: #f0f2f5;
+}
+
+/* 标题居中但左右收窄，避免盖住返回按钮拦截点击 */
+.nav-title {
+  position: absolute;
+  right: 200rpx;
+  left: 200rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10rpx;
+  color: #1d3048;
+  font-size: 34rpx;
+  font-weight: 700;
+}
+
+.nav-title-arrow {
+  color: #1d3048;
+  font-size: 20rpx;
+  transition: transform .2s ease;
+}
+
+.nav-title-arrow.up {
+  transform: rotate(180deg);
+}
+
+.hot-poster-wrap {
+  position: relative;
+  margin: 8rpx 24rpx 8rpx;
+  overflow: hidden;
+  border-radius: 24rpx;
+}
+
+.hot-poster {
+  display: block;
+  width: 100%;
+}
+
+/* 海报底部渐变到页面背景色，与下方帖子列表自然衔接 */
+.hot-poster-fade {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 130rpx;
+  background: linear-gradient(to bottom, rgba(245, 246, 248, 0), #f5f6f8);
+}
+
+.hot-list {
+  padding: 0 24rpx;
+}
+
+.hot-loading {
+  padding: 160rpx 0;
+  color: #8a97a8;
+  font-size: 28rpx;
+  text-align: center;
+}
+
+.hot-menu-mask {
+  position: fixed;
+  z-index: 30;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+}
+
+.hot-menu {
+  position: fixed;
+  z-index: 31;
+  right: 24rpx;
+  left: 24rpx;
+  overflow: hidden;
+  border-radius: 24rpx;
+  background: #ffffff;
+  box-shadow: 0 18rpx 48rpx rgba(20, 32, 51, .18);
+}
+
+.hot-menu-option {
+  display: flex;
+  height: 100rpx;
+  align-items: center;
+  justify-content: center;
+  color: #1d3048;
+  font-size: 32rpx;
+}
+
+.hot-menu-option:active {
+  background: #f7f8fa;
+}
+
+.hot-menu-option + .hot-menu-option {
+  border-top: 1rpx solid #f0f0f1;
+}
+
+.hot-menu-check {
+  margin-right: 12rpx;
+  font-size: 30rpx;
+}
+
+.hot-menu-gap {
+  height: 16rpx;
+  background: #f2f3f5;
+}
+
+.hot-menu-option.cancel {
+  font-weight: 600;
+}

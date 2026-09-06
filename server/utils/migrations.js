@@ -11,6 +11,18 @@ async function ensureColumn(tableName, columnName, definition) {
   }
 }
 
+async function ensureColumnType(tableName, columnName, definition) {
+  const [rows] = await pool.query(
+    `SELECT DATA_TYPE FROM INFORMATION_SCHEMA.COLUMNS
+     WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?`,
+    [tableName, columnName]
+  )
+  // 期望完成时间改为自由文本，DATETIME 列只需调整一次类型
+  if (rows.length && String(rows[0].DATA_TYPE).toLowerCase() !== 'varchar') {
+    await pool.query(`ALTER TABLE ${tableName} MODIFY COLUMN ${columnName} ${definition}`)
+  }
+}
+
 async function ensureIndex(tableName, indexName, definition) {
   const [rows] = await pool.query(
     `SELECT INDEX_NAME FROM INFORMATION_SCHEMA.STATISTICS
@@ -36,6 +48,8 @@ async function runMigrations() {
   await ensureColumn('sys_user', 'status', "TINYINT(1) DEFAULT 1 AFTER is_verified")
   await ensureColumn('sys_user', 'role', "VARCHAR(32) NOT NULL DEFAULT 'user' AFTER status")
   await ensureColumn('sys_user', 'cert_label', "VARCHAR(32) DEFAULT NULL AFTER is_verified")
+  // 允许被匿名私信：关闭后其他用户无法以匿名身份与该用户建立私信会话
+  await ensureColumn('sys_user', 'allow_anonymous_pm', 'TINYINT(1) DEFAULT 1 AFTER cert_label')
   await ensureColumn('forum_post', 'title', "VARCHAR(128) DEFAULT '' AFTER user_id")
   await ensureColumn('forum_post', 'contact', 'JSON DEFAULT NULL AFTER images')
   await ensureColumn('forum_post', 'anonymous_identity', 'JSON DEFAULT NULL AFTER contact')
@@ -51,6 +65,7 @@ async function runMigrations() {
   await ensureColumn('errand_order', 'gender_requirement', "VARCHAR(16) NOT NULL DEFAULT '不限性别' AFTER campus")
   await ensureColumn('errand_order', 'pickup_time_type', "VARCHAR(16) DEFAULT '尽快' AFTER gender_requirement")
   await ensureColumn('errand_order', 'appointment_time', 'DATETIME DEFAULT NULL AFTER pickup_time_type')
+  await ensureColumnType('errand_order', 'appointment_time', 'VARCHAR(64) DEFAULT NULL')
   await ensureColumn('errand_order', 'remark', 'TEXT AFTER appointment_time')
   await ensureColumn('errand_order', 'images', 'JSON DEFAULT NULL AFTER remark')
   await ensureColumn('errand_order', 'receiver_name', "VARCHAR(32) DEFAULT '' AFTER appointment_time")
@@ -77,6 +92,12 @@ async function runMigrations() {
       INDEX idx_user_read (user_id, is_read, created_at)
     ) ENGINE=InnoDB
   `)
+  // 互动通知快照：评论/点赞者身份（匿名评论存匿名形象）与所属帖子标题
+  await ensureColumn('system_notification', 'actor_user_id', 'INT UNSIGNED DEFAULT NULL AFTER related_id')
+  await ensureColumn('system_notification', 'actor_nick', "VARCHAR(64) DEFAULT '' AFTER actor_user_id")
+  await ensureColumn('system_notification', 'actor_avatar', "VARCHAR(255) DEFAULT '' AFTER actor_nick")
+  await ensureColumn('system_notification', 'post_title', "VARCHAR(255) DEFAULT '' AFTER actor_avatar")
+  await ensureColumn('system_notification', 'comment_images', 'TEXT NULL AFTER post_title')
   await pool.query(`
     CREATE TABLE IF NOT EXISTS user_feedback (
       id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -85,11 +106,30 @@ async function runMigrations() {
       content VARCHAR(500) NOT NULL,
       contact VARCHAR(128) DEFAULT '',
       images JSON,
-      status ENUM('pending','processing','resolved','closed') NOT NULL DEFAULT 'pending',
+      status ENUM('pending','processing','replied','resolved','closed') NOT NULL DEFAULT 'pending',
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
       INDEX idx_feedback_user_created (user_id, created_at),
       INDEX idx_feedback_status_created (status, created_at)
+    ) ENGINE=InnoDB
+  `)
+  // 意见墙管理员回复：回复公开可见并通知提交人；状态改为「已回复」，仅管理员显式标记后才为 resolved。
+  await ensureColumn('user_feedback', 'reply', "VARCHAR(500) DEFAULT '' AFTER status")
+  await ensureColumn('user_feedback', 'reply_user_id', 'INT UNSIGNED DEFAULT NULL AFTER reply')
+  await ensureColumn('user_feedback', 'reply_at', 'DATETIME DEFAULT NULL AFTER reply_user_id')
+  // 意见状态枚举扩展：replied = 管理员已回复但未标记解决
+  await pool.query("ALTER TABLE user_feedback MODIFY COLUMN status ENUM('pending','processing','replied','resolved','closed') NOT NULL DEFAULT 'pending'")
+  // 意见墙用户评论：reply_to 指向被回复的评论（0 = 直接评论意见），reply_to_nick 冗余存储被回复人昵称
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS feedback_comment (
+      id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+      feedback_id BIGINT UNSIGNED NOT NULL,
+      user_id INT UNSIGNED NOT NULL,
+      reply_to BIGINT UNSIGNED NOT NULL DEFAULT 0,
+      reply_to_nick VARCHAR(64) DEFAULT '',
+      content VARCHAR(500) NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      INDEX idx_feedback_comment (feedback_id, created_at)
     ) ENGINE=InnoDB
   `)
   await pool.query(`
@@ -109,7 +149,7 @@ async function runMigrations() {
     CREATE TABLE IF NOT EXISTS content_report (
       id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
       reporter_id INT UNSIGNED NOT NULL,
-      target_type ENUM('post','comment') NOT NULL,
+      target_type ENUM('post','comment','user') NOT NULL,
       target_id BIGINT UNSIGNED NOT NULL,
       reason VARCHAR(500) NOT NULL,
       status ENUM('pending','processing','resolved','rejected') NOT NULL DEFAULT 'pending',
@@ -251,6 +291,7 @@ async function runMigrations() {
       receiver_id INT UNSIGNED NOT NULL,
       content TEXT NOT NULL,
       msg_type VARCHAR(16) DEFAULT 'text',
+      is_anonymous TINYINT(1) NOT NULL DEFAULT 0,
       status ENUM('sending','sent','delivered','read','failed','recalled') DEFAULT 'sent',
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       INDEX idx_conversation (conversation_id),
@@ -259,6 +300,11 @@ async function runMigrations() {
     ) ENGINE=InnoDB
   `)
   await ensureColumn('private_conversation', 'is_anonymous', 'TINYINT(1) NOT NULL DEFAULT 0 AFTER status')
+  // 私信匿名渠道标记：同一会话内匿名/普通消息各自独立展示
+  await ensureColumn('private_message', 'is_anonymous', 'TINYINT(1) NOT NULL DEFAULT 0 AFTER msg_type')
+  // 匿名会话的分身身份（JSON {nickName, avatarUrl}）：anon_peer_identity 是本行用户所看到的对方分身，anon_self_identity 是本行用户自己的分身
+  await ensureColumn('private_conversation', 'anon_peer_identity', "VARCHAR(512) DEFAULT NULL AFTER is_anonymous")
+  await ensureColumn('private_conversation', 'anon_self_identity', "VARCHAR(512) DEFAULT NULL AFTER anon_peer_identity")
   await pool.query(`
     CREATE TABLE IF NOT EXISTS private_message_recall_log (
       id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -281,6 +327,8 @@ async function runMigrations() {
     ) ENGINE=InnoDB
   `)
   await pool.query("ALTER TABLE private_message MODIFY COLUMN status ENUM('sending','sent','delivered','read','failed','recalled') DEFAULT 'sent'")
+  // 用户主页可举报用户，枚举需与新版接口保持一致
+  await pool.query("ALTER TABLE content_report MODIFY COLUMN target_type ENUM('post','comment','user') NOT NULL")
   await pool.query(`
     CREATE TABLE IF NOT EXISTS repair_order (
       id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -464,6 +512,20 @@ async function runMigrations() {
   await ensureUniqueIndex('errand_order', 'uk_errand_order_no', '(order_no)')
   await ensureIndex('repair_order', 'idx_repair_user_created', '(user_id, created_at)')
   await ensureIndex('repair_order', 'idx_repair_technician_created', '(technician_user_id, created_at)')
+  // 课程表配置表：早期部署只写在 init.sql 里，线上旧库缺表会让 /schedule/config 一直 500
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS schedule_config (
+      id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+      user_id INT UNSIGNED NOT NULL UNIQUE,
+      start_date DATE DEFAULT '2026-03-02',
+      hide_weekend TINYINT(1) DEFAULT 0,
+      reminder TINYINT(1) DEFAULT 0,
+      bg_color VARCHAR(16) DEFAULT '#F5F7FA',
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    ) ENGINE=InnoDB
+  `)
+  await ensureColumn('schedule_config', 'bg_color', "VARCHAR(16) DEFAULT '#F5F7FA'")
+  await ensureColumn('schedule_config', 'start_date', "DATE DEFAULT '2026-03-02'")
   await pool.query(`
     CREATE TABLE IF NOT EXISTS rider_verification (
       id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -483,6 +545,70 @@ async function runMigrations() {
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
       UNIQUE KEY uk_rider_verification_user (user_id),
       INDEX idx_rider_verification_status (status, created_at)
+    ) ENGINE=InnoDB
+  `)
+  // 接单时间（30分钟取消规则以接单时间为准）与完成凭证
+  await ensureColumn('errand_order', 'accepted_at', 'DATETIME DEFAULT NULL AFTER status')
+  await ensureColumn('errand_order', 'finish_description', "VARCHAR(500) DEFAULT '' AFTER accepted_at")
+  await ensureColumn('errand_order', 'finish_images', 'JSON DEFAULT NULL AFTER finish_description')
+  await ensureColumn('errand_order', 'finished_at', 'DATETIME DEFAULT NULL AFTER finish_images')
+  // 接单方取消接单申请：30分钟内自身原因可直接取消，其余情况需发单人同意
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS errand_cancel_request (
+      id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+      order_id INT UNSIGNED NOT NULL,
+      requester_id INT UNSIGNED NOT NULL,
+      reason_side ENUM('self','publisher') NOT NULL DEFAULT 'self',
+      reason VARCHAR(255) NOT NULL DEFAULT '',
+      images JSON,
+      status ENUM('pending','approved','rejected') NOT NULL DEFAULT 'pending',
+      handled_at DATETIME DEFAULT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      INDEX idx_cancel_request_order (order_id, status),
+      INDEX idx_cancel_request_requester (requester_id, created_at)
+    ) ENGINE=InnoDB
+  `)
+  // 订单流水记录（订单信息-查看记录）
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS errand_order_log (
+      id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+      order_id INT UNSIGNED NOT NULL,
+      actor_id INT UNSIGNED DEFAULT NULL,
+      action VARCHAR(32) NOT NULL,
+      detail VARCHAR(255) DEFAULT '',
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      INDEX idx_errand_log_order (order_id, created_at)
+    ) ENGINE=InnoDB
+  `)
+  // 接单方完成率统计：自身原因取消接单会降低完成率，过低冻结接单功能
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS errand_stat (
+      user_id INT UNSIGNED PRIMARY KEY,
+      finished_count INT NOT NULL DEFAULT 0,
+      self_cancel_count INT NOT NULL DEFAULT 0,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    ) ENGINE=InnoDB
+  `)
+  // 跑腿订单专属聊天（与私信完全独立）：消息按订单维度存储，仅发单人与接单人可读写
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS errand_message (
+      id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+      order_id INT UNSIGNED NOT NULL,
+      sender_id INT UNSIGNED NOT NULL,
+      content TEXT NOT NULL,
+      msg_type VARCHAR(16) DEFAULT 'text',
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      INDEX idx_errand_message_order (order_id, id)
+    ) ENGINE=InnoDB
+  `)
+  // 聊天已读位置：每个用户在每个订单聊天中读到的最大消息 id
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS errand_chat_read (
+      order_id INT UNSIGNED NOT NULL,
+      user_id INT UNSIGNED NOT NULL,
+      last_read_id BIGINT UNSIGNED NOT NULL DEFAULT 0,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      PRIMARY KEY (order_id, user_id)
     ) ENGINE=InnoDB
   `)
 }

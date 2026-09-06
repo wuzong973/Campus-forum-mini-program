@@ -56,7 +56,7 @@ function requirePublishReady() {
     content: '发帖前需先补充：' + missing.map((item) => item.label).join('、'),
     confirmText: '去编辑',
     success(res) {
-      if (res.confirm) wx.navigateTo({ url: '/pages/settings/index?completeProfile=1' })
+      if (res.confirm) wx.navigateTo({ url: '/pages/account-settings/index' })
     }
   })
   return false
@@ -68,7 +68,6 @@ function getRunnerVerification() {
   const user = (app && app.globalData.userInfo) || wx.getStorageSync('userInfo') || {}
   return {
     campusVerified: !!verification.campusVerified,
-    realNameVerified: !!verification.realNameVerified,
     phoneBound: !!user.phone,
     verificationStatus: verification.verificationStatus || 'none',
     reviewNote: verification.reviewNote || ''
@@ -78,7 +77,7 @@ function getRunnerVerification() {
 function requireRunnerReady() {
   if (!requireLogin('接单需要先登录')) return false
   const status = getRunnerVerification()
-  if (status.campusVerified && status.realNameVerified && status.phoneBound) return true
+  if (status.verificationStatus === 'approved' && status.phoneBound) return true
   wx.showModal({
     title: '接单提示',
     content: '认证以后马上就能接单赚钱 💰 前往认证>>>',

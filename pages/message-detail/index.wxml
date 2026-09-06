@@ -1,0 +1,69 @@
+<view class="page">
+  <!-- 评论者信息区：圆形头像 + 加粗昵称 + 评论内容（保留原始排版）；真实用户头像可进主页，匿名不可点击 -->
+  <view class="actor-card">
+    <view
+      class="actor-head {{canViewProfile ? 'actor-link' : ''}}"
+      bindtap="onActorProfile"
+      hover-class="{{canViewProfile ? 'actor-head-hover' : ''}}"
+      hover-stay-time="80"
+    >
+      <image class="actor-avatar" src="{{actorAvatar || '/assets/icons/avatar.png'}}" mode="aspectFill"></image>
+      <view class="actor-info">
+        <text class="actor-nick">{{actorNick || '校园同学'}}</text>
+        <text class="actor-sub">{{actionTitle}}</text>
+      </view>
+      <text class="actor-time">{{time}}</text>
+      <text class="actor-arrow" wx:if="{{canViewProfile}}">›</text>
+    </view>
+    <text class="actor-content" wx:if="{{content}}">{{content}}</text>
+    <!-- 评论图片/视频：单图大图展示，多图网格；图片点击可全屏预览 -->
+    <view class="actor-media" wx:if="{{mediaItems.length}}">
+      <block wx:for="{{mediaItems}}" wx:key="url">
+        <video
+          wx:if="{{item.video}}"
+          class="media-video"
+          src="{{item.url}}"
+          object-fit="contain"
+          controls
+        ></video>
+        <image
+          wx:else
+          class="media-img {{mediaItems.length === 1 ? 'single' : ''}}"
+          src="{{item.url}}"
+          mode="aspectFill"
+          lazy-load
+          data-url="{{item.url}}"
+          bindtap="onPreviewMedia"
+        ></image>
+      </block>
+    </view>
+  </view>
+
+  <!-- 原帖信息区：背景色 + 边框与评论区分 -->
+  <view class="section-label">原帖</view>
+  <view class="post-card" bindtap="viewOriginalPost" hover-class="post-card-hover" hover-stay-time="80">
+    <block wx:if="{{post}}">
+      <text class="post-title" wx:if="{{post.title}}">{{post.title}}</text>
+      <text class="post-content">{{post.content}}</text>
+      <view class="post-meta">
+        <text>发布于 {{postTimeText}}</text>
+      </view>
+      <view class="post-stats">
+        <view class="stat">
+          <image class="stat-icon" src="/assets/icons/comment.png" mode="aspectFit"></image>
+          <text>{{post.commentCount || 0}} 评论</text>
+        </view>
+        <view class="stat">
+          <image class="stat-icon" src="/assets/icons/heart-outline.png" mode="aspectFit"></image>
+          <text>{{post.likeCount || 0}} 点赞</text>
+        </view>
+      </view>
+    </block>
+    <block wx:else>
+      <text class="post-title">{{postTitle || '原帖'}}</text>
+      <text class="post-fallback">{{loading ? '原帖信息加载中…' : '原帖内容暂无法查看，点击尝试打开'}}</text>
+    </block>
+  </view>
+
+  <view class="view-post-btn" bindtap="viewOriginalPost" hover-class="btn-hover" hover-stay-time="80">查看原帖</view>
+</view>

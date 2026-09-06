@@ -1,0 +1,514 @@
+/* 跑腿订单专属聊天页：整体沿用私信聊天的交互，蓝色系导航与私信绿色导航区分 */
+.chat-container {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: #ededed;
+}
+
+/* 自定义导航栏（蓝色系=跑腿主题，与私信聊天页的绿色区分） */
+.custom-nav {
+  background: #4a85d8;
+}
+
+.nav-content {
+  position: relative;
+  display: flex;
+  align-items: center;
+  padding: 0 200rpx 0 16rpx;
+}
+
+.nav-back {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 72rpx;
+  height: 100%;
+  flex-shrink: 0;
+}
+
+.nav-back-icon {
+  color: #ffffff;
+  font-size: 56rpx;
+  line-height: 1;
+  margin-top: -6rpx;
+}
+
+.nav-back-hover {
+  opacity: 0.6;
+}
+
+.nav-title-wrap {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+}
+
+.nav-title {
+  color: #ffffff;
+  font-size: 32rpx;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.nav-right {
+  margin-left: auto;
+  padding-right: 8rpx;
+}
+
+.order-status {
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 24rpx;
+  white-space: nowrap;
+}
+
+/* 订单概要条：点击进入订单详情 */
+.order-bar {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  padding: 14rpx 24rpx;
+  background: #eef3fb;
+  border-bottom: 1rpx solid #dce6f5;
+  transition: background-color 0.2s ease;
+}
+
+.order-bar-hover {
+  background: #dfe9f8;
+}
+
+.order-bar-desc {
+  flex: 1;
+  min-width: 0;
+  font-size: 25rpx;
+  color: #33455e;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.order-bar-reward {
+  flex-shrink: 0;
+  font-size: 27rpx;
+  font-weight: 600;
+  color: #fa5c61;
+}
+
+.order-bar-arrow {
+  flex-shrink: 0;
+  color: #9db0c8;
+  font-size: 30rpx;
+}
+
+/* 安全提示栏 */
+.chat-notice {
+  background: #fff3f0;
+  padding: 12rpx 16rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.notice-text {
+  color: #c0563a;
+  font-size: 23rpx;
+  white-space: nowrap;
+}
+
+/* 消息列表 */
+.message-list {
+  flex: 1;
+  padding: 24rpx 0 12rpx;
+  overflow-y: auto;
+}
+
+.message-item {
+  display: flex;
+  margin-bottom: 24rpx;
+  align-items: flex-start;
+  padding: 0 24rpx;
+  box-sizing: border-box;
+}
+
+.message-item.self {
+  flex-direction: row-reverse;
+}
+
+.avatar {
+  width: 76rpx;
+  height: 76rpx;
+  border-radius: 50%;
+  background: #ffffff;
+  flex-shrink: 0;
+}
+
+.message-content {
+  max-width: 72%;
+  margin: 0 16rpx;
+  display: flex;
+  flex-direction: column;
+}
+
+.message-item.self .message-content {
+  align-items: flex-end;
+}
+
+.sender-name {
+  font-size: 22rpx;
+  color: #9aa3ad;
+  margin: 0 4rpx 6rpx;
+}
+
+.message-bubble {
+  padding: 18rpx 22rpx;
+  border-radius: 8rpx;
+  background: #ffffff;
+}
+
+.message-item.self .message-bubble {
+  background: #95ec69;
+}
+
+.message-text {
+  font-size: 28rpx;
+  color: #333;
+  line-height: 1.5;
+  word-break: break-word;
+}
+
+.message-item.self .message-text {
+  color: #191919;
+}
+
+.message-image {
+  width: 360rpx;
+  max-height: 480rpx;
+  border-radius: 6rpx;
+  display: block;
+}
+
+.message-bubble.media-bubble {
+  padding: 0;
+  overflow: hidden;
+}
+
+.message-video {
+  width: 380rpx;
+  height: 300rpx;
+  display: block;
+  background: #000000;
+  border-radius: 6rpx;
+}
+
+.message-emoji {
+  display: block;
+  font-size: 56rpx;
+  line-height: 1.2;
+}
+
+.time {
+  font-size: 22rpx;
+  color: #b9c0c8;
+  margin-top: 8rpx;
+}
+
+.loading-more {
+  text-align: center;
+  padding: 20rpx;
+  color: #999;
+  font-size: 24rpx;
+}
+
+.empty-tip {
+  text-align: center;
+  color: #a5adb6;
+  font-size: 25rpx;
+  padding: 60rpx 40rpx;
+}
+
+/* 输入区域（微信原生风格） */
+.input-area {
+  background: #f7f7f7;
+  border-top: 1rpx solid #e5e5e5;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.input-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 14rpx;
+  padding: 14rpx 20rpx;
+}
+
+.tool-btn {
+  width: 64rpx;
+  height: 64rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border-radius: 10rpx;
+  color: #1a1a1a;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+.tool-btn-hover { opacity: 0.55; transform: scale(0.92); }
+
+/* 麦克风图标 */
+.icon-voice {
+  position: relative;
+  width: 52rpx;
+  height: 52rpx;
+}
+.icon-voice::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 3rpx;
+  transform: translateX(-50%);
+  width: 17rpx;
+  height: 27rpx;
+  border: 3.5rpx solid currentColor;
+  border-radius: 9rpx;
+  box-sizing: border-box;
+}
+.icon-voice::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 24rpx;
+  transform: translateX(-50%);
+  width: 32rpx;
+  height: 24rpx;
+  border: 3.5rpx solid currentColor;
+  border-top: none;
+  border-radius: 0 0 18rpx 18rpx;
+  box-sizing: border-box;
+}
+.icon-voice.is-keyboard::before {
+  top: 10rpx;
+  width: 42rpx;
+  height: 32rpx;
+  border-radius: 6rpx;
+}
+.icon-voice.is-keyboard::after {
+  top: 26rpx;
+  width: 16rpx;
+  height: 4rpx;
+  border: none;
+  border-radius: 2rpx;
+  background: currentColor;
+}
+
+/* 表情图标 */
+.icon-emoji {
+  position: relative;
+  width: 52rpx;
+  height: 52rpx;
+  border: 3.5rpx solid currentColor;
+  border-radius: 50%;
+  box-sizing: border-box;
+}
+.icon-emoji::before {
+  content: '';
+  position: absolute;
+  top: 14rpx;
+  left: 13rpx;
+  width: 5rpx;
+  height: 5rpx;
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: 16rpx 0 0 currentColor;
+}
+.icon-emoji::after {
+  content: '';
+  position: absolute;
+  top: 24rpx;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 20rpx;
+  height: 11rpx;
+  border: 3.5rpx solid currentColor;
+  border-top: none;
+  border-radius: 0 0 16rpx 16rpx;
+  box-sizing: border-box;
+}
+
+/* 加号图标 */
+.icon-plus {
+  position: relative;
+  width: 52rpx;
+  height: 52rpx;
+}
+.icon-plus::before,
+.icon-plus::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 34rpx;
+  height: 4rpx;
+  border-radius: 2rpx;
+  background: currentColor;
+}
+.icon-plus::before { transform: translate(-50%, -50%); }
+.icon-plus::after { transform: translate(-50%, -50%) rotate(90deg); }
+
+.voice-input {
+  flex: 1;
+  height: 72rpx;
+  line-height: 72rpx;
+  text-align: center;
+  background: #ffffff;
+  border-radius: 8rpx;
+  color: #191919;
+  font-size: 28rpx;
+  font-weight: 500;
+}
+
+.voice-hover { background: #ececec; }
+
+.message-input {
+  flex: 1;
+  min-width: 0;
+  height: 72rpx;
+  padding: 0 16rpx;
+  font-size: 30rpx;
+  color: #191919;
+  background: #ffffff;
+  border-radius: 8rpx;
+  box-sizing: border-box;
+}
+
+.send-btn {
+  height: 64rpx;
+  min-width: 104rpx;
+  padding: 0 20rpx;
+  line-height: 64rpx;
+  text-align: center;
+  border-radius: 8rpx;
+  background: #07c160;
+  color: #ffffff;
+  font-size: 27rpx;
+  font-weight: 500;
+  flex-shrink: 0;
+  transition: transform 0.15s ease, background-color 0.15s ease;
+}
+
+.send-btn-hover { background: #06ad56; transform: scale(0.96); }
+
+/* ＋ 功能面板（照片/视频） */
+.tool-panel {
+  display: flex;
+  gap: 36rpx;
+  min-height: 280rpx;
+  padding: 32rpx 40rpx;
+  background: #f7f7f7;
+  border-top: 1rpx solid #e5e5e5;
+  box-sizing: border-box;
+}
+
+.tool-panel-item {
+  width: 128rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12rpx;
+  transition: transform 0.15s ease, opacity 0.15s ease;
+}
+
+.tool-item-hover { opacity: 0.6; transform: scale(0.95); }
+
+.tool-tile {
+  width: 108rpx;
+  height: 108rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #ffffff;
+  border-radius: 20rpx;
+}
+
+.tool-icon-photo {
+  position: relative;
+  width: 52rpx;
+  height: 44rpx;
+  border: 3.5rpx solid #595f6b;
+  border-radius: 8rpx;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+.tool-icon-photo::before {
+  content: '';
+  position: absolute;
+  top: 7rpx;
+  left: 8rpx;
+  width: 8rpx;
+  height: 8rpx;
+  border-radius: 50%;
+  background: #595f6b;
+}
+.tool-icon-photo::after {
+  content: '';
+  position: absolute;
+  bottom: -4rpx;
+  left: 50%;
+  transform: translateX(-50%) rotate(45deg);
+  width: 20rpx;
+  height: 20rpx;
+  background: #595f6b;
+}
+
+.tool-icon-video {
+  position: relative;
+  width: 54rpx;
+  height: 44rpx;
+  border: 3.5rpx solid #595f6b;
+  border-radius: 10rpx;
+  box-sizing: border-box;
+}
+.tool-icon-video::after {
+  content: '';
+  position: absolute;
+  left: 53%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  border-left: 14rpx solid #595f6b;
+  border-top: 9rpx solid transparent;
+  border-bottom: 9rpx solid transparent;
+}
+
+.tool-panel-label {
+  color: #555555;
+  font-size: 23rpx;
+}
+
+/* 表情面板 */
+.emoji-panel {
+  max-height: 390rpx;
+  overflow: hidden;
+  background: #f7f7f7;
+  border-top: 1rpx solid #e5e5e5;
+}
+
+.emoji-grid {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  padding: 20rpx;
+  gap: 12rpx;
+}
+
+.emoji-item {
+  font-size: 40rpx;
+  text-align: center;
+  padding: 8rpx;
+}
+
+.emoji-item:active {
+  background: #f5f5f5;
+  border-radius: 8rpx;
+}

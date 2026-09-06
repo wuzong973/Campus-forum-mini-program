@@ -19,7 +19,7 @@ const CRAWLER_ROOT = path.resolve(__dirname, "..", "..", "jw-crawler");
 const DEFAULT_SEMESTER_START =
   process.env.SCHEDULE_DEFAULT_START_DATE ||
   process.env.JW_SEMESTER_START ||
-  "2026-03-02";
+  "2026-09-07";
 const DEFAULT_TOTAL_WEEKS = clampNumber(
   process.env.SCHEDULE_TOTAL_WEEKS || process.env.JW_TOTAL_WEEKS,
   19,

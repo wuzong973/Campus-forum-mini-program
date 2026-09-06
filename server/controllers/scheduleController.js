@@ -469,6 +469,9 @@ exports.getConfig = async (req, res) => {
 
 exports.updateConfig = async (req, res) => {
   const { startDate, hideWeekend, reminder, bgColor } = req.body;
+  // 客户端离线队列可能缺字段，兜底默认值，避免 mysql2 遇到 undefined 直接抛错返回 500
+  const safeStartDate = startDate || DEFAULT_SEMESTER_START;
+  const safeBgColor = bgColor || "#F5F7FA";
   try {
     const [rows] = await pool.query(
       "SELECT id FROM schedule_config WHERE user_id = ?",
@@ -477,12 +480,12 @@ exports.updateConfig = async (req, res) => {
     if (rows.length) {
       await pool.query(
         "UPDATE schedule_config SET start_date=?, hide_weekend=?, reminder=?, bg_color=? WHERE user_id=?",
-        [startDate, hideWeekend ? 1 : 0, reminder ? 1 : 0, bgColor, req.userId],
+        [safeStartDate, hideWeekend ? 1 : 0, reminder ? 1 : 0, safeBgColor, req.userId],
       );
     } else {
       await pool.query(
         "INSERT INTO schedule_config (user_id, start_date, hide_weekend, reminder, bg_color) VALUES (?,?,?,?,?)",
-        [req.userId, startDate, hideWeekend ? 1 : 0, reminder ? 1 : 0, bgColor],
+        [req.userId, safeStartDate, hideWeekend ? 1 : 0, reminder ? 1 : 0, safeBgColor],
       );
     }
     success(res, null);

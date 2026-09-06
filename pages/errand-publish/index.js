@@ -1,9 +1,15 @@
 const auth = require('../../utils/auth')
 const request = require('../../utils/request')
+const api = require('../../utils/api')
 const wechat = require('../../utils/wechat')
 const { runPullDownRefresh } = require('../../utils/refresh')
-const COMMON_ADDR_KEY = 'common_address'
 const LAST_FORM_KEY = 'errand_last_form'
+
+// 发布页顶部轮播横幅：管理后台未配置时的本地默认（可在后台「内容配置-发布横幅」维护）
+const DEFAULT_PUBLISH_BANNERS = [
+  { id: 'default-1', text: '禁止引导私下交易，违规封禁！', icon: '🚫', style: 'red' },
+  { id: 'default-2', text: '吃好喝好没烦恼。', icon: '😄', style: 'green' }
+]
 
 Page({
   data: {
@@ -13,8 +19,6 @@ Page({
     privateInfo: '',
     wechatId: '',
     useLastContact: false,
-    useLastPickup: false,
-    useLastDelivery: false,
     // 收件信息
     campusGroups: [
       { name: '广州校区', campuses: ['新港校区', '琶洲校区'] },
@@ -30,10 +34,6 @@ Page({
     genderRestrictions: ['限男生', '限女生', '不限性别'],
     activeGenderRestriction: -1,
     // 地址与时间
-    pickupAddr: '',
-    deliveryAddr: '',
-    deliveryBuilding: '',
-    deliveryRoom: '',
 
     // 备注凭证
     remark: '',
@@ -44,16 +44,11 @@ Page({
     totalAmount: '',
     isLargeItem: false,
     isUrgent: false,
-    pickupTimeType: '尽快',
-    appointmentPickerRange: [[], [], []],
-    appointmentDateIndex: 0,
-    appointmentHourIndex: 0,
-    appointmentMinuteIndex: 0,
-    appointmentTime: '',
+    // 期望完成时间（手动填写）
     appointmentValue: '',
+    agreed: false,
     submitting: false,
-    // 常用地址
-    commonAddress: ''
+    publishBanners: DEFAULT_PUBLISH_BANNERS.slice()
   },
 
   onLoad() {
@@ -62,8 +57,42 @@ Page({
     if (!auth.requireLogin('发布跑腿需要先登录')) {
       setTimeout(() => wx.navigateBack(), 500)
     }
-    this.setData({ commonAddress: wx.getStorageSync(COMMON_ADDR_KEY) || '' })
-    this.initAppointmentPicker()
+    this.loadPublishBanners()
+    // 自动填充个人设置中选择的校区
+    this.applyProfileCampus()
+  },
+
+  // ===== 顶部轮播横幅 =====
+  loadPublishBanners() {
+    api.getHomeConfig().then((config) => {
+      const list = (config.publishBanners || []).map((b, i) => ({
+        id: b.id || 'b' + i,
+        text: b.text,
+        style: b.style || 'red',
+        icon: b.icon || ''
+      }))
+      if (list.length) this.setData({ publishBanners: list })
+    }).catch(() => {})
+  },
+  onClosePublishBanner(e) {
+    const index = Number(e.currentTarget.dataset.index)
+    const list = this.data.publishBanners.slice()
+    list.splice(index, 1)
+    this.setData({ publishBanners: list })
+  },
+
+  // 根据个人设置（userInfo.campus）自动选中校区分组与具体校区
+  applyProfileCampus() {
+    const userInfo = getApp().globalData.userInfo || wx.getStorageSync('userInfo') || {}
+    const campus = userInfo.campus
+    if (!campus) return
+    const index = this.data.campusGroups.findIndex((group) => group.campuses.indexOf(campus) > -1)
+    if (index < 0) return
+    this.setData({
+      activeCampus: index,
+      subCampuses: this.data.campusGroups[index].campuses,
+      activeSubCampus: campus
+    })
   },
 
   onPullDownRefresh() {
@@ -96,51 +125,10 @@ Page({
     this.setData({ wechatId: last.wechatId || '', receiverPhone: last.receiverPhone || '' })
   },
 
-  onToggleLastPickup(e) {
-    const on = !!e.detail.value
-    this.setData({ useLastPickup: on })
-    if (!on) return
-    const last = this.getLastForm()
-    if (!last || !last.pickupAddr) {
-      wx.showToast({ title: '暂无上次的取件信息', icon: 'none' })
-      this.setData({ useLastPickup: false })
-      return
-    }
-    this.setData({ pickupAddr: last.pickupAddr })
-  },
-
-  onToggleLastDelivery(e) {
-    const on = !!e.detail.value
-    this.setData({ useLastDelivery: on })
-    if (!on) return
-    const last = this.getLastForm()
-    if (!last || !last.deliveryAddr) {
-      wx.showToast({ title: '暂无上次的送达信息', icon: 'none' })
-      this.setData({ useLastDelivery: false })
-      return
-    }
-    const activeCampus = Number(last.activeCampus)
-    const group = this.data.campusGroups[activeCampus]
-    this.setData({
-      deliveryAddr: last.deliveryAddr,
-      deliveryBuilding: last.deliveryBuilding || '',
-      deliveryRoom: last.deliveryRoom || '',
-      activeCampus: group ? activeCampus : -1,
-      subCampuses: group ? group.campuses : [],
-      activeSubCampus: last.activeSubCampus || ''
-    })
-  },
-
   // 发布成功后记录本次表单，供“使用上次”填充
   _saveLastForm() {
     const d = this.data
     wx.setStorageSync(LAST_FORM_KEY, {
-      pickupAddr: d.pickupAddr.trim(),
-      deliveryAddr: d.deliveryAddr.trim(),
-      deliveryBuilding: d.deliveryBuilding.trim(),
-      deliveryRoom: d.deliveryRoom.trim(),
-      activeCampus: d.activeCampus,
-      activeSubCampus: d.activeSubCampus,
       wechatId: d.wechatId.trim(),
       receiverPhone: d.receiverPhone.trim()
     })
@@ -197,93 +185,16 @@ Page({
     this._recalcTotal()
   },
 
-  // ===== 期望完成时间选择器（今天/明天 + 时 + 分，5分钟间隔） =====
-  // 纯函数：根据选中索引构建三列数据，今天从当前时间起可选，已过时段不进入列表
-  buildTimeColumns(dateIndex, hourIndex, minuteIndex) {
-    const now = new Date()
-    const labels = ['今天', '明天']
-    const dates = []
-    for (let offset = 0; offset < 2; offset++) {
-      // 今天：当前时间 +5 分钟已超过当天最后时段（23:55）则整天不可选，自动只剩明天
-      if (offset === 0) {
-        const dayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 55)
-        if (now.getTime() + 5 * 60 * 1000 > dayEnd.getTime()) continue
-      }
-      dates.push({ value: this.formatDateValue(new Date(now.getFullYear(), now.getMonth(), now.getDate() + offset)), label: labels[offset] + ' ' + this.formatDateLabel(new Date(now.getFullYear(), now.getMonth(), now.getDate() + offset)) })
+  // ===== 自动填充选项：点击将标签模板追加到对应输入框，已存在则不重复添加 =====
+  onQuickTagTap(e) {
+    const { field, tag } = e.currentTarget.dataset
+    const current = String(this.data[field] || '')
+    if (current.indexOf(tag) > -1) {
+      wx.showToast({ title: '已添加过该选项', icon: 'none' })
+      return
     }
-    const safeDateIndex = Math.min(Math.max(dateIndex, 0), Math.max(dates.length - 1, 0))
-    const date = dates[safeDateIndex]
-    const todayValue = this.formatDateValue(now)
-    const isToday = date && date.value === todayValue
-    // 小时列：今天从当前小时开始，明天从 00 时开始
-    const startHour = isToday ? now.getHours() : 0
-    const hours = []
-    for (let h = startHour; h < 24; h++) hours.push(String(h).padStart(2, '0') + '时')
-    const safeHourIndex = Math.min(Math.max(hourIndex, 0), Math.max(hours.length - 1, 0))
-    const selectedHour = startHour + safeHourIndex
-    // 分钟列：今天当前小时内从当前时间向上取整到 5 分钟格点，其余整点从 00 分开始
-    let startMinute = 0
-    if (isToday && selectedHour === now.getHours()) startMinute = Math.ceil(now.getMinutes() / 5) * 5
-    const minutes = []
-    for (let m = startMinute; m < 60; m += 5) minutes.push(String(m).padStart(2, '0') + '分')
-    const safeMinuteIndex = Math.min(Math.max(minuteIndex, 0), Math.max(minutes.length - 1, 0))
-    return { dates, hours, minutes, dateIndex: safeDateIndex, hourIndex: safeHourIndex, minuteIndex: safeMinuteIndex }
-  },
-
-  initAppointmentPicker() {
-    const cols = this.buildTimeColumns(0, 0, 0)
-    this.setData({
-      appointmentPickerRange: [cols.dates.map((item) => item.label), cols.hours, cols.minutes],
-      appointmentDateIndex: cols.dateIndex,
-      appointmentHourIndex: cols.hourIndex,
-      appointmentMinuteIndex: cols.minuteIndex
-    })
-  },
-
-  formatDateValue(date) {
-    return date.getFullYear() + '-' + String(date.getMonth() + 1).padStart(2, '0') + '-' + String(date.getDate()).padStart(2, '0')
-  },
-
-  formatDateLabel(date) {
-    return String(date.getMonth() + 1).padStart(2, '0') + '月' + String(date.getDate()).padStart(2, '0') + '日'
-  },
-
-  onPickupTimeTypeSelect(e) {
-    this.setData({ pickupTimeType: e.currentTarget.dataset.type })
-  },
-
-  // 列变化：仅刷新列数据与合法索引，不落定最终选择
-  onAppointmentColumnChange(e) {
-    const { column, value } = e.detail
-    const dateIndex = column === 0 ? value : this.data.appointmentDateIndex
-    const hourIndex = column === 1 ? value : this.data.appointmentHourIndex
-    const minuteIndex = column === 2 ? value : this.data.appointmentMinuteIndex
-    const cols = this.buildTimeColumns(dateIndex, hourIndex, minuteIndex)
-    this.setData({
-      appointmentPickerRange: [cols.dates.map((item) => item.label), cols.hours, cols.minutes],
-      appointmentDateIndex: cols.dateIndex,
-      appointmentHourIndex: cols.hourIndex,
-      appointmentMinuteIndex: cols.minuteIndex
-    })
-  },
-
-  // 确认选择：落定最终时间
-  onAppointmentChange(e) {
-    const value = e.detail.value || []
-    const cols = this.buildTimeColumns(value[0] || 0, value[1] || 0, value[2] || 0)
-    const date = cols.dates[cols.dateIndex]
-    if (!date || !cols.hours.length || !cols.minutes.length) return
-    const hour = String(cols.dateIndex >= 0 ? parseInt(cols.hours[cols.hourIndex], 10) : 0).padStart(2, '0')
-    const minute = String(parseInt(cols.minutes[cols.minuteIndex], 10)).padStart(2, '0')
-    this.setData({
-      pickupTimeType: '预约',
-      appointmentPickerRange: [cols.dates.map((item) => item.label), cols.hours, cols.minutes],
-      appointmentDateIndex: cols.dateIndex,
-      appointmentHourIndex: cols.hourIndex,
-      appointmentMinuteIndex: cols.minuteIndex,
-      appointmentTime: date.value + ' ' + hour + ':' + minute + ':00',
-      appointmentValue: date.label + ' ' + hour + ':' + minute
-    })
+    const trimmed = current.replace(/\s+$/, '')
+    this.setData({ [field]: (trimmed ? trimmed + '\n' : '') + tag })
   },
 
   // 重新计算总金额
@@ -296,35 +207,6 @@ Page({
     const largeFee = this.data.isLargeItem ? 1 : 0
     const urgentFee = this.data.isUrgent ? 1 : 0
     this.setData({ totalAmount: String(base + largeFee + urgentFee) })
-  },
-
-  // 填入常用地址
-  onFillCommonAddr() {
-    const addr = wx.getStorageSync(COMMON_ADDR_KEY) || ''
-    if (!addr) {
-      wx.showToast({ title: '请先在设置中填写常用地址', icon: 'none' })
-      return
-    }
-    this.setData({ deliveryAddr: addr })
-  },
-
-  // 地图辅助定位
-  onChooseLocation(e) {
-    const target = e.currentTarget.dataset.target
-    wx.chooseLocation({
-      success: (res) => {
-        if (res.name || res.address) {
-          const addr = res.name || res.address
-          this.setData({ [target]: addr })
-        }
-      },
-      fail: (err) => {
-        // 用户取消不提示，其他错误提示
-        if (err.errMsg && err.errMsg.indexOf('cancel') === -1) {
-          wx.showToast({ title: '定位失败，请手动输入', icon: 'none' })
-        }
-      }
-    })
   },
 
   // 上传图片
@@ -374,24 +256,54 @@ Page({
     }
   },
 
+  // ===== 发单系统协议 =====
+  toggleAgree() {
+    this.setData({ agreed: !this.data.agreed })
+  },
+
+  openAgreement() {
+    wx.navigateTo({ url: '/pages/agreement/index?type=errand' })
+  },
+
   // 发布并支付
   onSubmit() {
-    const { receiverName, receiverPhone, pickupAddr, deliveryAddr, deliveryBuilding, deliveryRoom, remark, baseAmount, title } = this.data
-    if (!title || !title.trim()) { wx.showToast({ title: '请填写标题', icon: 'none' }); return }
-    if (!remark.trim()) {
-      wx.showToast({ title: '请填写备注信息', icon: 'none' })
+    const { title, remark, baseAmount, wechatId, receiverPhone } = this.data
+    if (!this.data.agreed) {
+      wx.showToast({ title: '请先阅读并同意发单系统协议', icon: 'none' })
       return
     }
-    if (!pickupAddr.trim()) { wx.showToast({ title: '请填写取件地址', icon: 'none' }); return }
-    if (!deliveryAddr.trim()) { wx.showToast({ title: '请填写送达地址', icon: 'none' }); return }
-    if (!deliveryBuilding.trim()) { wx.showToast({ title: '请填写楼栋', icon: 'none' }); return }
-    if (!deliveryRoom.trim()) { wx.showToast({ title: '请填写宿舍号', icon: 'none' }); return }
-    const genderIndex = this.data.activeGenderRestriction < 0 ? 2 : this.data.activeGenderRestriction
-    if (this.data.activeGenderRestriction < 0) this.setData({ activeGenderRestriction: genderIndex })
-
+    if (!title || !title.trim()) { wx.showToast({ title: '请填写标题', icon: 'none' }); return }
+    if (!remark.trim()) {
+      wx.showToast({ title: '请填写公开描述', icon: 'none' })
+      return
+    }
+    if (!this.data.appointmentValue.trim()) {
+      wx.showToast({ title: '请填写期望完成时间', icon: 'none' })
+      return
+    }
     const baseNum = parseInt(baseAmount) || 0
     if (baseNum < 2 || baseNum > 500) {
       wx.showToast({ title: '金额需为2-500元', icon: 'none' })
+      return
+    }
+    if (!wechatId.trim() && !receiverPhone.trim()) {
+      wx.showToast({ title: '请填写微信号或手机号', icon: 'none' })
+      return
+    }
+    if (receiverPhone.trim() && !/^1[3-9]\d{9}$/.test(receiverPhone.trim())) {
+      wx.showToast({ title: '请输入正确的11位手机号', icon: 'none' })
+      return
+    }
+    if (this.data.activeGenderRestriction < 0) {
+      wx.showToast({ title: '请选择性别限制', icon: 'none' })
+      return
+    }
+    if (this.data.activeCampus < 0) {
+      wx.showToast({ title: '请选择校区', icon: 'none' })
+      return
+    }
+    if (this.data.subCampuses.length && !this.data.activeSubCampus) {
+      wx.showToast({ title: '请选择具体校区', icon: 'none' })
       return
     }
     if (this.data.submitting) return
@@ -401,16 +313,16 @@ Page({
     const payload = {
       title: title.trim(),
       type: this.data.orderTypes[this.data.activeOrderType],
-      campus: this.data.activeSubCampus || '不限校区',
-      genderRequirement: this.data.genderRestrictions[genderIndex],
-      receiverName: receiverName.trim() || '待联系',
+      campus: this.data.activeSubCampus || this.data.campusGroups[this.data.activeCampus].name,
+      genderRequirement: this.data.genderRestrictions[this.data.activeGenderRestriction],
+      receiverName: this.data.receiverName.trim() || '待联系',
       receiverPhone: receiverPhone.trim() || this.data.wechatId.trim(),
-      pickupAddr: pickupAddr.trim(),
-      deliveryAddr: deliveryAddr.trim(),
-      deliveryBuilding: deliveryBuilding.trim(),
-      deliveryRoom: deliveryRoom.trim(),
-      pickupTimeType: this.data.pickupTimeType,
-      appointmentTime: this.data.pickupTimeType === '预约' ? this.data.appointmentTime : '',
+      pickupAddr: '',
+      deliveryAddr: '',
+      deliveryBuilding: '',
+      deliveryRoom: '',
+      pickupTimeType: '预约',
+      appointmentTime: this.data.appointmentValue.trim(),
       remark: remark.trim(),
       privateInfo: this.data.privateInfo.trim(),
       wechatId: this.data.wechatId.trim(),

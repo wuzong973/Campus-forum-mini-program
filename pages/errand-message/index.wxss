@@ -1,0 +1,171 @@
+.page {
+  min-height: 100vh;
+  background: #f5f6f8;
+  padding: 16rpx 0 calc(24rpx + env(safe-area-inset-bottom));
+  box-sizing: border-box;
+}
+
+.chat-list {
+  margin: 0 16rpx;
+  background: #ffffff;
+  border-radius: 18rpx;
+  overflow: hidden;
+  box-shadow: 0 3rpx 14rpx rgba(25, 45, 75, 0.05);
+}
+
+.chat-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 20rpx;
+  padding: 26rpx 24rpx;
+  border-bottom: 1rpx solid #f0f2f5;
+  transition: background-color 0.2s ease;
+}
+
+.chat-item:last-child {
+  border-bottom: none;
+}
+
+.chat-item-hover {
+  background: #f6f8fb;
+}
+
+.avatar-wrap {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.avatar {
+  width: 92rpx;
+  height: 92rpx;
+  border-radius: 50%;
+  background: #eef2f7;
+  display: block;
+}
+
+.unread-badge {
+  position: absolute;
+  top: -8rpx;
+  right: -12rpx;
+  min-width: 32rpx;
+  height: 32rpx;
+  padding: 0 8rpx;
+  border-radius: 16rpx;
+  background: #fa5151;
+  color: #ffffff;
+  font-size: 20rpx;
+  line-height: 32rpx;
+  text-align: center;
+  box-sizing: border-box;
+  white-space: nowrap;
+}
+
+.chat-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8rpx;
+}
+
+.chat-row-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16rpx;
+}
+
+.peer-name {
+  font-size: 29rpx;
+  font-weight: 600;
+  color: #22303f;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.chat-time {
+  flex-shrink: 0;
+  font-size: 22rpx;
+  color: #9aa6b5;
+}
+
+.chat-row-middle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16rpx;
+}
+
+.last-msg {
+  flex: 1;
+  min-width: 0;
+  font-size: 26rpx;
+  color: #6b7887;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.reward {
+  flex-shrink: 0;
+  font-size: 23rpx;
+  font-weight: 600;
+  color: #fa5c61;
+}
+
+.chat-row-bottom {
+  display: flex;
+  align-items: center;
+  gap: 10rpx;
+  min-width: 0;
+}
+
+.order-tag {
+  flex-shrink: 0;
+  font-size: 20rpx;
+  line-height: 1.5;
+  padding: 2rpx 12rpx;
+  border-radius: 8rpx;
+}
+
+.order-tag.pub {
+  color: #3478f6;
+  background: #eaf1ff;
+}
+
+.order-tag.acc {
+  color: #e69329;
+  background: #fff5e2;
+}
+
+.order-desc {
+  flex: 1;
+  min-width: 0;
+  font-size: 23rpx;
+  color: #9aa6b5;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.empty-wrap {
+  padding-top: 120rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 30rpx;
+}
+
+.empty-btn {
+  padding: 16rpx 48rpx;
+  border-radius: 40rpx;
+  background: #347ff2;
+  color: #ffffff;
+  font-size: 27rpx;
+  transition: opacity 0.2s ease;
+}
+
+.empty-btn:active {
+  opacity: 0.85;
+}

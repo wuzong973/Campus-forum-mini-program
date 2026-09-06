@@ -4,6 +4,14 @@
   "packOptions": {
     "ignore": [
       {
+        "value": "__pycache__",
+        "type": "folder"
+      },
+      {
+        "value": ".pyc",
+        "type": "suffix"
+      },
+      {
         "value": "jw-crawler",
         "type": "folder"
       },
@@ -24,7 +32,15 @@
         "type": "folder"
       },
       {
-        "value": "others",
+        "value": "_unused-assets",
+        "type": "folder"
+      },
+      {
+        "value": "web-static",
+        "type": "folder"
+      },
+      {
+        "value": "node_modules",
         "type": "folder"
       },
       {

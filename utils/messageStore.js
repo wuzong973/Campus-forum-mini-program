@@ -142,6 +142,10 @@ function connect() {
       removeCachedMessage(msg.data.peerId, msg.data.id)
       notifyHandlers({ type: 'message_recalled', peerId: msg.data.peerId, data: msg.data })
     }
+    // 跑腿订单专属聊天消息（与私信独立）：转发给订阅方（跑腿聊天页实时刷新）
+    if (msg.type === 'errand_message') {
+      notifyHandlers({ type: 'errand_message', data: msg.data })
+    }
     if (msg.type === 'notification') {
       notifyHandlers({ type: 'notification', data: msg.data })
     }
@@ -252,21 +256,35 @@ function notifyHandlers(payload) {
 }
 
 // ===== API 调用 =====
-function sendMessage(receiverId, content, msgType = 'text', anonymous = false) {
+function sendMessage(receiverId, content, msgType = 'text', anonymous = false, anonymousIdentity = null) {
   if (request.USE_MOCK) {
     const message = { id: Date.now(), senderId: (getAppInstance().globalData.userInfo || {}).id || 1, receiverId, content, msgType, status: 'sent', createdAt: new Date().toISOString(), isMine: true }
     appendCache(receiverId, message)
     return Promise.resolve(message)
   }
-  return request.post('/message/send', { receiverId, content, msgType, anonymous }, true)
+  const body = { receiverId, content, msgType, anonymous }
+  // 匿名发送时携带自己一侧的分身形象，服务端首次存档后收信方列表/聊天页统一显示
+  if (anonymous && anonymousIdentity && anonymousIdentity.nickName && anonymousIdentity.avatarUrl) {
+    body.anonNick = anonymousIdentity.nickName
+    body.anonAvatar = anonymousIdentity.avatarUrl
+  }
+  return request.post('/message/send', body, true)
 }
 
-function getHistory(peerId, page, pageSize, anonymous = false) {
+function getHistory(peerId, page, pageSize, anonymous = false, anonymousIdentity = null, anonSide = 'peer') {
   if (request.USE_MOCK) {
     const list = loadCache(peerId)
     return Promise.resolve({ list: list, total: list.length, hasMore: false })
   }
-  return request.get('/message/history', { peerId, page, pageSize, anonymous: anonymous ? 1 : 0 }, true)
+  const query = { peerId, page, pageSize, anonymous: anonymous ? 1 : 0 }
+  // 匿名会话首次进入时把分身身份传给服务端存档（服务端只存一次）
+  if (anonymousIdentity && anonymousIdentity.nickName && anonymousIdentity.avatarUrl) {
+    query.anonNick = anonymousIdentity.nickName
+    query.anonAvatar = anonymousIdentity.avatarUrl
+    // 分身属于发起方自己（分身私信普通用户）时告知服务端存档方向
+    if (anonSide === 'self') query.anonSide = 'self'
+  }
+  return request.get('/message/history', query, true)
 }
 
 function recallMessage(peerId, messageId) {

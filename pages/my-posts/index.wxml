@@ -1,7 +1,58 @@
 <view class="page">
-  <block wx:for="{{posts}}" wx:key="id">
-    <post-card post="{{item}}" bind:remove="onPostRemove" />
-  </block>
-  <empty-state wx:if="{{!loading && posts.length === 0}}" text="还没有发布帖子" icon="📝" />
+  <view class="custom-nav" style="padding-top: {{statusBarHeight}}px;">
+    <view class="nav-inner">
+      <view class="nav-back" bindtap="goBack">‹ 返回</view>
+      <text class="nav-title">我的帖子</text>
+      <view class="nav-more">•••</view>
+    </view>
+  </view>
+  <view class="nav-space" style="height: {{statusBarHeight + 56}}px;"></view>
+
+  <view class="topic-tabs">
+    <view class="topic-tab {{activeTopic === 0 ? 'active' : ''}}" data-index="0" bindtap="onTopicTab">帖子</view>
+    <view class="topic-tab {{activeTopic === 1 ? 'active' : ''}}" data-index="1" bindtap="onTopicTab">我删除的</view>
+  </view>
+
+  <view class="sub-tabs" wx:if="{{activeTopic === 0}}">
+    <view class="sub-tab {{activeSubTab === 0 ? 'active' : ''}}" data-index="0" bindtap="onSubTab">我发布的</view>
+    <view class="sub-tab {{activeSubTab === 1 ? 'active' : ''}}" data-index="1" bindtap="onSubTab">我蹲的贴</view>
+  </view>
+
+  <view class="sub-tabs" wx:if="{{activeTopic === 1}}">
+    <view class="sub-tab {{activeDeletedTab === 0 ? 'active' : ''}}" data-index="0" bindtap="onDeletedTab">隐藏</view>
+    <view class="sub-tab {{activeDeletedTab === 1 ? 'active' : ''}}" data-index="1" bindtap="onDeletedTab">删除</view>
+  </view>
+
+  <view class="post-list" wx:if="{{activeTopic === 0 && activeSubTab === 0}}">
+    <block wx:for="{{posts}}" wx:key="id">
+      <post-card post="{{item}}" bind:remove="onPostRemove" />
+    </block>
+    <empty-state wx:if="{{!loading && posts.length === 0}}" text="还没有发布帖子" icon="📝" />
+  </view>
+
+  <view class="post-list" wx:if="{{activeTopic === 0 && activeSubTab === 1}}">
+    <block wx:for="{{squattedPosts}}" wx:key="id">
+      <post-card post="{{item}}" bind:remove="onSquattedRemove" />
+    </block>
+    <empty-state wx:if="{{!loading && squattedPosts.length === 0}}" text="还没有蹲的帖子" icon="👀" />
+  </view>
+
+  <view class="post-list" wx:if="{{activeTopic === 1 && activeDeletedTab === 0}}">
+    <block wx:for="{{hiddenPosts}}" wx:key="id">
+      <view class="hidden-item">
+        <post-card post="{{item}}" showFooter="{{false}}" />
+        <view class="unhide-btn" data-id="{{item.id}}" catchtap="onUnhidePost">取消隐藏</view>
+      </view>
+    </block>
+    <empty-state wx:if="{{!loading && hiddenPosts.length === 0}}" text="暂无隐藏的帖子" icon="🙈" />
+  </view>
+
+  <view class="post-list" wx:if="{{activeTopic === 1 && activeDeletedTab === 1}}">
+    <block wx:for="{{deletedPosts}}" wx:key="id">
+      <post-card post="{{item}}" readonly="{{true}}" showFooter="{{false}}" />
+    </block>
+    <empty-state wx:if="{{!loading && deletedPosts.length === 0}}" text="暂无已删除帖子" icon="🗑️" />
+  </view>
+
   <view class="fab" bindtap="goPublish">+</view>
 </view>

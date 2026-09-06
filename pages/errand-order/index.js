@@ -289,23 +289,18 @@ Page({
     const order = e.detail.order
     const peerId = order.role === 'publisher' ? order.accepterId : order.publisherId
     if (!peerId) {
-      wx.showToast({ title: '对方暂未开通小程序聊天', icon: 'none' })
+      wx.showToast({ title: '对方暂未接单，暂无法联系', icon: 'none' })
       return
     }
-    const otherUser = {
-      id: peerId,
-      nickname: order.role === 'publisher' ? (order.accepterName || '接单者') : (order.publisherName || '发布者'),
-      avatar: '/assets/avatars/avatar-boy-1.png'
-    }
-    wx.navigateTo({
-      url: '/pages/chat/index?peerId=' + peerId + '&otherUser=' + encodeURIComponent(JSON.stringify(otherUser))
-    })
+    // 进入跑腿订单专属聊天（与私信聊天独立）
+    wx.navigateTo({ url: '/pages/errand-chat/index?orderId=' + order.id })
   },
 
   onCancel(e) {
     const order = e.detail.order
     if (order && order.id) {
-      wx.navigateTo({ url: '/pages/errand-cancel/index?id=' + order.id })
+      const roleParam = order.role === 'publisher' ? '&role=publisher' : ''
+      wx.navigateTo({ url: '/pages/errand-cancel/index?id=' + order.id + roleParam })
       return
     }
     if (request.USE_MOCK) {
@@ -319,18 +314,7 @@ Page({
             confirmText: '去联系',
             success: (res) => {
               if (res.confirm) {
-                const otherUser = {
-                  id: order.publisherId,
-                  nickname: order.publisherName || '发布者',
-                  avatar: '/assets/avatars/avatar-boy-1.png'
-                }
-                if (!otherUser.id) {
-                  wx.showToast({ title: '对方暂未开通小程序聊天', icon: 'none' })
-                  return
-                }
-                wx.navigateTo({
-                  url: '/pages/chat/index?peerId=' + otherUser.id + '&otherUser=' + encodeURIComponent(JSON.stringify(otherUser))
-                })
+                wx.navigateTo({ url: '/pages/errand-chat/index?orderId=' + order.id })
               }
             }
           })
@@ -369,6 +353,16 @@ Page({
   goPublish() {
     if (!auth.requireLogin('发布跑腿需要先登录')) return
     wx.navigateTo({ url: '/pages/errand-publish/index' })
+  },
+
+  // ===== 右下角浮动导航 =====
+  goMessages() {
+    if (!auth.requireLogin('查看跑腿消息需要先登录')) return
+    wx.navigateTo({ url: '/pages/errand-message/index' })
+  },
+
+  goHallHome() {
+    wx.switchTab({ url: '/pages/errand/index' })
   },
 
   // 底部Tab切换

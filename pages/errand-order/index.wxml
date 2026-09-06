@@ -72,4 +72,11 @@
     <view class="empty-publish-btn" bindtap="goPublish">去发布需求</view>
   </view>
 
+  <!-- 右侧浮动导航（发布/消息/首页，保持在右下角） -->
+  <view class="float-nav">
+    <view class="float-item" hover-class="float-item-hover" hover-stay-time="80" bindtap="goPublish"><text class="float-icon">✚</text><text class="float-label">发布</text></view>
+    <view class="float-item" hover-class="float-item-hover" hover-stay-time="80" bindtap="goMessages"><text class="float-icon">✉</text><text class="float-label">消息</text></view>
+    <view class="float-item" hover-class="float-item-hover" hover-stay-time="80" bindtap="goHallHome"><text class="float-icon">⌂</text><text class="float-label">首页</text></view>
+  </view>
+
 </view>

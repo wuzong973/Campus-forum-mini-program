@@ -2,8 +2,12 @@ const api = require("../../utils/api");
 const auth = require("../../utils/auth");
 const request = require("../../utils/request");
 const format = require("../../utils/format");
+const hotRank = require("../../utils/hot-rank");
+const wechat = require("../../utils/wechat");
 const anonymousIdentity = require('../../utils/anonymousIdentity');
 const { runPullDownRefresh } = require("../../utils/refresh");
+
+const POST_VIEW_SYNC_KEY = 'post_view_sync';
 
 Page({
   data: {
@@ -25,7 +29,6 @@ Page({
     showEditModal: false,
     editContent: "",
     editCommentId: 0,
-    topLikedComment: null,
     canManageNote: false,
     showNoteEditor: false,
     noteDraft: '',
@@ -35,6 +38,8 @@ Page({
     savingNote: false,
     contactExpanded: false,
     commentFocus: false,
+    anonPopup: null,
+    authorPopup: null,
     showEmojiPanel: false,
     commentAnonymous: false,
     commentImages: [],
@@ -42,6 +47,9 @@ Page({
     pageHeight: 0,
     bottomBarHeight: 120,
     showSharePopup: false,
+    hotPosts: [],
+    hotRankGroups: [],
+    hotLoading: false,
     pollSelections: [],
     pollChecked: [],
     submittingVote: false,
@@ -83,14 +91,41 @@ Page({
       canManageNote: this.canManagePostContent(),
       pageHeight: sysInfo.windowHeight - bottomBarHeight / 2,
       bottomBarHeight,
+      commentAnonymous: !!((wx.getStorageSync('system_settings') || {}).commentAnonymous),
     });
     api.setCurrentPostId(id);
     this.loadPost(id);
     this.loadComments(id, this.data.commentSort);
-    this.loadTopLikedComment(id);
     if (options.comment === "1") {
       setTimeout(() => this.setData({ commentFocus: true }), 450);
     }
+  },
+
+  onShow() {
+    // 分享页返回后重新取一次详情，及时同步服务端转发数等计数。
+    if (this._hasShownOnce && this.data.post && this.data.post.id) {
+      this.loadPost(this.data.post.id)
+    }
+    this.loadHotPosts()
+    this._hasShownOnce = true
+  },
+
+  loadHotPosts() {
+    this.setData({ hotLoading: true })
+    // 与首页完全一致：同一接口（getHotPostRank）+ 同一份构建逻辑（utils/hot-rank.js），
+    // 保证两处每日热榜的数据、排序与展示文案统一
+    api.getHotPostRank().then((res) => {
+      const hotPosts = hotRank.buildHotPosts(res.list || [])
+      this.setData({
+        hotPosts,
+        hotRankGroups: hotRank.groupHotPosts(hotPosts),
+        hotLoading: false
+      })
+    }).catch(() => this.setData({ hotLoading: false }))
+  },
+
+  onTodayHotTap() {
+    wx.navigateTo({ url: '/pages/hot-rank/index' })
   },
 
   canManagePostContent() {
@@ -105,10 +140,12 @@ Page({
     const isAdmin = ['super_admin', 'content_admin'].indexOf(userInfo.role) > -1;
     const isAuthor = Number(userInfo.id) === Number((this.data.post || {}).userId);
     const itemList = isAdmin
-      ? ['删除', '添加备注', '拉黑']
+      ? (isAuthor
+        ? ['删除', '添加备注', '隐藏']
+        : ['删除', '添加备注', '隐藏', '拉黑'])
       : isAuthor
-        ? ['删除']
-        : ['拉黑', '举报内容'];
+        ? ['删除', '隐藏']
+        : ['隐藏', '拉黑', '举报内容'];
     wx.showActionSheet({
       itemList,
       success: async (res) => {
@@ -117,6 +154,8 @@ Page({
           await this.deletePost();
         } else if (selected === '添加备注') {
           this.openNoteEditor();
+        } else if (selected === '隐藏') {
+          await this.hidePost();
         } else if (selected === '拉黑') {
           await this.markNotInterested();
         } else {
@@ -157,6 +196,19 @@ Page({
       setTimeout(() => wx.navigateBack(), 350);
     } catch (err) {
       wx.showToast({ title: err.message || '设置失败', icon: 'none' });
+    }
+  },
+
+  // 隐藏：仅隐藏这条帖子（不影响同分类其他帖子），可在「我的→我删除的→隐藏」中恢复
+  async hidePost() {
+    const post = this.data.post || {};
+    if (!await this.confirmAction('隐藏帖子', '隐藏后这条帖子将不再对你展示，可在「我的→我删除的→隐藏」中恢复，确认隐藏吗？')) return;
+    try {
+      if (!request.USE_MOCK) await api.markPostNotInterested(post.id, true);
+      wx.showToast({ title: '已隐藏', icon: 'success' });
+      setTimeout(() => wx.navigateBack(), 350);
+    } catch (err) {
+      wx.showToast({ title: err.message || '隐藏失败', icon: 'none' });
     }
   },
 
@@ -237,7 +289,9 @@ Page({
     return api.getPostDetail(id).then((post) => {
       if (post) {
         const followedPostIds = wx.getStorageSync("followed_post_ids") || [];
-        post.isFollowed = followedPostIds.indexOf(post.id) > -1;
+        post = this.normalizePostCounts(post);
+        post.isFollowed = followedPostIds.some((item) => Number(item) === Number(post.id));
+        post.followCount = post.followCount > 0 ? post.followCount : (post.isFollowed ? 1 : 0);
         const pollSelections = (post.components || []).map((item) => (item.type === 'poll' && Array.isArray(item.selectedOptionIndexes)) ? item.selectedOptionIndexes.slice() : []);
         this.setData({
           post,
@@ -248,12 +302,22 @@ Page({
           timeText: format.formatRelativeTime(post.createdAt) || "刚刚",
           viewText: this.formatViewCount(post.viewCount || 0) + " 浏览",
         });
+        // 记录最新浏览量，返回首页时由首页就地更新卡片，避免展示旧值
+        wx.setStorageSync(POST_VIEW_SYNC_KEY, { id: post.id, viewCount: post.viewCount || 0 });
         this.refreshCommentThreads();
       } else {
         wx.showToast({ title: "帖子不存在", icon: "none" });
         setTimeout(() => wx.navigateBack(), 1500);
       }
     });
+  },
+
+  normalizePostCounts(post) {
+    const normalized = Object.assign({}, post);
+    ['favoriteCount', 'followCount', 'shareCount', 'likeCount', 'commentCount'].forEach((key) => {
+      normalized[key] = Math.max(0, Number(normalized[key]) || 0);
+    });
+    return normalized;
   },
 
   formatViewCount(count) {
@@ -300,7 +364,9 @@ Page({
       this.setData({
         post: Object.assign(post, { components }),
         pollSelections,
-        pollChecked: this.buildPollChecked(components || [], pollSelections)
+        pollChecked: this.buildPollChecked(components || [], pollSelections),
+        // 投票成功后必须关闭按钮 loading，否则会无限转圈
+        submittingVote: false
       })
     }
     this.setData({ submittingVote: true })
@@ -341,10 +407,13 @@ Page({
 
   loadComments(postId, sort = this.data.commentSort) {
     return api.getCommentList(postId, sort).then((res) => {
-      const rawComments = (res.list || []).map((comment) => this.normalizeComment(comment));
+      const list = (res.list || []).map((comment) => this.normalizeComment(comment));
+      const hiddenCommentIds = (wx.getStorageSync('hidden_comment_ids') || []).map(Number);
+      const blockedUserIds = (wx.getStorageSync('blocked_user_ids') || []).map(Number);
+      const rawComments = this.filterVisibleComments(list, hiddenCommentIds, blockedUserIds);
       this.setData({
         rawComments,
-        commentTotal: Number(res.total) || rawComments.length,
+        commentTotal: Math.max(0, (Number(res.total) || list.length) - (list.length - rawComments.length)),
         comments: this.buildCommentThreads(rawComments, sort),
       });
     });
@@ -355,14 +424,19 @@ Page({
     let anonymous = comment.anonymousIdentity || comment.anonymous_identity;
     if (typeof anonymous === 'string') { try { anonymous = JSON.parse(anonymous) } catch (e) { anonymous = null } }
     const isAnonymous = !!(comment.is_anonymous || comment.isAnonymous || (anonymous && anonymous.nickName && anonymous.avatarUrl));
+    const images = api.parseImages(comment.images);
+    const rawAllowPm = comment.allow_anonymous_pm !== undefined ? comment.allow_anonymous_pm : comment.allowAnonymousPm;
     return {
       id: comment.id,
       userId: comment.user_id || comment.userId,
       nickName: isAnonymous ? anonymous.nickName : (comment.nick_name || comment.nickName || "用户"),
       avatarUrl: isAnonymous ? anonymous.avatarUrl : (comment.avatar_url || comment.avatarUrl || ""),
       isAnonymous,
-      content: comment.content,
-      images: comment.images || [],
+      // 有图/视频时去掉「[图片]/[视频]」占位文字，直接展示媒体本身
+      content: images.length ? format.stripMediaPlaceholder(comment.content) : String(comment.content || ""),
+      images,
+      // 匿名评论者（真实用户）是否允许被匿名私信：undefined 表示未知（不拦截），false 表示禁止
+      allowAnonymousPm: rawAllowPm === undefined || rawAllowPm === null ? undefined : !!rawAllowPm,
       parentId: Number(comment.parent_id || comment.parentId || 0),
       parentNickName: comment.parent_nick_name || comment.parentNickName || "",
       timeText: format.formatRelativeTime(createdAt) || "刚刚",
@@ -375,13 +449,14 @@ Page({
   buildCommentThreads(rawComments, sort = this.data.commentSort, expandedReplyIds = this.data.expandedReplyIds) {
     const commentsById = {};
     const authorId = Number((this.data.post || {}).userId || 0);
+    const isAnonymousPost = !!((this.data.post || {}).isAnonymous);
     expandedReplyIds = expandedReplyIds || {};
     const threadsById = {};
     const roots = [];
 
     rawComments.forEach((comment) => {
       commentsById[comment.id] = Object.assign({}, comment, {
-        isAuthor: authorId > 0 && Number(comment.userId) === authorId,
+        isAuthor: !isAnonymousPost && !comment.isAnonymous && authorId > 0 && Number(comment.userId) === authorId,
       });
     });
 
@@ -437,13 +512,7 @@ Page({
   },
 
   refreshCommentThreads(rawComments = this.data.rawComments) {
-    const authorId = Number((this.data.post || {}).userId || 0);
-    const topLikedComment = this.data.topLikedComment
-      ? Object.assign({}, this.data.topLikedComment, {
-        isAuthor: authorId > 0 && Number(this.data.topLikedComment.userId) === authorId,
-      })
-      : null;
-    this.setData({ comments: this.buildCommentThreads(rawComments), topLikedComment });
+    this.setData({ comments: this.buildCommentThreads(rawComments) });
   },
 
   updateComment(commentId, updater) {
@@ -478,22 +547,72 @@ Page({
     const userId = e.currentTarget.dataset.userid;
     if (!userId) return;
     if (e.currentTarget.dataset.anonymous) {
-      wx.navigateTo({ url: '/pages/chat/index?peerId=' + userId + '&anonymous=1' });
+      const ds = e.currentTarget.dataset;
+      this.showAnonPopup({
+        userId,
+        nick: ds.nick,
+        avatar: ds.avatar,
+        isOwner: ds.isowner,
+        allowAnonymousPm: ds.allowpm,
+      });
       return;
     }
     wx.navigateTo({ url: "/pages/profile/index?id=" + userId });
+  },
+
+  showAnonPopup(options) {
+    this.setData({
+      anonPopup: {
+        userId: options.userId,
+        nick: options.nick || "校园同学",
+        avatar: options.avatar || "/assets/icons/avatar.png",
+        isOwner: !!options.isOwner,
+        // 对方是否允许被匿名私信：仅当明确为 false 时拦截进入聊天页
+        allowAnonymousPm: options.allowAnonymousPm,
+      },
+    });
+  },
+
+  onCloseAnonPopup() {
+    this.setData({ anonPopup: null });
+  },
+
+  onAnonPopupMessage() {
+    const popup = this.data.anonPopup;
+    if (!popup || !popup.userId) return;
+    if (popup.allowAnonymousPm === false) {
+      this.setData({ anonPopup: null });
+      wx.showToast({ title: "对方不允许匿名私信", icon: "none" });
+      return;
+    }
+    wx.showModal({
+      title: "匿名私信",
+      content: "与匿名用户对话时，你也自动变为匿名用户",
+      confirmText: "确认",
+      cancelText: "取消",
+      success: (res) => {
+        if (!res.confirm) return;
+        this.setData({ anonPopup: null });
+        wx.navigateTo({
+          url: "/pages/chat/index?peerId=" + popup.userId +
+            "&nick=" + encodeURIComponent(popup.nick || "匿名用户") +
+            "&avatar=" + encodeURIComponent(popup.avatar || "/assets/icons/avatar.png") +
+            "&anonymous=1"
+        });
+      }
+    });
   },
 
   onLikePost() {
     if (!auth.requireLogin("点赞需要先登录")) return;
     const post = Object.assign({}, this.data.post);
     post.isLiked = !post.isLiked;
-    post.likeCount = Math.max(0, (post.likeCount || 0) + (post.isLiked ? 1 : -1));
+    post.likeCount = Math.max(0, (Number(post.likeCount) || 0) + (post.isLiked ? 1 : -1));
     this.setData({ post });
     if (request.USE_MOCK) return;
     request.post("/post/" + post.id + "/like", {}, true, { silent: true }).catch(() => {
       post.isLiked = !post.isLiked;
-      post.likeCount = Math.max(0, (post.likeCount || 0) + (post.isLiked ? 1 : -1));
+      post.likeCount = Math.max(0, (Number(post.likeCount) || 0) + (post.isLiked ? 1 : -1));
       this.setData({ post });
     });
   },
@@ -502,9 +621,11 @@ Page({
     if (!auth.requireLogin("收藏需要先登录")) return;
     const post = Object.assign({}, this.data.post);
     post.isFavorited = !post.isFavorited;
+    post.favoriteCount = Math.max(0, (Number(post.favoriteCount) || 0) + (post.isFavorited ? 1 : -1));
     this.setData({ post });
     api.favoritePost(post.id).catch(() => {
       post.isFavorited = !post.isFavorited;
+      post.favoriteCount = Math.max(0, (Number(post.favoriteCount) || 0) + (post.isFavorited ? 1 : -1));
       this.setData({ post });
     });
   },
@@ -513,6 +634,7 @@ Page({
     if (!auth.requireLogin("蹲帖需要先登录")) return;
     const post = Object.assign({}, this.data.post);
     post.isFollowed = !post.isFollowed;
+    post.followCount = Math.max(0, (Number(post.followCount) || 0) + (post.isFollowed ? 1 : -1));
     const followedPostIds = wx.getStorageSync("followed_post_ids") || [];
     const index = followedPostIds.indexOf(post.id);
     if (post.isFollowed && index === -1) followedPostIds.push(post.id);
@@ -554,32 +676,6 @@ Page({
     wx.setClipboardData({ data: contact.value });
   },
 
-  loadTopLikedComment(postId) {
-    return api
-      .getTopLikedComment(postId)
-      .then((comment) => {
-        if (comment) {
-          this.setData({
-            topLikedComment: {
-              id: comment.id,
-              userId: comment.user_id,
-              nickName: comment.is_anonymous ? comment.nick_name : (comment.nick_name || "用户"),
-              avatarUrl: comment.avatar_url || "",
-              isAnonymous: !!comment.is_anonymous,
-              content: comment.content,
-              likeCount: comment.like_count || 0,
-              isAuthor: Number(comment.user_id) === Number((this.data.post || {}).userId),
-            },
-          });
-        } else {
-          this.setData({ topLikedComment: null });
-        }
-      })
-      .catch(() => {
-        this.setData({ topLikedComment: null });
-      });
-  },
-
   onLikeComment(e) {
     if (!auth.requireLogin("点赞需要先登录")) return;
     const commentId = e.currentTarget.dataset.id;
@@ -600,8 +696,125 @@ Page({
         });
       });
     });
-    // 刷新热门评论
-    this.loadTopLikedComment(this.data.post.id);
+  },
+
+  // ===== 评论右上角「···」菜单：隐藏 / 举报 / 拉黑 =====
+
+  onCommentMore(e) {
+    const ds = e.currentTarget.dataset;
+    const commentId = ds.id;
+    const userId = Number(ds.userid) || 0;
+    const nick = ds.nick || "该用户";
+    // 自己的评论不提供举报/拉黑（已有编辑/删除入口）
+    const itemList = Number(userId) === Number(this.data.currentUserId)
+      ? ["隐藏"]
+      : ["隐藏", "举报", "拉黑"];
+    wx.showActionSheet({
+      itemList,
+      success: (res) => {
+        const selected = itemList[res.tapIndex];
+        if (selected === "隐藏") {
+          this.hideComment(commentId);
+        } else if (selected === "举报") {
+          this.reportComment(commentId);
+        } else if (selected === "拉黑") {
+          this.blockCommentAuthor(userId, nick);
+        }
+      },
+    });
+  },
+
+  // 计算要移除的评论 id 集合：seedIds 本身加上它们的所有下级回复，
+  // 避免只删父评论后子回复在 buildCommentThreads 中被提升为根评论
+  collectRemovableComments(list, seedIds) {
+    const removed = {};
+    (seedIds || []).forEach((id) => { removed[Number(id)] = true; });
+    let changed = true;
+    while (changed) {
+      changed = false;
+      (list || []).forEach((comment) => {
+        const id = Number(comment.id);
+        const parentId = Number(comment.parentId || 0);
+        if (parentId && removed[parentId] && !removed[id]) {
+          removed[id] = true;
+          changed = true;
+        }
+      });
+    }
+    return removed;
+  },
+
+  // 过滤本地隐藏及已拉黑用户的评论（下级回复一并隐藏）
+  filterVisibleComments(list, hiddenCommentIds, blockedUserIds) {
+    const hidden = hiddenCommentIds || [];
+    const blocked = blockedUserIds || [];
+    if (!hidden.length && !blocked.length) return list;
+    const seedIds = [];
+    (list || []).forEach((comment) => {
+      if (hidden.indexOf(Number(comment.id)) > -1 || blocked.indexOf(Number(comment.userId)) > -1) {
+        seedIds.push(comment.id);
+      }
+    });
+    if (!seedIds.length) return list;
+    const removed = this.collectRemovableComments(list, seedIds);
+    return (list || []).filter((comment) => !removed[Number(comment.id)]);
+  },
+
+  // 从当前列表移除指定评论并同步计数；persistHiddenId 传入时写入本地隐藏记录，刷新后仍生效
+  applyCommentRemoval(removed, persistHiddenId) {
+    const rawComments = this.data.rawComments.filter((comment) => !removed[Number(comment.id)]);
+    const removedCount = this.data.rawComments.length - rawComments.length;
+    if (persistHiddenId !== undefined && persistHiddenId !== null) {
+      const hiddenIds = (wx.getStorageSync("hidden_comment_ids") || []).map(Number);
+      if (hiddenIds.indexOf(Number(persistHiddenId)) === -1) {
+        hiddenIds.push(Number(persistHiddenId));
+        if (hiddenIds.length > 500) hiddenIds.splice(0, hiddenIds.length - 500);
+        wx.setStorageSync("hidden_comment_ids", hiddenIds);
+      }
+    }
+    const commentTotal = Math.max(0, (Number(this.data.commentTotal) || 0) - removedCount);
+    const post = Object.assign({}, this.data.post, {
+      commentCount: Math.max(0, (Number(this.data.post.commentCount) || 0) - removedCount),
+    });
+    this.setData({ rawComments, comments: this.buildCommentThreads(rawComments), commentTotal, post });
+  },
+
+  async hideComment(commentId) {
+    if (!await this.confirmAction("隐藏评论", "隐藏后这条评论将不再展示，确认隐藏吗？")) return;
+    this.applyCommentRemoval(this.collectRemovableComments(this.data.rawComments, [commentId]), commentId);
+    wx.showToast({ title: "已隐藏该评论", icon: "success" });
+  },
+
+  async reportComment(commentId) {
+    if (!auth.requireLogin("举报需要先登录")) return;
+    if (!await this.confirmAction("举报评论", "确认提交举报吗？管理员将收到评论编号、举报人和提交时间。")) return;
+    try {
+      if (!request.USE_MOCK) await api.reportComment(commentId);
+      wx.showToast({ title: "举报已提交", icon: "success" });
+    } catch (err) {
+      wx.showToast({ title: err.message || "举报失败", icon: "none" });
+    }
+  },
+
+  async blockCommentAuthor(userId, nick) {
+    if (!auth.requireLogin("拉黑需要先登录")) return;
+    if (!userId) return;
+    if (!await this.confirmAction("拉黑用户", "将拉黑「" + nick + "」并隐藏其全部评论与私信，确认继续吗？")) return;
+    try {
+      if (!request.USE_MOCK) await request.post("/message/block", { peerId: Number(userId) }, true);
+      const blockedIds = (wx.getStorageSync("blocked_user_ids") || []).map(Number);
+      if (blockedIds.indexOf(Number(userId)) === -1) {
+        blockedIds.push(Number(userId));
+        wx.setStorageSync("blocked_user_ids", blockedIds);
+      }
+      const seedIds = this.data.rawComments
+        .filter((comment) => Number(comment.userId) === Number(userId))
+        .map((comment) => comment.id);
+      this.applyCommentRemoval(this.collectRemovableComments(this.data.rawComments, seedIds));
+      wx.showToast({ title: "已拉黑", icon: "success" });
+    } catch (err) {
+      wx.showToast({ title: err.message || "设置失败", icon: "none" });
+    }
   },
 
   onBack() {
@@ -630,61 +843,53 @@ Page({
     this.setData({ commentFocus: false, keyboardHeight: 0 });
   },
 
-  onSendComment() {
+  async onSendComment() {
     if (!auth.requireLogin("评论需要先登录")) return;
     const text = this.data.commentText.trim();
     if (!text && !this.data.commentImages.length) return;
     const postId = this.data.post.id;
     const parentId = this.data.replyTo || 0;
-    const images = this.data.commentImages.slice();
+    let images = this.data.commentImages.slice();
     const content = text || "[图片]";
     const anonymous = this.data.commentAnonymous ? anonymousIdentity.generate() : null;
 
-    if (request.USE_MOCK) {
-      const key = "mock_comments_" + postId;
-      const stored = wx.getStorageSync(key) || [];
-      const newComment = {
-        id: Date.now(),
-        user_id: this.data.currentUserId,
-        nick_name: anonymous ? anonymous.nickName : ((getApp().globalData.userInfo || {}).nickName || "我"),
-        avatar_url: anonymous ? anonymous.avatarUrl : ((getApp().globalData.userInfo || {}).avatarUrl || ""),
-        anonymous_identity: anonymous,
-        is_anonymous: !!anonymous,
-        content,
-        images,
-        parent_id: parentId,
-        created_at: new Date().toISOString(),
-      };
-      stored.push(newComment);
-      wx.setStorageSync(key, stored);
-      const post = Object.assign({}, this.data.post, {
-        commentCount: (this.data.post.commentCount || 0) + 1,
-      });
-      const rawComments = this.data.rawComments.concat([this.normalizeComment(Object.assign({}, newComment, {
-        parent_nick_name: this.data.replyToNick,
-      }))]);
-      this.setData({
-        rawComments,
-        comments: this.buildCommentThreads(rawComments),
-        commentTotal: rawComments.length,
-        commentText: "",
-        commentImages: [],
-        showEmojiPanel: false,
-        replyTo: null,
-        replyToNick: "",
-        post,
-      });
-      wx.showToast({ title: "评论成功", icon: "success" });
-      return;
-    }
+    if (!request.USE_MOCK) wx.showLoading({ title: "发送中...", mask: true });
+    try {
+      if (!request.USE_MOCK && images.length) {
+        const imageCount = images.length;
+        images = await wechat.uploadImages(images);
+        if (images.length !== imageCount || images.some((url) => !/^https?:\/\//i.test(url))) {
+          throw new Error("图片上传失败");
+        }
+      }
 
-    request
-      .post("/comment", { postId, content, parentId, images, anonymousIdentity: anonymous }, true)
-      .then(() => {
+      if (request.USE_MOCK) {
+        const key = "mock_comments_" + postId;
+        const stored = wx.getStorageSync(key) || [];
+        const newComment = {
+          id: Date.now(),
+          user_id: this.data.currentUserId,
+          nick_name: anonymous ? anonymous.nickName : ((getApp().globalData.userInfo || {}).nickName || "我"),
+          avatar_url: anonymous ? anonymous.avatarUrl : ((getApp().globalData.userInfo || {}).avatarUrl || ""),
+          anonymous_identity: anonymous,
+          is_anonymous: !!anonymous,
+          content,
+          images,
+          parent_id: parentId,
+          created_at: new Date().toISOString(),
+        };
+        stored.push(newComment);
+        wx.setStorageSync(key, stored);
         const post = Object.assign({}, this.data.post, {
-          commentCount: (this.data.post.commentCount || 0) + 1,
+          commentCount: (Number(this.data.post.commentCount) || 0) + 1,
         });
+        const rawComments = this.data.rawComments.concat([this.normalizeComment(Object.assign({}, newComment, {
+          parent_nick_name: this.data.replyToNick,
+        }))]);
         this.setData({
+          rawComments,
+          comments: this.buildCommentThreads(rawComments),
+          commentTotal: rawComments.length,
           commentText: "",
           commentImages: [],
           showEmojiPanel: false,
@@ -692,12 +897,29 @@ Page({
           replyToNick: "",
           post,
         });
-        this.loadComments(postId);
         wx.showToast({ title: "评论成功", icon: "success" });
-      })
-      .catch((err) => {
-        wx.showToast({ title: err.message || "评论失败", icon: "none" });
+        return;
+      }
+
+      await request.post("/comment", { postId, content, parentId, images, anonymousIdentity: anonymous }, true);
+      const post = Object.assign({}, this.data.post, {
+        commentCount: (Number(this.data.post.commentCount) || 0) + 1,
       });
+      this.setData({
+        commentText: "",
+        commentImages: [],
+        showEmojiPanel: false,
+        replyTo: null,
+        replyToNick: "",
+        post,
+      });
+      this.loadComments(postId);
+      wx.showToast({ title: "评论成功", icon: "success" });
+    } catch (err) {
+      wx.showToast({ title: err.message || "评论失败", icon: "none" });
+    } finally {
+      if (!request.USE_MOCK) wx.hideLoading();
+    }
   },
 
   onReplyComment(e) {
@@ -823,7 +1045,7 @@ Page({
           if (request.USE_MOCK) {
             const rawComments = this.data.rawComments.filter((comment) => Number(comment.id) !== Number(id));
             const post = Object.assign({}, this.data.post, {
-              commentCount: Math.max(0, (this.data.post.commentCount || 0) - 1),
+              commentCount: Math.max(0, (Number(this.data.post.commentCount) || 0) - 1),
             });
             this.setData({ rawComments, comments: this.buildCommentThreads(rawComments), commentTotal: rawComments.length, post });
             wx.showToast({ title: "删除成功", icon: "success" });
@@ -836,7 +1058,7 @@ Page({
               const post = Object.assign({}, this.data.post, {
                 commentCount: Math.max(
                   0,
-                  (this.data.post.commentCount || 0) - 1,
+                  (Number(this.data.post.commentCount) || 0) - 1,
                 ),
               });
               this.setData({ rawComments, comments: this.buildCommentThreads(rawComments), commentTotal: rawComments.length, post });
@@ -855,7 +1077,7 @@ Page({
     const post = Object.assign({}, this.data.post);
     const liked = !post.isLiked;
     post.isLiked = liked;
-    post.likeCount = (post.likeCount || 0) + (liked ? 1 : -1);
+    post.likeCount = Math.max(0, (Number(post.likeCount) || 0) + (liked ? 1 : -1));
     this.setData({ post });
     if (!request.USE_MOCK) {
       request.post("/post/" + post.id + "/like", {}, true).catch(() => {});
@@ -869,11 +1091,74 @@ Page({
   onAvatarTap(e) {
     const userId = e.currentTarget.dataset.userid;
     if (!userId) return;
-    if ((this.data.post || {}).isAnonymous) {
-      wx.navigateTo({ url: '/pages/chat/index?peerId=' + userId + '&anonymous=1' });
+    const post = this.data.post || {};
+    if (post.isAnonymous) {
+      this.showAnonPopup({
+        userId,
+        nick: post.nickName,
+        avatar: post.avatarUrl,
+        isOwner: true,
+        allowAnonymousPm: post.allowAnonymousPm,
+      });
       return;
     }
+    if (this.showAuthorPopup(post)) return;
     wx.navigateTo({ url: "/pages/profile/index?id=" + userId });
+  },
+
+  // 普通帖帖主头像：允许匿名私信时弹出「个人主页/分身私信」选择，
+  // 关闭了该设置或查看自己的帖子时保持直接进入主页
+  showAuthorPopup(post) {
+    if (!post || !post.userId) return false;
+    if (post.allowAnonymousPm === false) return false;
+    const userInfo = ((getApp().globalData || {}).userInfo) || wx.getStorageSync('userInfo') || {};
+    if (Number(userInfo.id) === Number(post.userId)) return false;
+    this.setData({
+      authorPopup: {
+        userId: post.userId,
+        nick: post.nickName || "校园同学",
+        avatar: post.avatarUrl || "/assets/icons/avatar.png",
+        certLabel: post.certLabel || "",
+      },
+    });
+    return true;
+  },
+
+  onCloseAuthorPopup() {
+    this.setData({ authorPopup: null });
+  },
+
+  onAuthorPopupProfile() {
+    const popup = this.data.authorPopup;
+    if (!popup || !popup.userId) return;
+    this.setData({ authorPopup: null });
+    wx.navigateTo({ url: "/pages/profile/index?id=" + popup.userId });
+  },
+
+  onAuthorPopupMessage() {
+    const popup = this.data.authorPopup;
+    if (!popup || !popup.userId) return;
+    if (!auth.requireLogin("私信需要先登录")) return;
+    wx.showModal({
+      title: "分身私信",
+      content: "开启对话后，你将以匿名身份与对方交流",
+      confirmText: "确认",
+      cancelText: "取消",
+      success: (res) => {
+        if (!res.confirm) return;
+        this.setData({ authorPopup: null });
+        // 发起方使用随机分身身份，服务端首次进入时存档，全程同一形象
+        const persona = anonymousIdentity.generate();
+        wx.navigateTo({
+          url: "/pages/chat/index?peerId=" + popup.userId +
+            "&nick=" + encodeURIComponent(popup.nick || "校园同学") +
+            "&avatar=" + encodeURIComponent(popup.avatar || "/assets/icons/avatar.png") +
+            "&anonymous=1" +
+            "&anonSelfNick=" + encodeURIComponent(persona.nickName) +
+            "&anonSelfAvatar=" + encodeURIComponent(persona.avatarUrl)
+        });
+      }
+    });
   },
 
   onShareAppMessage() {
@@ -893,7 +1178,7 @@ Page({
     runPullDownRefresh(this, [
       () => this.loadPost(postId),
       () => this.loadComments(postId),
-      () => this.loadTopLikedComment(postId),
+      () => this.loadHotPosts(),
     ]);
   },
 });

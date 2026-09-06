@@ -38,12 +38,13 @@
       <view class="contact-admin-qr-head">
         <view>
           <text class="contact-admin-qr-title">添加管理员微信</text>
-          <text class="contact-admin-qr-desc">长按二维码保存或识别</text>
+          <text class="contact-admin-qr-desc">长按二维码保存图片</text>
         </view>
         <view class="contact-admin-close" catchtap="closeQr">×</view>
       </view>
-      <image class="contact-admin-qr" src="/assets/avatar2/管理员微信.png" mode="widthFix"></image>
-      <view class="contact-admin-qr-tip"></view>
+      <image class="contact-admin-qr" src="/assets/avatar2/管理员微信.png" mode="widthFix" show-menu-by-longpress="{{true}}"></image>
+      <button class="contact-admin-qr-btn" bindtap="openQrPage">识别二维码并添加好友</button>
+      <view class="contact-admin-qr-tip">跳转网页后长按图片即可识别添加</view>
     </view>
   </block>
 </view>

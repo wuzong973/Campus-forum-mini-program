@@ -2,10 +2,13 @@ const api = require('../../utils/api')
 const bannerUtil = require('../../utils/banner')
 const request = require('../../utils/request')
 const format = require('../../utils/format')
+const hotRank = require('../../utils/hot-rank')
+const wechat = require('../../utils/wechat')
 const { runPullDownRefresh } = require('../../utils/refresh')
 
 const POSTS_CACHE_KEY = 'home_posts_cache'
 const PENDING_POST_KEY = 'home_pending_post'
+const POST_VIEW_SYNC_KEY = 'post_view_sync'
 
 Page({
   data: {
@@ -16,6 +19,8 @@ Page({
     bannerInterval: 4200,
     bannerDuration: 520,
     notice: '如果你在使用中遇到了问题，请尽快点击联系',
+    noticeTailText: '更新中',
+    noticeTailImage: '',
     services: [],
     allServices: [],
     serviceIndicators: [0, 1, 2, 3, 4],
@@ -23,8 +28,8 @@ Page({
     categories: [],
     activeCategory: 0,
     isHotCategory: false,
-    hotPeriod: 'today',
     hotPosts: [],
+    hotRankGroups: [],
     hotLoading: false,
     posts: [],
     page: 1,
@@ -33,8 +38,11 @@ Page({
     loading: false,
     skeleton: true,
     scrollTop: 0,
+    scrollIntoView: '',
     isAtTop: true,
     showFloatBtns: false,
+    refreshing: false,
+    scrollRefreshing: false,
     scheduleCourses: [],
     // 课表提醒
     reminderEnabled: false,
@@ -69,8 +77,40 @@ Page({
     })
     this.loadStaticData()
     this.loadServices()
+    this.loadHomeConfig()
     this.loadPosts(true)
+    this.loadHotPosts()
     this.loadTodaySchedule()
+  },
+
+  // 管理后台「配置」维护的轮播图与公告；为空时沿用本地默认
+  loadHomeConfig() {
+    api.getHomeConfig().then((config) => {
+      const patch = {}
+      if (config.banners && config.banners.length) {
+        this._customBanners = true
+        patch.banners = config.banners.map((item, index) => ({
+          id: 'custom-' + item.id,
+          tag: item.tag || '',
+          title: item.title || '',
+          subtitle: item.subtitle || '',
+          image: item.image,
+          accent: item.accent || '#4A7AFF',
+          link: item.link || '',
+          order: index
+        }))
+      }
+      if (config.notice && config.notice.text) {
+        patch.notice = config.notice.text
+        patch.noticeTailText = config.notice.tailText || ''
+        patch.noticeTailImage = config.notice.tailImage || ''
+      }
+      if (Object.keys(patch).length) this.setData(patch)
+    }).catch(() => {})
+  },
+
+  onNoticeTailTap() {
+    if (this.data.noticeTailImage) wx.previewImage({ urls: [this.data.noticeTailImage] })
   },
 
   onShow() {
@@ -84,7 +124,8 @@ Page({
     }
     this.loadTodaySchedule()
     this.consumePendingPost()
-    if (this.data.isHotCategory) this.loadHotPosts()
+    this.consumePostViewSync()
+    this.loadHotPosts()
   },
 
   consumePendingPost() {
@@ -96,6 +137,20 @@ Page({
     const posts = exists ? this.data.posts : [normalizedPost].concat(this.data.posts)
     this.setData({ posts, skeleton: false })
     this.updateBanners()
+  },
+
+  // 从详情页返回时，就地同步该帖子的最新浏览量（列表与热榜）
+  consumePostViewSync() {
+    const sync = wx.getStorageSync(POST_VIEW_SYNC_KEY)
+    if (!sync || !sync.id) return
+    wx.removeStorageSync(POST_VIEW_SYNC_KEY)
+    const patchPost = (item) => Number(item.id) === Number(sync.id)
+      ? Object.assign({}, item, { viewCount: Number(sync.viewCount) || 0 })
+      : item
+    this.setData({
+      posts: this.data.posts.map(patchPost),
+      hotPosts: this.data.hotPosts.map(patchPost)
+    })
   },
 
   // 加载当天课程
@@ -248,6 +303,8 @@ Page({
   },
 
   updateBanners() {
+    // 管理后台配置了轮播时以配置为准，不回退本地默认
+    if (this._customBanners) return
     this.setData({
       banners: bannerUtil.buildHomeBanners({
         courses: this.data.scheduleCourses,
@@ -322,12 +379,16 @@ Page({
     this.setData({ scrollTop: 0, isAtTop: true, showFloatBtns: false })
   },
 
-  onSearchAction() {
-    if (this.data.isAtTop) {
-      this.onRefresh()
-    } else {
-      this.onScrollToTop()
-    }
+  // 搜索栏内刷新按钮只负责刷新，不随滚动切换成回到顶部
+  onRefreshAction() {
+    if (this.data.refreshing) return
+    this.setData({ refreshing: true })
+    const job = this.data.isHotCategory
+      ? Promise.resolve(this.loadHotPosts())
+      : Promise.all([this.fetchPosts(1, true, true), this.loadHotPosts()])
+    Promise.resolve(job).catch(() => {}).then(() => {
+      this.setData({ refreshing: false })
+    })
   },
 
   onRefresh() {
@@ -448,21 +509,18 @@ Page({
     else this.fetchPosts(1, true, false)
   },
 
-  onHotPeriodTap(e) {
-    const hotPeriod = e.currentTarget.dataset.period
-    if (!hotPeriod || hotPeriod === this.data.hotPeriod) return
-    this.setData({ hotPeriod })
-    this.loadHotPosts()
-  },
-
   loadHotPosts() {
     this.setData({ hotLoading: true })
-    api.getHotPostRank(this.data.hotPeriod).then((res) => {
-      const hotPosts = (res.list || []).map((post) => Object.assign({}, post, {
-        rankTimeText: format.formatRelativeTime(post.createdAt) || '刚刚'
-      }))
-      this.setData({ hotPosts, hotLoading: false, skeleton: false })
+    api.getHotPostRank().then((res) => {
+      // 与帖子详情页共用 utils/hot-rank.js 的同一份构建逻辑
+      const hotPosts = hotRank.buildHotPosts(res.list || [])
+      const hotRankGroups = hotRank.groupHotPosts(hotPosts)
+      this.setData({ hotPosts, hotRankGroups, hotLoading: false, skeleton: false })
     }).catch(() => this.setData({ hotLoading: false, skeleton: false }))
+  },
+
+  onTodayHotTap() {
+    wx.navigateTo({ url: '/pages/hot-rank/index' })
   },
 
   onHotPostTap(e) {
@@ -520,13 +578,15 @@ Page({
   noop() {},
 
   mapCommentItem(c) {
+    const images = api.parseImages(c.images)
     return {
       id: c.id,
       userId: c.user_id || c.userId,
       nickName: c.nick_name || c.nickName || '校园用户',
       avatarUrl: c.avatar_url || c.avatarUrl || '',
-      content: c.content || '',
-      images: c.images || [],
+      // 有图时去掉「[图片]/[视频]」占位文字，直接展示图片本身
+      content: images.length ? format.stripMediaPlaceholder(c.content) : (c.content || ''),
+      images,
       parentNickName: c.parent_nick_name || c.parentNickName || '',
       timeText: c.timeText || format.formatDateTime(c.created_at || c.createdAt || new Date()),
       createdAt: c.created_at || c.createdAt,
@@ -634,54 +694,60 @@ Page({
     this.setData(patch)
   },
 
-  onSheetSendComment() {
+  async onSheetSendComment() {
     const auth = require('../../utils/auth')
     if (!auth.requireLogin('评论需要先登录')) return
     const post = this.data.commentSheetPost
     if (!post || !post.id) return
     const text = (this.data.commentSheetText || '').trim()
-    const images = this.data.commentSheetImages.slice()
+    let images = this.data.commentSheetImages.slice()
     if (!text && !images.length) return
 
     const postId = post.id
     const content = text || '[图片]'
     wx.showLoading({ title: '发送中...', mask: true })
 
-    const finish = (rawComment) => {
-      const comment = this.mapCommentItem(rawComment)
-      this.setData({
-        commentSheetComments: this.data.commentSheetComments.concat([comment]),
-        commentSheetText: '',
-        commentSheetImages: [],
-        commentSheetEmojiVisible: false,
-        commentSheetFocus: false
-      })
-      this.updatePostCommentCount(postId, 1)
-      wx.hideLoading()
-      wx.showToast({ title: '评论成功', icon: 'success' })
-    }
-
-    if (request.USE_MOCK) {
-      const user = (getApp().globalData || {}).userInfo || {}
-      const rawComment = {
-        id: Date.now(),
-        user_id: user.id || 0,
-        nick_name: user.nickName || '我',
-        avatar_url: user.avatarUrl || '',
-        content,
-        images,
-        created_at: new Date().toISOString(),
-        like_count: 0
+    try {
+      if (!request.USE_MOCK && images.length) {
+        const imageCount = images.length
+        images = await wechat.uploadImages(images)
+        if (images.length !== imageCount || images.some((url) => !/^https?:\/\//i.test(url))) throw new Error('图片上传失败')
       }
-      const key = 'comments_' + postId
-      const stored = wx.getStorageSync(key) || []
-      stored.push(rawComment)
-      wx.setStorageSync(key, stored)
-      finish(rawComment)
-      return
-    }
 
-    request.post('/comment', { postId, content, parentId: 0, images }, true).then((res) => {
+      const finish = (rawComment) => {
+        const comment = this.mapCommentItem(rawComment)
+        this.setData({
+          commentSheetComments: this.data.commentSheetComments.concat([comment]),
+          commentSheetText: '',
+          commentSheetImages: [],
+          commentSheetEmojiVisible: false,
+          commentSheetFocus: false
+        })
+        this.updatePostCommentCount(postId, 1)
+        wx.showToast({ title: '评论成功', icon: 'success' })
+      }
+
+      if (request.USE_MOCK) {
+        const user = (getApp().globalData || {}).userInfo || {}
+        const rawComment = {
+          id: Date.now(),
+          user_id: user.id || 0,
+          nick_name: user.nickName || '我',
+          avatar_url: user.avatarUrl || '',
+          content,
+          images,
+          created_at: new Date().toISOString(),
+          like_count: 0
+        }
+        const key = 'comments_' + postId
+        const stored = wx.getStorageSync(key) || []
+        stored.push(rawComment)
+        wx.setStorageSync(key, stored)
+        finish(rawComment)
+        return
+      }
+
+      const res = await request.post('/comment', { postId, content, parentId: 0, images }, true)
       finish(res && res.data ? res.data : {
         id: Date.now(),
         user_id: ((getApp().globalData || {}).userInfo || {}).id || 0,
@@ -691,10 +757,11 @@ Page({
         images,
         created_at: new Date().toISOString()
       })
-    }).catch((err) => {
-      wx.hideLoading()
+    } catch (err) {
       wx.showToast({ title: (err && err.message) || '评论失败', icon: 'none' })
-    })
+    } finally {
+      wx.hideLoading()
+    }
   },
 
   onPostClose(e) {
@@ -707,12 +774,25 @@ Page({
     this.setData({ posts: this.data.posts.filter((item) => item.id !== postId) })
   },
 
-  onPullDownRefresh() {
-    runPullDownRefresh(this, [
+  getHomeRefreshLoaders() {
+    return [
       () => this.fetchPosts(1, true, true),
+      () => this.loadHotPosts(),
       () => this.loadServices(),
       () => this.loadTodaySchedule()
-    ])
+    ]
+  },
+
+  onContentRefresh() {
+    if (this.data.scrollRefreshing || this.__pullRefreshing) return
+    this.setData({ scrollRefreshing: true })
+    runPullDownRefresh(this, this.getHomeRefreshLoaders()).finally(() => {
+      this.setData({ scrollRefreshing: false })
+    })
+  },
+
+  onPullDownRefresh() {
+    runPullDownRefresh(this, this.getHomeRefreshLoaders())
   },
 
   onReachBottom() {

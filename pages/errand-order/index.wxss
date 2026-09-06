@@ -224,3 +224,43 @@
 .empty-publish-btn:active {
   transform: scale(0.96);
 }
+
+/* ===== 右侧浮动导航（发布/消息/首页，保持在右下角） ===== */
+.float-nav {
+  position: fixed;
+  right: 16rpx;
+  bottom: 200rpx;
+  z-index: 7;
+  display: flex;
+  flex-direction: column;
+  gap: 6rpx;
+  background: rgba(35, 48, 70, 0.88);
+  border-radius: 40rpx;
+  padding: 10rpx 8rpx;
+}
+
+.float-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2rpx;
+  width: 88rpx;
+  padding: 8rpx 0;
+  color: #fff;
+  border-radius: 28rpx;
+  transition: opacity 0.2s ease;
+}
+
+.float-item-hover {
+  opacity: 0.65;
+}
+
+.float-icon {
+  font-size: 32rpx;
+  line-height: 1.1;
+}
+
+.float-label {
+  font-size: 20rpx;
+  color: #cfd8e6;
+}

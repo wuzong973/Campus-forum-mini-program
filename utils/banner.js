@@ -2,21 +2,21 @@ const THEME_ASSETS = {
   schedule: {
     id: 'schedule',
     tag: '课表助手',
-    image: '/assets/banners/banner-schedule.png',
+    image: '/assets/banners/banner-schedule.jpg',
     accent: '#4A7AFF',
     link: '/pages/schedule/index'
   },
   community: {
     id: 'community',
     tag: '校园社区',
-    image: '/assets/banners/banner-community.png',
+    image: '/assets/banners/banner-community.jpg',
     accent: '#7A5AF8',
     link: '/pages/index/index'
   },
   errand: {
     id: 'errand',
     tag: '生活互助',
-    image: '/assets/banners/banner-errand.png',
+    image: '/assets/banners/banner-errand.jpg',
     accent: '#FA8C16',
     link: '/pages/errand/index'
   }

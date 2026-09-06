@@ -1,5 +1,15 @@
 <view class="page">
   <scroll-view class="publish-scroll" scroll-y enhanced show-scrollbar="{{false}}">
+    <!-- 顶部自动轮播横幅（管理后台「内容配置-发布横幅」可编辑） -->
+    <swiper class="publish-banner-swiper" wx:if="{{publishBanners.length}}" autoplay circular interval="3000" duration="500">
+      <swiper-item wx:for="{{publishBanners}}" wx:key="id">
+        <view class="publish-banner style-{{item.style}}">
+          <text class="publish-banner-icon" wx:if="{{item.icon}}">{{item.icon}}</text>
+          <text class="publish-banner-text">{{item.text}}</text>
+          <text class="publish-banner-close" data-index="{{index}}" catchtap="onClosePublishBanner">✕</text>
+        </view>
+      </swiper-item>
+    </swiper>
     <view class="editor-card">
       <view class="notice-tip"><text class="notice-mark">!</text> 禁止发布重复信息、广告营销类、含二维码等内容</view>
       <textarea class="content-input" placeholder="请输入投稿内容..." maxlength="500" value="{{content}}" bindinput="onInput" auto-height></textarea>
@@ -14,6 +24,7 @@
     <view class="settings-card">
       <view class="setting-row" bindtap="openContactSheet"><text class="setting-title">填写联系方式</text><view class="setting-value"><text>{{contactSummary}}</text><text class="chevron">›</text></view></view>
       <view class="setting-row"><view><text class="setting-title">匿名发布</text><text class="anonymous-state" wx:if="{{secondIdentity}}">将随机使用匿名头像和名称</text></view><switch checked="{{secondIdentity}}" color="#3478f6" bindchange="onSecondIdentityChange"></switch></view>
+      <view class="setting-row"><view><text class="setting-title">允许被匿名私信</text><text class="anonymous-state" wx:if="{{allowAnonymousPm}}">其他用户可用分身身份私信你</text></view><switch checked="{{allowAnonymousPm}}" color="#3478f6" bindchange="onAllowAnonymousPmChange"></switch></view>
       <view class="setting-row" bindtap="openTagPicker"><text class="setting-title">主题分类</text><view class="setting-value"><text>{{categoryIndex >= 0 ? categories[categoryIndex] : '未选择'}}</text><text class="chevron">›</text></view></view>
     </view>
     <view class="forum-tips"><view class="tips-title"><text class="notice-mark">!</text> 论坛小贴士</view><view class="tips-content"><text>普通消息免费发布；商业推广、招聘及营销内容请先</text><contact-admin class="inline-contact"><view slot="trigger" class="contact-admin">联系管理员</view></contact-admin><text>审核。请文明发言，遵守社区规则。</text></view><text class="tips-rules" bindtap="openRules">查看《社区规则》</text></view>

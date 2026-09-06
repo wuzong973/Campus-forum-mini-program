@@ -1,5 +1,6 @@
 const api = require('../../utils/api')
 const { runPullDownRefresh } = require('../../utils/refresh')
+const { buildHotPosts } = require('../../utils/hot-rank')
 
 let searchTimer = null
 
@@ -20,7 +21,8 @@ Page({
   loadTodayHot() {
     this.setData({ hotLoading: true })
     return api.getHotPostRank('today').then((res) => {
-      this.setData({ hotPosts: res.list || [], hotLoading: false })
+      // 与首页/详情页热榜一致：压平换行与连续空白，避免长文撑破单行布局
+      this.setData({ hotPosts: buildHotPosts(res.list || []), hotLoading: false })
     }).catch(() => this.setData({ hotPosts: [], hotLoading: false }))
   },
 

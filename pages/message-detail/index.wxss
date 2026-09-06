@@ -1,0 +1,206 @@
+.page {
+  min-height: 100vh;
+  padding: 24rpx;
+  box-sizing: border-box;
+}
+
+/* 评论者信息区 */
+.actor-card {
+  background: #fff;
+  border-radius: 18rpx;
+  padding: 28rpx;
+  box-shadow: 0 6rpx 18rpx rgba(35, 63, 120, 0.06);
+}
+
+.actor-head {
+  display: flex;
+  align-items: center;
+}
+
+/* 真实用户头像行可点击进主页：负 margin 扩大热区不改变排版，按压有灰底反馈 */
+.actor-link {
+  margin: -8rpx -12rpx;
+  padding: 8rpx 12rpx;
+  border-radius: 12rpx;
+  transition: background-color 0.2s;
+}
+
+.actor-head-hover {
+  background-color: #f5f7fa;
+}
+
+.actor-arrow {
+  flex-shrink: 0;
+  margin-left: 8rpx;
+  font-size: 40rpx;
+  line-height: 1;
+  color: #c0c8d4;
+}
+
+.actor-avatar {
+  width: 96rpx;
+  height: 96rpx;
+  border-radius: 50%;
+  background: #f0f2f5;
+  flex-shrink: 0;
+  margin-right: 20rpx;
+}
+
+.actor-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6rpx;
+}
+
+.actor-nick {
+  font-size: 32rpx;
+  font-weight: 700;
+  color: #17233d;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.actor-sub {
+  font-size: 24rpx;
+  color: #8490a5;
+}
+
+.actor-time {
+  flex-shrink: 0;
+  margin-left: 16rpx;
+  font-size: 24rpx;
+  color: #98a2b3;
+}
+
+.actor-content {
+  display: block;
+  margin-top: 24rpx;
+  padding-top: 24rpx;
+  border-top: 1rpx solid #eef1f6;
+  font-size: 30rpx;
+  color: #1f2d3d;
+  line-height: 1.7;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+/* 评论图片/视频：单图大图 4:3，多图 200rpx 方格网格，圆角与卡片一致 */
+.actor-media {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12rpx;
+  margin-top: 20rpx;
+}
+
+.media-img {
+  width: 200rpx;
+  height: 200rpx;
+  border-radius: 12rpx;
+  background: #f0f2f5;
+}
+
+.media-img.single {
+  width: 320rpx;
+  height: 240rpx;
+}
+
+.media-video {
+  width: 320rpx;
+  height: 240rpx;
+  border-radius: 12rpx;
+  background: #000;
+}
+
+/* 原帖分区标签 */
+.section-label {
+  margin: 28rpx 4rpx 16rpx;
+  font-size: 26rpx;
+  font-weight: 600;
+  color: #51606f;
+}
+
+/* 原帖信息区：背景色 + 边框与评论区明显区分 */
+.post-card {
+  background: #f8fafc;
+  border: 1rpx solid #dfe7f0;
+  border-radius: 18rpx;
+  padding: 28rpx;
+  transition: background-color 0.2s;
+}
+
+.post-card-hover {
+  background: #eef3fa;
+}
+
+.post-title {
+  display: block;
+  font-size: 30rpx;
+  font-weight: 700;
+  color: #17233d;
+  line-height: 1.5;
+  margin-bottom: 12rpx;
+  word-break: break-all;
+}
+
+.post-content {
+  display: block;
+  font-size: 28rpx;
+  color: #4a5568;
+  line-height: 1.7;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.post-meta {
+  margin-top: 20rpx;
+  font-size: 24rpx;
+  color: #98a2b3;
+}
+
+.post-stats {
+  display: flex;
+  gap: 32rpx;
+  margin-top: 20rpx;
+  padding-top: 20rpx;
+  border-top: 1rpx solid #e4e9f1;
+}
+
+.stat {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+  font-size: 24rpx;
+  color: #646e7c;
+}
+
+.stat-icon {
+  width: 32rpx;
+  height: 32rpx;
+}
+
+.post-fallback {
+  display: block;
+  font-size: 26rpx;
+  color: #98a2b3;
+}
+
+/* 底部按钮 */
+.view-post-btn {
+  margin: 36rpx 24rpx 48rpx;
+  height: 88rpx;
+  line-height: 88rpx;
+  text-align: center;
+  border-radius: 44rpx;
+  background: #4a7aff;
+  color: #fff;
+  font-size: 30rpx;
+  font-weight: 600;
+  transition: opacity 0.2s;
+}
+
+.btn-hover {
+  opacity: 0.85;
+}

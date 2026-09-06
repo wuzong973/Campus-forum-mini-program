@@ -1,7 +1,7 @@
 const pool = require('../config/pool')
 const { success, fail } = require('../middleware/auth')
 const { clampPageSize, safeMessage } = require('../utils/helpers')
-const { createNotification } = require('../services/notificationService')
+const { createNotification, withMediaPlaceholder } = require('../services/notificationService')
 
 function parseJson(value) {
   if (!value) return null
@@ -37,7 +37,7 @@ exports.list = async (req, res) => {
     const [countRows] = await pool.query('SELECT COUNT(*) as total FROM forum_comment WHERE post_id = ? AND status = 1', [postId])
     const userId = req.userId || 0
     const [rows] = await pool.query(
-      `SELECT c.*, u.nick_name, u.avatar_url,
+      `SELECT c.*, u.nick_name, u.avatar_url, u.allow_anonymous_pm,
         (SELECT COALESCE(JSON_UNQUOTE(JSON_EXTRACT(fc2.anonymous_identity, '$.nickName')), u2.nick_name) FROM forum_comment fc2 LEFT JOIN sys_user u2 ON fc2.user_id = u2.id WHERE fc2.id = c.parent_id) AS parent_nick_name,
         IF(EXISTS(SELECT 1 FROM forum_comment_like WHERE comment_id = c.id AND user_id = ?), 1, 0) AS is_liked
        FROM forum_comment c LEFT JOIN sys_user u ON c.user_id = u.id WHERE c.post_id = ? AND c.status = 1 ORDER BY ${sort === 'time' ? 'c.created_at DESC' : 'c.like_count DESC, c.created_at ASC'} LIMIT ? OFFSET ?`,
@@ -64,14 +64,21 @@ exports.like = async (req, res) => {
       // 点赞
       await pool.query('INSERT INTO forum_comment_like (comment_id, user_id) VALUES (?, ?)', [commentId, req.userId])
       await pool.query('UPDATE forum_comment SET like_count = like_count + 1 WHERE id = ?', [commentId])
-      const [comments] = await pool.query('SELECT user_id, post_id, content FROM forum_comment WHERE id = ?', [commentId])
+      const [comments] = await pool.query('SELECT user_id, post_id, content, images FROM forum_comment WHERE id = ?', [commentId])
       if (comments.length && Number(comments[0].user_id) !== Number(req.userId)) {
+        const [actors] = await pool.query('SELECT id, nick_name, avatar_url FROM sys_user WHERE id = ?', [req.userId])
+        const actor = actors.length ? { id: actors[0].id, nickName: actors[0].nick_name, avatarUrl: actors[0].avatar_url } : null
+        const [posts] = await pool.query('SELECT title FROM forum_post WHERE id = ?', [comments[0].post_id])
         createNotification({
           userId: comments[0].user_id,
           type: 'like',
           title: '你的评论收到了点赞',
-          content: comments[0].content.slice(0, 200),
-          relatedId: comments[0].post_id
+          content: withMediaPlaceholder(String(comments[0].content || '').slice(0, 200), parseJson(comments[0].images)),
+          relatedId: comments[0].post_id,
+          actorUserId: actor ? actor.id : null,
+          actorNick: actor ? actor.nickName : '',
+          actorAvatar: actor ? actor.avatarUrl : '',
+          postTitle: posts.length ? (posts[0].title || '') : ''
         }).catch(() => {})
       }
       success(res, { liked: true })
@@ -105,7 +112,7 @@ exports.create = async (req, res) => {
   try {
     const normalizedAnonymousIdentity = parseAnonymousIdentity(anonymousIdentity)
     if (anonymousIdentity && !normalizedAnonymousIdentity) return fail(res, '匿名身份格式不正确')
-    const [posts] = await pool.query('SELECT id, user_id FROM forum_post WHERE id = ? AND status = 1', [postId])
+    const [posts] = await pool.query('SELECT id, user_id, title FROM forum_post WHERE id = ? AND status = 1', [postId])
     if (!posts.length) return fail(res, '帖子不存在', 404)
     const imagesJson = Array.isArray(images) ? JSON.stringify(images) : null
     const [result] = await pool.query(
@@ -114,12 +121,25 @@ exports.create = async (req, res) => {
     )
     await pool.query('UPDATE forum_post SET comment_count = comment_count + 1 WHERE id = ?', [postId])
     if (Number(posts[0].user_id) !== Number(req.userId)) {
+      // 通知快照：匿名评论用匿名形象，否则用评论者真实资料
+      let actor = normalizedAnonymousIdentity
+        ? { id: null, nickName: normalizedAnonymousIdentity.nickName, avatarUrl: normalizedAnonymousIdentity.avatarUrl }
+        : null
+      if (!actor) {
+        const [actors] = await pool.query('SELECT id, nick_name, avatar_url FROM sys_user WHERE id = ?', [req.userId])
+        actor = actors.length ? { id: actors[0].id, nickName: actors[0].nick_name, avatarUrl: actors[0].avatar_url } : null
+      }
       createNotification({
         userId: posts[0].user_id,
         type: 'comment',
         title: '你的帖子有新评论',
-        content: content.trim().slice(0, 200),
-        relatedId: postId
+        content: withMediaPlaceholder(content.trim().slice(0, 200), images),
+        relatedId: postId,
+        actorUserId: actor ? actor.id : null,
+        actorNick: actor ? actor.nickName : '',
+        actorAvatar: actor ? actor.avatarUrl : '',
+        postTitle: posts[0].title || '',
+        commentImages: Array.isArray(images) ? images : []
       }).catch(() => {})
     }
     success(res, { id: result.insertId })

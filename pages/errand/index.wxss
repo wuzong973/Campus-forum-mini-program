@@ -92,14 +92,20 @@
   text-decoration: underline;
 }
 
-/* ===== 公告栏 ===== */
+/* ===== 公告栏（自动轮播） ===== */
+.notice-swiper {
+  height: 88rpx;
+  margin-top: 16rpx;
+}
+
 .notice-bar {
   display: flex;
   align-items: center;
   gap: 12rpx;
-  margin: 16rpx 24rpx 0;
+  margin: 0 24rpx;
   padding: 16rpx 20rpx;
   border-radius: 14rpx;
+  box-sizing: border-box;
 }
 
 .notice-yellow { background: #fff8e6; }
@@ -122,6 +128,15 @@
 
 .notice-yellow .notice-text { color: #b25e00; }
 .notice-red .notice-text { color: #d83931; }
+
+/* 公告栏内可点击的"管理员"：蓝色加粗下划线，点击弹出管理员微信二维码（与首页公告栏一致） */
+.notice-admin {
+  color: #0066cc;
+  font-weight: 600;
+  text-decoration: underline;
+}
+
+.notice-admin:active { opacity: 0.6; }
 
 .notice-close {
   flex-shrink: 0;
@@ -244,7 +259,17 @@
   margin-left: 16rpx;
 }
 
+/* 昵称行：昵称 + 校区标签 + 性别限制标签（图四圈注位置） */
+.card-name-row {
+  display: flex;
+  align-items: center;
+  gap: 10rpx;
+  min-width: 0;
+}
+
 .card-name {
+  flex: 1;
+  min-width: 0;
   font-size: 30rpx;
   font-weight: 700;
   color: #1f2b43;
@@ -253,28 +278,54 @@
   white-space: nowrap;
 }
 
+.card-tag {
+  flex-shrink: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 2rpx 12rpx;
+  border-radius: 8rpx;
+  font-size: 22rpx;
+  line-height: 1.4;
+  box-sizing: border-box;
+}
+
+/* 校区标签：蓝框白底（图四"南海北校区"样式） */
+.tag-campus {
+  border: 2rpx solid #4388ff;
+  background: #ffffff;
+  color: #4388ff;
+}
+
+/* 性别限制标签：浅色填充，按限制值区分颜色 */
+.tag-gender-male { background: #e8f1ff; color: #3478f6; }
+.tag-gender-female { background: #ffeef4; color: #f0479c; }
+.tag-gender-any { background: #f1f3f6; color: #8a94a6; }
+
 .card-time {
   font-size: 22rpx;
   color: #a5adbb;
 }
 
-/* 姓名行 + 校区标签（发单者姓名右侧） */
-.card-name-row {
+/* 描述行：公开描述 + 右侧红色金额（图二版式） */
+.card-desc-row {
   display: flex;
-  align-items: center;
-  gap: 10rpx;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 20rpx;
+}
+
+.card-desc-row .card-title {
+  flex: 1;
   min-width: 0;
 }
 
-.campus-tag {
+.card-desc-row .amount-price {
   flex-shrink: 0;
-  padding: 2rpx 12rpx;
-  border: 2rpx solid var(--primary);
-  border-radius: 8rpx;
-  background: #eef4ff;
-  color: var(--primary);
-  font-size: 20rpx;
-  line-height: 1.5;
+  font-size: 32rpx;
+  font-weight: 700;
+  color: #e64340;
 }
 
 /* 右上角状态胶囊（图三样式） */
@@ -317,30 +368,12 @@
   line-height: 1.5;
 }
 
-/* 底部：金额 + 操作按钮 */
+/* 底部：操作按钮 */
 .card-foot {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   margin-top: 26rpx;
-}
-
-.amount-wrap {
-  display: flex;
-  align-items: baseline;
-  min-width: 0;
-}
-
-.amount-label {
-  font-size: 26rpx;
-  color: #2a3547;
-}
-
-.amount-price {
-  margin-left: 10rpx;
-  font-size: 34rpx;
-  font-weight: 700;
-  color: #e64340;
 }
 
 .foot-actions {
@@ -415,43 +448,46 @@
   transform: scale(0.97);
 }
 
-/* ===== 底部 Tabbar ===== */
-.sub-tabbar {
+/* ===== 右侧浮动导航（发布/消息/首页，保持在右下角） ===== */
+.float-nav {
   position: fixed;
-  bottom: calc(104rpx + env(safe-area-inset-bottom));
-  left: 0;
-  right: 0;
-  height: 120rpx;
-  background: var(--card-bg);
+  right: 16rpx;
+  /* 自定义 tabBar 上方，保持页面右下角 */
+  bottom: calc(200rpx + env(safe-area-inset-bottom));
+  z-index: 7;
   display: flex;
-  border-top: 1rpx solid var(--border);
-  z-index: 50;
+  flex-direction: column;
+  gap: 6rpx;
+  background: rgba(35, 48, 70, 0.88);
+  border-radius: 40rpx;
+  padding: 10rpx 8rpx;
 }
 
-.sub-tab {
-  flex: 1;
+.float-item {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  gap: 8rpx;
-  font-size: 24rpx;
-  color: var(--text-tertiary);
-  transition: var(--transition-fast);
+  gap: 2rpx;
+  width: 88rpx;
+  padding: 8rpx 0;
+  color: #fff;
+  border-radius: 28rpx;
+  transition: opacity 0.2s ease;
 }
 
-.sub-tab:active {
-  transform: scale(0.94);
-  opacity: 0.85;
+.float-item-hover {
+  opacity: 0.65;
 }
 
-.sub-tab.active {
-  color: var(--primary);
-  font-weight: 500;
+.float-icon {
+  font-size: 32rpx;
+  line-height: 1.1;
 }
 
-.sub-icon {
-  width: 40rpx;
-  height: 40rpx;
+.float-label {
+  font-size: 20rpx;
+  color: #cfd8e6;
 }
+
+/* ===== 底部 Tabbar（已移除，由全局自定义 tabbar 承担导航） ===== */
 

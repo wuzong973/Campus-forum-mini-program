@@ -1,7 +1,7 @@
 const profileCovers = {
-  community: "/assets/banners/banner-community.png",
-  schedule: "/assets/banners/banner-schedule.png",
-  errand: "/assets/banners/banner-errand.png",
+  community: "/assets/banners/profile-cover.jpg",
+  schedule: "/assets/banners/banner-schedule.jpg",
+  errand: "/assets/banners/banner-errand.jpg",
 };
 
 const banners = [
@@ -304,8 +304,8 @@ const posts = [
     content:
       "最近准备去鼎湖山徒步，第一次认真买装备，预算在 150 左右。想问下大家更推荐全碳还是铝合金，主要担心耐用和重量之间怎么平衡。如果有你们正在用的型号，也欢迎直接甩链接或者使用体验。",
     images: [
-      "/assets/banners/banner-community.png",
-      "/assets/banners/banner-schedule.png",
+      "/assets/banners/banner-community.jpg",
+      "/assets/banners/banner-schedule.jpg",
     ],
     viewCount: 2651,
     likeCount: 396,
@@ -329,7 +329,7 @@ const posts = [
     title: "阿根廷球衣这个配色真的很适合夏天",
     content:
       "今天在校门口看到这件蓝白条真的很上镜，准备周末拍一组操场写真。顺便问下，有没有人想一起拼个摄影外拍？我可以负责修图和调色。",
-    images: ["/assets/banners/banner-community.png"],
+    images: ["/assets/banners/banner-community.jpg"],
     viewCount: 1948,
     likeCount: 651,
     commentCount: 143,
@@ -374,7 +374,7 @@ const posts = [
     title: "收世界旅游地理和英语期末复习资料",
     content:
       "优先收有笔记的教材，也可以交换我手里的机械制图参考书。佛山校区线下自提，有意向的同学留言或者私信都可以。",
-    images: ["/assets/banners/banner-schedule.png"],
+    images: ["/assets/banners/banner-schedule.jpg"],
     viewCount: 418,
     likeCount: 86,
     commentCount: 27,
@@ -442,7 +442,7 @@ const posts = [
     title: "周五晚上篮球约战，3v3 半场",
     content:
       "这周五晚上 7 点，南校区篮球场 3 号场，3v3 半场。\n\n目前已有 4 人，还差 2 人。\n\n要求：有一定篮球基础，能跑能跳就行。\n\n自带水，场费 AA。\n\n评论区报名！",
-    images: ["/assets/banners/banner-community.png"],
+    images: ["/assets/banners/banner-community.jpg"],
     viewCount: 892,
     likeCount: 167,
     commentCount: 45,
@@ -464,7 +464,7 @@ const posts = [
     title: "校园樱花开了，分享一组美图",
     content:
       "今天路过行政楼发现樱花开了！超级美！\n\n最佳观赏地点：\n- 行政楼前大道\n- 图书馆东侧小路\n- 南门入口\n\n推荐早上或傍晚去拍照，光线最好。\n\n花期大概还有一周，想看的同学抓紧啦～",
-    images: ["/assets/banners/banner-community.png", "/assets/banners/banner-schedule.png"],
+    images: ["/assets/banners/banner-community.jpg", "/assets/banners/banner-schedule.jpg"],
     viewCount: 2134,
     likeCount: 567,
     commentCount: 78,

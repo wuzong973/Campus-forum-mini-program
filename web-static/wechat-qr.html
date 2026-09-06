@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>添加管理员微信</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    min-height: 100vh;
+    background: #f2f5f9;
+    font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Helvetica Neue", sans-serif;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 32px 20px;
+  }
+  .card {
+    width: 100%;
+    max-width: 420px;
+    background: #fff;
+    border-radius: 16px;
+    padding: 30px 22px 32px;
+    box-shadow: 0 12px 40px rgba(16, 33, 58, .12);
+    text-align: center;
+  }
+  h1 { color: #18263d; font-size: 21px; font-weight: 700; }
+  .tip { margin-top: 8px; color: #8b97a8; font-size: 13px; }
+  .qr {
+    display: block;
+    width: min(72vw, 300px);
+    margin: 20px auto 0;
+  }
+  .hint { margin-top: 18px; color: #25b978; font-size: 14px; font-weight: 600; }
+</style>
+</head>
+<body>
+  <div class="card">
+    <h1>添加管理员微信</h1>
+    <p class="tip">长按下方二维码，识别并添加管理员好友</p>
+    <img class="qr" src="/assets/admin-wechat-qr.png" alt="管理员微信二维码">
+    <p class="hint">长按上方图片 → 识别图中二维码</p>
+  </div>
+</body>
+</html>

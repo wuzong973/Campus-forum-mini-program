@@ -1,4 +1,5 @@
 const path = require("path");
+const fs = require("fs");
 require("dotenv").config({ path: path.resolve(__dirname, ".env") });
 const express = require("express");
 const cors = require("cors");
@@ -16,10 +17,15 @@ function assertProductionConfig() {
   const required = [
     "JWT_SECRET", "DB_HOST", "DB_USER", "DB_PASSWORD", "WX_APPID", "WX_APPSECRET",
     "WX_MCH_ID", "WX_SERIAL_NO", "WX_APIV3_KEY", "WX_PLATFORM_PUBLIC_KEY",
-    "WX_PRIVATE_KEY", "WX_PAY_NOTIFY_URL", "UPLOAD_PUBLIC_BASE_URL", "UPLOAD_STORAGE_DRIVER", "CORS_ORIGIN"
+    "WX_PAY_NOTIFY_URL", "UPLOAD_PUBLIC_BASE_URL", "UPLOAD_STORAGE_DRIVER", "CORS_ORIGIN"
   ]
   const placeholders = new Set(["", "change_me_in_local_only", "your_appid", "your_appsecret", "replace-with-secret-manager"])
   const missing = required.filter((key) => placeholders.has(String(process.env[key] || "").trim()))
+  // WX_PRIVATE_KEY 允许由服务器证书文件回退提供（见 config/wechatPay.js）
+  const payKeyPath = `${process.env.WX_PAY_CERT_DIR || "/www/wxpay_cert"}/apiclient_key.pem`
+  if (placeholders.has(String(process.env.WX_PRIVATE_KEY || "").trim()) && !fs.existsSync(payKeyPath)) {
+    missing.push("WX_PRIVATE_KEY")
+  }
   if (missing.length) {
     console.error(`生产环境缺少必需配置：${missing.join(", ")}`)
     process.exit(1)
@@ -37,6 +43,7 @@ const postRoutes = require("./routes/postRoutes");
 const commentRoutes = require("./routes/commentRoutes");
 const shareRoutes = require("./routes/shareRoutes");
 const messageRoutes = require("./routes/messageRoutes");
+const configRoutes = require("./routes/configRoutes");
 const scheduleRoutes = require("./routes/scheduleRoutes");
 const errandRoutes = require("./routes/errandRoutes");
 const serviceRoutes = require("./routes/serviceRoutes");
@@ -101,6 +108,7 @@ app.use("/api/v1/post", featureFlag("community.enabled"), postRoutes);
 app.use("/api/v1/comment", featureFlag("community.enabled"), commentRoutes);
 app.use("/api/v1/share", featureFlag("community.enabled"), shareRoutes);
 app.use("/api/v1/message", messageRoutes);
+app.use("/api/v1/config", configRoutes);
 app.use("/api/v1/schedule", featureFlag("schedule.enabled"), scheduleRoutes);
 app.use("/api/v1/errand", featureFlag("errand.enabled"), errandRoutes);
 app.use("/api/v1/service", serviceRoutes);
@@ -118,7 +126,16 @@ app.use(errorHandler);
 let server = null;
 
 async function start() {
-  await runMigrations();
+  // 数据库未就绪时原地重试而不是退出，避免 pm2 崩溃循环后进入 errored 状态不再拉起
+  for (let attempt = 1; ; attempt++) {
+    try {
+      await runMigrations();
+      break;
+    } catch (err) {
+      console.error(`[Startup] 数据库初始化失败（第 ${attempt} 次）:`, err.message);
+      await new Promise((resolve) => setTimeout(resolve, Math.min(attempt * 1000, 10000)));
+    }
+  }
   server = app.listen(PORT, () => {
     console.log(`广轻工后端服务运行在端口 ${PORT}`);
   });

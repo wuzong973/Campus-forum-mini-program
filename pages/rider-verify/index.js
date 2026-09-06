@@ -11,19 +11,37 @@ Page({
     navBarHeight: 44,
     stage: 'overview',
     campusVerified: false,
-    realNameVerified: false,
     phoneBound: false,
     campusName: '',
     studentId: '',
     campusCredential: '',
-    realName: '',
-    identityNumber: '',
-    identityCredential: '',
     campusAgreed: false,
-    realAgreed: false,
     submitting: false,
-    showContactPopup: false,
-    showQrPopup: false
+    verificationStatus: 'none',
+    reviewNote: '',
+    showPhoneModal: false,
+    phoneInput: '',
+    savingPhone: false,
+    overviewSteps: [],
+    formSteps: []
+  },
+
+  // 步骤条：① 校园认证 → ② 认证审核 → ③ 完成认证 → ④ 成为骑手
+  // none/rejected=第①步进行中；pending=①已完成②进行中；approved=①②③已完成④进行中
+  buildSteps(status) {
+    const labels = ['① 校园认证', '② 认证审核', '③ 完成认证', '④ 成为骑手']
+    const activeIndex = status === 'pending' ? 1 : (status === 'approved' ? 3 : 0)
+    return labels.map((label, index) => ({
+      label,
+      cls: index < activeIndex ? 'done' : (index === activeIndex ? 'active' : '')
+    }))
+  },
+
+  updateSteps() {
+    this.setData({
+      overviewSteps: this.buildSteps(this.data.verificationStatus),
+      formSteps: this.buildSteps('none')
+    })
   },
 
   onLoad() {
@@ -47,21 +65,28 @@ Page({
 
   loadServerVerification() {
     if (request.USE_MOCK) return
-    request.get('/user/rider-verification', {}, true)
-      .then((data) => {
-        if (data && data.status) {
-          const saved = wx.getStorageSync(VERIFY_KEY) || {}
-          wx.setStorageSync(VERIFY_KEY, Object.assign({}, saved, {
-            verificationStatus: data.status,
-            reviewNote: data.reviewNote || ''
-          }))
-          this.setData({
-            verificationStatus: data.status,
-            reviewNote: data.reviewNote || ''
-          })
-        }
+    request.get('/user/rider-verification', {}, true).then((data) => {
+      if (!data || !data.status || data.status === 'none') return
+      const saved = wx.getStorageSync(VERIFY_KEY) || {}
+      const campusVerified = ['pending', 'approved'].indexOf(data.status) >= 0
+      wx.setStorageSync(VERIFY_KEY, Object.assign({}, saved, {
+        campusVerified,
+        verificationStatus: data.status,
+        reviewNote: data.reviewNote || '',
+        campusName: data.campusName || saved.campusName || '',
+        studentId: data.studentId || saved.studentId || '',
+        campusCredential: data.campusCredential || saved.campusCredential || ''
+      }))
+      this.setData({
+        campusVerified,
+        verificationStatus: data.status,
+        reviewNote: data.reviewNote || '',
+        campusName: data.campusName || this.data.campusName,
+        studentId: data.studentId || this.data.studentId,
+        campusCredential: data.campusCredential || this.data.campusCredential
       })
-      .catch(() => {})
+      this.updateSteps()
+    }).catch(() => {})
   },
 
   refreshVerification() {
@@ -69,17 +94,14 @@ Page({
     const status = auth.getRunnerVerification()
     this.setData({
       campusVerified: status.campusVerified,
-      realNameVerified: status.realNameVerified,
       phoneBound: status.phoneBound,
       verificationStatus: saved.verificationStatus || status.verificationStatus || 'none',
       reviewNote: saved.reviewNote || status.reviewNote || '',
       campusName: saved.campusName || this.data.campusName,
       studentId: saved.studentId || this.data.studentId,
-      campusCredential: saved.campusCredential || this.data.campusCredential,
-      realName: saved.realName || this.data.realName,
-      identityNumber: saved.identityNumber || this.data.identityNumber,
-      identityCredential: saved.identityCredential || this.data.identityCredential
+      campusCredential: saved.campusCredential || this.data.campusCredential
     })
+    this.updateSteps()
   },
 
   goBack() {
@@ -90,43 +112,32 @@ Page({
     this.setData({ stage: 'overview' })
   },
 
-  enterStage(e) {
-    const stage = e.currentTarget.dataset.stage
-    if (stage === 'campus' && this.data.campusVerified) return
-    if (stage === 'realname' && !this.data.campusVerified) {
-      wx.showToast({ title: '请先完成校园认证', icon: 'none' })
-      return
-    }
-    if (stage === 'realname' && this.data.realNameVerified) return
-    this.setData({ stage })
-  },
-
   startVerify() {
-    if (!this.data.campusVerified) return this.setData({ stage: 'campus' })
-    if (!this.data.realNameVerified) return this.setData({ stage: 'realname' })
-    if (!this.data.phoneBound) {
-      wx.showToast({ title: '请授权绑定联系手机号', icon: 'none' })
+    if (this.data.verificationStatus === 'approved') {
+      wx.showToast({ title: '已具备接单资格', icon: 'success' })
       return
     }
-    wx.showToast({ title: '已具备接单资格', icon: 'success' })
+    if (this.data.verificationStatus === 'pending') {
+      wx.showToast({ title: '认证审核中，请耐心等待', icon: 'none' })
+      return
+    }
+    this.setData({ stage: 'campus' })
   },
 
   onInput(e) {
     this.setData({ [e.currentTarget.dataset.field]: e.detail.value })
   },
 
-  toggleAgreement(e) {
-    const field = e.currentTarget.dataset.field
-    this.setData({ [field]: !this.data[field] })
+  toggleAgreement() {
+    this.setData({ campusAgreed: !this.data.campusAgreed })
   },
 
-  chooseCredential(e) {
-    const field = e.currentTarget.dataset.field
+  chooseCredential() {
     wx.chooseMedia({
       count: 1,
       mediaType: ['image'],
       sourceType: ['album', 'camera'],
-      success: (res) => this.setData({ [field]: res.tempFiles[0].tempFilePath })
+      success: (res) => this.setData({ campusCredential: res.tempFiles[0].tempFilePath })
     })
   },
 
@@ -141,7 +152,7 @@ Page({
   },
 
   submitCampus() {
-    const { campusName, studentId, campusCredential, campusAgreed } = this.data
+    const { campusName, studentId, campusCredential, campusAgreed, phoneBound } = this.data
     if (!campusName.trim() || !studentId.trim()) {
       wx.showToast({ title: '请填写姓名和学号', icon: 'none' })
       return
@@ -154,85 +165,95 @@ Page({
       wx.showToast({ title: '请上传学生证或校园卡', icon: 'none' })
       return
     }
-    if (!campusAgreed) {
-      wx.showToast({ title: '请阅读并同意相关协议', icon: 'none' })
-      return
-    }
-    this.saveVerification({ campusVerified: true, campusName: campusName.trim(), studentId: studentId.trim(), campusCredential })
-    this.setData({ campusVerified: true, stage: 'realname' })
-    wx.showToast({ title: '校园认证已完成', icon: 'success' })
-  },
-
-  submitRealName() {
-    const { realName, identityNumber, identityCredential, realAgreed, studentId, campusName, campusCredential, phoneBound } = this.data
-    if (!realName.trim() || !identityNumber.trim()) {
-      wx.showToast({ title: '请填写真实姓名和身份证号', icon: 'none' })
-      return
-    }
-    if (!/(^\d{15}$)|(^\d{17}[\dXx]$)/.test(identityNumber.trim())) {
-      wx.showToast({ title: '请输入有效身份证号', icon: 'none' })
-      return
-    }
-    if (!identityCredential) {
-      wx.showToast({ title: '请上传身份证照片', icon: 'none' })
-      return
-    }
-    if (!realAgreed) {
-      wx.showToast({ title: '请阅读并同意相关协议', icon: 'none' })
-      return
-    }
     if (!phoneBound) {
       wx.showToast({ title: '请先绑定联系手机号', icon: 'none' })
       return
     }
-    this.setData({ submitting: true })
-    const finish = (data) => {
-      this.saveVerification({ realNameVerified: true, realName: realName.trim(), identityNumber: identityNumber.trim(), identityCredential })
-      this.setData({ realNameVerified: true, stage: 'overview', submitting: false, verificationStatus: 'pending' })
-      wx.showToast({ title: data && data.message || '认证信息已提交，等待审核', icon: 'success' })
-    }
-    if (request.USE_MOCK) {
-      finish()
+    if (!campusAgreed) {
+      wx.showToast({ title: '请阅读并同意相关协议', icon: 'none' })
       return
     }
-    const app = getApp()
-    const userInfo = app.globalData.userInfo || wx.getStorageSync('userInfo') || {}
-    request.post('/user/rider-verification', {
-      campusName: campusName.trim(),
-      studentId: studentId.trim(),
-      campusCredential,
-      realName: realName.trim(),
-      identityNumber: identityNumber.trim(),
-      identityCredential,
-      phone: userInfo.phone || ''
-    }, true)
-      .then((data) => finish(data))
+
+    this.setData({ submitting: true })
+    const submit = (credential) => {
+      const userInfo = getApp().globalData.userInfo || wx.getStorageSync('userInfo') || {}
+      return request.post('/user/rider-verification', {
+        campusName: campusName.trim(),
+        studentId: studentId.trim(),
+        campusCredential: credential,
+        phone: userInfo.phone || ''
+      }, true)
+    }
+    const finish = (data, credential) => {
+      this.saveVerification({
+        campusVerified: true,
+        campusName: campusName.trim(),
+        studentId: studentId.trim(),
+        campusCredential: credential,
+        verificationStatus: 'pending',
+        reviewNote: ''
+      })
+      this.setData({
+        campusVerified: true,
+        campusCredential: credential,
+        stage: 'overview',
+        submitting: false,
+        verificationStatus: 'pending',
+        reviewNote: ''
+      })
+      this.updateSteps()
+      wx.showToast({ title: (data && data.message) || '认证信息已提交，等待审核', icon: 'success' })
+    }
+
+    if (request.USE_MOCK) {
+      finish(null, campusCredential)
+      return
+    }
+    wechat.uploadImages([campusCredential])
+      .then((urls) => {
+        const credential = urls[0]
+        if (!credential) throw new Error('证件上传失败，请重试')
+        return submit(credential).then((data) => finish(data, credential))
+      })
       .catch((error) => {
         this.setData({ submitting: false })
         wx.showToast({ title: error.message || '认证提交失败', icon: 'none' })
       })
   },
 
-  onGetPhoneNumber(e) {
-    const phoneCode = e && e.detail && e.detail.code
-    if (!phoneCode) {
-      wx.showToast({ title: '请授权微信手机号后重试', icon: 'none' })
+  openPhoneModal() {
+    this.setData({ showPhoneModal: true, phoneInput: '' })
+  },
+
+  closePhoneModal() {
+    if (this.data.savingPhone) return
+    this.setData({ showPhoneModal: false })
+  },
+
+  onPhoneInput(e) {
+    this.setData({ phoneInput: e.detail.value })
+  },
+
+  confirmPhone() {
+    const phone = String(this.data.phoneInput || '').trim()
+    if (!/^1[3-9]\d{9}$/.test(phone)) {
+      wx.showToast({ title: '请输入正确的11位手机号', icon: 'none' })
       return
     }
-    wechat.updatePhone(phoneCode).then((data) => {
+    if (this.data.savingPhone) return
+    this.setData({ savingPhone: true })
+    wechat.savePhone(phone).then((data) => {
       const app = getApp()
-      app.globalData.userInfo = Object.assign({}, app.globalData.userInfo, { phone: data.phone })
+      app.globalData.userInfo = Object.assign({}, app.globalData.userInfo, { phone: (data && data.phone) || phone })
       wx.setStorageSync('userInfo', app.globalData.userInfo)
-      this.setData({ phoneBound: true })
-      wx.showToast({ title: '联系手机号已绑定', icon: 'success' })
-    }).catch((error) => wx.showToast({ title: error.message || '手机号绑定失败', icon: 'none' }))
+      this.setData({ phoneBound: true, showPhoneModal: false, savingPhone: false })
+      wx.showToast({ title: '联系手机号已更新', icon: 'success' })
+    }).catch((error) => {
+      this.setData({ savingPhone: false })
+      wx.showToast({ title: error.message || '手机号保存失败', icon: 'none' })
+    })
   },
 
-  openAgreement() {
-    wx.navigateTo({ url: '/pages/agreement/index' })
-  },
-
-  openPrivacy() {
-    wx.navigateTo({ url: '/pages/privacy/index' })
-  }
+  openAgreement() { wx.navigateTo({ url: '/pages/agreement/index' }) },
+  openPrivacy() { wx.navigateTo({ url: '/pages/privacy/index' }) }
 })

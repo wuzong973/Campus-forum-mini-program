@@ -31,4 +31,9 @@ router.post('/withdrawals/:id/review', requireAdmin('payment.manage'), walletCon
 router.get('/rider-verifications', requireAdmin('user.manage'), controller.listRiderVerifications)
 router.post('/rider-verifications/:id/review', requireAdmin('user.manage'), controller.reviewRiderVerification)
 
+// 管理员账号管理 / 操作日志（admin.manage 权限仅超级管理员持有）
+router.get('/admins', requireAdmin('admin.manage'), controller.listAdmins)
+router.post('/admins', requireAdmin('admin.manage'), controller.createAdmin)
+router.get('/audit-logs', requireAdmin('admin.manage'), controller.listAuditLogs)
+
 module.exports = router

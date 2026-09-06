@@ -1,0 +1,43 @@
+<view class="page">
+  <!-- 自定义导航栏：点击标题切换时间段 -->
+  <view class="custom-nav" style="padding-top: {{statusBarHeight}}px;">
+    <view class="nav-inner">
+      <view class="nav-back" hover-class="nav-back-pressed" hover-stay-time="120" bindtap="goBack">‹ 返回</view>
+      <view class="nav-title" bindtap="toggleMenu">
+        <text>{{currentLabel}}</text>
+        <text class="nav-title-arrow {{menuVisible ? 'up' : ''}}">▼</text>
+      </view>
+    </view>
+  </view>
+  <view class="nav-space" style="height: {{statusBarHeight + 56}}px;"></view>
+
+  <!-- 顶部海报：底部渐变融入页面背景 -->
+  <view class="hot-poster-wrap">
+    <image class="hot-poster" src="/assets/banners/hot-rank-poster.jpg" mode="widthFix"></image>
+    <view class="hot-poster-fade"></view>
+  </view>
+
+  <!-- 帖子榜单 -->
+  <view class="hot-list" wx:if="{{posts.length}}">
+    <post-card wx:for="{{posts}}" wx:key="id" post="{{item}}" />
+  </view>
+  <empty-state wx:elif="{{!loading}}" text="暂无上榜帖子" icon="🔥" />
+  <view class="hot-loading" wx:else>榜单更新中...</view>
+
+  <!-- 时间段下拉菜单 -->
+  <view class="hot-menu-mask" wx:if="{{menuVisible}}" bindtap="closeMenu"></view>
+  <view class="hot-menu" wx:if="{{menuVisible}}" style="top: {{statusBarHeight + 64}}px;">
+    <view
+      class="hot-menu-option"
+      wx:for="{{periods}}"
+      wx:key="key"
+      data-index="{{index}}"
+      bindtap="onPeriodTap"
+    >
+      <text wx:if="{{index === periodIndex}}" class="hot-menu-check">✓</text>
+      <text>{{item.label}}</text>
+    </view>
+    <view class="hot-menu-gap"></view>
+    <view class="hot-menu-option cancel" bindtap="onCancelMenu">取消</view>
+  </view>
+</view>

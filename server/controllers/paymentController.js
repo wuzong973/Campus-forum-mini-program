@@ -216,11 +216,12 @@ async function reserveErrandRefund(orderId, userId) {
   const conn = await pool.getConnection()
   try {
     await conn.beginTransaction()
+    // userId 为空时跳过发布者校验（接单方取消/审批通过的场景由调用方先完成鉴权）
     const [rows] = await conn.query(
       `SELECT e.*, p.id payment_id, p.amount_fen, p.status transaction_status, p.merchant_order_no, p.wx_transaction_id
        FROM errand_order e LEFT JOIN payment_transaction p ON p.business_type = 'errand' AND p.business_order_id = e.id
-       WHERE e.id = ? AND e.publisher_id = ? FOR UPDATE`,
-      [orderId, userId]
+       WHERE e.id = ?${userId ? ' AND e.publisher_id = ?' : ''} FOR UPDATE`,
+      userId ? [orderId, userId] : [orderId]
     )
     const order = rows[0]
     if (!order || !['pending', 'accepted', 'cancelled'].includes(order.status)) { await conn.rollback(); return { error: 'Order is not cancellable', code: 409 } }
@@ -282,6 +283,16 @@ exports.cancelErrand = async (req, res) => {
   } catch (error) {
     fail(res, 'Order cancelled, but automatic refund could not be started', 502)
   }
+}
+
+// 接单方取消接单/发单人同意取消后调用：终止订单并把赏金原路退回支付者微信账户。
+// 调用方需先完成鉴权与状态校验；对已取消的订单幂等（只补发起退款）。
+exports.cancelErrandAndRefund = async (orderId) => {
+  const reserved = await reserveErrandRefund(orderId, null)
+  if (reserved.error) throw new Error(reserved.error)
+  if (!reserved.refund) return { refund: null }
+  const refund = await submitErrandRefund(reserved.refund)
+  return { refund }
 }
 
 exports.createRefund = async (req, res) => {

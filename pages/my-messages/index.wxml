@@ -45,9 +45,21 @@
   <view class="msg-list" wx:if="{{activeTab !== 0}}">
     <view class="msg-item card {{item.read ? '' : 'unread'}}" wx:for="{{messages}}" wx:key="id" data-id="{{item.id}}" bindtap="onOpenNotification">
       <view class="msg-dot" wx:if="{{!item.read}}"></view>
-      <text class="msg-title text-h3">{{item.title}}</text>
-      <text class="msg-content text-body">{{item.content}}</text>
-      <text class="msg-time text-caption">{{item.time}}</text>
+      <view class="msg-row">
+        <image wx:if="{{activeTab === 1 || activeTab === 2}}" class="msg-avatar" src="{{item.actorAvatar || '/assets/icons/avatar.png'}}" mode="aspectFill"></image>
+        <view class="msg-main">
+          <view class="msg-head">
+            <text class="msg-title text-h3">{{item.title}}</text>
+            <text class="msg-time text-caption">{{item.time}}</text>
+          </view>
+          <text class="msg-actor" wx:if="{{item.actorNick}}">{{item.actorNick}}</text>
+          <text class="msg-content text-body" wx:if="{{item.content && item.content !== item.postTitle}}">{{item.content}}</text>
+          <view class="msg-post" wx:if="{{item.postTitle}}">
+            <text class="msg-post-label">帖子</text>
+            <text class="msg-post-title">{{item.postTitle}}</text>
+          </view>
+        </view>
+      </view>
     </view>
     <view class="empty text-caption" wx:if="{{messages.length === 0}}">暂无消息</view>
   </view>

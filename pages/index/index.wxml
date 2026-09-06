@@ -2,7 +2,10 @@
   <!-- 自定义导航栏 -->
   <view class="custom-nav gradient-nav" style="padding-top: {{statusBarHeight}}px;">
     <view class="nav-content" style="height: {{navBarHeight}}px;">
-      <text class="nav-title">广轻工 <text class="nav-divider">|</text> 连接校园每一处</text>
+      <view class="nav-brand" hover-class="nav-brand-pressed" hover-stay-time="120">
+        <image class="nav-logo" src="/assets/icons/campus-logo.png" mode="aspectFill"></image>
+        <text class="nav-brand-text">广轻校园圈</text>
+      </view>
     </view>
   </view>
   <view class="nav-placeholder" style="height: {{statusBarHeight + navBarHeight}}px;"></view>
@@ -10,12 +13,17 @@
   <scroll-view
     class="scroll-container"
     scroll-y
+    scroll-with-animation
     bindscroll="onContentScroll"
     bindscrolltoupper="onContentScrollToUpper"
     bindtouchmove="onContentTouchMove"
     bindscrolltolower="onReachBottom"
     lower-threshold="120"
     scroll-top="{{scrollTop}}"
+    scroll-into-view="{{scrollIntoView}}"
+    refresher-enabled="{{true}}"
+    refresher-triggered="{{scrollRefreshing}}"
+    bindrefresherrefresh="onContentRefresh"
     enhanced
     show-scrollbar="{{false}}"
   >
@@ -52,11 +60,28 @@
       <contact-admin class="notice-admin-wrap" direct>
         <view slot="trigger" class="notice-admin">管理员</view>
       </contact-admin>
-      <text class="notice-tail">更新中</text>
+      <text class="notice-tail" wx:if="{{noticeTailText}}" bindtap="onNoticeTailTap">{{noticeTailText}}</text>
     </view>
 
+    <!-- 今日热榜预览：两行竖向轮换，点击进入完整榜单 -->
+    <view class="today-hot-card card anim-slide-up" wx:if="{{hotPosts.length}}" bindtap="onTodayHotTap">
+      <view class="today-hot-header">
+        <view class="today-hot-title-wrap"><text class="today-hot-fire">🔥</text><text class="today-hot-title">每日热榜</text></view>
+        <view class="today-hot-more">点击查看</view>
+      </view>
+      <swiper class="today-hot-swiper" vertical autoplay circular interval="5000" duration="420">
+        <swiper-item wx:for="{{hotRankGroups}}" wx:key="index">
+          <view class="today-hot-row" wx:for="{{item}}" wx:for-item="hotItem" wx:key="id">
+            <text class="today-hot-rank">{{hotItem.rank}}.</text>
+            <text class="today-hot-text">{{hotItem.hotText}}</text>
+          </view>
+        </swiper-item>
+      </swiper>
+    </view>
+    <view class="today-hot-card card today-hot-loading" wx:elif="{{hotLoading}}">热榜更新中...</view>
+
     <!-- 校园服务 -->
-    <view class="section card anim-slide-up">
+    <view class="section service-section card anim-slide-up">
       <view class="service-retry" wx:if="{{serviceLoadFailed}}" bindtap="loadServices">校园服务加载失败，点击重试</view>
       <service-grid
         services="{{allServices}}"
@@ -97,14 +122,14 @@
       </view>
     </view>
 
-    <!-- 搜索与发布 -->
+    <!-- 搜索与刷新：按钮固定在搜索栏最右侧 -->
     <view class="search-bar card anim-slide-up">
       <view class="search-input pressable" bindtap="goSearch">
         <image class="search-icon-img icon-xs" src="/assets/icons/search.png" mode="aspectFit"></image>
         <text class="search-placeholder">搜索社区内容...</text>
       </view>
-      <view class="search-action pressable" bindtap="onSearchAction">
-        <image class="search-action-icon icon-sm" src="{{isAtTop ? '/assets/icons/refresh.png' : '/assets/icons/scroll-top.png'}}" mode="aspectFit"></image>
+      <view class="search-refresh {{refreshing ? 'refreshing' : ''}}" hover-class="fab-pressed" bindtap="onRefreshAction">
+        <image class="search-refresh-icon" src="/assets/icons/refresh.png" mode="aspectFit"></image>
       </view>
     </view>
 
@@ -122,27 +147,38 @@
     </scroll-view>
 
     <!-- 最热榜单 -->
-    <view class="hot-rank" wx:if="{{isHotCategory}}">
-      <view class="hot-period-tabs">
-        <view class="hot-period {{hotPeriod === 'today' ? 'active' : ''}}" data-period="today" bindtap="onHotPeriodTap">今天</view>
-        <view class="hot-period {{hotPeriod === 'yesterday' ? 'active' : ''}}" data-period="yesterday" bindtap="onHotPeriodTap">昨天</view>
-      </view>
+    <view id="hot-rank-detail" class="hot-rank" wx:if="{{isHotCategory}}">
       <view class="hot-rank-heading">
-        <view><text class="hot-rank-kicker">TOP10</text><text class="hot-rank-title">{{hotPeriod === 'today' ? '今日热榜' : '昨日热榜'}}</text></view>
-        <text class="hot-rank-note">{{hotPeriod === 'today' ? '校园新鲜事，每日更新' : '截止昨日 20:00'}}</text>
+        <image class="hot-rank-banner" src="/assets/banners/hot-rank-banner.jpg" mode="widthFix"></image>
       </view>
       <view class="hot-rank-list" wx:if="{{hotPosts.length}}">
         <view class="hot-rank-card" wx:for="{{hotPosts}}" wx:key="id" data-id="{{item.id}}" bindtap="onHotPostTap">
           <view class="hot-rank-card-header">
             <image class="hot-rank-avatar" src="{{item.avatarUrl || '/assets/icons/avatar.png'}}" mode="aspectFill"></image>
-            <view class="hot-rank-author"><text class="hot-rank-nick">{{item.nickName}}</text><text class="hot-rank-time">{{item.rankTimeText}} 发布</text></view>
+            <view class="hot-rank-author">
+              <view class="hot-rank-nick-row">
+                <text class="hot-rank-nick">{{item.nickName}}</text>
+                <view class="hot-rank-post-label"><text class="post-label-main">帖子</text><text class="post-label-an" wx:if="{{item.isAnonymous}}">AN</text></view>
+              </view>
+              <view class="hot-rank-meta">
+                <text class="hot-meta-category">{{item.category || '日常话题'}}</text>
+                <text class="hot-meta-dot">·</text>
+                <text>{{item.rankTimeText}}</text>
+                <text class="hot-meta-dot">·</text>
+                <text>{{item.rankViewText}}</text>
+              </view>
+            </view>
             <view class="hot-rank-badge {{index < 3 ? 'top' : ''}}"><text>TOP</text><text>{{index + 1}}</text></view>
           </view>
           <text class="hot-rank-post-title">{{item.title || item.content}}</text>
-          <view class="hot-rank-footer"><view class="hot-rank-topic"><text>#</text>{{item.category}}</view><view class="hot-rank-stats"><view><image src="/assets/icons/heart-outline.png" mode="aspectFit"></image><text>{{item.likeCount || '点赞'}}</text></view><view><image src="/assets/icons/comment.png" mode="aspectFit"></image><text>{{item.commentCount || 0}}</text></view></view></view>
+          <view class="hot-rank-media" wx:if="{{item.hotImages.length || item.hasVideo}}">
+            <image wx:for="{{item.hotImages}}" wx:for-item="img" wx:key="*this" class="hot-media" src="{{img}}" mode="aspectFill" lazy-load></image>
+            <view wx:if="{{item.hasVideo}}" class="hot-media hot-media-video"><text class="hot-video-play">▶</text></view>
+          </view>
+          <view class="hot-rank-footer"><view class="hot-rank-campus">{{item.campus || '未设置校区'}}</view><view class="hot-rank-stats"><view><image src="/assets/icons/heart-outline.png" mode="aspectFit"></image><text>{{item.likeCount || '点赞'}}</text></view><view><image src="/assets/icons/comment.png" mode="aspectFit"></image><text>{{item.commentCount || 0}}</text></view></view></view>
         </view>
       </view>
-      <view class="hot-rank-empty" wx:elif="{{!hotLoading}}">当前时间范围暂无帖子</view>
+      <view class="hot-rank-empty" wx:elif="{{!hotLoading}}">近两天暂无上榜帖子</view>
       <view class="hot-rank-empty" wx:else>榜单更新中...</view>
     </view>
 
@@ -167,6 +203,7 @@
         <post-card
           post="{{item}}"
           commentMode="sheet"
+          avatarToDetail="{{true}}"
           bind:like="onPostLike"
           bind:favorite="onPostFavorite"
           bind:comment="onPostComment"

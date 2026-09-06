@@ -30,5 +30,8 @@ module.exports = {
   reviewWithdrawal: (id, action, note) => post('/withdrawals/' + id + '/review', { action, note: note || '' }),
   updateCertLabel: (id, certLabel) => put('/users/' + id + '/cert-label', { certLabel: certLabel || '' }),
   riderVerifications: (data) => get('/rider-verifications', data),
-  reviewRiderVerification: (id, action, note) => post('/rider-verifications/' + id + '/review', { action, note: note || '' })
+  reviewRiderVerification: (id, action, note) => post('/rider-verifications/' + id + '/review', { action, note: note || '' }),
+  admins: () => get('/admins'),
+  createAdmin: (query, role) => post('/admins', { query, role }),
+  auditLogs: (data) => get('/audit-logs', data)
 }

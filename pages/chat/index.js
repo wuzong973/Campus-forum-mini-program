@@ -26,10 +26,12 @@ Page({
     peerId: 0,
     otherUser: {},
     anonymousMode: false,
+    selfAnonymous: null,
     canSend: true,
     peerBlocked: false,
     blockedByPeer: false,
     blocking: false,
+    hasPeerMessage: false,
     pendingMessageId: 0,
     recalling: false,
     messages: [],
@@ -60,7 +62,11 @@ Page({
     try { legacyUser = JSON.parse(decodeURIComponent(options.otherUser || '{}')) } catch (e) {}
     const peerId = parseInt(options.peerId || legacyUser.id, 10)
     const anonymousMode = options.anonymous === '1'
-    const otherUser = anonymousMode ? { nickname: '匿名用户', avatar: '/assets/icons/avatar.png' } : {
+    // 匿名聊天也可携带分身昵称/头像（从分身卡片私信进入时传入），未传则用通用匿名身份
+    const otherUser = anonymousMode ? {
+      nickname: options.nick ? safeDecode(options.nick) : '匿名用户',
+      avatar: options.avatar ? safeDecode(options.avatar) : '/assets/icons/avatar.png'
+    } : {
       nickname: options.nick ? safeDecode(options.nick) : (legacyUser.nickname || '维修人员'),
       avatar: options.avatar ? safeDecode(options.avatar) : (legacyUser.avatar || '/assets/icons/repair-logo.jpg')
     }
@@ -68,6 +74,11 @@ Page({
       wx.showToast({ title: '未找到聊天对象', icon: 'none' })
       setTimeout(() => wx.navigateBack(), 300)
       return
+    }
+    // 分身私信普通用户：发起方自己的分身身份（首次进入时由服务端存档）
+    let selfSeedPersona = null
+    if (anonymousMode && options.anonSelfNick && options.anonSelfAvatar) {
+      selfSeedPersona = { nickName: safeDecode(options.anonSelfNick), avatarUrl: safeDecode(options.anonSelfAvatar) }
     }
     // 扫描页面栈找到最近的帖子页面（帖子详情/列表），计算返回层级
     // 兼容 帖子页→聊天页 (delta 1) 与 帖子页→个人主页→聊天页 (delta 2) 等路径
@@ -82,6 +93,10 @@ Page({
       peerId,
       otherUser,
       anonymousMode,
+      // 入口是否显式指定了匿名参数（指定后以入口为准，不再被会话标记覆盖）
+      anonParamExplicit: options.anonymous !== undefined,
+      selfSeedPersona,
+      anonSelfMode: !!selfSeedPersona,
       showBackToPost: backToPostDelta > 0,
       statusBarHeight: (app.globalData && app.globalData.statusBarHeight) || 20,
       navBarHeight: (app.globalData && app.globalData.navBarHeight) || 44
@@ -120,15 +135,22 @@ Page({
     const currentUser = (getApp().globalData.userInfo || {}).id || 0
     const isSelf = Number(message.senderId) === Number(currentUser) || message.isMine === true
     const anonymousMode = this.data.anonymousMode || !!message.isAnonymous
+    // 自己的分身身份（本会话的分身拥有者进入时由服务端下发）；普通匿名参与者没有
+    const selfPersona = this.data.selfAnonymous
     return {
       id: message.id,
       type: message.msgType || message.type || 'text',
       content: message.content,
       isSelf,
-      nickname: anonymousMode ? '匿名用户' : (isSelf ? '我' : (message.senderNick || this.data.otherUser.nickname)),
-      avatar: anonymousMode ? '/assets/icons/avatar.png' : (isSelf
-        ? ((getApp().globalData.userInfo || {}).avatarUrl || '/assets/icons/avatar.png')
-        : (message.senderAvatar || this.data.otherUser.avatar)),
+      nickname: anonymousMode
+        ? (isSelf ? (selfPersona ? selfPersona.nickName : '匿名用户') : this.data.otherUser.nickname)
+        : (isSelf ? '我' : (message.senderNick || this.data.otherUser.nickname)),
+      // 匿名聊天：不取 senderAvatar（服务端返回的是真实身份）；自己用分身头像（若有），对方固定用会话分身头像
+      avatar: anonymousMode
+        ? (isSelf ? (selfPersona ? selfPersona.avatarUrl : '/assets/icons/avatar.png') : this.data.otherUser.avatar)
+        : (isSelf
+          ? ((getApp().globalData.userInfo || {}).avatarUrl || '/assets/icons/avatar.png')
+          : (message.senderAvatar || this.data.otherUser.avatar)),
       timeText: formatTime(message.createdAt),
       canRecall: isSelf && Number(message.id) === Number(this.data.pendingMessageId)
     }
@@ -136,11 +158,27 @@ Page({
 
   async loadMessages(page = 1) {
     try {
-      const result = await messageStore.getHistory(this.data.peerId, page, 30, this.data.anonymousMode)
-      const anonymousMode = this.data.anonymousMode || !!result.isAnonymous
+      // 匿名会话带上分身身份参数：服务端只在首次存档，之后所有入口都返回同一份
+      // anonSelfMode：分身属于发起方自己（分身私信普通用户），存档方向为 self
+      const seedPersona = this.data.selfSeedPersona
+        ? this.data.selfSeedPersona
+        : (this.data.anonymousMode && this.data.otherUser.avatar.indexOf('/assets/avatar1/') === 0
+          ? { nickName: this.data.otherUser.nickname, avatarUrl: this.data.otherUser.avatar }
+          : null)
+      const anonSide = this.data.selfSeedPersona ? 'self' : 'peer'
+      const result = await messageStore.getHistory(this.data.peerId, page, 30, this.data.anonymousMode, seedPersona, anonSide)
+      // 入口显式指定了 anonymous 参数时以入口为准，否则沿用会话的匿名标记
+      const anonymousMode = this.data.anonParamExplicit
+        ? this.data.anonymousMode
+        : (this.data.anonymousMode || !!result.isAnonymous)
+      // 服务端存档的分身身份优先于入口参数，保证整个会话期间显示同一个匿名头像
+      const otherUser = result.peerAnonymous
+        ? { nickname: result.peerAnonymous.nickName, avatar: result.peerAnonymous.avatarUrl }
+        : this.data.otherUser
       const list = (result.list || []).map((item) => this.toViewMessage(Object.assign({}, item, { isAnonymous: anonymousMode })))
       const messages = page === 1 ? list : list.concat(this.data.messages)
-      this.setData({ messages, page, hasMore: !!result.hasMore, canSend: result.canSend !== false, pendingMessageId: result.pendingMessageId || 0, anonymousMode: this.data.anonymousMode || !!result.isAnonymous, peerBlocked: !!result.blocked, blockedByPeer: !!result.blockedByPeer })
+      const hasPeerMessage = this.data.hasPeerMessage || list.some((item) => !item.isSelf)
+      this.setData({ messages, page, hasMore: !!result.hasMore, canSend: hasPeerMessage || result.canSend !== false, hasPeerMessage, pendingMessageId: result.pendingMessageId || 0, anonymousMode: this.data.anonymousMode || !!result.isAnonymous, peerBlocked: !!result.blocked, blockedByPeer: !!result.blockedByPeer, otherUser, selfAnonymous: result.selfAnonymous || null })
       if (page === 1) {
         messageStore.saveCache(this.data.peerId, result.list || [])
         messageStore.markRead(this.data.peerId).catch(() => {})
@@ -160,7 +198,8 @@ Page({
     const viewMessage = this.toViewMessage(message)
     messageStore.appendCache(this.data.peerId, message)
     const isSelf = viewMessage.isSelf
-    this.setData({ messages: this.data.messages.concat(viewMessage), canSend: isSelf ? false : true, pendingMessageId: isSelf ? viewMessage.id : 0 })
+    const hasPeerMessage = this.data.hasPeerMessage || !isSelf
+    this.setData({ messages: this.data.messages.concat(viewMessage), canSend: hasPeerMessage, hasPeerMessage, pendingMessageId: isSelf && !hasPeerMessage ? viewMessage.id : 0 })
     this.scrollToBottom()
   },
 
@@ -207,8 +246,9 @@ Page({
 
   async sendContent(content, msgType = 'text') {
     if (!this.data.canSend) throw new Error('请等待对方回复后再发送，可长按上一条消息撤回')
-    if (this.data.anonymousMode && msgType !== 'text') throw new Error('匿名聊天仅支持文字消息')
-    const result = await messageStore.sendMessage(this.data.peerId, content, msgType, this.data.anonymousMode)
+    // 匿名发送时携带自己一侧的分身形象（分身拥有者用已有档案，否则服务端自动生成存档）
+    const persona = this.data.selfSeedPersona || this.data.selfAnonymous || null
+    const result = await messageStore.sendMessage(this.data.peerId, content, msgType, this.data.anonymousMode, persona)
     this.appendMessage({
       id: result.id,
       senderId: (getApp().globalData.userInfo || {}).id || 0,
@@ -237,7 +277,9 @@ Page({
   },
 
   onChooseImage() {
-    if (this.data.anonymousMode) { wx.showToast({ title: '匿名聊天仅支持文字消息', icon: 'none' }); return }
+    if (this.data.peerBlocked) { wx.showToast({ title: '已拉黑对方，请先解除拉黑', icon: 'none' }); return }
+    if (this.data.blockedByPeer) { wx.showToast({ title: '对方已将你加入黑名单', icon: 'none' }); return }
+    if (!this.data.canSend) { wx.showToast({ title: '请等待对方回复，可长按上一条撤回', icon: 'none' }); return }
     wx.chooseMedia({
       count: 9,
       mediaType: ['image'],
@@ -255,7 +297,35 @@ Page({
           }
           for (const url of urls) await this.sendContent(url, 'image')
         } catch (e) {
-          wx.showToast({ title: '图片发送失败，请重试', icon: 'none' })
+          wx.showToast({ title: e.message || '图片发送失败，请重试', icon: 'none' })
+        } finally {
+          wx.hideLoading()
+        }
+      }
+    })
+  },
+
+  // 选择并发送视频（相册/拍摄，最长 60 秒）
+  onChooseVideo() {
+    if (this.data.peerBlocked) { wx.showToast({ title: '已拉黑对方，请先解除拉黑', icon: 'none' }); return }
+    if (this.data.blockedByPeer) { wx.showToast({ title: '对方已将你加入黑名单', icon: 'none' }); return }
+    if (!this.data.canSend) { wx.showToast({ title: '请等待对方回复，可长按上一条撤回', icon: 'none' }); return }
+    wx.chooseMedia({
+      count: 1,
+      mediaType: ['video'],
+      sourceType: ['album', 'camera'],
+      maxDuration: 60,
+      success: async (res) => {
+        const file = (res.tempFiles || [])[0]
+        if (!file || !file.tempFilePath) return
+        this.setData({ activePanel: '' })
+        wx.showLoading({ title: '发送视频...', mask: true })
+        try {
+          const url = await wechat.uploadVideo(file.tempFilePath)
+          if (!request.USE_MOCK && !/^https?:\/\//.test(url)) throw new Error('视频上传失败')
+          await this.sendContent(url, 'video')
+        } catch (e) {
+          wx.showToast({ title: e.message || '视频发送失败，请重试', icon: 'none' })
         } finally {
           wx.hideLoading()
         }

@@ -82,9 +82,6 @@
 .sort-option { padding: 8rpx 26rpx; border-radius: 999rpx; color: #6b7686; font-size: 24rpx; transition: color 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease; }
 .sort-option.active { background: #ffffff; color: #3478f6; font-weight: 600; box-shadow: 0 2rpx 8rpx rgba(46, 61, 82, 0.12); }
 .sort-hover { opacity: 0.6; }
-.top-comment { margin-top: 18rpx; padding: 16rpx; border-radius: 10rpx; background: #f7f9fc; }
-.top-comment-label { display: block; margin-bottom: 12rpx; color: #e59a28; font-size: 22rpx; font-weight: 700; }
-.top-comment-body { display: flex; align-items: flex-start; gap: 12rpx; }
 .comment-content-wrap { flex: 1; min-width: 0; }
 .comment-reply-trigger { min-height: 64rpx; }
 .comment-text { display: block; margin-top: 6rpx; color: #27394f; font-size: 26rpx; line-height: 1.5; word-break: break-word; }
@@ -93,14 +90,20 @@
 .comment-item { display: flex; align-items: flex-start; gap: 14rpx; padding: 22rpx 0; border-bottom: 1rpx solid #f0f2f5; }
 .comment-meta { display: flex; align-items: center; gap: 12rpx; }
 .author-comment-label { flex: 0 0 auto; padding: 1rpx 8rpx; border: 1rpx solid #ffcaca; border-radius: 4rpx; background: #fff4f4; color: #e34b4b; font-size: 20rpx; font-weight: 600; line-height: 1.45; }
-.comment-body { margin-top: 5rpx; }
+/* 评论头部：昵称/时间在左，三个点菜单在右上角 */
+.comment-head { display: flex; align-items: center; }
+.comment-head .comment-meta { flex: 1; min-width: 0; }
+.comment-more { flex: 0 0 auto; margin-left: 16rpx; padding: 6rpx 0 6rpx 16rpx; }
+.comment-more-icon { display: block; width: 32rpx; height: 32rpx; opacity: .55; }
+/* 评论内容行：文字在左，点赞固定在文字行的最右边 */
+.comment-body { display: flex; align-items: center; margin-top: 5rpx; }
+.comment-text-wrap { flex: 1; min-width: 0; }
 .comment-reply-to { color: #3478f6; font-size: 25rpx; }
 .comment-image-list { display: flex; flex-wrap: wrap; gap: 8rpx; margin-top: 10rpx; }
 .comment-image { width: 130rpx; height: 130rpx; border-radius: 8rpx; background: #edf1f6; }
 .comment-actions { display: flex; gap: 20rpx; margin-top: 12rpx; color: #98a3af; font-size: 22rpx; }
 .comment-actions .delete { color: #d8666d; }
-/* 评论右侧：点赞图标在上、数量在下 */
-.comment-like { display: flex; flex-direction: column; align-items: center; gap: 6rpx; flex: 0 0 auto; min-width: 48rpx; padding-top: 4rpx; color: #99a4b1; font-size: 21rpx; white-space: nowrap; transition: color 0.2s ease, opacity 0.2s ease; }
+.comment-like { display: flex; align-items: center; gap: 6rpx; flex: 0 0 auto; margin-left: 16rpx; color: #99a4b1; font-size: 21rpx; white-space: nowrap; transition: color 0.2s ease, opacity 0.2s ease; }
 .comment-like image { width: 32rpx; height: 32rpx; opacity: .72; }
 .comment-like .like-count { font-size: 22rpx; line-height: 1.2; }
 .like-hover { opacity: 0.6; }
@@ -110,7 +113,6 @@
 .reply-content { flex: 1; min-width: 0; }
 .reply-item .comment-nick { font-size: 25rpx; }
 .reply-item .comment-text { font-size: 25rpx; }
-.reply-item .comment-like { margin-left: 4rpx; padding-top: 2rpx; }
 .reply-toggle { display: flex; align-items: center; gap: 12rpx; min-height: 54rpx; margin-top: 2rpx; color: #3478f6; font-size: 24rpx; font-weight: 600; }
 .reply-toggle-line { width: 34rpx; height: 1rpx; background: #cfd8e3; }
 .empty-comments { padding: 50rpx 0 30rpx; color: #a2acb8; font-size: 26rpx; text-align: center; }
@@ -141,3 +143,51 @@
 .modal-btn.cancel { background: #f2f4f7; color: #607084; }
 .modal-btn.confirm { background: #3478f6; color: #fff; }
 .modal-btn::after { border: none; }
+
+
+/* 今日热榜预览：与首页保持相同尺寸、轮换和交互样式 */
+.today-hot-card {
+  margin: 0 20rpx 12rpx;
+  padding: 12rpx 18rpx 8rpx;
+  border: 1rpx solid rgba(234, 238, 247, 0.82);
+  border-radius: 22rpx;
+  background: #fffdf1;
+  box-shadow: 0 8rpx 24rpx rgba(28, 43, 86, 0.07);
+  box-sizing: border-box;
+  transition: all 0.24s cubic-bezier(0.2, 0, 0, 1);
+}
+.today-hot-card:active { transform: translateY(-2rpx); box-shadow: 0 12rpx 26rpx rgba(237, 176, 42, 0.14); }
+.today-hot-header { display: flex; align-items: center; min-height: 40rpx; }
+.today-hot-title-wrap { display: flex; align-items: center; gap: 14rpx; flex: 1; min-width: 0; }
+.today-hot-fire { color: #f04f36; font-size: 34rpx; line-height: 1; }
+.today-hot-title { color: #272727; font-size: 30rpx; font-weight: 800; }
+.today-hot-more { padding: 6rpx 12rpx; border-radius: 8rpx; background: #ff3d62; color: #fff; font-size: 20rpx; font-weight: 700; }
+.today-hot-swiper { height: 76rpx; margin-top: 2rpx; }
+.today-hot-row { display: flex; height: 38rpx; align-items: center; gap: 10rpx; }
+.today-hot-rank { width: 30rpx; flex: 0 0 30rpx; color: #e4af11; font-size: 24rpx; font-weight: 800; text-align: right; }
+.today-hot-text { overflow: hidden; flex: 1; color: #222; font-size: 25rpx; line-height: 1.25; text-overflow: ellipsis; white-space: nowrap; }
+.today-hot-loading { padding: 24rpx 18rpx; color: #9aa5b1; font-size: 25rpx; text-align: center; }
+
+.anon-sheet-mask { position: fixed; z-index: 1100; inset: 0; background: rgba(0, 0, 0, .45); }
+.anon-sheet { position: fixed; z-index: 1101; left: 0; right: 0; bottom: 0; background: #f4f4f6; border-radius: 36rpx 36rpx 0 0; padding: 44rpx 40rpx calc(56rpx + env(safe-area-inset-bottom)); }
+.anon-sheet-close { position: absolute; top: 36rpx; right: 32rpx; width: 64rpx; height: 64rpx; border-radius: 50%; background: #e9e9ec; color: #7c7c82; font-size: 40rpx; line-height: 60rpx; text-align: center; }
+.anon-sheet-user { display: flex; align-items: center; }
+.anon-sheet-avatar { width: 108rpx; height: 108rpx; border-radius: 26rpx; background: #fff; flex: 0 0 auto; }
+.anon-sheet-nick { margin-left: 24rpx; font-size: 36rpx; font-weight: 700; color: #1a1a1a; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.anon-sheet-owner { position: relative; flex: 0 0 auto; margin-left: 14rpx; padding: 3rpx 12rpx; background: #f43a26; border-radius: 8rpx; }
+.anon-sheet-owner-text { color: #fff; font-size: 22rpx; font-weight: 700; }
+.anon-sheet-owner-op { position: absolute; top: -12rpx; right: -10rpx; padding: 0 6rpx; background: #ffd54a; border-radius: 6rpx 6rpx 6rpx 0; color: #6b4a00; font-size: 18rpx; font-weight: 800; line-height: 22rpx; }
+.anon-sheet-msg-btn { display: block; margin: 76rpx auto 0; width: 330rpx; height: 90rpx; line-height: 90rpx; padding: 0; border-radius: 45rpx; background: #f8503a; color: #fff; font-size: 32rpx; font-weight: 600; text-align: center; }
+.anon-sheet-msg-btn::after { border: none; }
+.anon-sheet-tip { display: block; margin-top: 44rpx; text-align: center; color: #9b9ba1; font-size: 28rpx; }
+
+/* 普通帖帖主头像弹出的选择层（个人主页 / 分身私信） */
+.author-sheet-badge { flex: 0 0 auto; margin-left: 14rpx; padding: 4rpx 14rpx; background: #52b0a8; border-radius: 8rpx; }
+.author-sheet-badge-text { color: #fff; font-size: 22rpx; font-weight: 600; }
+.author-sheet-actions { display: flex; margin-top: 60rpx; }
+.author-sheet-btn { flex: 1; height: 90rpx; line-height: 90rpx; padding: 0; margin: 0; border-radius: 45rpx; font-size: 32rpx; font-weight: 600; text-align: center; }
+.author-sheet-btn + .author-sheet-btn { margin-left: 28rpx; }
+.author-sheet-btn::after { border: none; }
+.author-sheet-btn.ghost { background: #fff; color: #333; border: 1rpx solid #e3e3e8; }
+.author-sheet-btn.primary { background: #f8503a; color: #fff; }
+

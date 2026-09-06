@@ -1,0 +1,8 @@
+{
+  "navigationStyle": "custom",
+  "navigationBarTitleText": "今日热帖",
+  "usingComponents": {
+    "post-card": "/components/post-card/post-card",
+    "empty-state": "/components/empty-state/empty-state"
+  }
+}

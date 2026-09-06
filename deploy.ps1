@@ -8,8 +8,13 @@ $files = @(
     "server\app.js",
     "server\controllers\adminController.js",
     "server\controllers\userController.js",
+    "server\controllers\uploadController.js",
+    "server\controllers\configController.js",
+    "server\controllers\scheduleController.js",
     "server\routes\adminRoutes.js",
     "server\routes\userRoutes.js",
+    "server\routes\feedbackRoutes.js",
+    "server\controllers\feedbackController.js",
     "server\utils\migrations.js"
 )
 

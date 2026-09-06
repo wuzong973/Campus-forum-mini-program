@@ -1,51 +1,52 @@
 <view class="page">
-  <!-- 提示条 -->
-  <view class="tip-bar">
-    <text class="tip-text">感谢您的反馈，我们会认真阅读每一条建议哒！</text>
+  <view class="nav" style="padding-top: {{statusBarHeight}}px; height: {{statusBarHeight + navBarHeight}}px;">
+    <view class="nav-content" style="height: {{navBarHeight}}px;"><view class="back-button" bindtap="goBack">‹</view><text class="nav-title">意见(必回)</text><view class="nav-placeholder"></view></view>
   </view>
+  <view style="height: {{statusBarHeight + navBarHeight}}px;"></view>
 
-  <!-- 表单卡片 -->
-  <view class="form-card">
-    <!-- 反馈类型 -->
-    <view class="form-item">
-      <text class="form-label">反馈类型<text class="required">*</text></text>
-      <view class="form-select" bindtap="onSelectType">
-        <text class="{{feedbackType ? 'select-value' : 'select-placeholder'}}">{{feedbackType || '请选择反馈类型'}}</text>
-        <text class="select-arrow">›</text>
+  <scroll-view class="feedback-list" scroll-y scroll-top="{{scrollTop}}" style="height: calc(100vh - {{statusBarHeight + navBarHeight}}px);" bindscroll="onScroll" bindscrolltolower="onReachBottom">
+    <view class="public-tip">所有意见都会公开展示，管理员会逐条处理和回复。</view>
+    <view class="feedback-card" wx:for="{{feedbacks}}" wx:for-item="feedback" wx:key="id" data-id="{{feedback.id}}" bindtap="onFeedbackTap">
+      <view class="feedback-author"><image class="avatar" src="{{feedback.avatarUrl}}" mode="aspectFill"></image><view class="author-meta"><view><text class="author-name">{{feedback.nickName}}</text><text class="type-tag">{{feedback.type}}</text></view><text class="feedback-time">{{feedback.timeText}}</text></view><text class="status-tag {{feedback.status}}">{{feedback.statusText}}</text><view class="card-more" wx:if="{{feedback.canManage}}" catchtap="onCardMore" data-id="{{feedback.id}}"><image class="card-more-icon" src="/assets/icons/more.png" mode="aspectFit"></image></view></view>
+      <text class="feedback-content">{{feedback.content}}</text>
+      <view class="feedback-images" wx:if="{{feedback.images.length}}"><image wx:for="{{feedback.images}}" wx:for-item="image" wx:key="*this" class="feedback-image" src="{{image}}" mode="aspectFill" data-id="{{feedback.id}}" data-url="{{image}}" catchtap="onPreviewImage"></image></view>
+      <view class="feedback-reply" wx:if="{{feedback.reply}}" catchtap="onReplyBoxTap" data-id="{{feedback.id}}">
+        <view class="reply-head"><text class="reply-label">管理员回复</text><view class="reply-head-right"><text class="reply-time">{{feedback.replyNickName}} · {{feedback.replyTimeText}}</text><view class="reply-more" wx:if="{{feedback.canManageReply}}" catchtap="onReplyMore" data-id="{{feedback.id}}"><image class="reply-more-icon" src="/assets/icons/more.png" mode="aspectFit"></image></view></view></view>
+        <text class="reply-content">{{feedback.reply}}</text>
       </view>
-    </view>
-
-    <!-- 反馈内容 -->
-    <view class="form-item">
-      <text class="form-label">反馈内容<text class="required">*</text></text>
-      <textarea class="form-textarea" placeholder="请详细描述您的反馈内容（至少10字）" value="{{feedbackContent}}" bindinput="onContentInput" maxlength="500" auto-height></textarea>
-      <text class="char-count {{feedbackContent.length >= 10 ? 'valid' : ''}}">{{feedbackContent.length}}/500</text>
-    </view>
-
-    <!-- 上传截图 -->
-    <view class="form-item">
-      <text class="form-label">上传截图</text>
-      <text class="form-hint">（帮助我们更好地理解您的反馈，最多4张）</text>
-      <view class="upload-area">
-        <view class="upload-item" wx:for="{{images}}" wx:key="*this">
-          <image class="upload-img" src="{{item}}" mode="aspectFill"></image>
-          <view class="upload-remove" data-index="{{index}}" bindtap="onRemoveImage">✕</view>
-        </view>
-        <view class="upload-add" wx:if="{{images.length < 4}}" bindtap="onChooseImage">
-          <text class="upload-plus">＋</text>
+      <view class="feedback-comments" wx:if="{{feedback.comments.length}}">
+        <view class="comment-item" wx:for="{{feedback.comments}}" wx:for-item="comment" wx:key="id" catchtap="onCommentTap" bindlongpress="onCommentLongPress" data-fid="{{feedback.id}}" data-cid="{{comment.id}}" data-nick="{{comment.nickName}}">
+          <view class="comment-head"><view class="comment-author"><text class="comment-nick">{{comment.nickName}}</text><text class="comment-target" wx:if="{{comment.replyToNick}}">回复 @{{comment.replyToNick}}</text></view><text class="comment-time">{{comment.timeText}}</text></view>
+          <text class="comment-text">{{comment.content}}</text>
         </view>
       </view>
+      <view class="card-footer">
+        <text class="comment-entry">{{feedback.commentCount ? feedback.commentCount + ' 条评论' : '发表评论'}}</text>
+        <view class="admin-reply-entry" wx:if="{{isAdmin}}" catchtap="onAdminReplyTap" data-id="{{feedback.id}}">回复</view>
+      </view>
+      <view class="comment-editor" wx:if="{{commentEditorId === feedback.id}}" catchtap="noop">
+        <view class="comment-editor-head"><text class="comment-editor-target" wx:if="{{commentTargetNick}}">回复 @{{commentTargetNick}}</text><text class="comment-editor-cancel" catchtap="closeCommentEditor">收起</text></view>
+        <view class="comment-editor-row"><input class="comment-input" value="{{commentDraft}}" focus placeholder="{{commentTargetNick ? '回复 @' + commentTargetNick + '：' : '公开发表评论，所有人可见'}}" maxlength="500" confirm-type="send" cursor-spacing="20" bindinput="onCommentInput" bindconfirm="submitComment"></input><button class="comment-send" loading="{{commentSubmitting}}" disabled="{{commentSubmitting}}" catchtap="submitComment">发送</button></view>
+      </view>
+      <view class="reply-editor" wx:if="{{isAdmin && expandedId === feedback.id && (!feedback.reply || editingReplyId === feedback.id)}}" catchtap="noop">
+        <textarea class="reply-input" value="{{replyDraft}}" maxlength="500" placeholder="{{editingReplyId === feedback.id ? '编辑回复内容（公开可见）' : '以管理员身份回复（公开可见）'}}" bindinput="onReplyInput"></textarea>
+        <view class="reply-editor-actions"><button class="reply-cancel" catchtap="cancelReply">取消</button><button class="reply-submit" loading="{{replySubmitting}}" disabled="{{replySubmitting}}" catchtap="submitReply">{{editingReplyId === feedback.id ? '保存修改' : '发布回复'}}</button></view>
+      </view>
     </view>
+    <view class="empty" wx:if="{{!loading && !feedbacks.length}}">还没有意见，来写第一条吧</view>
+    <view class="loading-text" wx:if="{{loading}}">加载中...</view>
+    <view class="loading-text" wx:elif="{{feedbacks.length && !hasMore}}">已经到底了</view>
+  </scroll-view>
 
-    <!-- 联系方式 -->
-    <view class="form-item">
-      <text class="form-label">联系方式</text>
-      <input class="form-input" placeholder="请输入手机号/邮箱（选填）" value="{{contact}}" bindinput="onContactInput" />
-    </view>
-  </view>
+  <view class="float-actions"><view class="float-action write-action" bindtap="openForm"><text class="action-icon">✎</text><text>填写</text></view><view class="float-action" bindtap="scrollToTop"><text class="action-icon">↑</text><text>顶部</text></view></view>
 
-  <!-- 提交按钮 -->
-  <view class="submit-wrap">
-    <button class="submit-btn {{canSubmit ? 'active' : 'disabled'}}" loading="{{submitting}}" disabled="{{!canSubmit || submitting}}" bindtap="onSubmit">提交反馈</button>
+  <view class="mask" wx:if="{{showForm}}" bindtap="closeForm"></view>
+  <view class="form-sheet" wx:if="{{showForm}}" catchtap="noop">
+    <view class="sheet-header"><text class="sheet-title">{{editingId ? '编辑意见' : '填写意见'}}</text><text class="sheet-close" bindtap="closeForm">×</text></view>
+    <view class="form-row" bindtap="onSelectType"><text>意见类型</text><view class="form-value">{{feedbackType}} <text>›</text></view></view>
+    <view class="form-block"><text class="form-label">意见内容</text><textarea value="{{feedbackContent}}" maxlength="500" placeholder="请描述你的建议或遇到的问题，公开发布后所有用户可见" bindinput="onContentInput"></textarea><text class="char-count">{{feedbackContent.length}}/500</text></view>
+    <view class="form-block"><text class="form-label">图片说明</text><view class="upload-list"><view class="upload-item" wx:for="{{images}}" wx:key="*this"><image src="{{item}}" mode="aspectFill"></image><text class="remove-image" data-index="{{index}}" bindtap="onRemoveImage">×</text></view><view class="upload-add" wx:if="{{images.length < 4}}" bindtap="onChooseImage">＋</view></view></view>
+    <view class="form-block" wx:if="{{!editingId}}"><text class="form-label">联系方式（仅管理员可见，选填）</text><input placeholder="手机号或邮箱" value="{{contact}}" bindinput="onContactInput"></input></view>
+    <button class="submit-button" loading="{{submitting}}" bindtap="submitFeedback">{{editingId ? '保存修改' : '公开发布'}}</button>
   </view>
 </view>

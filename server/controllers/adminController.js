@@ -4,7 +4,7 @@ const { clampPageSize, safeMessage } = require('../utils/helpers')
 const { writeAdminAudit } = require('../utils/adminAudit')
 
 const ADMIN_ROLES = ['super_admin', 'content_admin', 'user_admin', 'operator']
-const CONTENT_TYPES = ['category', 'tag', 'notice']
+const CONTENT_TYPES = ['category', 'tag', 'notice', 'banner', 'publish_banner']
 const POST_STATUS = [0, 1, 2, 3]
 
 function pageParams(query) {
@@ -38,25 +38,39 @@ async function audit(req, action, targetType, targetId, detail) {
 }
 
 exports.me = async (req, res) => {
-  success(res, { role: req.user.role, permissions: permissionsFor(req.user.role) })
+  success(res, { id: req.user.id, role: req.user.role, permissions: permissionsFor(req.user.role) })
 }
+
+// 单条统计查询失败只影响对应指标，不让整个概览接口 500
+async function statOne(sql) {
+  try {
+    const [rows] = await pool.query(sql)
+    return rows && rows[0] ? rows[0] : {}
+  } catch (e) {
+    console.error('[admin-stats]', e.message)
+    return {}
+  }
+}
+
+const num = (v) => Number(v || 0)
 
 exports.stats = async (req, res) => {
   try {
-    const [[users], [posts], [errands], [items], [activity], [recent]] = await Promise.all([
-      pool.query('SELECT COUNT(*) total, SUM(status = 1) enabled FROM sys_user'),
-      pool.query('SELECT COUNT(*) total, SUM(status = 1) published, SUM(status = 2) pending, SUM(status = 3) hidden FROM forum_post'),
-      pool.query("SELECT COUNT(*) total, SUM(status = 'finished') finished, IFNULL(SUM(CASE WHEN status = 'finished' THEN reward ELSE 0 END), 0) amount FROM errand_order"),
-      pool.query('SELECT COUNT(*) total, SUM(status = 1) online, IFNULL(SUM(sales_count), 0) sales FROM virtual_item'),
-      pool.query('SELECT COUNT(*) posts7d, COUNT(DISTINCT user_id) activeUsers7d FROM forum_post WHERE created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)'),
-      pool.query('SELECT action, target_type targetType, target_id targetId, created_at createdAt FROM admin_audit_log ORDER BY id DESC LIMIT 8')
+    const [users, posts, errands, items, activity, recentRows] = await Promise.all([
+      statOne('SELECT COUNT(*) total, IFNULL(SUM(status = 1), 0) enabled FROM sys_user'),
+      statOne('SELECT COUNT(*) total, IFNULL(SUM(status = 1), 0) published, IFNULL(SUM(status = 2), 0) pending, IFNULL(SUM(status = 3), 0) hidden FROM forum_post'),
+      statOne("SELECT COUNT(*) total, SUM(status = 'finished') finished, IFNULL(SUM(CASE WHEN status = 'finished' THEN reward ELSE 0 END), 0) amount FROM errand_order"),
+      statOne('SELECT COUNT(*) total, IFNULL(SUM(status = 1), 0) online, IFNULL(SUM(sales_count), 0) sales FROM virtual_item'),
+      statOne('SELECT COUNT(*) posts7d, COUNT(DISTINCT user_id) activeUsers7d FROM forum_post WHERE created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)'),
+      pool.query('SELECT action, target_type targetType, target_id targetId, created_at createdAt FROM admin_audit_log ORDER BY id DESC LIMIT 8').then(([rows]) => rows).catch(() => [])
     ])
     success(res, {
-      users: { total: Number(users.total || 0), enabled: Number(users.enabled || 0), active7d: Number(activity.activeUsers7d || 0) },
-      posts: { total: Number(posts.total || 0), published: Number(posts.published || 0), pending: Number(posts.pending || 0), hidden: Number(posts.hidden || 0), published7d: Number(activity.posts7d || 0) },
-      errands: { total: Number(errands.total || 0), finished: Number(errands.finished || 0), amount: Number(errands.amount || 0) },
-      items: { total: Number(items.total || 0), online: Number(items.online || 0), sales: Number(items.sales || 0) },
-      recentActions: recent
+      users: { total: num(users.total), enabled: num(users.enabled), active7d: num(activity.activeUsers7d) },
+      posts: { total: num(posts.total), published: num(posts.published), pending: num(posts.pending), hidden: num(posts.hidden), published7d: num(activity.posts7d) },
+      errands: { total: num(errands.total), finished: num(errands.finished), amount: num(errands.amount) },
+      items: { total: num(items.total), online: num(items.online), sales: num(items.sales) },
+      recentActions: recentRows,
+      generatedAt: new Date().toISOString()
     })
   } catch (e) { fail(res, safeMessage(e), 500) }
 }
@@ -299,5 +313,66 @@ exports.reviewRiderVerification = async (req, res) => {
     }
     await audit(req, 'rider_verification.' + action, 'rider_verification', id, { userId: row.user_id, note: note || '' })
     success(res, null, action === 'approve' ? '已通过认证' : '已驳回认证')
+  } catch (e) { fail(res, safeMessage(e), 500) }
+}
+
+// ===== 管理员账号管理（仅 super_admin：admin.manage 权限只有 '*' 角色命中） =====
+
+exports.listAdmins = async (req, res) => {
+  try {
+    const [list] = await pool.query(
+      `SELECT id, nick_name nickName, avatar_url avatarUrl, phone, role, status, created_at createdAt
+       FROM sys_user
+       WHERE role IN ('super_admin', 'content_admin', 'user_admin', 'operator')
+       ORDER BY FIELD(role, 'super_admin', 'content_admin', 'user_admin', 'operator'), id`
+    )
+    success(res, { list: (list || []).map((row) => Object.assign({}, row, { permissions: permissionsFor(row.role) })) })
+  } catch (e) { fail(res, safeMessage(e), 500) }
+}
+
+exports.createAdmin = async (req, res) => {
+  const body = req.body || {}
+  const query = String(body.query || '').trim().slice(0, 64)
+  const role = String(body.role || '').trim()
+  if (!query || !ADMIN_ROLES.includes(role)) return fail(res, '请填写用户并选择有效的管理员角色')
+  try {
+    const [rows] = await pool.query(
+      'SELECT id, nick_name, role, status FROM sys_user WHERE id = ? OR phone = ? OR student_id = ? LIMIT 2',
+      [/^\d+$/.test(query) ? Number(query) : 0, query, query]
+    )
+    if (!rows.length) return fail(res, '未找到该用户，请确认用户 ID / 手机号 / 学号', 404)
+    if (rows.length > 1) return fail(res, '匹配到多个用户，请改用用户 ID 精确指定')
+    const target = rows[0]
+    if (target.role !== 'user') return fail(res, `该用户已是管理员（${target.role}），请直接调整角色`)
+    if (Number(target.status) !== 1) return fail(res, '该账号已被禁用，请先启用再设置管理员')
+    await pool.query('UPDATE sys_user SET role = ? WHERE id = ?', [role, target.id])
+    await audit(req, 'admin.create', 'user', target.id, { role })
+    success(res, { id: target.id, role })
+  } catch (e) { fail(res, safeMessage(e), 500) }
+}
+
+exports.listAuditLogs = async (req, res) => {
+  const { page, pageSize, offset } = pageParams(req.query)
+  const action = String(req.query.action || '').trim().replace(/[%_]/g, '').slice(0, 48)
+  try {
+    const where = action ? 'WHERE l.action LIKE ?' : ''
+    const params = action ? [action + '%'] : []
+    const [[count], [rows]] = await Promise.all([
+      pool.query(`SELECT COUNT(*) total FROM admin_audit_log l ${where}`, params),
+      pool.query(
+        `SELECT l.id, l.action, l.target_type targetType, l.target_id targetId, l.detail, l.ip, l.created_at createdAt,
+          u.id adminId, u.nick_name adminName
+         FROM admin_audit_log l LEFT JOIN sys_user u ON u.id = l.admin_id
+         ${where} ORDER BY l.id DESC LIMIT ? OFFSET ?`,
+        params.concat([pageSize, offset])
+      )
+    ])
+    const list = (rows || []).map((row) => {
+      let detail = {}
+      try { detail = JSON.parse(row.detail) || {} } catch (e) {}
+      return Object.assign({}, row, { detail })
+    })
+    const total = Number(count.total || 0)
+    success(res, { list, total, page, hasMore: offset + list.length < total })
   } catch (e) { fail(res, safeMessage(e), 500) }
 }

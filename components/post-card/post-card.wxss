@@ -1,10 +1,15 @@
-.post-card { margin: 0 0 16rpx; padding: 24rpx 22rpx 18rpx; background: #ffffff; border-radius: 12rpx; box-shadow: 0 3rpx 12rpx rgba(35, 50, 74, .05); }
+.post-card { position: relative; margin: 0 0 16rpx; padding: 24rpx 22rpx 18rpx; background: #ffffff; border-radius: 12rpx; box-shadow: 0 3rpx 12rpx rgba(35, 50, 74, .05); }
 .post-card:active { background: #fbfcfe; }
 .post-header { display: flex; align-items: center; min-height: 64rpx; }
 .post-avatar { width: 60rpx; height: 60rpx; margin-right: 14rpx; border-radius: 50%; background: #eef2f7; flex: 0 0 auto; }
 .post-user-info { display: flex; flex: 1; min-width: 0; flex-direction: column; gap: 4rpx; }
 .post-nick { overflow: hidden; color: #233247; font-size: 27rpx; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
 .post-nick-row { display: flex; align-items: center; gap: 8rpx; }
+.post-anonymous-label { display: inline-flex; align-items: stretch; overflow: hidden; height: 30rpx; border-radius: 4rpx; background: #f34e72; color: #fff; font-size: 18rpx; font-weight: 700; line-height: 30rpx; }
+.post-anonymous-main { padding: 0 8rpx; }
+.post-anonymous-tag { padding: 0 5rpx; background: #f6d84a; color: #4c5b22; font-size: 15rpx; line-height: 30rpx; }
+.post-pin-tag { padding: 0 5rpx; background: #ff6b2c; color: #fff; font-size: 15rpx; line-height: 30rpx; }
+.post-deleted-stamp { position: absolute; top: 82rpx; right: 30rpx; z-index: 1; padding: 14rpx 20rpx; border: 5rpx solid rgba(120, 126, 137, .62); border-radius: 50%; color: rgba(120, 126, 137, .78); font-size: 28rpx; font-weight: 700; transform: rotate(-12deg); }
 .post-cert-label { flex: 0 0 auto; padding: 2rpx 10rpx; border-radius: 4rpx; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #fff; font-size: 20rpx; font-weight: 500; line-height: 1.4; }
 .post-time { color: #a5afbc; font-size: 21rpx; }
 .post-meta { display: flex; align-items: center; gap: 9rpx; color: #9ea9b7; font-size: 21rpx; }
@@ -12,7 +17,7 @@
 .meta-category { flex: 0 1 auto; max-width: 168rpx; overflow: hidden; padding: 2rpx 10rpx; border-radius: 6rpx; background: #f0edff; color: #7268b8; font-size: 20rpx; text-overflow: ellipsis; white-space: nowrap; }
 .post-review-note { display: inline-flex; align-items: center; flex: 0 1 auto; min-width: 0; max-width: 240rpx; overflow: hidden; padding: 2rpx 10rpx; border: 2rpx solid #ef5b73; border-radius: 6rpx; background: #fff1f3; color: #b4233e; font-size: 20rpx; font-weight: 600; line-height: 1.5; text-overflow: ellipsis; white-space: nowrap; }
 .more-btn { display: flex; align-items: center; justify-content: center; width: 48rpx; height: 48rpx; }
-.more-btn image { width: 30rpx; height: 30rpx; opacity: .62; }
+.more-btn-icon { width: 30rpx; height: 30rpx; opacity: .62; }
 .post-title { display: block; margin-top: 18rpx; color: #1c2e44; font-size: 30rpx; font-weight: 700; line-height: 1.45; }
 .post-content { display: flex; flex-wrap: wrap; margin-top: 16rpx; color: #1f3046; font-size: 29rpx; line-height: 1.5; word-break: break-word; }
 .post-full { margin-left: 8rpx; color: #3478f6; font-size: 25rpx; }
@@ -31,9 +36,9 @@
 .campus-tag { max-width: 138rpx; overflow: hidden; padding: 3rpx 8rpx; border-radius: 4rpx; background: #f0f5ff; color: #5e7fb6; font-size: 20rpx; text-overflow: ellipsis; white-space: nowrap; }
 .footer-actions { display: flex; align-items: center; justify-content: flex-end; gap: 14rpx; flex: 1; min-width: 0; }
 .footer-action { display: flex; align-items: center; gap: 4rpx; color: #99a5b4; font-size: 20rpx; white-space: nowrap; }
-.footer-action image { width: 44rpx; height: 44rpx; opacity: .72; }
+.footer-action-icon { width: 44rpx; height: 44rpx; opacity: .72; }
 .footer-action.active-like { color: #e75e6b; }
-.footer-action.active-like image, .footer-action.active-favorite image { opacity: 1; }
+.footer-action.active-like .footer-action-icon, .footer-action.active-favorite .footer-action-icon { opacity: 1; }
 .footer-action.active-favorite { color: #d49429; }
 .note-editor-mask { position: fixed; z-index: 1000; inset: 0; background: rgba(0, 0, 0, .48); }
 .note-editor { position: fixed; z-index: 1001; left: 50%; width: 660rpx; padding: 28rpx; box-sizing: border-box; border-radius: 8rpx; background: #fff; box-shadow: 0 14rpx 36rpx rgba(23, 38, 59, .18); transform: translateX(-50%); }
@@ -47,3 +52,27 @@
 .note-editor-btn.cancel { background: #f1f3f6; color: #627084; }
 .note-editor-btn.confirm { background: #3478f6; color: #fff; }
 .note-editor-btn.confirm.is-disabled { background: #b7c7e4; color: #fff; }
+
+.anon-sheet-mask { position: fixed; z-index: 1100; inset: 0; background: rgba(0, 0, 0, .45); }
+.anon-sheet { position: fixed; z-index: 1101; left: 0; right: 0; bottom: 0; background: #f4f4f6; border-radius: 36rpx 36rpx 0 0; padding: 44rpx 40rpx calc(56rpx + env(safe-area-inset-bottom)); }
+.anon-sheet-close { position: absolute; top: 36rpx; right: 32rpx; width: 64rpx; height: 64rpx; border-radius: 50%; background: #e9e9ec; color: #7c7c82; font-size: 40rpx; line-height: 60rpx; text-align: center; }
+.anon-sheet-user { display: flex; align-items: center; }
+.anon-sheet-avatar { width: 108rpx; height: 108rpx; border-radius: 26rpx; background: #fff; flex: 0 0 auto; }
+.anon-sheet-nick { margin-left: 24rpx; font-size: 36rpx; font-weight: 700; color: #1a1a1a; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.anon-sheet-owner { position: relative; flex: 0 0 auto; margin-left: 14rpx; padding: 3rpx 12rpx; background: #f43a26; border-radius: 8rpx; }
+.anon-sheet-owner-text { color: #fff; font-size: 22rpx; font-weight: 700; }
+.anon-sheet-owner-op { position: absolute; top: -12rpx; right: -10rpx; padding: 0 6rpx; background: #ffd54a; border-radius: 6rpx 6rpx 6rpx 0; color: #6b4a00; font-size: 18rpx; font-weight: 800; line-height: 22rpx; }
+.anon-sheet-msg-btn { display: block; margin: 76rpx auto 0; width: 330rpx; height: 90rpx; line-height: 90rpx; padding: 0; border-radius: 45rpx; background: #f8503a; color: #fff; font-size: 32rpx; font-weight: 600; text-align: center; }
+.anon-sheet-msg-btn::after { border: none; }
+.anon-sheet-tip { display: block; margin-top: 44rpx; text-align: center; color: #9b9ba1; font-size: 28rpx; }
+
+/* 普通帖头像弹出的作者选择层（个人主页 / 分身私信） */
+.author-sheet-badge { flex: 0 0 auto; margin-left: 14rpx; padding: 4rpx 14rpx; background: #52b0a8; border-radius: 8rpx; }
+.author-sheet-badge-text { color: #fff; font-size: 22rpx; font-weight: 600; }
+.author-sheet-actions { display: flex; margin-top: 60rpx; }
+.author-sheet-btn { flex: 1; height: 90rpx; line-height: 90rpx; padding: 0; margin: 0; border-radius: 45rpx; font-size: 32rpx; font-weight: 600; text-align: center; }
+.author-sheet-btn + .author-sheet-btn { margin-left: 28rpx; }
+.author-sheet-btn::after { border: none; }
+.author-sheet-btn.ghost { background: #fff; color: #333; border: 1rpx solid #e3e3e8; }
+.author-sheet-btn.primary { background: #f8503a; color: #fff; }
+

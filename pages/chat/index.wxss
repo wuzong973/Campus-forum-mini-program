@@ -188,9 +188,18 @@ contact-admin.inline-contact {
   display: block;
 }
 
-.message-bubble.image-bubble {
+/* 图片/视频消息：气泡去内边距 */
+.message-bubble.media-bubble {
   padding: 0;
   overflow: hidden;
+}
+
+.message-video {
+  width: 380rpx;
+  height: 300rpx;
+  display: block;
+  background: #000000;
+  border-radius: 6rpx;
 }
 .message-emoji {
   display: block;
@@ -211,10 +220,10 @@ contact-admin.inline-contact {
   font-size: 24rpx;
 }
 
-/* 输入区域 */
+/* 输入区域（微信原生风格） */
 .input-area {
   background: #f7f7f7;
-  border-top: 1rpx solid #d7d7d7;
+  border-top: 1rpx solid #e5e5e5;
   padding-bottom: env(safe-area-inset-bottom);
 }
 .anonymous-chat-tip,
@@ -239,31 +248,125 @@ contact-admin.inline-contact {
 .input-toolbar {
   display: flex;
   align-items: center;
-  gap: 16rpx;
-  padding: 14rpx 22rpx;
+  gap: 14rpx;
+  padding: 14rpx 20rpx;
 }
 
+/* 工具按钮：细线图标（微信风格） */
 .tool-btn {
-  width: 58rpx;
-  height: 58rpx;
+  width: 64rpx;
+  height: 64rpx;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  font-size: 52rpx;
-  line-height: 1;
-  color: #191919;
+  border-radius: 10rpx;
+  color: #1a1a1a;
+  transition: opacity 0.15s ease, transform 0.15s ease;
 }
 
-.input-wrapper {
-  flex: 1;
-  min-width: 0;
-  height: 72rpx;
-  display: flex;
-  align-items: center;
-  background: #ffffff;
-  border-radius: 8rpx;
+.tool-btn-hover { opacity: 0.55; transform: scale(0.92); }
+
+/* 麦克风图标 */
+.icon-voice {
+  position: relative;
+  width: 52rpx;
+  height: 52rpx;
 }
+.icon-voice::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 3rpx;
+  transform: translateX(-50%);
+  width: 17rpx;
+  height: 27rpx;
+  border: 3.5rpx solid currentColor;
+  border-radius: 9rpx;
+  box-sizing: border-box;
+}
+.icon-voice::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 24rpx;
+  transform: translateX(-50%);
+  width: 32rpx;
+  height: 24rpx;
+  border: 3.5rpx solid currentColor;
+  border-top: none;
+  border-radius: 0 0 18rpx 18rpx;
+  box-sizing: border-box;
+}
+/* 语音模式切换为键盘图标 */
+.icon-voice.is-keyboard::before {
+  top: 10rpx;
+  width: 42rpx;
+  height: 32rpx;
+  border-radius: 6rpx;
+}
+.icon-voice.is-keyboard::after {
+  top: 26rpx;
+  width: 16rpx;
+  height: 4rpx;
+  border: none;
+  border-radius: 2rpx;
+  background: currentColor;
+}
+
+/* 表情图标（笑脸） */
+.icon-emoji {
+  position: relative;
+  width: 52rpx;
+  height: 52rpx;
+  border: 3.5rpx solid currentColor;
+  border-radius: 50%;
+  box-sizing: border-box;
+}
+.icon-emoji::before {
+  content: '';
+  position: absolute;
+  top: 14rpx;
+  left: 13rpx;
+  width: 5rpx;
+  height: 5rpx;
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: 16rpx 0 0 currentColor;
+}
+.icon-emoji::after {
+  content: '';
+  position: absolute;
+  top: 24rpx;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 20rpx;
+  height: 11rpx;
+  border: 3.5rpx solid currentColor;
+  border-top: none;
+  border-radius: 0 0 16rpx 16rpx;
+  box-sizing: border-box;
+}
+
+/* 加号图标 */
+.icon-plus {
+  position: relative;
+  width: 52rpx;
+  height: 52rpx;
+}
+.icon-plus::before,
+.icon-plus::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 34rpx;
+  height: 4rpx;
+  border-radius: 2rpx;
+  background: currentColor;
+}
+.icon-plus::before { transform: translate(-50%, -50%); }
+.icon-plus::after { transform: translate(-50%, -50%) rotate(90deg); }
 
 .voice-input {
   flex: 1;
@@ -274,55 +377,125 @@ contact-admin.inline-contact {
   border-radius: 8rpx;
   color: #191919;
   font-size: 28rpx;
+  font-weight: 500;
 }
 
+.voice-hover { background: #ececec; }
+
 .message-input {
-  width: 100%;
+  flex: 1;
+  min-width: 0;
   height: 72rpx;
   padding: 0 16rpx;
   font-size: 30rpx;
   color: #191919;
+  background: #ffffff;
+  border-radius: 8rpx;
   box-sizing: border-box;
 }
 
 .send-btn {
-  height: 62rpx;
-  min-width: 100rpx;
-  padding: 0 18rpx;
-  line-height: 62rpx;
+  height: 64rpx;
+  min-width: 104rpx;
+  padding: 0 20rpx;
+  line-height: 64rpx;
   text-align: center;
   border-radius: 8rpx;
   background: #07c160;
   color: #ffffff;
   font-size: 27rpx;
+  font-weight: 500;
+  flex-shrink: 0;
+  transition: transform 0.15s ease, background-color 0.15s ease;
 }
 
+.send-btn-hover { background: #06ad56; transform: scale(0.96); }
+
+/* ＋ 功能面板（照片/视频） */
 .tool-panel {
   display: flex;
-  min-height: 250rpx;
-  padding: 28rpx 38rpx;
+  gap: 36rpx;
+  min-height: 280rpx;
+  padding: 32rpx 40rpx;
+  background: #f7f7f7;
   border-top: 1rpx solid #e5e5e5;
+  box-sizing: border-box;
 }
 
 .tool-panel-item {
-  width: 120rpx;
+  width: 128rpx;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 10rpx;
+  gap: 12rpx;
+  transition: transform 0.15s ease, opacity 0.15s ease;
 }
-.tool-panel-icon {
-  width: 88rpx;
-  height: 88rpx;
-  line-height: 88rpx;
-  text-align: center;
-  border-radius: 12rpx;
+
+.tool-item-hover { opacity: 0.6; transform: scale(0.95); }
+
+.tool-tile {
+  width: 108rpx;
+  height: 108rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   background: #ffffff;
-  color: #4b5563;
-  font-size: 52rpx;
+  border-radius: 20rpx;
 }
+
+/* 照片图标 */
+.tool-icon-photo {
+  position: relative;
+  width: 52rpx;
+  height: 44rpx;
+  border: 3.5rpx solid #595f6b;
+  border-radius: 8rpx;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+.tool-icon-photo::before {
+  content: '';
+  position: absolute;
+  top: 7rpx;
+  left: 8rpx;
+  width: 8rpx;
+  height: 8rpx;
+  border-radius: 50%;
+  background: #595f6b;
+}
+.tool-icon-photo::after {
+  content: '';
+  position: absolute;
+  bottom: -4rpx;
+  left: 50%;
+  transform: translateX(-50%) rotate(45deg);
+  width: 20rpx;
+  height: 20rpx;
+  background: #595f6b;
+}
+
+/* 视频图标 */
+.tool-icon-video {
+  position: relative;
+  width: 54rpx;
+  height: 44rpx;
+  border: 3.5rpx solid #595f6b;
+  border-radius: 10rpx;
+  box-sizing: border-box;
+}
+.tool-icon-video::after {
+  content: '';
+  position: absolute;
+  left: 53%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  border-left: 14rpx solid #595f6b;
+  border-top: 9rpx solid transparent;
+  border-bottom: 9rpx solid transparent;
+}
+
 .tool-panel-label {
-  color: #555;
+  color: #555555;
   font-size: 23rpx;
 }
 

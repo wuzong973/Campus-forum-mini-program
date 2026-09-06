@@ -7,7 +7,7 @@
         <view class="post-nick-row">
           <text class="post-nick">{{post.nickName || '校园同学'}}</text>
           <text class="post-review-note" wx:if="{{post.reviewNote}}">备注：{{post.reviewNote}}</text>
-          <text class="post-cert-label" wx:if="{{post.certLabel}}">{{post.certLabel}}</text>
+          <text class="post-cert-label" wx:if="{{post.certLabel && !post.isAnonymous}}">{{post.certLabel}}</text>
         </view>
         <view class="post-meta">
           <text class="meta-category">{{post.category || '日常话题'}}</text>
@@ -41,13 +41,13 @@
       </view>
       <view class="post-actions">
         <view class="post-action-group">
-          <view class="post-action {{post.isFavorited ? 'active-favorite' : ''}}" catchtap="onFavoritePost"><image src="/assets/icons/star-outline.png" mode="aspectFit"></image><text>收藏{{post.favoriteCount ? ' ' + post.favoriteCount : ''}}</text></view>
-          <view class="post-action {{post.isFollowed ? 'active-follow' : ''}}" catchtap="onFollowPost"><image src="/assets/icons/bookmark-outline.png" mode="aspectFit"></image><text>蹲帖</text></view>
+          <view class="post-action {{post.isFavorited ? 'active-favorite' : ''}}" catchtap="onFavoritePost"><image src="/assets/icons/star-outline.png" mode="aspectFit"></image><text>{{post.favoriteCount > 0 ? post.favoriteCount : '收藏'}}</text></view>
+          <view class="post-action {{post.isFollowed ? 'active-follow' : ''}}" catchtap="onFollowPost"><image src="/assets/icons/bookmark-outline.png" mode="aspectFit"></image><text>{{post.followCount > 0 ? post.followCount : '蹲贴'}}</text></view>
         </view>
         <view class="post-action-group post-action-group-right">
-          <view class="post-action" catchtap="onSharePost"><image src="/assets/icons/share.png" mode="aspectFit"></image><text>分享{{post.shareCount ? ' ' + post.shareCount : ''}}</text></view>
-          <view class="post-action {{post.isLiked ? 'active-like' : ''}}" catchtap="onLikePost"><image src="/assets/icons/heart-outline.png" mode="aspectFit"></image><text>点赞{{post.likeCount ? ' ' + post.likeCount : ''}}</text></view>
-          <view class="post-action" catchtap="onFocusComment"><image src="/assets/icons/comment.png" mode="aspectFit"></image><text>评论{{post.commentCount ? ' ' + post.commentCount : ''}}</text></view>
+          <view class="post-action" catchtap="onSharePost"><image src="/assets/icons/share.png" mode="aspectFit"></image><text>{{post.shareCount > 0 ? post.shareCount : '分享'}}</text></view>
+          <view class="post-action {{post.isLiked ? 'active-like' : ''}}" catchtap="onLikePost"><image src="/assets/icons/heart-outline.png" mode="aspectFit"></image><text>{{post.likeCount > 0 ? post.likeCount : '点赞'}}</text></view>
+          <view class="post-action" catchtap="onFocusComment"><image src="/assets/icons/comment.png" mode="aspectFit"></image><text>{{post.commentCount > 0 ? post.commentCount : '评论'}}</text></view>
         </view>
       </view>
       <view class="contact-info" wx:if="{{post.contact}}">
@@ -60,32 +60,52 @@
       </view>
     </view>
 
+    <!-- 与首页一致的今日热榜预览 -->
+    <view class="today-hot-card card" wx:if="{{hotPosts.length}}" bindtap="onTodayHotTap">
+      <view class="today-hot-header">
+        <view class="today-hot-title-wrap"><text class="today-hot-fire">🔥</text><text class="today-hot-title">每日热榜</text></view>
+        <view class="today-hot-more">点击查看</view>
+      </view>
+      <swiper class="today-hot-swiper" vertical autoplay circular interval="5000" duration="420">
+        <swiper-item wx:for="{{hotRankGroups}}" wx:key="index">
+          <view class="today-hot-row" wx:for="{{item}}" wx:for-item="hotItem" wx:key="id">
+            <text class="today-hot-rank">{{hotItem.rank}}.</text>
+            <text class="today-hot-text">{{hotItem.hotText}}</text>
+          </view>
+        </swiper-item>
+      </swiper>
+    </view>
+    <view class="today-hot-card card today-hot-loading" wx:elif="{{hotLoading}}">热榜更新中...</view>
+
     <view class="comments-section">
       <view class="comments-header"><view class="comments-tag" hover-class="comments-tag-hover" hover-stay-time="80"><text class="comments-tag-text">评论区</text><text class="comments-tag-count" wx:if="{{commentTotal > 0}}">{{commentTotal}}</text></view><view class="comment-sort"><view class="sort-option {{commentSort === 'time' ? 'active' : ''}}" hover-class="sort-hover" hover-stay-time="80" data-sort="time" catchtap="onCommentSort">时间</view><view class="sort-option {{commentSort === 'hot' ? 'active' : ''}}" hover-class="sort-hover" hover-stay-time="80" data-sort="hot" catchtap="onCommentSort">赞数↓</view></view></view>
-      <view class="top-comment" wx:if="{{commentSort === 'hot' && topLikedComment}}"><text class="top-comment-label">热门评论</text><view class="top-comment-body"><image class="comment-avatar" src="{{topLikedComment.avatarUrl || '/assets/icons/avatar.png'}}" mode="aspectFill" data-userid="{{topLikedComment.userId}}" data-anonymous="{{topLikedComment.isAnonymous}}" catchtap="onCommentAvatarTap"></image><view class="comment-content-wrap comment-reply-trigger" catchtap="onReplyComment" data-id="{{topLikedComment.id}}" data-nick="{{topLikedComment.nickName}}"><view class="comment-meta"><text class="comment-nick">{{topLikedComment.nickName}}</text><text class="author-comment-label" wx:if="{{topLikedComment.isAuthor}}">作者</text></view><text class="comment-text">{{topLikedComment.content}}</text></view><view class="comment-like-count"><image src="/assets/icons/heart-outline.png" mode="aspectFit"></image><text>点赞{{topLikedComment.likeCount ? ' ' + topLikedComment.likeCount : ''}}</text></view></view></view>
       <view class="comment-list">
         <view class="comment-item" wx:for="{{comments}}" wx:key="id">
-          <image class="comment-avatar" src="{{item.avatarUrl || '/assets/icons/avatar.png'}}" mode="aspectFill" data-userid="{{item.userId}}" data-anonymous="{{item.isAnonymous}}" catchtap="onCommentAvatarTap"></image>
+          <image class="comment-avatar" src="{{item.avatarUrl || '/assets/icons/avatar.png'}}" mode="aspectFill" data-userid="{{item.userId}}" data-anonymous="{{item.isAnonymous}}" data-nick="{{item.nickName}}" data-avatar="{{item.avatarUrl}}" data-isowner="{{item.isAuthor}}" data-allowpm="{{item.allowAnonymousPm}}" catchtap="onCommentAvatarTap"></image>
           <view class="comment-content-wrap comment-reply-trigger" catchtap="onReplyComment" data-id="{{item.id}}" data-nick="{{item.nickName}}">
-            <view class="comment-meta"><text class="comment-nick">{{item.nickName}}</text><text class="author-comment-label" wx:if="{{item.isAuthor}}">作者</text><text class="comment-time">{{item.timeText}}</text></view>
-            <view class="comment-body"><text class="comment-reply-to" wx:if="{{item.replyToNick}}">回复 {{item.replyToNick}}：</text><text class="comment-text">{{item.content}}</text></view>
+            <view class="comment-head">
+              <view class="comment-meta"><text class="comment-nick">{{item.nickName}}</text><text class="author-comment-label" wx:if="{{item.isAuthor}}">作者</text><text class="comment-time">{{item.timeText}}</text></view>
+              <view class="comment-more" catchtap="onCommentMore" data-id="{{item.id}}" data-userid="{{item.userId}}" data-nick="{{item.nickName}}"><image class="comment-more-icon" src="/assets/icons/more.png" mode="aspectFit"></image></view>
+            </view>
+            <view class="comment-body"><view class="comment-text-wrap"><text class="comment-reply-to" wx:if="{{item.replyToNick}}">回复 {{item.replyToNick}}：</text><text class="comment-text">{{item.content}}</text></view><view class="comment-like {{item.isLiked ? 'active-like' : ''}}" hover-class="like-hover" hover-stay-time="80" catchtap="onLikeComment" data-id="{{item.id}}"><image src="/assets/icons/heart-outline.png" mode="aspectFit"></image><text class="like-count" wx:if="{{item.likeCount > 0}}">{{item.likeCount}}</text></view></view>
             <view class="comment-image-list" wx:if="{{item.images && item.images.length}}"><image class="comment-image" wx:for="{{item.images}}" wx:for-item="img" wx:key="*this" src="{{img}}" mode="aspectFill"></image></view>
             <view class="comment-actions" wx:if="{{item.userId === currentUserId}}"><text catchtap="onEditComment" data-id="{{item.id}}" data-content="{{item.content}}">编辑</text><text class="delete" catchtap="onDeleteComment" data-id="{{item.id}}">删除</text></view>
             <view class="reply-list" wx:if="{{item.replies.length}}">
               <view class="reply-item" wx:for="{{item.expanded ? item.replies : item.recentReplies}}" wx:for-item="reply" wx:key="id" catchtap="onReplyComment" data-id="{{reply.id}}" data-nick="{{reply.nickName}}">
-                <image class="reply-avatar" src="{{reply.avatarUrl || '/assets/icons/avatar.png'}}" mode="aspectFill" data-userid="{{reply.userId}}" data-anonymous="{{reply.isAnonymous}}" catchtap="onCommentAvatarTap"></image>
+                <image class="reply-avatar" src="{{reply.avatarUrl || '/assets/icons/avatar.png'}}" mode="aspectFill" data-userid="{{reply.userId}}" data-anonymous="{{reply.isAnonymous}}" data-nick="{{reply.nickName}}" data-avatar="{{reply.avatarUrl}}" data-isowner="{{reply.isAuthor}}" data-allowpm="{{reply.allowAnonymousPm}}" catchtap="onCommentAvatarTap"></image>
                 <view class="reply-content">
-                  <view class="comment-meta"><text class="comment-nick">{{reply.nickName}}</text><text class="author-comment-label" wx:if="{{reply.isAuthor}}">作者</text><text class="comment-time">{{reply.timeText}}</text></view>
-                  <view class="comment-body"><text class="comment-reply-to" wx:if="{{reply.replyToNick}}">回复 {{reply.replyToNick}}：</text><text class="comment-text">{{reply.content}}</text></view>
+                  <view class="comment-head">
+                    <view class="comment-meta"><text class="comment-nick">{{reply.nickName}}</text><text class="author-comment-label" wx:if="{{reply.isAuthor}}">作者</text><text class="comment-time">{{reply.timeText}}</text></view>
+                    <view class="comment-more" catchtap="onCommentMore" data-id="{{reply.id}}" data-userid="{{reply.userId}}" data-nick="{{reply.nickName}}"><image class="comment-more-icon" src="/assets/icons/more.png" mode="aspectFit"></image></view>
+                  </view>
+                  <view class="comment-body"><view class="comment-text-wrap"><text class="comment-reply-to" wx:if="{{reply.replyToNick}}">回复 {{reply.replyToNick}}：</text><text class="comment-text">{{reply.content}}</text></view><view class="comment-like {{reply.isLiked ? 'active-like' : ''}}" hover-class="like-hover" hover-stay-time="80" catchtap="onLikeComment" data-id="{{reply.id}}"><image src="/assets/icons/heart-outline.png" mode="aspectFit"></image><text class="like-count" wx:if="{{reply.likeCount > 0}}">{{reply.likeCount}}</text></view></view>
                   <view class="comment-image-list" wx:if="{{reply.images && reply.images.length}}"><image class="comment-image" wx:for="{{reply.images}}" wx:for-item="image" wx:key="*this" src="{{image}}" mode="aspectFill"></image></view>
                   <view class="comment-actions" wx:if="{{reply.userId === currentUserId}}"><text catchtap="onEditComment" data-id="{{reply.id}}" data-content="{{reply.content}}">编辑</text><text class="delete" catchtap="onDeleteComment" data-id="{{reply.id}}">删除</text></view>
                 </view>
-                <view class="comment-like {{reply.isLiked ? 'active-like' : ''}}" hover-class="like-hover" hover-stay-time="80" catchtap="onLikeComment" data-id="{{reply.id}}"><image src="/assets/icons/heart-outline.png" mode="aspectFit"></image><text class="like-count" wx:if="{{reply.likeCount > 0}}">{{reply.likeCount}}</text></view>
               </view>
               <view class="reply-toggle" wx:if="{{item.hasHiddenReplies}}" catchtap="toggleCommentReplies" data-id="{{item.id}}"><text class="reply-toggle-line"></text><text>{{item.expanded ? '收起回复' : '展开 ' + item.hiddenReplyCount + ' 条回复'}}</text></view>
             </view>
           </view>
-          <view class="comment-like {{item.isLiked ? 'active-like' : ''}}" hover-class="like-hover" hover-stay-time="80" catchtap="onLikeComment" data-id="{{item.id}}"><image src="/assets/icons/heart-outline.png" mode="aspectFit"></image><text class="like-count" wx:if="{{item.likeCount > 0}}">{{item.likeCount}}</text></view>
         </view>
         <view class="empty-comments" wx:if="{{commentTotal === 0}}">还没有评论，来说两句吧</view>
       </view>
@@ -113,6 +133,36 @@
 
   <view class="modal-mask" wx:if="{{showEditModal}}" bindtap="onCloseEditModal"></view>
   <view class="edit-modal" wx:if="{{showEditModal}}"><view class="modal-header"><text class="modal-title">编辑评论</text><text class="modal-close" bindtap="onCloseEditModal">×</text></view><textarea class="modal-textarea" value="{{editContent}}" bindinput="onEditContentInput" maxlength="200"></textarea><view class="modal-actions"><button class="modal-btn cancel" bindtap="onCloseEditModal">取消</button><button class="modal-btn confirm" bindtap="onConfirmEdit">确定</button></view></view>
+
+  <view class="anon-sheet-mask" wx:if="{{anonPopup}}" catchtap="onCloseAnonPopup"></view>
+  <view class="anon-sheet" wx:if="{{anonPopup}}" catchtap="noop">
+    <view class="anon-sheet-close" catchtap="onCloseAnonPopup">×</view>
+    <view class="anon-sheet-user">
+      <image class="anon-sheet-avatar" src="{{anonPopup.avatar || '/assets/icons/avatar.png'}}" mode="aspectFill"></image>
+      <text class="anon-sheet-nick">{{anonPopup.nick}}</text>
+      <view class="anon-sheet-owner" wx:if="{{anonPopup.isOwner}}">
+        <text class="anon-sheet-owner-text">帖主</text>
+        <text class="anon-sheet-owner-op">OP</text>
+      </view>
+    </view>
+    <button class="anon-sheet-msg-btn" catchtap="onAnonPopupMessage">私信</button>
+    <text class="anon-sheet-tip">这是一位分身用户</text>
+  </view>
+
+  <view class="anon-sheet-mask" wx:if="{{authorPopup}}" catchtap="onCloseAuthorPopup"></view>
+  <view class="anon-sheet" wx:if="{{authorPopup}}" catchtap="noop">
+    <view class="anon-sheet-close" catchtap="onCloseAuthorPopup">×</view>
+    <view class="anon-sheet-user">
+      <image class="anon-sheet-avatar" src="{{authorPopup.avatar || '/assets/icons/avatar.png'}}" mode="aspectFill"></image>
+      <text class="anon-sheet-nick">{{authorPopup.nick}}</text>
+      <view class="author-sheet-badge" wx:if="{{authorPopup.certLabel}}"><text class="author-sheet-badge-text">{{authorPopup.certLabel}}</text></view>
+    </view>
+    <view class="author-sheet-actions">
+      <button class="author-sheet-btn ghost" catchtap="onAuthorPopupProfile">个人主页</button>
+      <button class="author-sheet-btn primary" catchtap="onAuthorPopupMessage">分身私信</button>
+    </view>
+    <text class="anon-sheet-tip">帖主允许分身私信，进入主页可以进行普通私信</text>
+  </view>
 
   <share-popup
     visible="{{showSharePopup}}"

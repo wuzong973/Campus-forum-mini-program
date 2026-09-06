@@ -1,4 +1,15 @@
 .page { display: flex; flex-direction: column; height: 100vh; background: #f6f7f9; overflow: hidden; }
+/* 顶部自动轮播横幅 */
+.publish-banner-swiper { height: 72rpx; margin-bottom: 20rpx; }
+.publish-banner { display: flex; align-items: center; gap: 12rpx; height: 72rpx; padding: 0 24rpx; border-radius: 36rpx; font-size: 26rpx; box-sizing: border-box; }
+.publish-banner.style-red { background: #ffe2e2; color: #e34d4d; }
+.publish-banner.style-green { background: #e0f5e6; color: #3aa356; }
+.publish-banner.style-orange { background: #fff1de; color: #e8930c; }
+.publish-banner.style-blue { background: #e3edff; color: #3a6fe3; }
+.publish-banner.style-purple { background: #f0e5ff; color: #8a4de0; }
+.publish-banner-icon { flex-shrink: 0; font-size: 28rpx; }
+.publish-banner-text { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.publish-banner-close { flex-shrink: 0; padding: 4rpx 8rpx; opacity: 0.55; }
 .publish-scroll { flex: 1; min-height: 0; box-sizing: border-box; padding: 24rpx 22rpx 164rpx; }
 .editor-card, .settings-card, .forum-tips { background: #ffffff; border-radius: 20rpx; }
 .editor-card { padding: 26rpx; min-height: 610rpx; }

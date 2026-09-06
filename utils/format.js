@@ -45,4 +45,10 @@ function truncate(str, len) {
   return str.length > len ? str.slice(0, len) + '...' : str
 }
 
-module.exports = { formatTime, formatDateTime, formatRelativeTime, formatPrice, truncate }
+// 去掉评论/消息末尾的「[图片]/[视频]」占位后缀：
+// 有真实媒体时展示媒体本身，不再显示占位文字（兼容历史数据，发送端仍以占位符入库满足非空校验）
+function stripMediaPlaceholder(str) {
+  return String(str || '').replace(/\s*\[(?:图片|视频)\]\s*$/, '').trim()
+}
+
+module.exports = { formatTime, formatDateTime, formatRelativeTime, formatPrice, truncate, stripMediaPlaceholder }

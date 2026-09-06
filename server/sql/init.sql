@@ -15,6 +15,7 @@ CREATE TABLE IF NOT EXISTS sys_user (
   real_name VARCHAR(32) DEFAULT '',
   is_verified TINYINT(1) DEFAULT 0,
   cert_label VARCHAR(32) DEFAULT NULL,
+  allow_anonymous_pm TINYINT(1) DEFAULT 1,
   status TINYINT(1) NOT NULL DEFAULT 1,
   role VARCHAR(32) NOT NULL DEFAULT 'user',
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -184,7 +185,7 @@ CREATE TABLE IF NOT EXISTS errand_order (
   campus VARCHAR(32) DEFAULT '南校区',
   gender_requirement VARCHAR(16) NOT NULL DEFAULT '不限性别',
   pickup_time_type VARCHAR(16) DEFAULT '尽快',
-  appointment_time DATETIME DEFAULT NULL,
+  appointment_time VARCHAR(64) DEFAULT NULL,
   receiver_name VARCHAR(32) DEFAULT '',
   receiver_phone VARCHAR(20) DEFAULT '',
   delivery_building VARCHAR(64) DEFAULT '',
@@ -197,12 +198,50 @@ CREATE TABLE IF NOT EXISTS errand_order (
   transaction_id VARCHAR(64) DEFAULT NULL,
   paid_at DATETIME DEFAULT NULL,
   status ENUM('pending','accepted','finished','cancelled') DEFAULT 'pending',
+  accepted_at DATETIME DEFAULT NULL,
+  finish_description VARCHAR(500) DEFAULT '',
+  finish_images JSON DEFAULT NULL,
+  finished_at DATETIME DEFAULT NULL,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   INDEX idx_status (status),
   INDEX idx_campus (campus),
   UNIQUE KEY uk_errand_order_no (order_no),
   INDEX idx_errand_feed (status, campus, created_at)
+) ENGINE=InnoDB;
+
+-- 接单方取消接单申请：30分钟内自身原因可直接取消，其余情况需发单人同意
+CREATE TABLE IF NOT EXISTS errand_cancel_request (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  order_id INT UNSIGNED NOT NULL,
+  requester_id INT UNSIGNED NOT NULL,
+  reason_side ENUM('self','publisher') NOT NULL DEFAULT 'self',
+  reason VARCHAR(255) NOT NULL DEFAULT '',
+  images JSON,
+  status ENUM('pending','approved','rejected') NOT NULL DEFAULT 'pending',
+  handled_at DATETIME DEFAULT NULL,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_cancel_request_order (order_id, status),
+  INDEX idx_cancel_request_requester (requester_id, created_at)
+) ENGINE=InnoDB;
+
+-- 订单流水记录（订单信息-查看记录）
+CREATE TABLE IF NOT EXISTS errand_order_log (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  order_id INT UNSIGNED NOT NULL,
+  actor_id INT UNSIGNED DEFAULT NULL,
+  action VARCHAR(32) NOT NULL,
+  detail VARCHAR(255) DEFAULT '',
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_errand_log_order (order_id, created_at)
+) ENGINE=InnoDB;
+
+-- 接单方完成率统计：自身原因取消接单会降低完成率，过低冻结接单功能
+CREATE TABLE IF NOT EXISTS errand_stat (
+  user_id INT UNSIGNED PRIMARY KEY,
+  finished_count INT NOT NULL DEFAULT 0,
+  self_cancel_count INT NOT NULL DEFAULT 0,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB;
 
 -- System and activity records
@@ -226,17 +265,32 @@ CREATE TABLE IF NOT EXISTS user_feedback (
   content VARCHAR(500) NOT NULL,
   contact VARCHAR(128) DEFAULT '',
   images JSON,
-  status ENUM('pending','processing','resolved','closed') NOT NULL DEFAULT 'pending',
+  status ENUM('pending','processing','replied','resolved','closed') NOT NULL DEFAULT 'pending',
+  reply VARCHAR(500) DEFAULT '',
+  reply_user_id INT UNSIGNED DEFAULT NULL,
+  reply_at DATETIME DEFAULT NULL,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   INDEX idx_feedback_user_created (user_id, created_at),
   INDEX idx_feedback_status_created (status, created_at)
 ) ENGINE=InnoDB;
 
+-- 意见墙用户评论。reply_to 指向被回复的评论（0 = 直接评论意见），reply_to_nick 冗余存储被回复人昵称。
+CREATE TABLE IF NOT EXISTS feedback_comment (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  feedback_id BIGINT UNSIGNED NOT NULL,
+  user_id INT UNSIGNED NOT NULL,
+  reply_to BIGINT UNSIGNED NOT NULL DEFAULT 0,
+  reply_to_nick VARCHAR(64) DEFAULT '',
+  content VARCHAR(500) NOT NULL,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_feedback_comment (feedback_id, created_at)
+) ENGINE=InnoDB;
+
 CREATE TABLE IF NOT EXISTS content_report (
   id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   reporter_id INT UNSIGNED NOT NULL,
-  target_type ENUM('post','comment') NOT NULL,
+  target_type ENUM('post','comment','user') NOT NULL,
   target_id BIGINT UNSIGNED NOT NULL,
   reason VARCHAR(500) NOT NULL,
   status ENUM('pending','processing','resolved','rejected') NOT NULL DEFAULT 'pending',
@@ -473,6 +527,7 @@ CREATE TABLE IF NOT EXISTS private_message (
   receiver_id INT UNSIGNED NOT NULL,
   content TEXT NOT NULL,
   msg_type VARCHAR(16) DEFAULT 'text',
+  is_anonymous TINYINT(1) NOT NULL DEFAULT 0,
   status ENUM('sending','sent','delivered','read','failed','recalled') DEFAULT 'sent',
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   INDEX idx_conversation (conversation_id),

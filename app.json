@@ -11,6 +11,8 @@
     "pages/errand-publish/index",
     "pages/errand-order/index",
     "pages/errand-detail/index",
+    "pages/errand-message/index",
+    "pages/errand-chat/index",
     "pages/errand-complete/index",
     "pages/errand-cancel/index",
     "pages/rider-verify/index",
@@ -18,6 +20,7 @@
     "pages/campus-map/index",
     "pages/post-publish/index",
     "pages/post-detail/index",
+    "pages/hot-rank/index",
     "pages/share/index",
     "pages/poster/index",
     "pages/chat/index",
@@ -25,6 +28,9 @@
     "pages/profile-edit/index",
     "pages/blacklist/index",
     "pages/user/index",
+    "pages/announcements/index",
+    "pages/about/index",
+    "pages/account-settings/index",
     "pages/settings/index",
     "pages/agreement/index",
     "pages/privacy/index",
@@ -37,6 +43,7 @@
     "pages/my-posts/index",
     "pages/my-interactions/index",
     "pages/my-messages/index",
+    "pages/message-detail/index",
     "pages/wallet/index",
     "pages/webview/index",
     "pages/logs/logs",
@@ -70,40 +77,5 @@
   "__usePrivacyCheck__": true,
   "style": "v2",
   "sitemapLocation": "sitemap.json",
-  "lazyCodeLoading": "requiredComponents",
-  "navigateToMiniProgramAppIdList": ["wx4f4f74eaf4b7d100", "wxe9f4a4df3ac90522", "wx7b3c69b4b6b348d5", "wx2cd0769ebeb0d213", "wxbe48d181d8d5762e"],
-  "__privacy_info__": {
-    "desc": "校园小程序需要收集您的个人信息以提供服务",
-    "apis": [
-      {
-        "api": "wx.getLocation",
-        "purpose": "用于校园地图定位功能"
-      },
-      {
-        "api": "wx.chooseLocation",
-        "purpose": "用于选择地址信息"
-      },
-      {
-        "api": "wx.getPhoneNumber",
-        "purpose": "用于手机号快捷登录"
-      },
-      {
-        "api": "wx.chooseMedia",
-        "purpose": "用于上传图片内容"
-      },
-      {
-        "api": "input.type=nickname",
-        "purpose": "用于同步微信昵称到用户资料"
-      },
-      {
-        "api": "button.open-type=chooseAvatar",
-        "purpose": "用于同步微信头像到用户资料"
-      },
-      {
-        "api": "wx.saveImageToPhotosAlbum",
-        "purpose": "用于保存图片到相册"
-      }
-    ],
-    "privacyFilePath": "pages/privacy/index"
-  }
+  "lazyCodeLoading": "requiredComponents"
 }

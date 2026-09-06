@@ -1,18 +1,18 @@
 <view class="page" wx:if="{{profile}}">
   <view class="hero" style="padding-top: {{statusBarHeight}}px;">
-    <image class="hero-cover" src="{{profile.coverUrl || '/assets/banners/banner-community.png'}}" mode="aspectFill"></image>
+    <image class="hero-cover" src="{{profile.coverUrl || '/assets/banners/profile-cover.jpg'}}" mode="aspectFill"></image>
     <view class="hero-mask"></view>
     <view class="nav-bar" style="height: {{navBarHeight}}px;">
       <view class="nav-back" bindtap="onBack">‹</view>
       <text class="nav-title">校园主页</text>
-      <view class="nav-more">•••</view>
+      <view class="nav-placeholder"></view>
     </view>
-    <view class="hero-service">校园社区</view>
+    <view class="hero-more" wx:if="{{!isSelf}}" bindtap="onMoreTap">•••</view>
   </view>
 
   <view class="profile-panel">
     <view class="profile-main">
-      <image class="profile-avatar" src="{{profile.avatarUrl || '/assets/icons/avatar.png'}}" mode="aspectFill"></image>
+      <image class="profile-avatar {{isSelf ? 'profile-avatar-editable' : ''}}" src="{{profile.avatarUrl || '/assets/icons/avatar.png'}}" mode="aspectFill" bindtap="onSelfAvatarTap"></image>
       <button class="message-btn" wx:if="{{!isSelf}}" bindtap="onSendMessage">
         <text class="message-btn-text">私信</text>
       </button>

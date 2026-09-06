@@ -1,1 +1,4 @@
-{"navigationBarTitleText":"信院论坛","usingComponents":{}}
+{
+  "navigationStyle": "custom",
+  "usingComponents": {}
+}

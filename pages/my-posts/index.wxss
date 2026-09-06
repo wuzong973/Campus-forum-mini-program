@@ -1,7 +1,92 @@
 .page {
   min-height: 100vh;
-  padding-bottom: 120rpx;
+  padding: 0 20rpx 140rpx;
+  box-sizing: border-box;
+  background: #f5f6f8;
 }
+
+.custom-nav {
+  position: fixed;
+  z-index: 10;
+  top: 0;
+  right: 0;
+  left: 0;
+  background: #f5f6f8;
+}
+
+.nav-inner {
+  position: relative;
+  display: flex;
+  height: 56px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24rpx;
+  box-sizing: border-box;
+}
+
+.nav-back {
+  padding: 10rpx 26rpx;
+  border-radius: 999rpx;
+  background: #ffffff;
+  box-shadow: 0 4rpx 14rpx rgba(32, 48, 76, .12);
+  color: #27364a;
+  font-size: 28rpx;
+  font-weight: 600;
+}
+
+.nav-title {
+  position: absolute;
+  right: 0;
+  left: 0;
+  color: #1d3048;
+  font-size: 34rpx;
+  font-weight: 700;
+  text-align: center;
+  pointer-events: none;
+}
+
+.nav-more {
+  width: 76rpx;
+  color: #1d1d1f;
+  font-size: 28rpx;
+  text-align: right;
+}
+
+.topic-tabs,
+.sub-tabs {
+  display: flex;
+  align-items: center;
+  min-height: 80rpx;
+  margin-bottom: 16rpx;
+  border-radius: 22rpx;
+  background: #ffffff;
+  box-shadow: 0 4rpx 14rpx rgba(31, 45, 72, .08);
+}
+
+.topic-tab,
+.sub-tab {
+  display: flex;
+  height: 72rpx;
+  align-items: center;
+  justify-content: center;
+  margin: 4rpx;
+  border-radius: 18rpx;
+  color: #9a9a9a;
+  font-size: 30rpx;
+}
+
+.topic-tab,
+.sub-tab { flex: 1; width: auto; }
+
+.topic-tab.active,
+.sub-tab.active {
+  background: #ffffff;
+  box-shadow: 0 2rpx 10rpx rgba(31, 45, 72, .12);
+  color: #303030;
+  font-weight: 700;
+}
+
+.post-list { min-height: 180rpx; }
 
 .fab {
   position: fixed;
@@ -18,3 +103,8 @@
   font-size: 48rpx;
   box-shadow: 0 8rpx 24rpx rgba(74, 122, 255, 0.4);
 }
+
+/* 隐藏列表：每张卡片下方的取消隐藏按钮 */
+.hidden-item { position: relative; }
+.unhide-btn { margin: 12rpx 24rpx 8rpx; height: 72rpx; line-height: 72rpx; text-align: center; border-radius: 36rpx; background: #fff; border: 1rpx solid #e3e3e8; color: #627084; font-size: 28rpx; }
+.unhide-btn:active { background: #f1f3f6; }

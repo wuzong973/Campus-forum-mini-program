@@ -2,10 +2,17 @@ const auth = require('../../utils/auth')
 const wechat = require('../../utils/wechat')
 const imageUtil = require('../../utils/image')
 const request = require('../../utils/request')
+const api = require('../../utils/api')
 const anonymousIdentity = require('../../utils/anonymousIdentity')
 const { runPullDownRefresh } = require('../../utils/refresh')
 const PUBLISH_DRAFT_KEY = 'post_publish_draft'
 const PENDING_POST_KEY = 'home_pending_post'
+
+// 发布页顶部轮播横幅：管理后台未配置时的本地默认（可在后台「内容配置-发布横幅」维护）
+const DEFAULT_PUBLISH_BANNERS = [
+  { id: 'default-1', text: '禁止引导私下交易，违规封禁！', icon: '🚫', style: 'red' },
+  { id: 'default-2', text: '吃好喝好没烦恼。', icon: '😄', style: 'green' }
+]
 
 function newPoll() { return { id: Date.now() + Math.floor(Math.random() * 1000), question: '', mode: 'single', options: [{ value: '' }, { value: '' }] } }
 
@@ -14,11 +21,74 @@ Page({
     categories: ['日常话题', '表白交友', '二手闲置', '失物寻物', '树洞吐槽', '组队拼车'], categoryIndex: -1, tempCategoryIndex: -1,
     title: '', content: '', images: [], mediaList: [], canSubmit: false, showTagPicker: false, showContactSheet: false, showComponentSheet: false, componentEditor: '',
     contactName: '', contactType: '手机号码', contactTypes: ['手机号码', '微信账号', 'QQ账号'], contactValue: '', contactSummary: '方便其他同学联系',
-    secondIdentity: false, anonymousPreview: null, polls: [], poll: null, submitting: false, lastSubmitPayload: null, submitError: ''
+    secondIdentity: false, anonymousPreview: null, polls: [], poll: null, submitting: false, lastSubmitPayload: null, submitError: '',
+    allowAnonymousPm: true,
+    publishBanners: DEFAULT_PUBLISH_BANNERS.slice()
   },
-  onLoad() { if (!auth.requirePublishReady()) { setTimeout(() => wx.navigateBack(), 500); return }; this.restoreDraft() },
+  onLoad() {
+    if (!auth.requirePublishReady()) { setTimeout(() => wx.navigateBack(), 500); return }
+    this.loadPublishBanners()
+    const restored = this.restoreDraft()
+    if (!restored) {
+      const settings = wx.getStorageSync('system_settings') || {}
+      if (settings.postAnonymous) this.setData({ secondIdentity: true, anonymousPreview: anonymousIdentity.generate() })
+    }
+    this.loadAllowAnonymousPm()
+    // 进入发布页先弹出主题分类选择，可选可不选，关闭后也可在下方"主题分类"里再选
+    this.openTagPicker()
+  },
+  // ===== 顶部轮播横幅 =====
+  loadPublishBanners() {
+    api.getHomeConfig().then((config) => {
+      const list = (config.publishBanners || []).map((b, i) => ({
+        id: b.id || 'b' + i,
+        text: b.text,
+        style: b.style || 'red',
+        icon: b.icon || ''
+      }))
+      if (list.length) this.setData({ publishBanners: list })
+    }).catch(() => {})
+  },
+  onClosePublishBanner(e) {
+    const index = Number(e.currentTarget.dataset.index)
+    const list = this.data.publishBanners.slice()
+    list.splice(index, 1)
+    this.setData({ publishBanners: list })
+  },
+  // 「允许被匿名私信」是账号级设置（不是草稿的一部分），以服务端为准
+  loadAllowAnonymousPm() {
+    const cached = (getApp().globalData.userInfo || {}).allowAnonymousPm
+    if (typeof cached === 'boolean') this.setData({ allowAnonymousPm: cached })
+    if (request.USE_MOCK) return
+    request.get('/user/info', {}, true, { silent: true }).then((info) => {
+      const allowed = info ? !!info.allowAnonymousPm : true
+      this.setData({ allowAnonymousPm: allowed })
+      const user = getApp().globalData.userInfo
+      if (user && user.id) {
+        user.allowAnonymousPm = allowed
+        wx.setStorageSync('userInfo', user)
+      }
+    }).catch(() => {})
+  },
+  onAllowAnonymousPmChange(e) {
+    const allowed = !!e.detail.value
+    const previous = this.data.allowAnonymousPm
+    this.setData({ allowAnonymousPm: allowed })
+    if (request.USE_MOCK) return
+    request.put('/user/info', { allowAnonymousPm: allowed ? 1 : 0 }, true, { silent: true }).then(() => {
+      const user = getApp().globalData.userInfo
+      if (user && user.id) {
+        user.allowAnonymousPm = allowed
+        wx.setStorageSync('userInfo', user)
+      }
+      wx.showToast({ title: allowed ? '已允许匿名私信' : '已拒绝匿名私信', icon: 'none' })
+    }).catch((err) => {
+      this.setData({ allowAnonymousPm: previous })
+      wx.showToast({ title: err.message || '设置失败', icon: 'none' })
+    })
+  },
   restoreDraft() {
-    const draft = wx.getStorageSync(PUBLISH_DRAFT_KEY); if (!draft) return
+    const draft = wx.getStorageSync(PUBLISH_DRAFT_KEY); if (!draft) return false
     const mediaList = draft.mediaList || []
     // 兼容旧草稿：单投票对象迁移为组件列表
     const polls = Array.isArray(draft.polls) ? draft.polls : (draft.poll ? [draft.poll] : [])
@@ -28,6 +98,7 @@ Page({
       secondIdentity: !!draft.secondIdentity, anonymousPreview: draft.anonymousPreview || null, polls, poll: null,
       canSubmit: (!!((draft.content || '').trim()) || mediaList.length > 0) && draft.categoryIndex >= 0
     })
+    return true
   },
   // 发布条件：有文字或有图片，且已选主题分类
   refreshCanSubmit() {

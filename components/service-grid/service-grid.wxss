@@ -88,7 +88,7 @@
 
 .service-strip {
   display: grid;
-  grid-template-rows: repeat(2, 132rpx);
+  grid-template-rows: repeat(2, 112rpx);
   grid-auto-flow: column;
   grid-auto-columns: 126rpx;
   column-gap: 16rpx;
@@ -100,7 +100,7 @@
 
 .service-strip-item {
   width: 126rpx;
-  height: 132rpx;
+  height: 112rpx;
   padding: 0;
   justify-content: flex-start;
 }
@@ -133,8 +133,8 @@
 
 .service-strip .name {
   max-width: 126rpx;
-  min-height: 42rpx;
-  margin-top: 8rpx;
+  min-height: 38rpx;
+  margin-top: 4rpx;
   font-size: 23rpx;
   color: #3d465a;
   line-height: 1.25;

@@ -48,3 +48,9 @@
   line-height: 1.8;
   margin-bottom: 12rpx;
 }
+.sub-title {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #323233;
+  margin-top: 8rpx;
+}

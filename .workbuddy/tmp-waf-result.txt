@@ -1,0 +1,16 @@
+﻿=== waf probe 2026-09-07T20:21:47 ===
+static-html OK HTTP=200 LEN=1340 BODY0=<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, ini
+root OK HTTP=200 LEN=365 BODY0=<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>å¸äºç§æ</title>
+</head>
+<body styl
+api-posts ERR HTTP=404 BODY={"code":404,"message":"接口不存在","data":null,"requestId":"8dbd4480-0448-4061-a8e4-6d05560b0ee8"}
+api-banners OK HTTP=200 LEN=1007 BODY0={"code":200,"message":"success","data":{"banners":[{"id":3,"title":"AI 课表助手","image":"/assets/banners/banner-schedule.jp
+=== end ===

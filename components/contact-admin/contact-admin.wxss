@@ -191,6 +191,27 @@
   margin: 24rpx auto 0;
 }
 
+.contact-admin-qr-btn {
+  width: 100% !important;
+  height: 88rpx;
+  margin: 26rpx 0 0 !important;
+  padding: 0;
+  border-radius: 44rpx;
+  background: #25b978;
+  color: #fff;
+  font-size: 28rpx;
+  font-weight: 600;
+  line-height: 88rpx;
+}
+
+.contact-admin-qr-btn::after {
+  border: none;
+}
+
+.contact-admin-qr-btn:active {
+  opacity: .85;
+}
+
 .contact-admin-qr-tip {
   margin-top: 18rpx;
   color: #8995a5;

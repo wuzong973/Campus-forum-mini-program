@@ -31,7 +31,7 @@ function hiddenPostFilter(userId) {
   return {
     clause: ` AND NOT EXISTS (
       SELECT 1 FROM post_hidden_preference hp
-      WHERE hp.user_id = ? AND (hp.post_id = p.id OR hp.category = p.category)
+      WHERE hp.user_id = ? AND (hp.post_id = p.id OR (hp.category <> '' AND hp.category = p.category))
     )`,
     params: [userId],
   };
@@ -123,9 +123,12 @@ function mapPost(r, userId, includeContact = false) {
     viewCount: r.view_count || 0,
     verified: !!r.is_verified,
     certLabel: r.cert_label || '',
+    // 旧查询/客户端缓存可能没有该列，缺省视为允许
+    allowAnonymousPm: r.allow_anonymous_pm === undefined ? true : !!r.allow_anonymous_pm,
     postCount: r.post_count || 0,
     isLiked: !!r.isLiked,
     isFavorited: !!r.isFavorited,
+    pinned: !!r.pinned,
     reviewNote: r.review_note || '',
     createdAt: r.created_at,
     components: presentComponents(r.components, userId),
@@ -157,11 +160,11 @@ exports.list = async (req, res) => {
       params,
     );
     const [rows] = await pool.query(
-      `SELECT p.*, u.nick_name, u.avatar_url, u.campus, u.is_verified, u.cert_label,
+      `SELECT p.*, u.nick_name, u.avatar_url, u.campus, u.is_verified, u.cert_label, u.allow_anonymous_pm,
         IFNULL((SELECT COUNT(*) FROM forum_post fp2 WHERE fp2.user_id = p.user_id AND fp2.status = 1), 0) AS post_count,
         IFNULL((SELECT 1 FROM forum_like l WHERE l.post_id = p.id AND l.user_id = ?), 0) AS isLiked,
         IFNULL((SELECT 1 FROM forum_favorite f WHERE f.post_id = p.id AND f.user_id = ?), 0) AS isFavorited
-       FROM forum_post p LEFT JOIN sys_user u ON p.user_id = u.id ${where} ORDER BY p.created_at DESC LIMIT ? OFFSET ?`,
+       FROM forum_post p LEFT JOIN sys_user u ON p.user_id = u.id ${where} ORDER BY p.pinned DESC, p.created_at DESC LIMIT ? OFFSET ?`,
       [userId, userId].concat(params, [pageSize, offset]),
     );
     const total = countRows[0].total;
@@ -180,7 +183,7 @@ exports.detail = async (req, res) => {
   try {
     const hidden = hiddenPostFilter(userId);
     const [rows] = await pool.query(
-      `SELECT p.*, u.nick_name, u.avatar_url, u.campus, u.is_verified, u.cert_label,
+      `SELECT p.*, u.nick_name, u.avatar_url, u.campus, u.is_verified, u.cert_label, u.allow_anonymous_pm,
         IFNULL((SELECT COUNT(*) FROM forum_post fp2 WHERE fp2.user_id = p.user_id AND fp2.status = 1), 0) AS post_count,
         IFNULL((SELECT 1 FROM forum_like l WHERE l.post_id = p.id AND l.user_id = ?), 0) AS isLiked,
         IFNULL((SELECT 1 FROM forum_favorite f WHERE f.post_id = p.id AND f.user_id = ?), 0) AS isFavorited
@@ -188,16 +191,12 @@ exports.detail = async (req, res) => {
       [userId, userId, req.params.id].concat(hidden.params),
     );
     if (!rows.length) return fail(res, "帖子不存在", 404);
-    if (userId && Number(rows[0].user_id) !== Number(userId)) {
-      const [record] = await pool.query(
-        'INSERT IGNORE INTO post_view (post_id, user_id) VALUES (?, ?)',
-        [rows[0].id, userId],
-      );
-      if (record.affectedRows) {
-        await pool.query('UPDATE forum_post SET view_count = view_count + 1 WHERE id = ?', [rows[0].id]);
-        rows[0].view_count += 1;
-      }
+    // 浏览量：每次打开详情都 +1（含作者与游客），post_view 仅记录独立访客
+    if (userId) {
+      await pool.query('INSERT IGNORE INTO post_view (post_id, user_id) VALUES (?, ?)', [rows[0].id, userId]);
     }
+    await pool.query('UPDATE forum_post SET view_count = view_count + 1 WHERE id = ?', [rows[0].id]);
+    rows[0].view_count = Number(rows[0].view_count || 0) + 1;
     success(res, mapPost(rows[0], userId, true));
   } catch (e) {
     fail(res, safeMessage(e), 500);
@@ -218,7 +217,7 @@ exports.search = async (req, res) => {
     const queryParams = [like, like, like].concat(hidden.params);
     const [[count]] = await pool.query(`SELECT COUNT(*) AS total FROM forum_post p ${where}`, queryParams);
     const [rows] = await pool.query(
-      `SELECT p.*, u.nick_name, u.avatar_url, u.campus, u.is_verified, u.cert_label,
+      `SELECT p.*, u.nick_name, u.avatar_url, u.campus, u.is_verified, u.cert_label, u.allow_anonymous_pm,
         IFNULL((SELECT COUNT(*) FROM forum_post fp2 WHERE fp2.user_id = p.user_id AND fp2.status = 1), 0) AS post_count,
         IFNULL((SELECT 1 FROM forum_like l WHERE l.post_id = p.id AND l.user_id = ?), 0) AS isLiked,
         IFNULL((SELECT 1 FROM forum_favorite f WHERE f.post_id = p.id AND f.user_id = ?), 0) AS isFavorited
@@ -313,14 +312,9 @@ exports.remove = async (req, res) => {
       await conn.rollback();
       return fail(res, '无权删除该帖子', 403);
     }
-    await conn.query('DELETE cl FROM forum_comment_like cl INNER JOIN forum_comment c ON c.id = cl.comment_id WHERE c.post_id = ?', [postId]);
-    await conn.query('DELETE FROM forum_comment WHERE post_id = ?', [postId]);
-    await conn.query('DELETE FROM forum_like WHERE post_id = ?', [postId]);
-    await conn.query('DELETE FROM forum_favorite WHERE post_id = ?', [postId]);
-    await conn.query('DELETE FROM forum_share WHERE post_id = ?', [postId]);
-    await conn.query('DELETE FROM post_view WHERE post_id = ?', [postId]);
-    await conn.query('DELETE FROM post_hidden_preference WHERE post_id = ?', [postId]);
-    const [result] = await conn.query('DELETE FROM forum_post WHERE id = ?', [postId]);
+    // Keep the post record so its owner can review deleted content later.
+    // Public feeds and profile pages already filter to status = 1.
+    const [result] = await conn.query('UPDATE forum_post SET status = 0, pinned = 0 WHERE id = ? AND status <> 0', [postId]);
     if (!result.affectedRows) throw new Error('帖子删除失败');
     await conn.commit();
     if (canManagePost(req)) {
@@ -339,13 +333,51 @@ exports.remove = async (req, res) => {
   }
 };
 
+// 「我删除的-隐藏」列表：用户手动隐藏（不感兴趣）的帖子，含已删除的帖子
+exports.hiddenList = async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT hp.created_at AS hidden_at, p.*, u.nick_name, u.avatar_url, u.campus, u.is_verified, u.cert_label, u.allow_anonymous_pm
+       FROM post_hidden_preference hp
+       JOIN forum_post p ON p.id = hp.post_id
+       LEFT JOIN sys_user u ON p.user_id = u.id
+       WHERE hp.user_id = ?
+       ORDER BY hp.created_at DESC
+       LIMIT 100`,
+      [req.userId],
+    );
+    success(res, {
+      list: rows.map((r) => Object.assign(mapPost(r, req.userId), {
+        hiddenAt: r.hidden_at,
+        isPostDeleted: Number(r.status) === 0,
+      })),
+    });
+  } catch (e) {
+    fail(res, safeMessage(e), 500);
+  }
+};
+
+// 取消隐藏：删除偏好记录后，该帖与其分类重新对用户可见
+exports.unhide = async (req, res) => {
+  const postId = Number(req.params.postId);
+  if (!Number.isInteger(postId) || postId <= 0) return fail(res, '帖子不存在', 404);
+  try {
+    await pool.query('DELETE FROM post_hidden_preference WHERE user_id = ? AND post_id = ?', [req.userId, postId]);
+    success(res, null, '已取消隐藏');
+  } catch (e) {
+    fail(res, safeMessage(e), 500);
+  }
+};
+
 exports.hideAsNotInterested = async (req, res) => {
   const postId = Number(req.params.id);
   if (!Number.isInteger(postId) || postId <= 0) return fail(res, '帖子不存在', 404);
   try {
     const [posts] = await pool.query('SELECT id, category FROM forum_post WHERE id = ? AND status = 1', [postId]);
     if (!posts.length) return fail(res, '帖子不存在', 404);
-    const category = posts[0].category || '';
+    // scope=post 仅隐藏这条帖子（category 存空串）；默认连同同分类内容一起隐藏（拉黑）
+    const postOnly = (req.body || {}).scope === 'post';
+    const category = postOnly ? '' : (posts[0].category || '');
     await pool.query(
       `INSERT INTO post_hidden_preference (user_id, post_id, category)
        VALUES (?, ?, ?)
@@ -418,7 +450,19 @@ exports.like = async (req, res) => {
       await conn.commit();
       const [posts] = await pool.query('SELECT user_id, title FROM forum_post WHERE id = ?', [req.params.id]);
       if (posts.length && Number(posts[0].user_id) !== Number(req.userId)) {
-        createNotification({ userId: posts[0].user_id, type: 'like', title: '你的帖子收到了点赞', content: posts[0].title || '帖子被点赞', relatedId: req.params.id }).catch(() => {});
+        const [actors] = await pool.query('SELECT id, nick_name, avatar_url FROM sys_user WHERE id = ?', [req.userId]);
+        const actor = actors.length ? { id: actors[0].id, nickName: actors[0].nick_name, avatarUrl: actors[0].avatar_url } : null;
+        createNotification({
+          userId: posts[0].user_id,
+          type: 'like',
+          title: '你的帖子收到了点赞',
+          content: '帖子被点赞',
+          relatedId: req.params.id,
+          actorUserId: actor ? actor.id : null,
+          actorNick: actor ? actor.nickName : '',
+          actorAvatar: actor ? actor.avatarUrl : '',
+          postTitle: posts[0].title || ''
+        }).catch(() => {});
       }
       success(res, { liked: true });
     }
@@ -473,7 +517,7 @@ exports.hot = async (req, res) => {
   try {
     const hidden = hiddenPostFilter(req.userId || 0);
     const [rows] = await pool.query(
-      `SELECT p.*, u.nick_name, u.avatar_url, u.campus, u.is_verified, u.cert_label,
+      `SELECT p.*, u.nick_name, u.avatar_url, u.campus, u.is_verified, u.cert_label, u.allow_anonymous_pm,
         IFNULL((SELECT COUNT(*) FROM forum_post fp2 WHERE fp2.user_id = p.user_id AND fp2.status = 1), 0) AS post_count
        FROM forum_post p LEFT JOIN sys_user u ON p.user_id = u.id
        WHERE p.status = 1${hidden.clause} ORDER BY p.like_count DESC LIMIT 10`,
@@ -489,21 +533,31 @@ exports.hot = async (req, res) => {
 };
 
 exports.hotRank = async (req, res) => {
-  const period = req.query.period === 'yesterday' ? 'yesterday' : 'today';
-  const timeFilter = period === 'yesterday'
-    ? "p.created_at >= CURDATE() - INTERVAL 1 DAY AND p.created_at <= CURDATE() - INTERVAL 1 DAY + INTERVAL 20 HOUR"
-    : "p.created_at >= CURDATE() AND p.created_at < CURDATE() + INTERVAL 1 DAY";
+  // 热榜：按 period 指定时间范围内的帖子，按浏览量排序
+  // today 兼容首页"昨天+今天"的口径；history 不限时间
   try {
+    const periodSince = {
+      today: 'CURDATE() - INTERVAL 1 DAY',
+      week: 'CURDATE() - INTERVAL 7 DAY',
+      month: 'CURDATE() - INTERVAL 1 MONTH',
+      halfyear: 'CURDATE() - INTERVAL 6 MONTH',
+      year: 'CURDATE() - INTERVAL 1 YEAR',
+      history: '',
+    };
+    const since = periodSince[req.query.period] !== undefined
+      ? periodSince[req.query.period]
+      : periodSince.today;
+    const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 15, 1), 50);
     const hidden = hiddenPostFilter(req.userId || 0);
     const [rows] = await pool.query(
-      `SELECT p.*, u.nick_name, u.avatar_url, u.campus, u.is_verified, u.cert_label,
+      `SELECT p.*, u.nick_name, u.avatar_url, u.campus, u.is_verified, u.cert_label, u.allow_anonymous_pm,
         IFNULL((SELECT COUNT(*) FROM forum_post fp2 WHERE fp2.user_id = p.user_id AND fp2.status = 1), 0) AS post_count
        FROM forum_post p LEFT JOIN sys_user u ON p.user_id = u.id
-       WHERE p.status = 1 AND ${timeFilter}${hidden.clause}
-       ORDER BY p.view_count DESC, p.created_at DESC LIMIT 10`,
+       WHERE p.status = 1${since ? ` AND p.created_at >= ${since}` : ''}${hidden.clause}
+       ORDER BY p.view_count DESC, p.created_at DESC LIMIT ${limit}`,
       hidden.params,
     );
-    success(res, { list: rows.map((item) => mapPost(item, req.userId || 0)), period });
+    success(res, { list: rows.map((item) => mapPost(item, req.userId || 0)) });
   } catch (e) {
     fail(res, safeMessage(e), 500);
   }

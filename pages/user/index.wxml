@@ -1,6 +1,6 @@
 <view class="page page-enter">
-  <view class="header header-cyan" style="padding-top: {{statusBarHeight}}px;">
-    <view class="header-content">
+  <view class="profile-header" style="padding-top: {{statusBarHeight}}px;">
+    <view class="profile-content">
       <view class="user-info" bindtap="goLogin">
         <image class="avatar-img" src="{{userInfo.avatarUrl || '/assets/avatar2/1.jpg'}}" mode="aspectFill" lazy-load></image>
         <view class="user-detail">
@@ -12,62 +12,50 @@
           <text class="user-school">{{isLogin ? ((userInfo.school || '广轻工职业技术大学') + ' · ' + (userInfo.campus || '未设置校区')) : '点击登录后完善资料'}}</text>
         </view>
       </view>
-      <view class="settings-wrap" catchtap="goSettings">
-        <image class="settings-icon" src="/assets/icons/settings.png" mode="aspectFit"></image>
-      </view>
+      <view class="settings-wrap" catchtap="goSettings"><image class="settings-icon" src="/assets/icons/settings.png" mode="aspectFit"></image></view>
     </view>
   </view>
 
-  <view class="shortcuts card glass-panel">
-    <view class="shortcut-item" wx:for="{{shortcuts}}" wx:key="name" data-name="{{item.name}}" bindtap="onShortcut">
+  <view class="shortcuts card">
+    <view class="shortcut-item" wx:for="{{shortcuts}}" wx:key="name" wx:if="{{!item.adminOnly || isAdmin}}" data-route="{{item.route}}" data-admin-only="{{item.adminOnly}}" bindtap="onShortcutTap">
       <view class="shortcut-icon-wrap">
-        <image class="shortcut-icon-img" src="{{item.icon}}" mode="aspectFit"></image>
-        <view class="shortcut-badge" wx:if="{{item.name === '消息' && unreadCount > 0}}">
-          <text>{{unreadCount > 99 ? '99+' : unreadCount}}</text>
-        </view>
+        <image class="shortcut-icon-img {{item.iconDark ? 'shortcut-icon-dark' : ''}}" src="{{item.icon}}" mode="aspectFit"></image>
+        <view class="shortcut-badge" wx:if="{{item.badge === 'unread' && unreadCount > 0}}">{{unreadCount > 99 ? '99+' : unreadCount}}</view>
       </view>
       <text class="shortcut-name">{{item.name}}</text>
     </view>
   </view>
 
-  <view class="shortcuts interaction-shortcuts card glass-panel">
-    <view class="shortcut-item" wx:for="{{interactionShortcuts}}" wx:key="key" data-key="{{item.key}}" bindtap="onInteractionShortcut">
-      <view class="shortcut-icon-wrap">
-        <image class="shortcut-icon-img" src="{{item.icon}}" mode="aspectFit"></image>
-        <view class="shortcut-badge data-badge" wx:if="{{interactionStats[item.key] > 0}}">
-          <text>{{interactionStats[item.key] > 99 ? '99+' : interactionStats[item.key]}}</text>
-        </view>
-      </view>
-      <text class="shortcut-name">{{item.name}}</text>
-    </view>
-  </view>
-
-  <view wx:if="{{isAdmin}}" class="admin-entry card flex-between" bindtap="goAdmin">
-    <view>
-      <text class="admin-entry-title">管理后台</text>
-      <text class="admin-entry-desc">内容、用户、配置与运营数据</text>
-    </view>
-    <text class="arrow">></text>
-  </view>
-
-  <view class="menu card">
-    <block wx:for="{{menus}}" wx:key="name">
-      <contact-admin wx:if="{{item.name === '联系管理员'}}">
-        <view slot="trigger" class="menu-item flex-between customer-service-row">
-          <view class="flex-row">
-            <image class="menu-icon-img" src="{{item.icon}}" mode="aspectFit"></image>
-            <text class="menu-name">{{item.name}}</text>
+  <block wx:for="{{sections}}" wx:for-item="section" wx:key="title">
+    <view class="feature-section">
+      <text class="section-title">{{section.title}}</text>
+      <view class="feature-grid columns-{{section.columns}}">
+        <block wx:for="{{section.items}}" wx:for-item="feature" wx:key="name">
+          <view wx:if="{{feature.type === 'contact'}}" class="feature-item">
+            <contact-admin class="feature-contact">
+              <view slot="trigger" class="feature-trigger">
+                <view class="feature-icon-wrap"><image class="feature-icon" src="{{feature.icon}}" mode="aspectFit"></image></view>
+                <text class="feature-name">{{feature.name}}</text>
+              </view>
+            </contact-admin>
           </view>
-          <text class="arrow">></text>
-        </view>
-      </contact-admin>
-      <view wx:else class="menu-item flex-between" data-name="{{item.name}}" bindtap="onMenuTap">
-        <view class="flex-row">
-          <image class="menu-icon-img" src="{{item.icon}}" mode="aspectFit"></image>
-          <text class="menu-name">{{item.name}}</text>
-        </view>
-        <text class="arrow">></text>
+          <view wx:elif="{{!feature.adminOnly || isAdmin}}" class="feature-item" data-route="{{feature.route}}" data-admin-only="{{feature.adminOnly}}" bindtap="onFeatureTap">
+            <view class="feature-icon-wrap">
+              <image class="feature-icon" src="{{feature.icon}}" mode="aspectFit"></image>
+              <view class="feature-badge" wx:if="{{feature.badge === 'unread' && unreadCount > 0}}">{{unreadCount > 99 ? '99+' : unreadCount}}</view>
+            </view>
+            <text class="feature-name">{{feature.name}}</text>
+          </view>
+        </block>
       </view>
-    </block>
-  </view>
+      <view class="feature-grid columns-2 stat-grid" wx:if="{{section.stats}}">
+        <view class="feature-item" wx:for="{{section.stats}}" wx:for-item="tag" wx:key="name" data-route="{{tag.route}}" bindtap="onFeatureTap">
+          <view class="feature-icon-wrap">
+            <image class="feature-icon" src="{{tag.icon}}" mode="aspectFit"></image>
+          </view>
+          <text class="feature-name">{{tag.name}}</text>
+        </view>
+      </view>
+    </view>
+  </block>
 </view>

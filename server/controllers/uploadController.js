@@ -42,7 +42,18 @@ const upload = multer({
   }
 })
 
+// 聊天视频上传：不压缩、不做图片安全检测，仅限制大小与类型
+const videoUpload = multer({
+  storage,
+  limits: { fileSize: 100 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    if (/^video\//.test(file.mimetype)) cb(null, true)
+    else cb(new Error('Only video uploads are supported'))
+  }
+})
+
 exports.uploadMiddleware = upload.single('file')
+exports.uploadVideoMiddleware = videoUpload.single('file')
 exports.uploadScheduleImageMiddleware = upload.single('image')
 
 exports.imageSecurityMiddleware = async (req, res, next) => {
@@ -141,27 +152,44 @@ async function compressForScan(file) {
   file.mimetype = 'image/jpeg'
 }
 
+// 上传文件落盘：优先对象存储，未配置时回退本地磁盘，返回可访问 URL
+async function storeUploadedFile(req) {
+  if (storageDriver === 'object') {
+    if (!process.env.COS_SECRET_ID || !process.env.COS_SECRET_KEY || !process.env.COS_BUCKET) {
+      throw Object.assign(new Error('COS 对象存储未配置'), { status: 503, expose: true })
+    }
+    const Key = 'uploads/' + req.file.filename
+    await putObject({ Key, Body: fs.createReadStream(req.file.path), ContentType: req.file.mimetype })
+    fs.unlink(req.file.path, () => {})
+    return getPublicUrl(Key)
+  }
+  // disk 模式：文件保留在 server/uploads，由 nginx（生产）或 express 静态托管（开发）对外提供
+  const base = String(process.env.UPLOAD_PUBLIC_BASE_URL || '').replace(/\/+$/, '')
+  return base ? `${base}/uploads/${req.file.filename}` : `/uploads/${req.file.filename}`
+}
+
 exports.uploadImage = async (req, res) => {
   if (!req.file) return fail(res, 'No file uploaded')
   try {
     await compressForScan(req.file)
     await checkImage(req.file.path)
-    if (storageDriver === 'object') {
-      if (!process.env.COS_SECRET_ID || !process.env.COS_SECRET_KEY || !process.env.COS_BUCKET) {
-        throw Object.assign(new Error('COS 对象存储未配置'), { status: 503, expose: true })
-      }
-      const Key = 'uploads/' + req.file.filename
-      await putObject({ Key, Body: fs.createReadStream(req.file.path), ContentType: req.file.mimetype })
-      fs.unlink(req.file.path, () => {})
-      return success(res, { url: getPublicUrl(Key) })
-    }
-    // disk 模式：文件保留在 server/uploads，由 nginx（生产）或 express 静态托管（开发）对外提供
-    const base = String(process.env.UPLOAD_PUBLIC_BASE_URL || '').replace(/\/+$/, '')
-    const url = base ? `${base}/uploads/${req.file.filename}` : `/uploads/${req.file.filename}`
+    const url = await storeUploadedFile(req)
     success(res, { url })
   } catch (error) {
     fs.unlink(req.file.path, () => {})
     console.error('[ImageUpload] failed:', error.expose ? error.message : error)
     fail(res, error.expose ? error.message : '图片上传失败，请稍后重试', error.status || 503)
+  }
+}
+
+exports.uploadVideo = async (req, res) => {
+  if (!req.file) return fail(res, 'No file uploaded')
+  try {
+    const url = await storeUploadedFile(req)
+    success(res, { url })
+  } catch (error) {
+    fs.unlink(req.file.path, () => {})
+    console.error('[VideoUpload] failed:', error.expose ? error.message : error)
+    fail(res, error.expose ? error.message : '视频上传失败，请稍后重试', error.status || 503)
   }
 }

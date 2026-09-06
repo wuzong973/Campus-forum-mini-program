@@ -23,6 +23,7 @@ Page({
     activeListTab: 0,
     showNoticeA: true,
     showNoticeB: true,
+    notices: [],
     emptyText: TAB_EMPTY_TEXT[0],
     // 接单大厅筛选
     campusGroups: [
@@ -35,9 +36,7 @@ Page({
     subCampuses: [],
     activeSubCampus: '',
     orders: [],
-    loading: false,
-    // 底部Tab
-    activeTab: 0
+    loading: false
   },
 
   onLoad() {
@@ -47,6 +46,7 @@ Page({
       navBarHeight: app.globalData.navBarHeight
     })
     this._mineCache = { published: null, accepted: null }
+    this.buildNotices()
     this.initCampusFilter()
     this.loadCurrentTab()
   },
@@ -54,6 +54,8 @@ Page({
   onShow() {
     const tabBar = this.getTabBar && this.getTabBar()
     if (tabBar) tabBar.setSelected(2)
+    // 用户未手动改过筛选时，跟随个人设置校区自动填充（改了资料后回来即生效）
+    if (!this._filterTouched) this.initCampusFilter()
     this.loadCurrentTab()
   },
 
@@ -81,7 +83,7 @@ Page({
   loadOrders() {
     const campus = this.getRegionFilter()
     this.setData({ loading: true })
-    api.getErrandList({ campus, page: 1, pageSize: 20 }).then((res) => {
+    api.getErrandList({ campus, status: 'active', page: 1, pageSize: 20 }).then((res) => {
       const orders = (res.list || []).map((o) => this.normalizeOrder(o))
       this.setData({ orders, loading: false })
     }).catch(() => {
@@ -150,15 +152,22 @@ Page({
     const tab = this.data.activeListTab
     const expectText = o.expectTime || o.expect_time || o.appointmentTime ||
       (o.pickupTimeType === 'scheduled' && (o.pickupTime || o.pickup_time) ? (o.pickupTime || o.pickup_time) : '越快越好')
+    // 性别限制标签分类：限男生/限女生/不限性别（发布时必选，用于订单卡片展示）
+    const genderRaw = o.gender_requirement || o.genderRequirement || ''
+    const genderClass = genderRaw === '限男生' ? 'male' : (genderRaw === '限女生' ? 'female' : 'any')
     return {
       id: o.id,
       status: STATUS_TEXT[statusKey] || '待接单',
       statusClass: statusKey,
       price: o.reward || o.totalAmount,
-      title: o.title || ((o.type || '快递') + '代拿'),
-      campus: o.campus || '未填写校区',
-      authorName: o.nickname || o.authorName || o.userNickname || o.publisherName || o.publisher_name || '匿名同学',
-      avatarUrl: o.avatarUrl || o.userAvatar || '/assets/icons/avatar.png',
+      // 图二版式：卡片正文展示公开描述（remark），无则回退标题
+      descText: (o.remark || o.description || o.title || ((o.type || '快递') + '代拿')).trim(),
+      campus: o.campus || '',
+      genderText: genderRaw,
+      genderClass: genderClass,
+      // 发单人真实头像与昵称（服务端 JOIN sys_user 返回；账号注销等缺失时兜底）
+      authorName: o.publisher_name || o.publisherName || '校园用户',
+      avatarUrl: o.publisher_avatar || o.publisherAvatar || '/assets/icons/avatar.png',
       expectText: expectText,
       type: o.type,
       action: this.cardAction(statusKey, tab, o),
@@ -169,7 +178,8 @@ Page({
 
   // 各标签下的主操作按钮
   cardAction(statusKey, tab, o) {
-    if (tab === 0) return statusKey === 'pending' ? 'grab' : ''
+    // 全部订单（接单大厅）按图二版式：卡片不带操作按钮，点击进入详情接单
+    if (tab === 0) return ''
     if (tab === 1) return statusKey === 'accepted' ? 'finish' : ''
     if (tab === 2) {
       if (statusKey === 'unpaid') return 'pay'
@@ -189,8 +199,15 @@ Page({
     this.setData({ [e.currentTarget.dataset.key]: false })
   },
 
+  // 公告栏"管理员"点击：唤起页面底部的管理员微信二维码弹窗（与首页公告栏交互一致）
+  onNoticeAdminTap() {
+    const comp = this.selectComponent('#adminQr')
+    if (comp) comp.openQr()
+  },
+
   // ===== 区域筛选 =====
   onRegionSelect(e) {
+    this._filterTouched = true
     const activeRegion = Number(e.currentTarget.dataset.index)
     const group = this.data.visibleCampusGroups[activeRegion]
     this.setData({
@@ -202,11 +219,13 @@ Page({
   },
 
   onSubCampusSelect(e) {
+    this._filterTouched = true
     this.setData({ activeSubCampus: e.currentTarget.dataset.value })
     this.loadOrders()
   },
 
   onAllRegionSelect() {
+    this._filterTouched = true
     this.setData({ activeRegion: -1, subCampuses: [], activeSubCampus: '' })
     this.loadOrders()
   },
@@ -261,7 +280,7 @@ Page({
     const order = e.currentTarget.dataset.order || {}
     const orderId = order.id || (order.raw && order.raw.id)
     if (!orderId) return
-    wx.navigateTo({ url: '/pages/errand-cancel/index?id=' + orderId })
+    wx.navigateTo({ url: '/pages/errand-cancel/index?id=' + orderId + '&role=publisher' })
   },
 
   onContact(e) {
@@ -272,14 +291,8 @@ Page({
       wx.showToast({ title: '对方暂未接单，暂无法联系', icon: 'none' })
       return
     }
-    const otherUser = {
-      id: accepterId,
-      nickname: raw.accepterName || raw.accepter_name || '接单者',
-      avatar: '/assets/icons/avatar.png'
-    }
-    wx.navigateTo({
-      url: '/pages/chat/index?peerId=' + accepterId + '&otherUser=' + encodeURIComponent(JSON.stringify(otherUser))
-    })
+    // 进入跑腿订单专属聊天（与私信聊天独立）
+    wx.navigateTo({ url: '/pages/errand-chat/index?orderId=' + (order.id || raw.id) })
   },
 
   onOpenDetail(e) {
@@ -299,17 +312,13 @@ Page({
     wx.navigateTo({ url: '/pages/errand-order/index' })
   },
 
-  // 底部Tab切换
-  onSubTab(e) {
-    const index = Number(e.currentTarget.dataset.index)
-    this.setData({ activeTab: index })
-    if (index === 1) {
-      // 发布跑腿
-      if (!auth.requireLogin('发布跑腿需要先登录')) return
-      wx.navigateTo({ url: '/pages/errand-publish/index' })
-    } else if (index === 2) {
-      // 我的订单
-      wx.navigateTo({ url: '/pages/errand-order/index' })
-    }
+  // ===== 右下角浮动导航 =====
+  goMessages() {
+    if (!auth.requireLogin('查看跑腿消息需要先登录')) return
+    wx.navigateTo({ url: '/pages/errand-message/index' })
+  },
+
+  goHome() {
+    wx.switchTab({ url: '/pages/index/index' })
   }
 })

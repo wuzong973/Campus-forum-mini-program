@@ -7,6 +7,42 @@ const { success, fail } = require("../middleware/auth");
 const { safeMessage, clampPageSize, parseImages } = require("../utils/helpers");
 const { getAccessToken } = require("../utils/wechatToken");
 
+function parseJson(value, fallback = null) {
+  if (!value) return fallback;
+  if (typeof value === 'object') return value;
+  try { return JSON.parse(value); } catch (e) { return fallback; }
+}
+
+function parseAnonymousIdentity(value) {
+  const identity = parseJson(value, null);
+  if (!identity || !identity.nickName || !identity.avatarUrl || !String(identity.avatarUrl).startsWith('/assets/avatar1/')) return null;
+  return { nickName: String(identity.nickName), avatarUrl: String(identity.avatarUrl) };
+}
+
+function mapProfilePost(item) {
+  const anonymous = parseAnonymousIdentity(item.anonymous_identity);
+  return {
+    id: item.id,
+    userId: item.user_id,
+    nickName: anonymous ? anonymous.nickName : (item.nick_name || '校园同学'),
+    avatarUrl: anonymous ? anonymous.avatarUrl : (item.avatar_url || ''),
+    campus: anonymous ? '' : (item.campus || ''),
+    verified: !!item.is_verified,
+    certLabel: item.cert_label || '',
+    title: item.title || '',
+    category: item.category,
+    content: item.content,
+    images: item.images,
+    likeCount: item.like_count,
+    commentCount: item.comment_count,
+    favoriteCount: item.favorite_count,
+    shareCount: item.share_count || 0,
+    createdAt: item.created_at,
+    isAnonymous: !!anonymous,
+    isDeleted: Number(item.status) === 0,
+  };
+}
+
 async function getWechatPhone(phoneCode) {
   const accessToken = await getAccessToken();
   const phoneRes = await axios.post(
@@ -157,7 +193,7 @@ exports.devLogin = async (req, res) => {
 exports.getInfo = async (req, res) => {
   try {
     const [rows] = await pool.query(
-      "SELECT id, nick_name, avatar_url, student_id, is_verified, gender, campus, phone, role, status FROM sys_user WHERE id = ?",
+      "SELECT id, nick_name, avatar_url, student_id, is_verified, gender, campus, phone, role, status, allow_anonymous_pm FROM sys_user WHERE id = ?",
       [req.userId],
     );
     if (!rows.length) return fail(res, "用户不存在", 404);
@@ -173,6 +209,7 @@ exports.getInfo = async (req, res) => {
       phone: u.phone,
       role: u.role || 'user',
       status: u.status,
+      allowAnonymousPm: u.allow_anonymous_pm === undefined ? true : !!u.allow_anonymous_pm,
     });
   } catch (e) {
     fail(res, safeMessage(e), 500);
@@ -184,9 +221,12 @@ exports.getProfile = async (req, res) => {
   const currentUserId = req.userId || 0;
   if (!profileId) return fail(res, "用户不存在", 404);
   try {
+    // 匿名帖只有作者本人主页可见，访客看到的帖子数不含匿名帖
+    const anonymousFilter =
+      Number(currentUserId) === profileId ? "" : " AND p.anonymous_identity IS NULL";
     const [rows] = await pool.query(
-      `SELECT u.id, u.nick_name, u.avatar_url, u.student_id, u.is_verified, u.gender, u.campus,
-        IFNULL((SELECT COUNT(*) FROM forum_post p WHERE p.user_id = u.id AND p.status = 1), 0) AS post_count,
+      `SELECT u.id, u.nick_name, u.avatar_url, u.student_id, u.is_verified, u.gender, u.campus, u.allow_anonymous_pm,
+        IFNULL((SELECT COUNT(*) FROM forum_post p WHERE p.user_id = u.id AND p.status = 1${anonymousFilter}), 0) AS post_count,
         IFNULL((SELECT SUM(p.like_count) FROM forum_post p WHERE p.user_id = u.id AND p.status = 1), 0) AS like_received
        FROM sys_user u
        WHERE u.id = ?`,
@@ -204,9 +244,10 @@ exports.getProfile = async (req, res) => {
       campus: u.campus,
       major: u.is_verified ? "认证学生" : "校园用户",
       signature: "该用户还没有填写签名...",
-      coverUrl: "/assets/banners/banner-community.png",
+      coverUrl: "/assets/banners/profile-cover.jpg",
       postCount: u.post_count,
       likeReceived: u.like_received,
+      allowAnonymousPm: u.allow_anonymous_pm === undefined ? true : !!u.allow_anonymous_pm,
     });
   } catch (e) {
     fail(res, safeMessage(e), 500);
@@ -215,47 +256,58 @@ exports.getProfile = async (req, res) => {
 
 exports.getProfilePosts = async (req, res) => {
   const profileId = parseInt(req.params.id, 10);
+  const currentUserId = req.userId || 0;
   if (!profileId) return fail(res, "用户不存在", 404);
   try {
+    // 匿名帖仅作者本人可见，其他访客进入主页时不返回
+    const anonymousFilter =
+      Number(currentUserId) === profileId ? "" : " AND p.anonymous_identity IS NULL";
     const [rows] = await pool.query(
-      `SELECT p.*, u.nick_name, u.avatar_url, u.campus, u.is_verified
+      `SELECT p.*, u.nick_name, u.avatar_url, u.campus, u.is_verified, u.cert_label
        FROM forum_post p
        LEFT JOIN sys_user u ON p.user_id = u.id
-       WHERE p.user_id = ? AND p.status = 1
+       WHERE p.user_id = ? AND p.status = 1${anonymousFilter}
        ORDER BY p.created_at DESC
        LIMIT 30`,
       [profileId],
     );
     success(res, {
-      list: rows.map((item) => ({
-        id: item.id,
-        userId: item.user_id,
-        nickName: item.nick_name,
-        avatarUrl: item.avatar_url,
-        campus: item.campus || "",
-        verified: !!item.is_verified,
-        title: item.title || "",
-        category: item.category,
-        content: item.content,
-        images: item.images,
-        likeCount: item.like_count,
-        commentCount: item.comment_count,
-        favoriteCount: item.favorite_count,
-        shareCount: item.share_count || 0,
-        createdAt: item.created_at,
-      })),
+      list: rows.map(mapProfilePost),
     });
   } catch (e) {
     fail(res, safeMessage(e), 500);
   }
 };
 
+exports.getMyDeletedPosts = async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT p.*, u.nick_name, u.avatar_url, u.campus, u.is_verified, u.cert_label
+       FROM forum_post p
+       LEFT JOIN sys_user u ON p.user_id = u.id
+       WHERE p.user_id = ? AND p.status = 0
+       ORDER BY p.updated_at DESC, p.created_at DESC
+       LIMIT 50`,
+      [req.userId],
+    );
+    success(res, { list: rows.map(mapProfilePost) });
+  } catch (e) {
+    fail(res, safeMessage(e), 500);
+  }
+};
+
 exports.updateInfo = async (req, res) => {
-  const { nickName, avatarUrl, gender, campus, phone } = req.body;
+  const { nickName, avatarUrl, gender, campus, phone, allowAnonymousPm } = req.body;
   if (phone !== undefined) return fail(res, "手机号需通过微信授权更新", 400);
   try {
     const fields = [];
     const values = [];
+    if (allowAnonymousPm !== undefined) {
+      const flag = Number(allowAnonymousPm);
+      if (![0, 1].includes(flag)) return fail(res, "匿名私信设置无效", 400);
+      fields.push("allow_anonymous_pm = ?");
+      values.push(flag);
+    }
     if (nickName !== undefined) {
       if (typeof nickName !== "string" || !nickName.trim() || nickName.trim().length > 64) return fail(res, "昵称长度应为1至64个字符", 400);
       fields.push("nick_name = ?");
@@ -290,12 +342,17 @@ exports.updateInfo = async (req, res) => {
 
 exports.updatePhone = async (req, res) => {
   const phoneCode = String(req.body.phoneCode || "").trim();
-  if (!phoneCode) return fail(res, "缺少手机号授权凭证", 400);
+  const manualPhone = String(req.body.phone || "").trim();
+  if (manualPhone && !/^1[3-9]\d{9}$/.test(manualPhone)) return fail(res, "请输入正确的11位手机号", 400);
+  if (!manualPhone && !phoneCode) return fail(res, "缺少手机号授权凭证", 400);
+  let phone = manualPhone;
   try {
-    if (wechatConfig.appId === "your_appid" || !wechatConfig.appSecret || wechatConfig.appSecret === "your_appsecret") {
-      return fail(res, "微信配置未完成", 503);
+    if (!manualPhone) {
+      if (wechatConfig.appId === "your_appid" || !wechatConfig.appSecret || wechatConfig.appSecret === "your_appsecret") {
+        return fail(res, "微信配置未完成", 503);
+      }
+      phone = await getWechatPhone(phoneCode);
     }
-    const phone = await getWechatPhone(phoneCode);
     const [result] = await pool.query("UPDATE sys_user SET phone = ? WHERE id = ?", [phone, req.userId]);
     if (!result.affectedRows) return fail(res, "用户不存在", 404);
     success(res, { phone }, "手机号已更新");
@@ -386,7 +443,7 @@ exports.contentCheck = async (req, res) => {
 exports.getRiderVerification = async (req, res) => {
   try {
     const [rows] = await pool.query(
-      "SELECT id, campus_name campusName, student_id studentId, campus_credential campusCredential, real_name realName, identity_number identityNumber, identity_credential identityCredential, phone, status, review_note reviewNote, reviewed_at reviewedAt, created_at createdAt FROM rider_verification WHERE user_id = ? LIMIT 1",
+      "SELECT id, campus_name campusName, student_id studentId, campus_credential campusCredential, phone, status, review_note reviewNote, reviewed_at reviewedAt, created_at createdAt FROM rider_verification WHERE user_id = ? LIMIT 1",
       [req.userId]
     );
     if (!rows.length) return success(res, { status: 'none' });
@@ -396,9 +453,6 @@ exports.getRiderVerification = async (req, res) => {
       campusName: r.campusName,
       studentId: r.studentId,
       campusCredential: r.campusCredential,
-      realName: r.realName,
-      identityNumber: r.identityNumber,
-      identityCredential: r.identityCredential,
       phone: r.phone,
       status: r.status,
       reviewNote: r.reviewNote,
@@ -415,15 +469,10 @@ exports.submitRiderVerification = async (req, res) => {
   const campusName = String(body.campusName || '').trim();
   const studentId = String(body.studentId || '').trim();
   const campusCredential = String(body.campusCredential || '').trim();
-  const realName = String(body.realName || '').trim();
-  const identityNumber = String(body.identityNumber || '').trim();
-  const identityCredential = String(body.identityCredential || '').trim();
   const phone = String(body.phone || '').trim();
 
   if (!campusName || !studentId || !campusCredential) return fail(res, "校园认证信息不完整");
   if (!/^\d{6,12}$/.test(studentId)) return fail(res, "请输入有效学号");
-  if (!realName || !identityNumber || !identityCredential) return fail(res, "实名认证信息不完整");
-  if (!/(^\d{15}$)|(^\d{17}[\dXx]$)/.test(identityNumber)) return fail(res, "请输入有效身份证号");
   if (!phone) return fail(res, "请绑定联系手机号");
 
   try {
@@ -432,13 +481,13 @@ exports.submitRiderVerification = async (req, res) => {
 
     if (exist.length) {
       await pool.query(
-        "UPDATE rider_verification SET campus_name=?, student_id=?, campus_credential=?, real_name=?, identity_number=?, identity_credential=?, phone=?, status='pending', review_note='', reviewed_by=NULL, reviewed_at=NULL WHERE user_id=?",
-        [campusName, studentId, campusCredential, realName, identityNumber, identityCredential, phone, req.userId]
+        "UPDATE rider_verification SET campus_name=?, student_id=?, campus_credential=?, phone=?, status='pending', review_note='', reviewed_by=NULL, reviewed_at=NULL WHERE user_id=?",
+        [campusName, studentId, campusCredential, phone, req.userId]
       );
     } else {
       await pool.query(
-        "INSERT INTO rider_verification (user_id, campus_name, student_id, campus_credential, real_name, identity_number, identity_credential, phone) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-        [req.userId, campusName, studentId, campusCredential, realName, identityNumber, identityCredential, phone]
+        "INSERT INTO rider_verification (user_id, campus_name, student_id, campus_credential, phone) VALUES (?, ?, ?, ?, ?)",
+        [req.userId, campusName, studentId, campusCredential, phone]
       );
     }
     success(res, null, "认证信息已提交，等待管理员审核");

@@ -2,6 +2,7 @@ const format = require("../../utils/format");
 const auth = require("../../utils/auth");
 const request = require("../../utils/request");
 const api = require("../../utils/api");
+const anonymousIdentity = require("../../utils/anonymousIdentity");
 
 Component({
   properties: {
@@ -9,6 +10,9 @@ Component({
     showFooter: { type: Boolean, value: true },
     commentMode: { type: String, value: "detail" },
     allowPin: { type: Boolean, value: false },
+    readonly: { type: Boolean, value: false },
+    // 点击头像直接进入帖子详情（首页信息流使用），不影响其他页面的头像交互
+    avatarToDetail: { type: Boolean, value: false },
   },
   data: {
     timeText: "",
@@ -27,6 +31,8 @@ Component({
     noteKeyboardHeight: 0,
     savingNote: false,
     showSharePopup: false,
+    anonPopup: null,
+    authorPopup: null,
   },
   observers: {
     "post.createdAt, post.content, post.images, post.viewCount, post.nickName, post.certLabel": function (
@@ -139,18 +145,125 @@ Component({
     },
 
     onTap() {
+      if (this.data.readonly) return;
       wx.navigateTo({
         url: "/pages/post-detail/index?id=" + this.data.post.id,
       });
     },
 
     openProfile() {
-      if ((this.data.post || {}).isAnonymous) {
-        wx.navigateTo({ url: '/pages/chat/index?peerId=' + this.data.post.userId + '&anonymous=1' });
+      const post = this.data.post || {};
+      if (post.isAnonymous) {
+        this.showAnonPopup({
+          userId: post.userId,
+          nick: this.data.authorName,
+          avatar: post.avatarUrl,
+          isOwner: true,
+          allowAnonymousPm: post.allowAnonymousPm,
+        });
         return;
       }
+      if (this.showAuthorPopup(post)) return;
       wx.navigateTo({
-        url: "/pages/profile/index?id=" + this.data.post.userId,
+        url: "/pages/profile/index?id=" + post.userId,
+      });
+    },
+
+    // 普通帖点击头像：帖主允许匿名私信时弹出「个人主页/分身私信」选择，
+    // 关闭了该设置或查看自己的帖子时保持直接进入主页
+    showAuthorPopup(post) {
+      if (!post || !post.userId) return false;
+      if (post.allowAnonymousPm === false) return false;
+      const userInfo = ((getApp().globalData || {}).userInfo) || wx.getStorageSync("userInfo") || {};
+      if (Number(userInfo.id) === Number(post.userId)) return false;
+      this.setData({
+        authorPopup: {
+          userId: post.userId,
+          nick: post.nickName || this.data.authorName || "校园同学",
+          avatar: post.avatarUrl || "/assets/icons/avatar.png",
+          certLabel: post.certLabel || this.data.certLabel || "",
+        },
+      });
+      return true;
+    },
+
+    onCloseAuthorPopup() {
+      this.setData({ authorPopup: null });
+    },
+
+    onAuthorPopupProfile() {
+      const popup = this.data.authorPopup;
+      if (!popup || !popup.userId) return;
+      this.setData({ authorPopup: null });
+      wx.navigateTo({ url: "/pages/profile/index?id=" + popup.userId });
+    },
+
+    onAuthorPopupMessage() {
+      const popup = this.data.authorPopup;
+      if (!popup || !popup.userId) return;
+      if (!auth.requireLogin("私信需要先登录")) return;
+      wx.showModal({
+        title: "分身私信",
+        content: "开启对话后，你将以匿名身份与对方交流",
+        confirmText: "确认",
+        cancelText: "取消",
+        success: (res) => {
+          if (!res.confirm) return;
+          this.setData({ authorPopup: null });
+          // 发起方使用随机分身身份，服务端首次进入时存档，全程同一形象
+          const persona = anonymousIdentity.generate();
+          wx.navigateTo({
+            url: "/pages/chat/index?peerId=" + popup.userId +
+              "&nick=" + encodeURIComponent(popup.nick || "校园同学") +
+              "&avatar=" + encodeURIComponent(popup.avatar || "/assets/icons/avatar.png") +
+              "&anonymous=1" +
+              "&anonSelfNick=" + encodeURIComponent(persona.nickName) +
+              "&anonSelfAvatar=" + encodeURIComponent(persona.avatarUrl)
+          });
+        }
+      });
+    },
+
+    showAnonPopup(options) {
+      this.setData({
+        anonPopup: {
+          userId: options.userId,
+          nick: options.nick || "校园同学",
+          avatar: options.avatar || "/assets/icons/avatar.png",
+          isOwner: !!options.isOwner,
+          // 对方是否允许被匿名私信：仅当明确为 false 时拦截进入聊天页
+          allowAnonymousPm: options.allowAnonymousPm,
+        },
+      });
+    },
+
+    onCloseAnonPopup() {
+      this.setData({ anonPopup: null });
+    },
+
+    onAnonPopupMessage() {
+      const popup = this.data.anonPopup;
+      if (!popup || !popup.userId) return;
+      if (popup.allowAnonymousPm === false) {
+        this.setData({ anonPopup: null });
+        wx.showToast({ title: "对方不允许匿名私信", icon: "none" });
+        return;
+      }
+      wx.showModal({
+        title: "匿名私信",
+        content: "与匿名用户对话时，你也自动变为匿名用户",
+        confirmText: "确认",
+        cancelText: "取消",
+        success: (res) => {
+          if (!res.confirm) return;
+          this.setData({ anonPopup: null });
+          wx.navigateTo({
+            url: "/pages/chat/index?peerId=" + popup.userId +
+              "&nick=" + encodeURIComponent(popup.nick || "匿名用户") +
+              "&avatar=" + encodeURIComponent(popup.avatar || "/assets/icons/avatar.png") +
+              "&anonymous=1"
+          });
+        }
       });
     },
 
@@ -160,7 +273,7 @@ Component({
       post.isLiked = !post.isLiked;
       post.likeCount = Math.max(
         0,
-        (post.likeCount || 0) + (post.isLiked ? 1 : -1),
+        (Number(post.likeCount) || 0) + (post.isLiked ? 1 : -1),
       );
       this.setData({ post });
       this.triggerEvent("like", { post });
@@ -206,7 +319,7 @@ Component({
       post.isFavorited = !post.isFavorited;
       post.favoriteCount = Math.max(
         0,
-        (post.favoriteCount || 0) + (post.isFavorited ? 1 : -1),
+        (Number(post.favoriteCount) || 0) + (post.isFavorited ? 1 : -1),
       );
       this.setData({ post });
       this.triggerEvent("favorite", { post });
@@ -214,7 +327,7 @@ Component({
         post.isFavorited = !post.isFavorited;
         post.favoriteCount = Math.max(
           0,
-          (post.favoriteCount || 0) + (post.isFavorited ? 1 : -1),
+          (Number(post.favoriteCount) || 0) + (post.isFavorited ? 1 : -1),
         );
         this.setData({ post });
         this.triggerEvent("favorite", { post });
@@ -222,6 +335,13 @@ Component({
     },
 
     onAvatarTap() {
+      // 首页信息流：点击头像直接进入帖子详情页
+      if (this.data.avatarToDetail) {
+        wx.navigateTo({
+          url: "/pages/post-detail/index?id=" + this.data.post.id,
+        });
+        return;
+      }
       this.openProfile();
     },
 
@@ -231,10 +351,12 @@ Component({
       const isAdmin = ['super_admin', 'content_admin'].indexOf(userInfo.role) > -1;
       const isAuthor = Number(userInfo.id) === Number((this.data.post || {}).userId);
       const itemList = isAdmin
-        ? ['删除', '添加备注', '拉黑']
+        ? (isAuthor
+          ? ['删除', '添加备注', '隐藏']
+          : ['删除', '添加备注', '隐藏', '拉黑'])
         : isAuthor
-          ? ['删除']
-          : ['拉黑', '举报内容'];
+          ? ['删除', '隐藏']
+          : ['隐藏', '拉黑', '举报内容'];
       wx.showActionSheet({
         itemList,
         success: async (res) => {
@@ -243,6 +365,8 @@ Component({
             await this.deletePost();
           } else if (selected === "添加备注") {
             this.openNoteEditor();
+          } else if (selected === '隐藏') {
+            await this.hidePost();
           } else if (selected === "拉黑") {
             await this.markNotInterested();
           } else {
@@ -283,6 +407,19 @@ Component({
         wx.showToast({ title: '已拉黑', icon: 'success' });
       } catch (err) {
         wx.showToast({ title: err.message || '设置失败', icon: 'none' });
+      }
+    },
+
+    // 隐藏：仅隐藏这条帖子（不影响同分类其他帖子），可在「我的→我删除的→隐藏」中恢复
+    async hidePost() {
+      const post = this.data.post || {};
+      if (!await this.confirmAction('隐藏帖子', '隐藏后这条帖子将不再对你展示，可在「我的→我删除的→隐藏」中恢复，确认隐藏吗？')) return;
+      try {
+        if (!request.USE_MOCK) await api.markPostNotInterested(post.id, true);
+        this.triggerEvent('close', { postId: post.id });
+        wx.showToast({ title: '已隐藏', icon: 'success' });
+      } catch (err) {
+        wx.showToast({ title: err.message || '隐藏失败', icon: 'none' });
       }
     },
 

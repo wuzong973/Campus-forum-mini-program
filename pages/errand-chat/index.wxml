@@ -1,0 +1,101 @@
+<view class="chat-container">
+  <!-- 自定义导航栏（绿色系与跑腿主题一致，标题与私信聊天区分） -->
+  <view class="custom-nav" style="padding-top: {{statusBarHeight}}px;">
+    <view class="nav-content" style="height: {{navBarHeight}}px;">
+      <view class="nav-back" hover-class="nav-back-hover" hover-stay-time="80" bindtap="onNavBack"><text class="nav-back-icon">‹</text></view>
+      <view class="nav-title-wrap"><text class="nav-title">跑腿聊天</text></view>
+      <view class="nav-right">
+        <text class="order-status" wx:if="{{statusText}}">{{statusText}}</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 订单概要条：点击查看订单详情 -->
+  <view class="order-bar" wx:if="{{order}}" hover-class="order-bar-hover" hover-stay-time="80" bindtap="openOrder">
+    <text class="order-bar-desc">{{order.remark || order.title}}</text>
+    <text class="order-bar-reward">¥{{order.rewardText}}</text>
+    <text class="order-bar-arrow">›</text>
+  </view>
+
+  <!-- 安全提示栏 -->
+  <view class="chat-notice">
+    <text class="notice-text">跑腿订单沟通专用，请勿引导私下交易，严禁聊天骚扰</text>
+  </view>
+
+  <!-- 消息列表 -->
+  <scroll-view
+    class="message-list"
+    scroll-y
+    scroll-into-view="{{scrollToView}}"
+    scroll-with-animation
+    bindscrolltoupper="onLoadMore"
+  >
+    <view class="message-item {{item.isSelf ? 'self' : 'other'}}" wx:for="{{messages}}" wx:key="id" id="msg-{{item.id}}">
+      <image class="avatar" src="{{item.avatar}}" mode="aspectFill"></image>
+      <view class="message-content">
+        <text class="sender-name">{{item.nickname}}</text>
+        <view class="message-bubble {{item.type === 'image' || item.type === 'video' ? 'media-bubble' : ''}}">
+          <text wx:if="{{item.type === 'text'}}" class="message-text">{{item.content}}</text>
+          <image wx:elif="{{item.type === 'image'}}" class="message-image" src="{{item.content}}" mode="widthFix" data-src="{{item.content}}" catchtap="onPreviewImage"></image>
+          <video wx:elif="{{item.type === 'video'}}" class="message-video" src="{{item.content}}" controls object-fit="contain"></video>
+          <text wx:else class="message-emoji">{{item.content}}</text>
+        </view>
+        <text class="time">{{item.timeText}}</text>
+      </view>
+    </view>
+    <view wx:if="{{loadingMore}}" class="loading-more">加载中...</view>
+    <view wx:if="{{!messages.length}}" class="empty-tip">暂无聊天消息，发一条消息和对方确认细节吧</view>
+  </scroll-view>
+
+  <!-- 输入区（微信原生风格：语音/输入/表情/加号） -->
+  <view class="input-area">
+    <view class="emoji-panel" wx:if="{{activePanel === 'emoji'}}">
+      <view class="emoji-grid">
+        <text
+          class="emoji-item"
+          wx:for="{{emojiList}}"
+          wx:key="*this"
+          bindtap="onEmojiTap"
+          data-emoji="{{item}}"
+        >{{item}}</text>
+      </view>
+    </view>
+
+    <!-- ＋ 功能面板：照片 / 视频 -->
+    <view class="tool-panel" wx:if="{{activePanel === 'tools'}}">
+      <view class="tool-panel-item" hover-class="tool-item-hover" hover-stay-time="80" bindtap="onChooseImage">
+        <view class="tool-tile"><view class="tool-icon-photo"></view></view>
+        <text class="tool-panel-label">照片</text>
+      </view>
+      <view class="tool-panel-item" hover-class="tool-item-hover" hover-stay-time="80" bindtap="onChooseVideo">
+        <view class="tool-tile"><view class="tool-icon-video"></view></view>
+        <text class="tool-panel-label">视频</text>
+      </view>
+    </view>
+
+    <view class="input-toolbar">
+      <view class="tool-btn" hover-class="tool-btn-hover" hover-stay-time="80" bindtap="onToggleVoice">
+        <view class="icon-voice {{voiceMode ? 'is-keyboard' : ''}}"></view>
+      </view>
+      <input
+        wx:if="{{!voiceMode}}"
+        class="message-input"
+        placeholder=""
+        value="{{inputValue}}"
+        bindinput="onInput"
+        bindfocus="onInputFocus"
+        bindconfirm="onSend"
+        confirm-type="send"
+        focus="{{inputFocus}}"
+      />
+      <view class="voice-input" wx:else hover-class="voice-hover" bindtouchstart="onVoiceHint">按住 说话</view>
+      <view class="tool-btn" hover-class="tool-btn-hover" hover-stay-time="80" bindtap="onToggleEmoji">
+        <view class="icon-emoji"></view>
+      </view>
+      <view class="tool-btn" wx:if="{{!inputValue}}" hover-class="tool-btn-hover" hover-stay-time="80" bindtap="onToggleTools">
+        <view class="icon-plus"></view>
+      </view>
+      <view class="send-btn" wx:else hover-class="send-btn-hover" hover-stay-time="80" bindtap="onSend">发送</view>
+    </view>
+  </view>
+</view>

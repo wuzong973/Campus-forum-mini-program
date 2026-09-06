@@ -132,14 +132,18 @@ function mapPost(r) {
     likeCount: r.likeCount || r.like_count || 0,
     commentCount: r.commentCount || r.comment_count || 0,
     favoriteCount: r.favoriteCount || r.favorite_count || 0,
+    followCount: r.followCount || r.follow_count || 0,
     shareCount: r.shareCount || r.share_count || 0,
     verified: !!(r.verified || r.isVerified || r.is_verified),
     certLabel: r.certLabel || r.cert_label || "",
+    allowAnonymousPm: r.allowAnonymousPm === undefined ? true : !!r.allowAnonymousPm,
     postCount: r.postCount || r.post_count || 0,
     isHot: !!r.isHot,
+    pinned: !!r.pinned,
     isLiked: !!r.isLiked,
     isFavorited: !!r.isFavorited,
     reviewNote: r.reviewNote || r.review_note || "",
+    isDeleted: !!(r.isDeleted || r.is_deleted),
     contact: parseContact(r.contact),
     components: parseComponents(r.components),
     isAnonymous: !!(r.isAnonymous || r.is_anonymous),
@@ -165,6 +169,16 @@ function buildMockProfile(userId) {
     ),
     posts: userPosts,
   });
+}
+
+// 首页展示配置（公开）：管理后台「配置」维护的轮播图与公告；无配置时返回空，首页回退本地默认
+function getHomeConfig() {
+  return request.get("/config/home", {}, false, { silent: true }).then((d) => ({
+    banners: (d && d.banners) || [],
+    notice: (d && d.notice) || null,
+    // 发布页（发布帖子/发布跑腿）顶部自动轮播横幅
+    publishBanners: (d && d.publishBanners) || [],
+  }));
 }
 
 function getPostList(params) {
@@ -199,32 +213,55 @@ function getPostList(params) {
   );
 }
 
-function getHotPostRank(period = "today") {
+function getHotPostRank(period = "today", limit = 15) {
+  // 热榜：指定时间段内浏览量最高的帖子，携带图片/视频媒体信息
+  // period: today / week / month / halfyear / year / history
+  function parseHotMedia(images) {
+    let arr = [];
+    if (Array.isArray(images)) arr = images;
+    else if (typeof images === "string") {
+      try { arr = JSON.parse(images); } catch (e) { arr = images ? [images] : []; }
+    }
+    const media = (arr || [])
+      .map((item) => (typeof item === "string"
+        ? { type: "image", url: item }
+        : { type: item.type === "video" ? "video" : "image", url: item.url || item.path || "" }))
+      .filter((m) => /^https:\/\//i.test(m.url));
+    return {
+      hotImages: media.filter((m) => m.type === "image").map((m) => m.url).slice(0, 3),
+      hasVideo: media.some((m) => m.type === "video"),
+    };
+  }
+
   return withMock(
-    () => request.get("/post/hot-rank", { period }, true).then((d) => ({
-      list: (d && d.list ? d.list : []).map(mapPost),
+    () => request.get("/post/hot-rank", { period, limit }, true).then((d) => ({
+      list: (d && d.list ? d.list : []).map((row) => Object.assign(mapPost(row), parseHotMedia(row.images))),
     })),
     () => {
       const now = new Date();
       const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-      let rangeStart = start;
-      let rangeEnd = new Date(start.getTime() + 24 * 60 * 60 * 1000);
-      if (period === "yesterday") {
-        rangeStart = new Date(start.getTime() - 24 * 60 * 60 * 1000);
-        rangeEnd = new Date(rangeStart.getTime());
-        rangeEnd.setHours(20, 0, 0, 0);
-      }
+      const ranges = {
+        today: [new Date(start.getTime() - 24 * 60 * 60 * 1000), new Date(start.getTime() + 24 * 60 * 60 * 1000)],
+        week: [new Date(start.getTime() - 7 * 24 * 60 * 60 * 1000), null],
+        month: [new Date(start.getTime() - 30 * 24 * 60 * 60 * 1000), null],
+        halfyear: [new Date(start.getTime() - 182 * 24 * 60 * 60 * 1000), null],
+        year: [new Date(start.getTime() - 365 * 24 * 60 * 60 * 1000), null],
+        history: [null, null],
+      };
+      const [rangeStart, rangeEnd] = ranges[period] || ranges.today;
+      // 昨天 + 今天
       let ranked = mock.posts
           .filter((post) => {
+            if (!rangeStart) return true;
             const createdAt = new Date(post.createdAt || post.created_at || 0);
-            return createdAt >= rangeStart && createdAt <= rangeEnd;
+            return createdAt >= rangeStart && (!rangeEnd || createdAt <= rangeEnd);
           })
           .sort((a, b) => Number(b.viewCount || b.view_count || 0) - Number(a.viewCount || a.view_count || 0))
       // 演示数据可能早于设备日期，仍提供一组可查看的榜单。
       if (!ranked.length) {
         ranked = mock.posts.slice().sort((a, b) => Number(b.viewCount || b.view_count || 0) - Number(a.viewCount || a.view_count || 0))
       }
-      return { list: ranked.slice(0, 10).map(mapMockPost) };
+      return { list: ranked.slice(0, limit).map((post) => Object.assign(mapMockPost(post), parseHotMedia(post.images))) };
     },
   );
 }
@@ -235,8 +272,12 @@ function getPostDetail(id) {
       request
         .get("/post/" + id, {}, true)
         .then((d) => (d ? mapPost(d) : null)),
-    () =>
-      mapMockPost(mock.posts.find((p) => p.id === Number(id)) || mock.posts[0]),
+    () => {
+      // 与服务端一致：每次打开详情浏览量 +1
+      const post = mock.posts.find((p) => p.id === Number(id));
+      if (post) post.viewCount = (Number(post.viewCount) || 0) + 1;
+      return mapMockPost(post || mock.posts[0]);
+    },
   );
 }
 
@@ -298,7 +339,7 @@ function getErrandList(params) {
   return withMock(
     () =>
       request
-        .get("/errand/list", params, false)
+        .get("/errand/list", params, true)
         .then((d) => d || { list: [], total: 0, hasMore: false }),
     () => {
       let list = mock.errandOrders;
@@ -530,6 +571,20 @@ function getUserPosts(userId) {
   );
 }
 
+function getMyDeletedPosts() {
+  return request
+    .get('/user/my-deleted-posts', {}, true, { silent: true })
+    .then((d) => (d.list || []).map(mapPost))
+}
+
+function getMyHiddenPosts() {
+  return request.get('/post/hidden', {}, true, { silent: true }).then((d) => d.list || [])
+}
+
+function unhidePost(postId) {
+  return request.del('/post/hidden/' + postId, {}, true)
+}
+
 function favoritePost(postId) {
   return withMock(
     () => request.post("/post/" + postId + "/favorite", {}, true),
@@ -549,8 +604,9 @@ function deletePost(postId) {
   return request.del('/post/' + postId, {}, true);
 }
 
-function markPostNotInterested(postId) {
-  return request.post('/post/' + postId + '/not-interested', {}, true);
+function markPostNotInterested(postId, postOnly) {
+  // postOnly: 仅隐藏该帖子（scope=post），否则连同同分类内容一起隐藏（拉黑）
+  return request.post('/post/' + postId + '/not-interested', postOnly ? { scope: 'post' } : {}, true);
 }
 
 function reportPost(postId) {
@@ -558,6 +614,22 @@ function reportPost(postId) {
     targetType: 'post',
     targetId: Number(postId),
     reason: '用户举报：内容可能违反社区规则',
+  }, true);
+}
+
+function reportComment(commentId) {
+  return request.post('/feedback/report', {
+    targetType: 'comment',
+    targetId: Number(commentId),
+    reason: '用户举报：评论可能违反社区规则',
+  }, true);
+}
+
+function reportUser(userId) {
+  return request.post('/feedback/report', {
+    targetType: 'user',
+    targetId: Number(userId),
+    reason: '用户举报：该用户可能违反社区规则',
   }, true);
 }
 
@@ -635,13 +707,43 @@ function unblockUser(peerId) {
   return request.post("/message/unblock", { peerId }, true);
 }
 
+function blockUser(peerId) {
+  return request.post("/message/block", { peerId: Number(peerId) }, true);
+}
+
 function bindPhone(phoneCode) {
   return request.post("/user/phone", { phoneCode }, true);
+}
+
+// ===== 跑腿订单专属聊天（与私信独立，双方真实身份） =====
+
+// 我的跑腿聊天会话列表（已接单/已完成的订单）
+function getErrandChats() {
+  return withMock(
+    () => request.get("/errand/chats", {}, true, { silent: true }).then((d) => d || { list: [] }),
+    () => ({ list: [] }),
+  );
+}
+
+// 某订单的聊天记录（含对方身份与订单概要）
+function getErrandChatMessages(orderId, page = 1, pageSize = 30) {
+  return request.get("/errand/" + orderId + "/messages", { page, pageSize }, true);
+}
+
+// 发送跑腿聊天消息
+function sendErrandMessage(orderId, content, msgType = "text") {
+  return request.post("/errand/" + orderId + "/messages", { content, msgType }, true);
+}
+
+// 标记某订单聊天已读
+function markErrandChatRead(orderId) {
+  return request.post("/errand/chats/" + orderId + "/read", {}, true, { silent: true }).catch(() => {});
 }
 
 module.exports = {
   getBlacklist,
   unblockUser,
+  blockUser,
   bindPhone,
   withMock,
   mapPost,
@@ -651,23 +753,34 @@ module.exports = {
   searchPosts,
   getServiceList,
   getErrandList,
+  getErrandChats,
+  getErrandChatMessages,
+  sendErrandMessage,
+  markErrandChatRead,
   getScheduleList,
   syncSchedule,
   submitScheduleCaptcha,
   clearSchedule,
   getScheduleConfig,
   getCommentList,
+  getHomeConfig,
   likeComment,
   getTopLikedComment,
   setCurrentPostId,
   getUserProfile,
   getUserPosts,
+  getMyDeletedPosts,
+  getMyHiddenPosts,
+  unhidePost,
+  parseImages,
   favoritePost,
   votePost,
   updatePostReviewNote,
   deletePost,
   markPostNotInterested,
   reportPost,
+  reportComment,
+  reportUser,
   getMyInteractionStats,
   getMyInteractionList,
   createShare,

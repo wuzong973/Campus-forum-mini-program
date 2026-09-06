@@ -1,5 +1,55 @@
 <view class="page">
-  <view class="content">
+  <!-- 跑腿发单系统协议（图八） -->
+  <view class="content" wx:if="{{mode === 'errand'}}">
+    <view class="title">在校生论坛跑腿平台发单系统协议</view>
+    <view class="update-time">确认电子协议</view>
+
+    <view class="section">
+      <view class="section-content">
+        <text>本协议由在校生论坛跑腿平台缔结。用户一旦通过「在校生论坛跑腿平台」保证金入口页面阅读并确认本协议，点击“已阅读并同意协议”按钮即视为同意签订本协议，不论用户是否真正阅读本协议。所以平台提醒用户认真阅读本协议并确认本协议的所有条款。如有疑问可咨询平台客服。</text>
+      </view>
+    </view>
+
+    <view class="section">
+      <view class="section-title">一、下单后若无人接单</view>
+      <view class="section-content">
+        <text>1.可随时免费取消订单，不会产生任何费用。</text>
+      </view>
+    </view>
+
+    <view class="section">
+      <view class="section-title">二、下单后若有人接单</view>
+      <view class="section-content">
+        <text class="sub-title">1、三十分钟内取消订单</text>
+        <text>①：发单人原因取消订单，被接单30分钟内取消免费。</text>
+        <text>②：接单人原因取消订单，被接单30分钟内取消免费。</text>
+        <text>③：发单人取消订单，48小时内接单人需点击“同意”或“异议”，48小时后，默认“同意”。</text>
+        <text>④：接单人取消订单，订单即刻完成取消。</text>
+        <text class="sub-title">2、超过三十分钟取消订单</text>
+        <text>①：发单人原因取消订单，被接单30分钟后取消产生12%手续费，发单人承担。</text>
+        <text>②：接单人原因取消订单，被接单后30分钟后取消会产生12%手续费，接单人承担。</text>
+        <text>③：发单人取消订单，48小时内接单人需点击“同意”或“异议”，48小时后，默认“同意”。</text>
+        <text>④：接单人取消订单，48小时内发单人需点击“同意”或“异议”。</text>
+        <text class="sub-title">3、接单人完成订单</text>
+        <text>①：接单人完成订单后点击“确认完成”，需发单人点击“确认完成”。</text>
+        <text>②：接单人点击“确认完成”，若发单人48小时内无异议或者主动确认，48小时后，默认“同意完成”，交易完成。</text>
+      </view>
+    </view>
+
+    <view class="section">
+      <view class="section-title">三、其他规定</view>
+      <view class="section-content">
+        <text>1.严禁发布与订单实际价值不符的订单，违者冻结订单金额作为系统使用费，不予退还。</text>
+        <text>2.严禁发布明显低价订单绕开平台交易，违者冻结订单金额作为系统使用费，不予退还。</text>
+        <text>3.互助系统仅限在校生个人学习生活使用，禁止发布违反法律法规及商业推广营销信息，包括不限于拼多多助力，快手及其他各类软件拉新，招聘代理、招聘家教、办理校园卡或者其他包含刷单、推广、招募、拉新、销售性质的行为，禁止发布软色情、招嫖类、交友类信息，违者冻结账户和订单，金额不予退还。（软色情，招嫖类信息，移交网警，上报学校。）</text>
+        <text>4.发单人实际支付金额=接单人到手金额+平台抽取的技术服务费</text>
+        <text>5.本平台仅为用户提供信息发布与软件技术支持服务，不参与具体的线下服务撮合。</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 校园小程序用户协议 -->
+  <view class="content" wx:else>
     <view class="title">校园小程序用户协议</view>
     <view class="update-time">更新日期：2026年7月1日</view>
     <view class="update-time">生效日期：2026年7月1日</view>

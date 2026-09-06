@@ -47,6 +47,10 @@ function updatePhone(phoneCode) {
   return request.post('/user/phone', { phoneCode }, true)
 }
 
+function savePhone(phone) {
+  return request.post('/user/phone', { phone }, true)
+}
+
 function uploadImages(filePaths) {
   const inst = getApp();
   const base = request.BASE_URL.replace("/api/v1", "");
@@ -84,6 +88,35 @@ function previewImages(urls, current) {
   wx.previewImage({ urls, current: current || urls[0] });
 }
 
+// 视频上传（聊天视频消息）：复用对象存储/磁盘落盘逻辑，超时不与图片相同（视频更大）
+function uploadVideo(filePath) {
+  const inst = getApp();
+  const base = request.BASE_URL.replace("/api/v1", "");
+  return new Promise((resolve, reject) => {
+    wx.uploadFile({
+      url: base + "/api/v1/user/upload/video",
+      filePath,
+      name: "file",
+      header: { Authorization: "Bearer " + inst.globalData.token },
+      timeout: 120000,
+      success(res) {
+        try {
+          const data = JSON.parse(res.data);
+          if (res.statusCode < 200 || res.statusCode >= 300 || !data.data || !data.data.url) {
+            reject(new Error((data && data.message) || "视频上传失败"));
+            return;
+          }
+          const url = data.data.url;
+          resolve(url.indexOf("/") === 0 ? base + url : url);
+        } catch (e) {
+          reject(new Error("视频上传响应无效"));
+        }
+      },
+      fail: (error) => reject(new Error(error.errMsg || "视频上传失败")),
+    });
+  });
+}
+
 // 隐私授权预检（符合微信开放平台规范）：
 // 1. wx.getPrivacySetting 查询用户是否已同意《用户隐私保护指引》；
 // 2. 未同意时通过 wx.requirePrivacyAuthorize 拉起官方隐私授权弹窗；
@@ -112,4 +145,4 @@ function ensurePrivacyAuthorize() {
   });
 }
 
-module.exports = { phoneLogin, checkContent, updatePhone, uploadImages, previewImages, ensurePrivacyAuthorize };
+module.exports = { phoneLogin, checkContent, updatePhone, savePhone, uploadImages, uploadVideo, previewImages, ensurePrivacyAuthorize };
