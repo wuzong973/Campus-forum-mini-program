@@ -8,18 +8,22 @@ if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
-SERVER = "193.112.187.95"
-USER = "root"
-PASS = "Wzl@88888"
-REMOTE_BASE = "/home/springboot/server"
-LOCAL_BASE = r"D:\校园论坛小程序"
-LOG_PATH = r"D:\校园论坛小程序\.workbuddy\deploy_log.txt"
+SERVER = os.getenv("DEPLOY_SERVER", "193.112.187.95")
+USER = os.getenv("DEPLOY_USER", "root")
+PASS = os.getenv("DEPLOY_PASSWORD")
+REMOTE_BASE = os.getenv("DEPLOY_REMOTE_BASE", "/home/springboot/server")
+LOCAL_BASE = os.path.dirname(os.path.abspath(__file__))
+LOG_PATH = os.path.join(LOCAL_BASE, ".workbuddy", "deploy_log.txt")
 
 log_lines = []
 
 def log(msg):
     print(msg)
     log_lines.append(str(msg))
+
+if not PASS:
+    log("缺少 DEPLOY_PASSWORD 环境变量，已停止部署。")
+    sys.exit(1)
 
 # 全量核心后端文件（controllers/routes/utils/app/配置/依赖清单）
 files = [

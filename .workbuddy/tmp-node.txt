@@ -1,3 +1,0 @@
-﻿node1: True
-node2: False
-temp: C:\Users\w'w'w\AppData\Local\Temp
