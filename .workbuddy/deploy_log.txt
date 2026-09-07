@@ -1,0 +1,84 @@
+OK  app.js
+OK  ecosystem.config.js
+OK  package.json
+OK  controllers/adminController.js
+OK  controllers/commentController.js
+OK  controllers/configController.js
+OK  controllers/errandController.js
+OK  controllers/feedbackController.js
+OK  controllers/messageController.js
+OK  controllers/notificationController.js
+OK  controllers/paymentController.js
+OK  controllers/postController.js
+OK  controllers/repairController.js
+OK  controllers/scheduleController.js
+OK  controllers/serviceController.js
+OK  controllers/shareController.js
+OK  controllers/uploadController.js
+OK  controllers/userController.js
+OK  controllers/walletController.js
+OK  routes/adminRoutes.js
+OK  routes/commentRoutes.js
+OK  routes/configRoutes.js
+OK  routes/errandRoutes.js
+OK  routes/feedbackRoutes.js
+OK  routes/messageRoutes.js
+OK  routes/notificationRoutes.js
+OK  routes/paymentRoutes.js
+OK  routes/postRoutes.js
+OK  routes/repairRoutes.js
+OK  routes/scheduleRoutes.js
+OK  routes/serviceRoutes.js
+OK  routes/shareRoutes.js
+OK  routes/userRoutes.js
+OK  routes/walletRoutes.js
+OK  utils/adminAudit.js
+OK  utils/helpers.js
+OK  utils/migrations.js
+OK  utils/wechatToken.js
+上传完成: 成功 38 个, 失败 0 个
+
+重启服务...
+npm warn allow-scripts   tesseract.js@5.1.1 (install: (install scripts present))
+npm warn allow-scripts
+npm warn allow-scripts Run `npm approve-scripts --allow-scripts-pending` to review, or `npm approve-scripts <pkg>` to allow.
+Use --update-env to update environment variables
+[PM2] Applying action restartProcessId on app [GQG-campus](ids: [ 0, 1 ])
+[PM2] [GQG-campus](0) ✓
+[PM2] [GQG-campus](1) ✓
+┌────┬───────────────┬─────────────┬─────────┬─────────┬──────────┬────────┬──────┬───────────┬──────────┬──────────┬──────────┬──────────┐
+│ id │ name          │ namespace   │ version │ mode    │ pid      │ uptime │ ↺    │ status    │ cpu      │ mem      │ user     │ watching │
+├────┼───────────────┼─────────────┼─────────┼─────────┼──────────┼────────┼──────┼───────────┼──────────┼──────────┼──────────┼──────────┤
+│ 0  │ GQG-campus    │ default     │ 1.1.0   │ cluster │ 2195576  │ 0s     │ 22   │ online    │ 0%       │ 76.6mb   │ root     │ disabled │
+│ 1  │ GQG-campus    │ default     │ 1.1.0   │ cluster │ 2195589  │ 0s     │ 22   │ online    │ 0%       │ 46.6mb   │ root     │ disabled │
+└────┴───────────────┴─────────────┴─────────┴─────────┴──────────┴────────┴──────┴───────────┴──────────┴──────────┴──────────┴──────────┘
+host metrics | cpu: 0.4% | ram usage: 46.8% | disk: ⇓ 0mb/s ⇑ 0.031mb/s |
+┌────┬───────────────┬─────────────┬─────────┬─────────┬──────────┬────────┬──────┬───────────┬──────────┬──────────┬──────────┬──────────┐
+│ id │ name          │ namespace   │ version │ mode    │ pid      │ uptime │ ↺    │ status    │ cpu      │ mem      │ user     │ watching │
+├────┼───────────────┼─────────────┼─────────┼─────────┼──────────┼────────┼──────┼───────────┼──────────┼──────────┼──────────┼──────────┤
+│ 0  │ GQG-campus    │ default     │ 1.1.0   │ cluster │ 2195576  │ 3s     │ 22   │ online    │ 0%       │ 140.4mb  │ root     │ disabled │
+│ 1  │ GQG-campus    │ default     │ 1.1.0   │ cluster │ 2195589  │ 3s     │ 22   │ online    │ 0%       │ 140.9mb  │ root     │ disabled │
+└────┴───────────────┴─────────────┴─────────┴─────────┴──────────┴────────┴──────┴───────────┴──────────┴──────────┴──────────┴──────────┘
+host metrics | cpu: 0.4% | ram usage: 46.8% | disk: ⇓ 0mb/s ⇑ 0.031mb/s |
+[TAILING] Tailing last 8 lines for [GQG-campus] process (change the value with --lines option)
+/home/springboot/server/logs/err.log last 8 lines:
+0|GQG-camp | [payment-notify] error:1E08010C:DECODER routines::unsupported
+0|GQG-camp | [Startup] 数据库初始化失败（第 1 次）: Duplicate column name 'actor_avatar'
+0|GQG-camp | [payment-notify] error:1E08010C:DECODER routines::unsupported
+0|GQG-camp | [payment-notify] error:1E08010C:DECODER routines::unsupported
+0|GQG-camp | [payment-notify] error:1E08010C:DECODER routines::unsupported
+0|GQG-camp | [payment-notify] error:1E08010C:DECODER routines::unsupported
+0|GQG-camp | [payment-notify] error:1E08010C:DECODER routines::unsupported
+0|GQG-camp | [payment-notify] error:1E08010C:DECODER routines::unsupported
+
+/home/springboot/server/logs/out.log last 8 lines:
+0|GQG-camp | GET /api/v1/schedule/list 200 1.345 ms - 112.96.83.164
+0|GQG-camp | GET /api/v1/comment/list?postId=44&sort=hot&page=1&pageSize=50 200 1.491 ms - 112.96.83.164
+0|GQG-camp | GET /api/v1/post/44 200 7.667 ms - 112.96.83.164
+0|GQG-camp | GET /api/v1/post/hot-rank?period=today&limit=15 200 1.630 ms - 112.96.83.164
+0|GQG-camp | GET /api/v1/schedule/list 200 1.532 ms - 112.96.83.164
+0|GQG-camp | GET /api/v1/post/hot-rank?period=today&limit=15 200 1.778 ms - 112.96.83.164
+0|GQG-camp | 广轻工后端服务运行在端口 3000
+0|GQG-camp | 广轻工后端服务运行在端口 3000
+
+Done!

@@ -1,5 +1,7 @@
 {
   "navigationBarTitleText": "接单大厅",
+  "navigationBarBackgroundColor": "#D7EFFF",
+  "navigationBarTextStyle": "black",
   "usingComponents": {
     "empty-state": "/components/empty-state/empty-state",
     "contact-admin": "/components/contact-admin/contact-admin"

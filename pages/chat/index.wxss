@@ -7,7 +7,10 @@
 
 /* 自定义导航栏 */
 .custom-nav {
-  background: #7dd3c0;
+  /* 与首页顶部一致的渐变（180deg：#d7efff → #eaf6ff，叠加同款淡蓝径向高光） */
+  background:
+    radial-gradient(ellipse at 14% -6%, rgba(137, 202, 255, 0.28) 0%, rgba(137, 202, 255, 0) 48%),
+    linear-gradient(180deg, #d7efff 0%, #eaf6ff 100%);
 }
 
 .nav-content {
@@ -28,7 +31,7 @@
 }
 
 .nav-back-icon {
-  color: #ffffff;
+  color: #1d3048;
   font-size: 56rpx;
   line-height: 1;
   margin-top: -6rpx;
@@ -48,10 +51,10 @@
 
 .back-post-btn {
   padding: 6rpx 20rpx;
-  border: 1rpx solid rgba(255, 255, 255, 0.75);
+  border: 1rpx solid rgba(29, 48, 72, 0.35);
   border-radius: 999rpx;
-  background: rgba(255, 255, 255, 0.22);
-  color: #ffffff;
+  background: rgba(255, 255, 255, 0.55);
+  color: #1d3048;
   font-size: 22rpx;
   line-height: 1.5;
   white-space: nowrap;
@@ -62,7 +65,7 @@
 }
 
 .back-post-hover {
-  background: rgba(255, 255, 255, 0.4);
+  background: rgba(255, 255, 255, 0.8);
 }
 
 .back-post-btn.is-returning {

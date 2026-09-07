@@ -1,3 +1,5 @@
 {
-  "navigationBarTitleText": "发布跑腿"
+  "navigationBarTitleText": "发布跑腿",
+  "navigationBarBackgroundColor": "#D7EFFF",
+  "navigationBarTextStyle": "black"
 }

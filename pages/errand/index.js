@@ -195,8 +195,23 @@ Page({
   },
 
   // ===== 公告关闭 =====
+  // 构建公告栏数据：受 showNoticeA/B 开关控制，用户关闭某条后不再显示
+  buildNotices() {
+    const notices = []
+    if (this.data.showNoticeA) {
+      notices.push({ key: 'showNoticeA', cls: 'notice-red', text: '跑腿交易请走平台支付，私下转账无法保障资金安全' })
+    }
+    if (this.data.showNoticeB) {
+      notices.push({ key: 'showNoticeB', cls: 'notice-yellow', text: '接单后请及时联系对方，完成订单记得确认，避免影响完成率' })
+    }
+    this.setData({ notices })
+  },
+
   onCloseNotice(e) {
-    this.setData({ [e.currentTarget.dataset.key]: false })
+    const key = e.currentTarget.dataset.key
+    if (!key) return
+    this.setData({ [key]: false })
+    this.buildNotices()
   },
 
   // 公告栏"管理员"点击：唤起页面底部的管理员微信二维码弹窗（与首页公告栏交互一致）

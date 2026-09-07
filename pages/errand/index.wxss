@@ -1,7 +1,9 @@
 .page {
   min-height: 100vh;
-  background: linear-gradient(180deg, #D8E7FD 0%, rgba(216, 231, 253, 0) 420rpx), var(--bg);
-  background-color: var(--bg);
+  /* 与首页 .page 完全一致的渐变背景（180deg，#d7efff → #f4f6fa，叠加淡蓝径向高光） */
+  background:
+    radial-gradient(ellipse at 14% -6%, rgba(137, 202, 255, 0.28) 0%, rgba(137, 202, 255, 0) 48%),
+    linear-gradient(180deg, #d7efff 0%, #eaf6ff 18%, #f5f9fd 46%, #f7f8fb 72%, #f4f6fa 100%);
   padding-bottom: calc(200rpx + env(safe-area-inset-bottom));
   box-sizing: border-box;
 }
