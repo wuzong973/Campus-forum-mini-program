@@ -6,13 +6,6 @@ const api = require('../../utils/api')
 const anonymousIdentity = require('../../utils/anonymousIdentity')
 const { runPullDownRefresh } = require('../../utils/refresh')
 const PUBLISH_DRAFT_KEY = 'post_publish_draft'
-const PENDING_POST_KEY = 'home_pending_post'
-
-// 发布页顶部轮播横幅：管理后台未配置时的本地默认（可在后台「内容配置-发布横幅」维护）
-const DEFAULT_PUBLISH_BANNERS = [
-  { id: 'default-1', text: '禁止引导私下交易，违规封禁！', icon: '🚫', style: 'red' },
-  { id: 'default-2', text: '吃好喝好没烦恼。', icon: '😄', style: 'green' }
-]
 
 function newPoll() { return { id: Date.now() + Math.floor(Math.random() * 1000), question: '', mode: 'single', options: [{ value: '' }, { value: '' }] } }
 
@@ -23,11 +16,11 @@ Page({
     contactName: '', contactType: '手机号码', contactTypes: ['手机号码', '微信账号', 'QQ账号'], contactValue: '', contactSummary: '方便其他同学联系',
     secondIdentity: false, anonymousPreview: null, polls: [], poll: null, submitting: false, lastSubmitPayload: null, submitError: '',
     allowAnonymousPm: true,
-    publishBanners: DEFAULT_PUBLISH_BANNERS.slice()
+    publishBanners: []
   },
   onLoad() {
     if (!auth.requirePublishReady()) { setTimeout(() => wx.navigateBack(), 500); return }
-    this.loadPublishBanners()
+    // 轮播横幅由 onShow 统一拉取（首次进入 onShow 也会触发）
     const restored = this.restoreDraft()
     if (!restored) {
       const settings = wx.getStorageSync('system_settings') || {}
@@ -37,6 +30,11 @@ Page({
     // 进入发布页先弹出主题分类选择，可选可不选，关闭后也可在下方"主题分类"里再选
     this.openTagPicker()
   },
+
+  onShow() {
+    // 管理员后台更新发布横幅样式后，再次进入发布页即可同步（onLoad 只走一次）
+    this.loadPublishBanners()
+  },
   // ===== 顶部轮播横幅 =====
   loadPublishBanners() {
     api.getHomeConfig().then((config) => {
@@ -44,10 +42,34 @@ Page({
         id: b.id || 'b' + i,
         text: b.text,
         style: b.style || 'red',
-        icon: b.icon || ''
+        icon: b.icon || '',
+        link: b.link || '',
+        linkText: b.linkText || '',
+        bannerStyle: (b.bgColor ? 'background:' + b.bgColor + ';' : '') + (b.textColor ? 'color:' + b.textColor + ';' : '')
       }))
       if (list.length) this.setData({ publishBanners: list })
     }).catch(() => {})
+  },
+
+  // 点击发布横幅：配置了跳转链接则按类型跳转，未配置则打开横幅详情页
+  onPublishBannerTap(e) {
+    const banner = this.data.publishBanners[Number(e.currentTarget.dataset.index)] || {}
+    const link = String(banner.link || '').trim()
+    if (/^https?:\/\//i.test(link)) {
+      wx.navigateTo({
+        url: '/pages/webview/index?url=' + encodeURIComponent(link) + '&title=' + encodeURIComponent(banner.linkText || '公告详情')
+      })
+      return
+    }
+    if (link) {
+      const path = link.charAt(0) === '/' ? link : '/' + link
+      wx.navigateTo({
+        url: path,
+        fail: () => wx.switchTab({ url: path, fail: () => wx.navigateTo({ url: '/pages/banner-detail/index?scope=publish&id=' + (banner.id || '') }) })
+      })
+      return
+    }
+    wx.navigateTo({ url: '/pages/banner-detail/index?scope=publish&id=' + (banner.id || '') })
   },
   onClosePublishBanner(e) {
     const index = Number(e.currentTarget.dataset.index)
@@ -59,7 +81,6 @@ Page({
   loadAllowAnonymousPm() {
     const cached = (getApp().globalData.userInfo || {}).allowAnonymousPm
     if (typeof cached === 'boolean') this.setData({ allowAnonymousPm: cached })
-    if (request.USE_MOCK) return
     request.get('/user/info', {}, true, { silent: true }).then((info) => {
       const allowed = info ? !!info.allowAnonymousPm : true
       this.setData({ allowAnonymousPm: allowed })
@@ -74,7 +95,6 @@ Page({
     const allowed = !!e.detail.value
     const previous = this.data.allowAnonymousPm
     this.setData({ allowAnonymousPm: allowed })
-    if (request.USE_MOCK) return
     request.put('/user/info', { allowAnonymousPm: allowed ? 1 : 0 }, true, { silent: true }).then(() => {
       const user = getApp().globalData.userInfo
       if (user && user.id) {
@@ -149,7 +169,22 @@ Page({
   isPollValid() { const poll = this.data.poll || {}; return !!poll.question.trim() && poll.options.filter((item) => item.value.trim()).length >= 2 },
   openRules() { wx.navigateTo({ url: '/pages/rules/index' }) }, onTempTagSelect(e) { this.setData({ tempCategoryIndex: e.currentTarget.dataset.index }) },
   confirmTag() { this.setData({ categoryIndex: this.data.tempCategoryIndex, showTagPicker: false }); this.refreshCanSubmit(); this.saveDraft() },
-  onChooseImage() { imageUtil.chooseAndCompress(9 - this.data.mediaList.length).then((files) => { const mediaList = this.data.mediaList.concat(files); this.setData({ mediaList, images: mediaList.map((item) => item.path) }); this.saveDraft(); this.refreshCanSubmit() }).catch(() => {}) },
+  onChooseImage() {
+    imageUtil.chooseAndCompress(9 - this.data.mediaList.length).then((files) => {
+      let incoming = files
+      let mediaList = this.data.mediaList
+      // 帖子最多 1 个视频：已有视频再次选择视频时，用新视频替换旧视频
+      const incomingVideo = incoming.find((item) => item.type === 'video')
+      if (incomingVideo && mediaList.some((item) => item.type === 'video')) {
+        mediaList = mediaList.filter((item) => item.type !== 'video')
+        incoming = incoming.filter((item) => item.type !== 'video').concat([incomingVideo])
+        wx.showToast({ title: '最多上传1个视频，已替换原视频', icon: 'none' })
+      }
+      mediaList = mediaList.concat(incoming).slice(0, 9)
+      this.setData({ mediaList, images: mediaList.map((item) => item.path) })
+      this.saveDraft(); this.refreshCanSubmit()
+    }).catch(() => {})
+  },
   onRemoveImage(e) { const mediaList = this.data.mediaList.slice(); mediaList.splice(e.currentTarget.dataset.index, 1); this.setData({ mediaList, images: mediaList.map((item) => item.path) }); this.saveDraft(); this.refreshCanSubmit() },
   buildComponents() {
     return this.data.polls.map((poll) => ({ type: 'poll', question: poll.question.trim(), mode: poll.mode, options: poll.options.filter((item) => item.value.trim()).map((item) => ({ text: item.value.trim(), votes: 0 })), voterIds: [] }))
@@ -159,19 +194,21 @@ Page({
     if (!auth.requirePublishReady()) return
     const content = this.data.content.trim()
     // 纯图片/视频帖子允许无文字内容
-    if (!content && !this.data.mediaList.length) { wx.showToast({ title: '请输入内容或上传图片', icon: 'none' }); return }
+    if (!content && !this.data.mediaList.length) { wx.showToast({ title: '请输入内容或上传图片/视频', icon: 'none' }); return }
     if (this.data.categoryIndex < 0) { wx.showToast({ title: '请选择标签', icon: 'none' }); return }
     if (this.data.polls.some((poll) => !poll.question.trim() || poll.options.filter((item) => item.value.trim()).length < 2)) { wx.showToast({ title: '请完善投票组件', icon: 'none' }); return }
     this.setData({ submitting: true }); wx.showLoading({ title: '发布中...', mask: true })
     try {
       if (content) await wechat.checkContent(content)
-      let imageUrls = this.data.mediaList.filter((item) => item.type !== 'video').map((item) => item.path); const videoUrls = this.data.mediaList.filter((item) => item.type === 'video').map((item) => item.path)
-      if (imageUrls.length && !request.USE_MOCK) imageUrls = await wechat.uploadImages(imageUrls)
+      let imageUrls = this.data.mediaList.filter((item) => item.type !== 'video').map((item) => item.path); let videoUrls = this.data.mediaList.filter((item) => item.type === 'video').map((item) => item.path)
+      if (imageUrls.length) imageUrls = await wechat.uploadImages(imageUrls)
+      // 视频走专属上传通道（服务端要求 https 地址）；上传前已在选择时限制时长 ≤ 1 分钟
+      if (videoUrls.length) videoUrls = await Promise.all(videoUrls.map((p) => wechat.uploadVideo(p)))
+      if (videoUrls.some((url) => !/^https?:\/\//.test(url))) throw new Error('视频上传失败')
       const anonymous = this.data.secondIdentity ? (this.data.anonymousPreview || anonymousIdentity.generate()) : null
       const payload = { title: this.data.title.trim(), category: this.data.categories[this.data.categoryIndex], content, images: imageUrls, videos: videoUrls, components: this.buildComponents(), anonymousIdentity: anonymous, contact: this.data.contactName && this.data.contactValue ? { name: this.data.contactName.trim(), type: this.data.contactType, value: this.data.contactValue.trim() } : null }
       this.setData({ lastSubmitPayload: payload, submitError: '' })
-      if (!request.USE_MOCK) await request.post('/post', payload, true)
-      else { const mock = require('../../utils/mock'); const user = getApp().globalData.userInfo || {}; const newPost = { id: Date.now(), userId: user.id || 0, nickName: anonymous ? anonymous.nickName : (user.nickName || '我'), avatarUrl: anonymous ? anonymous.avatarUrl : (user.avatarUrl || ''), campus: anonymous ? '' : (user.campus || ''), title: payload.title, category: payload.category, content, images: imageUrls, components: payload.components, viewCount: 0, likeCount: 0, commentCount: 0, favoriteCount: 0, isLiked: false, isFavorited: false, contact: payload.contact, isAnonymous: !!anonymous, createdAt: new Date().toISOString() }; mock.posts.unshift(newPost); wx.setStorageSync(PENDING_POST_KEY, newPost) }
+      await request.post('/post', payload, true)
       wx.removeStorageSync(PUBLISH_DRAFT_KEY); wx.hideLoading(); wx.showToast({ title: '发布成功', icon: 'success' }); setTimeout(() => wx.navigateBack(), 1000)
     } catch (e) { wx.hideLoading(); this.setData({ submitError: e.message || '发布失败，请稍后重试' }); wx.showToast({ title: e.message || '发布失败', icon: 'none' }) } finally { this.setData({ submitting: false }) }
   },

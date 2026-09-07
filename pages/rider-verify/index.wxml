@@ -1,7 +1,7 @@
 <view class="page">
   <view class="nav" style="padding-top: {{statusBarHeight}}px; height: {{statusBarHeight + navBarHeight}}px;">
     <view class="nav-content" style="height: {{navBarHeight}}px;">
-      <text class="nav-back" bindtap="goBack">‹</text>
+      <view class="back-pill" hover-class="back-pill-hover" hover-stay-time="80" bindtap="goBack"><text class="back-pill-icon">‹</text><text>返回</text></view>
       <text class="nav-title">骑手认证</text>
       <view class="nav-placeholder"></view>
     </view>
@@ -39,7 +39,7 @@
       <view class="verify-card">
         <view class="verify-row" bindtap="startVerify">
           <view class="verify-icon">✓</view>
-          <view class="verify-text"><text class="verify-title">校园认证</text><text>上传学生证相关信息，认证你的学生身份</text></view>
+          <view class="verify-text"><text class="verify-title">校园认证</text><text>教务系统验证或上传证件，认证你的学生身份</text></view>
           <text class="status {{verificationStatus === 'approved' ? 'done' : ''}}">{{verificationStatus === 'approved' ? '已完成' : (verificationStatus === 'pending' ? '审核中' : '待完成')}}</text>
         </view>
       </view>
@@ -61,17 +61,36 @@
       </view>
       <view class="form-card">
         <text class="form-title">校园认证</text>
-        <view class="warning">! 上传资料仅用于骑手资格审核，平台将妥善保护</view>
-        <view class="field"><text>姓名</text><input placeholder="请输入真实姓名" value="{{campusName}}" data-field="campusName" bindinput="onInput" /></view>
-        <view class="field"><text>学号</text><input type="number" placeholder="请输入学号" value="{{studentId}}" data-field="studentId" bindinput="onInput" /></view>
+        <view class="method-tabs">
+          <view class="method-tab {{verifyMethod === 'jw' ? 'active' : ''}}" data-method="jw" bindtap="switchVerifyMethod">
+            <text class="method-name">教务系统认证</text>
+            <text class="method-desc">学号密码验证 · 即时通过</text>
+          </view>
+          <view class="method-tab {{verifyMethod === 'credential' ? 'active' : ''}}" data-method="credential" bindtap="switchVerifyMethod">
+            <text class="method-name">证件人工审核</text>
+            <text class="method-desc">上传证件 · 等待审核</text>
+          </view>
+        </view>
+
+        <block wx:if="{{verifyMethod === 'jw'}}">
+          <view class="warning">! 通过学校教务系统验证你的学生身份，密码仅用于本次验证、不会被保存</view>
+          <view class="field"><text>学号</text><input type="number" placeholder="请输入学号" value="{{studentId}}" data-field="studentId" bindinput="onInput" /></view>
+          <view class="field"><text>密码</text><input password placeholder="请输入教务系统密码" value="{{jwPassword}}" data-field="jwPassword" bindinput="onInput" /></view>
+        </block>
+
+        <block wx:else>
+          <view class="warning">! 上传资料仅用于骑手资格审核，平台将妥善保护</view>
+          <view class="field"><text>学号</text><input type="number" placeholder="请输入学号" value="{{studentId}}" data-field="studentId" bindinput="onInput" /></view>
+        </block>
       </view>
-      <view class="form-card">
-        <view class="credential-head"><view><text class="form-title">校园证件</text><text class="credential-desc">请上传与上述信息一致的学生证、校园卡或录取通知书</text></view></view>
+      <view class="form-card" wx:if="{{verifyMethod === 'credential'}}">
+        <view class="credential-head"><view><text class="form-title">校园证明</text><text class="credential-desc">请上传与个人信息一致的学生证、班群截图、校园卡或录取通知书</text></view></view>
         <view class="credential-upload" wx:if="{{!campusCredential}}" bindtap="chooseCredential"><text class="camera">◉</text><text>点击上传</text></view>
-        <image wx:else class="credential-image" src="{{campusCredential}}" mode="aspectFill" data-src="{{campusCredential}}" bindtap="previewCredential" />
+        <image wx:else class="credential-image" src="{{campusCredential}}" mode="aspectFill" data-src="{{campusCredential}}" bindtap="previewCredential" bindlongpress="onImageQrScan" />
       </view>
       <view class="agreement-row" bindtap="toggleAgreement"><text class="checkbox {{campusAgreed ? 'checked' : ''}}">{{campusAgreed ? '✓' : ''}}</text><text>我已阅读并同意</text><text class="agreement-link" bindtap="openAgreement">《认证协议》</text><text>与</text><text class="agreement-link" bindtap="openPrivacy">《隐私协议》</text></view>
-      <button class="primary-button" loading="{{submitting}}" bindtap="submitCampus">提交认证</button>
+      <button wx:if="{{verifyMethod === 'jw'}}" class="primary-button" loading="{{submitting}}" bindtap="submitJw">立即验证</button>
+      <button wx:else class="primary-button" loading="{{submitting}}" bindtap="submitCampus">提交认证</button>
     </block>
   </scroll-view>
 

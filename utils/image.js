@@ -50,16 +50,29 @@ function chooseAndCompress(count) {
   return new Promise((resolve, reject) => {
     wx.chooseMedia({
       count: count || 9,
-      // 视频需要先接入 media_check_async 和公开 HTTPS 媒体地址，当前发布流程仅允许图片。
-      mediaType: ['image'],
+      // 帖子发布开放视频：图片 + 视频混选，视频时长不得超过 1 分钟
+      mediaType: ['image', 'video'],
       sizeType: ['compressed'],
+      maxDuration: MAX_VIDEO_DURATION,
       success: async (res) => {
-        const files = res.tempFiles.map((f) => ({
-          type: f.fileType || f.type || 'image',
-          path: f.tempFilePath,
-          size: f.size || 0,
-          thumb: f.thumbTempFilePath || f.tempFilePath
-        }))
+        // maxDuration 只限制「拍摄」，相册长视频按 duration 二次校验后过滤
+        const { valid, overLong } = splitOverlongVideos(res.tempFiles)
+        if (overLong) wx.showToast({ title: '视频不能超过1分钟，已过滤', icon: 'none' })
+        // 帖子最多 1 个视频：一次选中多个视频时只保留第一个
+        let videoSeen = false
+        const files = []
+        valid.forEach((f) => {
+          const isVideo = (f.fileType || f.type) === 'video'
+          if (isVideo && videoSeen) return
+          if (isVideo) videoSeen = true
+          files.push({
+            type: isVideo ? 'video' : 'image',
+            path: f.tempFilePath,
+            size: f.size || 0,
+            thumb: f.thumbTempFilePath || f.tempFilePath,
+            duration: f.duration || 0
+          })
+        })
         const compressed = await Promise.all(files.map(async (file) => {
           if (file.type === 'video') return file
           return Object.assign({}, file, { path: await compressImage(file.path) })
@@ -71,4 +84,21 @@ function chooseAndCompress(count) {
   })
 }
 
-module.exports = { ICONS, getIcon, compressImage, compressImages, chooseAndCompress }
+// 视频时长上限（秒）：全小程序上传/发布视频统一不得超过 1 分钟
+const MAX_VIDEO_DURATION = 60
+
+// chooseMedia 的 maxDuration 只限制「拍摄」，从相册选择的长视频不受其约束，
+// 必须按返回的 duration（秒）二次校验。返回 valid（未超限文件）与 overLong（是否拦下过超限视频）
+function splitOverlongVideos(files, limit) {
+  const max = Number(limit) > 0 ? Number(limit) : MAX_VIDEO_DURATION
+  const valid = []
+  let overLong = false
+  ;(files || []).forEach((f) => {
+    const isVideo = (f.fileType || f.type) === 'video'
+    if (isVideo && Number(f.duration) > max) { overLong = true; return }
+    valid.push(f)
+  })
+  return { valid, overLong }
+}
+
+module.exports = { ICONS, getIcon, compressImage, compressImages, chooseAndCompress, MAX_VIDEO_DURATION, splitOverlongVideos }

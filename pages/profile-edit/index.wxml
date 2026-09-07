@@ -2,7 +2,7 @@
   <!-- 自定义导航栏：白色圆角胶囊返回 + 居中标题 -->
   <view class="custom-nav" style="padding-top: {{statusBarHeight}}px;">
     <view class="nav-inner">
-      <view class="nav-back" hover-class="nav-back-hover" bindtap="goBack">‹ 返回</view>
+      <view class="back-pill" hover-class="back-pill-hover" hover-stay-time="80" bindtap="goBack"><text class="back-pill-icon">‹</text><text>返回</text></view>
       <text class="nav-title">个人中心</text>
     </view>
   </view>

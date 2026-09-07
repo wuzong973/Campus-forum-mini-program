@@ -26,14 +26,19 @@ function categoryValues(category) {
   return [target].concat(legacy);
 }
 
+// 「最新」流排除的分类（含旧分类名）：只在其对应分类页展示
+const LATEST_EXCLUDED_CATEGORY = '二手闲置';
+const LATEST_EXCLUDED_VALUES = categoryValues(LATEST_EXCLUDED_CATEGORY);
+
 function hiddenPostFilter(userId) {
   if (!userId) return { clause: '', params: [] };
   return {
     clause: ` AND NOT EXISTS (
       SELECT 1 FROM post_hidden_preference hp
       WHERE hp.user_id = ? AND (hp.post_id = p.id OR (hp.category <> '' AND hp.category = p.category))
-    )`,
-    params: [userId],
+    )
+    AND p.user_id NOT IN (SELECT ub.blocked_id FROM user_blacklist ub WHERE ub.user_id = ?)`,
+    params: [userId, userId],
   };
 }
 
@@ -151,6 +156,10 @@ exports.list = async (req, res) => {
     if (categoryFilter.length) {
       where += ` AND p.category IN (${categoryFilter.map(() => '?').join(', ')})`;
       params.push(...categoryFilter);
+    } else {
+      // 无分类（「最新」）时排除二手闲置，该分类只在对应分类页展示
+      where += ` AND p.category NOT IN (${LATEST_EXCLUDED_VALUES.map(() => '?').join(', ')})`;
+      params.push(...LATEST_EXCLUDED_VALUES);
     }
     const hidden = hiddenPostFilter(userId);
     where += hidden.clause;
@@ -239,7 +248,7 @@ exports.create = async (req, res) => {
   // 纯图片/视频帖子允许无文字内容
   const imageList = Array.isArray(images) ? images : [];
   const videoList = Array.isArray(videos) ? videos : [];
-  if ((!content || !content.trim()) && !imageList.length && !videoList.length) return fail(res, "请输入内容或上传图片");
+  if ((!content || !content.trim()) && !imageList.length && !videoList.length) return fail(res, "请输入内容或上传图片/视频");
   const normalizedContact = parseContact(contact);
   if (contact && !normalizedContact) return fail(res, '联系方式格式不正确');
   if (normalizedContact && !['手机号码', '微信账号', 'QQ账号'].includes(normalizedContact.type)) return fail(res, '不支持的联系方式类型');
@@ -373,25 +382,32 @@ exports.hideAsNotInterested = async (req, res) => {
   const postId = Number(req.params.id);
   if (!Number.isInteger(postId) || postId <= 0) return fail(res, '帖子不存在', 404);
   try {
-    const [posts] = await pool.query('SELECT id, category FROM forum_post WHERE id = ? AND status = 1', [postId]);
+    const [posts] = await pool.query('SELECT id, category, user_id FROM forum_post WHERE id = ? AND status = 1', [postId]);
     if (!posts.length) return fail(res, '帖子不存在', 404);
-    // scope=post 仅隐藏这条帖子（category 存空串）；默认连同同分类内容一起隐藏（拉黑）
-    const postOnly = (req.body || {}).scope === 'post';
-    const category = postOnly ? '' : (posts[0].category || '');
+    // scope=author 拉黑作者：屏蔽其全部帖子并加入黑名单（可在黑名单管理解除）
+    // 其余情况（scope=post 或默认）仅隐藏这一条帖子，不影响同分类其他内容
+    const scope = (req.body || {}).scope === 'author' ? 'author' : 'post';
+    if (scope === 'author') {
+      const authorId = Number(posts[0].user_id);
+      if (authorId === Number(req.userId)) return fail(res, '不能拉黑自己', 400);
+      const [users] = await pool.query('SELECT id FROM sys_user WHERE id = ? AND status = 1', [authorId]);
+      if (!users.length) return fail(res, '用户不存在', 404);
+      await pool.query('INSERT IGNORE INTO user_blacklist (user_id, blocked_id) VALUES (?, ?)', [req.userId, authorId]);
+    }
     await pool.query(
       `INSERT INTO post_hidden_preference (user_id, post_id, category)
-       VALUES (?, ?, ?)
-       ON DUPLICATE KEY UPDATE category = VALUES(category), created_at = CURRENT_TIMESTAMP`,
-      [req.userId, postId, category],
+       VALUES (?, ?, '')
+       ON DUPLICATE KEY UPDATE category = '', created_at = CURRENT_TIMESTAMP`,
+      [req.userId, postId],
     );
     if (canManagePost(req)) {
       try {
-        await writeAdminAudit(req, 'post.not_interested', 'post', postId, { category });
+        await writeAdminAudit(req, 'post.not_interested', 'post', postId, { scope });
       } catch (auditError) {
         console.error('[admin-audit]', auditError.message);
       }
     }
-    success(res, { postId, category });
+    success(res, { postId, scope });
   } catch (e) {
     fail(res, safeMessage(e), 500);
   }
@@ -520,7 +536,7 @@ exports.hot = async (req, res) => {
       `SELECT p.*, u.nick_name, u.avatar_url, u.campus, u.is_verified, u.cert_label, u.allow_anonymous_pm,
         IFNULL((SELECT COUNT(*) FROM forum_post fp2 WHERE fp2.user_id = p.user_id AND fp2.status = 1), 0) AS post_count
        FROM forum_post p LEFT JOIN sys_user u ON p.user_id = u.id
-       WHERE p.status = 1${hidden.clause} ORDER BY p.like_count DESC LIMIT 10`,
+       WHERE p.status = 1${hidden.clause} ORDER BY p.view_count DESC, p.created_at DESC LIMIT 15`,
       hidden.params,
     );
     success(
@@ -534,10 +550,11 @@ exports.hot = async (req, res) => {
 
 exports.hotRank = async (req, res) => {
   // 热榜：按 period 指定时间范围内的帖子，按浏览量排序
-  // today 兼容首页"昨天+今天"的口径；history 不限时间
+  // today 覆盖前天+昨天+今天三天；history 不限时间
   try {
+    // today：前天+昨天+今天三天窗口（产品要求每日热榜覆盖近三天）
     const periodSince = {
-      today: 'CURDATE() - INTERVAL 1 DAY',
+      today: 'CURDATE() - INTERVAL 2 DAY',
       week: 'CURDATE() - INTERVAL 7 DAY',
       month: 'CURDATE() - INTERVAL 1 MONTH',
       halfyear: 'CURDATE() - INTERVAL 6 MONTH',
@@ -557,7 +574,26 @@ exports.hotRank = async (req, res) => {
        ORDER BY p.view_count DESC, p.created_at DESC LIMIT ${limit}`,
       hidden.params,
     );
-    success(res, { list: rows.map((item) => mapPost(item, req.userId || 0)) });
+    // 时间窗口内不足 limit 条时，用更早的高浏览帖子补齐，保证榜单始终接近 limit 条
+    let list = rows;
+    if (list.length < limit) {
+      const excludeIds = list.map((r) => r.id);
+      const [extra] = await pool.query(
+        `SELECT p.*, u.nick_name, u.avatar_url, u.campus, u.is_verified, u.cert_label, u.allow_anonymous_pm,
+          IFNULL((SELECT COUNT(*) FROM forum_post fp2 WHERE fp2.user_id = p.user_id AND fp2.status = 1), 0) AS post_count
+         FROM forum_post p LEFT JOIN sys_user u ON p.user_id = u.id
+         WHERE p.status = 1${hidden.clause}${excludeIds.length ? ` AND p.id NOT IN (${excludeIds.map(() => '?').join(',')})` : ''}
+         ORDER BY p.view_count DESC, p.created_at DESC LIMIT ${limit - list.length}`,
+        [...hidden.params, ...excludeIds],
+      );
+      list = list.concat(extra);
+      list.sort(
+        (a, b) =>
+          (Number(b.view_count) - Number(a.view_count)) ||
+          (new Date(b.created_at) - new Date(a.created_at)),
+      );
+    }
+    success(res, { list: list.map((item) => mapPost(item, req.userId || 0)) });
   } catch (e) {
     fail(res, safeMessage(e), 500);
   }

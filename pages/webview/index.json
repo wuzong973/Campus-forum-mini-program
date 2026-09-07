@@ -1,3 +1,5 @@
 {
-  "navigationBarTitleText": "外部链接"
+  "navigationBarTitleText": "外部链接",
+  "navigationBarBackgroundColor": "#D7EFFF",
+  "navigationBarTextStyle": "black"
 }

@@ -2,9 +2,7 @@ const app = getApp
 
 const BASE_URL = 'https://payun01.cn/api/v1'
 
-// Every build reads from the deployed service. Test fixtures are never shown
-// to users, including in the developer tools environment.
-const USE_MOCK = false
+// 所有请求均走真实服务端
 const REQUEST_TIMEOUT = 15000
 const READ_RETRY_COUNT = 2
 
@@ -32,6 +30,7 @@ function sanitizeQuery(data) {
 }
 
 function shouldRetry(error, attempt, options) {
+  if (error.isFeatureDisabled) return false
   if (attempt >= (options.retries === undefined ? READ_RETRY_COUNT : options.retries)) return false
   if (options.method !== 'GET' && !options.retryable) return false
   return !!(error.isNetwork || error.statusCode === 502 || error.statusCode === 503 || error.statusCode === 504)
@@ -84,7 +83,10 @@ function execute(options, requestId) {
         error.response = response
         // 业务错误响应体（如验证码挑战数据），供调用方读取 err.data.code 等字段
         error.data = response.data
-        if (!silent) wx.showToast({ title: error.message, icon: 'none' })
+        // 管理后台停用功能模块时网关返回的 503 属预期状态：
+        // 不弹 toast 打扰用户，也不进入重试队列（避免首页/课表页刷屏式报错）
+        if (res.statusCode === 503 && response.code) error.isFeatureDisabled = true
+        if (!silent && !error.isFeatureDisabled) wx.showToast({ title: error.message, icon: 'none' })
         reject(error)
       },
       fail(err) {
@@ -126,7 +128,6 @@ module.exports = {
   put: (url, data, needAuth, opts) => request({ url, method: 'PUT', data, needAuth, ...opts }),
   del: (url, data, needAuth, opts) => request({ url, method: 'DELETE', data, needAuth, ...opts }),
   BASE_URL,
-  USE_MOCK,
   getWsUrl,
   sanitizeQuery
 }

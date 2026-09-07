@@ -6,7 +6,7 @@
       wx:key="*this"
       data-tab="{{index}}"
       bindtap="onTab"
-    >{{item}}</view>
+    >{{item}}<view class="tab-badge" wx:if="{{tabUnread[index] > 0}}">{{tabUnread[index] > 99 ? '99+' : tabUnread[index]}}</view></view>
     <view class="read-all" bindtap="onReadAll" wx:if="{{activeTab !== 0}}">全部已读</view>
   </view>
 
@@ -15,11 +15,12 @@
     <view
       class="conv-item card"
       wx:for="{{conversations}}"
-      wx:key="peerId"
+      wx:key="id"
       data-peer="{{item.peerId}}"
       data-nick="{{item.peerNick}}"
       data-avatar="{{item.peerAvatar}}"
       data-anonymous="{{item.isAnonymous}}"
+      data-persona="{{item.personaKey}}"
       bindtap="onOpenChat"
     >
       <image class="conv-avatar" src="{{item.peerAvatar || '/assets/icons/avatar.png'}}" mode="aspectFill"></image>

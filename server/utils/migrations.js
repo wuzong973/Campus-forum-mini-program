@@ -199,6 +199,7 @@ async function runMigrations() {
       id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
       user_id INT UNSIGNED NOT NULL,
       peer_id INT UNSIGNED NOT NULL,
+      persona_key VARCHAR(255) NOT NULL DEFAULT '',
       last_message_id INT UNSIGNED DEFAULT NULL,
       unread_count INT DEFAULT 0,
       last_message_text VARCHAR(512) DEFAULT '',
@@ -206,7 +207,7 @@ async function runMigrations() {
       status TINYINT(1) DEFAULT 1,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-      UNIQUE KEY uk_user_peer (user_id, peer_id),
+      UNIQUE KEY uk_user_peer_persona (user_id, peer_id, persona_key),
       INDEX idx_peer (peer_id)
     ) ENGINE=InnoDB
   `)
@@ -289,6 +290,7 @@ async function runMigrations() {
       conversation_id INT UNSIGNED NOT NULL,
       sender_id INT UNSIGNED NOT NULL,
       receiver_id INT UNSIGNED NOT NULL,
+      persona_key VARCHAR(255) NOT NULL DEFAULT '',
       content TEXT NOT NULL,
       msg_type VARCHAR(16) DEFAULT 'text',
       is_anonymous TINYINT(1) NOT NULL DEFAULT 0,
@@ -305,6 +307,33 @@ async function runMigrations() {
   // 匿名会话的分身身份（JSON {nickName, avatarUrl}）：anon_peer_identity 是本行用户所看到的对方分身，anon_self_identity 是本行用户自己的分身
   await ensureColumn('private_conversation', 'anon_peer_identity', "VARCHAR(512) DEFAULT NULL AFTER is_anonymous")
   await ensureColumn('private_conversation', 'anon_self_identity', "VARCHAR(512) DEFAULT NULL AFTER anon_peer_identity")
+  // 会话来源帖子：首次从帖子详情发起私信时记录，之后任何入口进入聊天都能「回到帖子」
+  await ensureColumn('private_conversation', 'source_post_id', 'BIGINT UNSIGNED DEFAULT NULL AFTER anon_self_identity')
+  // 分身隔离维度：persona_key 为该会话绑定的分身头像路径（普通私信为 ''）。
+  // 同一真实用户的每个分身各自对应独立会话，聊天记录完全互不可见
+  await ensureColumn('private_conversation', 'persona_key', "VARCHAR(255) NOT NULL DEFAULT '' AFTER peer_id")
+  await ensureColumn('private_message', 'persona_key', "VARCHAR(255) NOT NULL DEFAULT '' AFTER receiver_id")
+  // 历史数据回填：旧匿名会话没有 persona_key，按存档的分身身份补齐，保证升级后
+  // 从分身卡片/帖子进入时仍能命中原会话，聊天记录不丢
+  await pool.query(`
+    UPDATE private_conversation
+    SET persona_key = COALESCE(
+      JSON_UNQUOTE(JSON_EXTRACT(anon_peer_identity, '$.avatarUrl')),
+      JSON_UNQUOTE(JSON_EXTRACT(anon_self_identity, '$.avatarUrl'))
+    )
+    WHERE persona_key = ''
+      AND (anon_peer_identity IS NOT NULL OR anon_self_identity IS NOT NULL)
+  `)
+  await pool.query(`
+    UPDATE private_message m
+    JOIN private_conversation c ON c.user_id = m.sender_id AND c.peer_id = m.receiver_id
+    SET m.persona_key = c.persona_key
+    WHERE m.persona_key = '' AND m.is_anonymous = 1 AND c.persona_key != ''
+  `)
+  // 唯一键升级：(user_id, peer_id) → (user_id, peer_id, persona_key)，
+  // 允许同一对用户按分身建立多个并行隔离会话
+  await pool.query('ALTER TABLE private_conversation DROP INDEX uk_user_peer, ADD UNIQUE KEY uk_user_peer_persona (user_id, peer_id, persona_key)').catch(() => {})
+  await ensureUniqueIndex('private_conversation', 'uk_user_peer_persona', '(user_id, peer_id, persona_key)')
   await pool.query(`
     CREATE TABLE IF NOT EXISTS private_message_recall_log (
       id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -501,6 +530,13 @@ async function runMigrations() {
       INDEX idx_wallet_withdrawal_status_created (status, created_at)
     ) ENGINE=InnoDB
   `)
+  // 新版商家转账（用户确认收款模式）：状态枚举增加 WAIT_CONFIRM，并保存微信转账单号与拉起收款页的 package_info
+  const [wdStatusCol] = await pool.query("SHOW COLUMNS FROM wallet_withdrawal LIKE 'status'")
+  if (wdStatusCol.length && !String(wdStatusCol[0].Type || '').includes('WAIT_CONFIRM')) {
+    await pool.query("ALTER TABLE wallet_withdrawal MODIFY COLUMN status ENUM('PENDING','PROCESSING','WAIT_CONFIRM','SUCCESS','REJECTED','FAILED') NOT NULL DEFAULT 'PENDING'")
+  }
+  await ensureColumn('wallet_withdrawal', 'transfer_bill_no', 'VARCHAR(64) DEFAULT NULL AFTER wx_batch_id')
+  await ensureColumn('wallet_withdrawal', 'package_info', 'VARCHAR(1024) DEFAULT NULL AFTER transfer_bill_no')
   await ensureIndex('forum_post', 'idx_post_feed', '(status, category, created_at)')
   await ensureIndex('forum_post', 'idx_post_admin', '(status, pinned, created_at)')
   await ensureIndex('forum_comment', 'idx_comment_post_status_time', '(post_id, status, created_at)')
@@ -609,6 +645,94 @@ async function runMigrations() {
       last_read_id BIGINT UNSIGNED NOT NULL DEFAULT 0,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
       PRIMARY KEY (order_id, user_id)
+    ) ENGINE=InnoDB
+  `)
+  // 修复历史脏数据：分身私信（发起方匿名）曾把接收方（普通用户）的会话行误标为 is_anonymous=1，
+  // 导致普通用户打开聊天被强制进入匿名模式、显示为匿名用户。
+  // 仅修正如下行（安全条件全部满足才改）：
+  //   1) 本行被标为匿名，但自己没有分身档案（anon_self_identity 为空 → 非匿名发起方）
+  //   2) 对方行持有分身档案，且与本行 anon_peer_identity 完全一致（同一分身 → 典型"分身私信"存档特征）
+  //   3) 本行用户在该会话从未发送过匿名消息（从未主动参与匿名，避免影响主动确认匿名的用户）
+  // 匿名帖回复场景（双方均应匿名）中回复方必然发过匿名消息，不会被此修复误伤。
+  await pool.query(`
+    UPDATE private_conversation me
+    JOIN private_conversation other
+      ON other.user_id = me.peer_id AND other.peer_id = me.user_id
+    LEFT JOIN (
+      SELECT sender_id, receiver_id, COUNT(*) AS cnt
+      FROM private_message
+      WHERE is_anonymous = 1 AND status != 'recalled'
+      GROUP BY sender_id, receiver_id
+    ) pm ON pm.sender_id = me.user_id AND pm.receiver_id = me.peer_id
+    SET me.is_anonymous = 0
+    WHERE me.is_anonymous = 1
+      AND me.anon_self_identity IS NULL
+      AND me.anon_peer_identity IS NOT NULL
+      AND other.anon_self_identity IS NOT NULL
+      AND me.anon_peer_identity = other.anon_self_identity
+      AND pm.cnt IS NULL
+  `)
+  // 截止接单时间：发布时可设置（今天~大后天某时某分），到期仍无人接单则自动取消并原路退款
+  await ensureColumn('errand_order', 'accept_deadline', 'DATETIME DEFAULT NULL AFTER appointment_time')
+  // 教务考试安排缓存：每次同步整体覆盖（先删后插）
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS user_exam (
+      id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+      user_id INT UNSIGNED NOT NULL,
+      name VARCHAR(128) DEFAULT '',
+      type VARCHAR(32) DEFAULT '',
+      date VARCHAR(32) DEFAULT '',
+      time VARCHAR(64) DEFAULT '',
+      location VARCHAR(128) DEFAULT '',
+      seat VARCHAR(32) DEFAULT '',
+      semester VARCHAR(32) DEFAULT '',
+      raw JSON,
+      synced_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      INDEX idx_user_exam (user_id, id)
+    ) ENGINE=InnoDB
+  `)
+  // 教务成绩缓存：每次同步整体覆盖（先删后插）
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS user_grade (
+      id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+      user_id INT UNSIGNED NOT NULL,
+      semester VARCHAR(32) DEFAULT '',
+      name VARCHAR(128) DEFAULT '',
+      attribute VARCHAR(32) DEFAULT '',
+      credit VARCHAR(16) DEFAULT '',
+      gpa VARCHAR(16) DEFAULT '',
+      score VARCHAR(16) DEFAULT '',
+      raw JSON,
+      synced_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      INDEX idx_user_grade (user_id, id)
+    ) ENGINE=InnoDB
+  `)
+  // 教务账号绑定凭证（AES-256-GCM 加密存储）：用于进入同步中心时免密自动刷新课表/考试/成绩
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS jw_credential (
+      id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+      user_id INT UNSIGNED NOT NULL UNIQUE,
+      username VARCHAR(32) NOT NULL DEFAULT '',
+      password_enc TEXT,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    ) ENGINE=InnoDB
+  `)
+  // 教务验证码挑战（跨实例共享）：pm2 cluster 多实例下挑战不能放单实例内存，
+  // 否则创建挑战与提交验证码落到不同实例会报 410 验证码已过期
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS jw_captcha_challenge (
+      id VARCHAR(64) PRIMARY KEY,
+      user_id INT UNSIGNED NOT NULL,
+      username VARCHAR(32) NOT NULL DEFAULT '',
+      password_enc TEXT,
+      schedule_start_date VARCHAR(16) DEFAULT '',
+      mode VARCHAR(16) DEFAULT 'direct',
+      factor VARCHAR(255) DEFAULT '',
+      captcha_data MEDIUMTEXT,
+      cookie_jar MEDIUMTEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      expires_at DATETIME NOT NULL,
+      INDEX idx_captcha_expiry (expires_at)
     ) ENGINE=InnoDB
   `)
 }

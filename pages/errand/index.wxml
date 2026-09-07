@@ -60,7 +60,7 @@
   <view class="filter-section" wx:if="{{activeListTab === 0}}">
     <view class="filter-label">区域</view>
     <view class="filter-row">
-      <view class="filter-btn {{activeRegion < 0 ? 'active' : ''}}" wx:if="{{isAdmin}}" bindtap="onAllRegionSelect">全部区域</view>
+      <view class="filter-btn {{activeRegion < 0 ? 'active' : ''}}" bindtap="onAllRegionSelect">全部区域</view>
       <view
         class="filter-btn {{activeRegion === index ? 'active' : ''}}"
         wx:for="{{visibleCampusGroups}}"

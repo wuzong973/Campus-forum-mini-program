@@ -3,39 +3,65 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  padding: 48rpx;
-  background: linear-gradient(180deg, #4A7AFF 0%, #F5F7FA 50%);
+  padding: 0 48rpx;
+  background: #ffffff;
 }
 
+/* ===== 顶部 Logo ===== */
 .logo-area {
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  margin-bottom: 120rpx;
+  justify-content: center;
+  margin-top: 140rpx;
 }
 
 .logo {
-  font-size: 120rpx;
-  margin-bottom: 24rpx;
+  width: 400rpx;
+  height: 400rpx;
+  border-radius: 50%;
+  box-shadow: 0 16rpx 48rpx rgba(74, 122, 255, 0.14);
 }
 
-.app-name {
-  font-size: 48rpx;
+/* ===== 欢迎文案 ===== */
+.welcome-area {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-top: 90rpx;
+}
+
+.welcome-line {
+  font-size: 32rpx;
+  font-weight: 500;
+  color: #4a7aff;
+  line-height: 1;
+  margin-bottom: 52rpx;
+}
+
+.welcome-line-lead {
+  font-weight: 600;
+}
+
+.welcome-line-strong {
   font-weight: 700;
-  color: #333;
-  margin-bottom: 12rpx;
 }
 
-.slogan {
-  font-size: 28rpx;
-  color: #666;
+/* ===== 底部操作区 ===== */
+.action-area {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-top: auto;
+  padding-bottom: 60rpx;
 }
 
 .login-btn {
-  width: 80%;
-  padding: 24rpx 0;
+  width: 86%;
+  height: 92rpx;
+  line-height: 92rpx;
+  padding: 0;
   font-size: 32rpx;
+  font-weight: 600;
 }
 
 .login-btn-disabled {
@@ -44,8 +70,8 @@
 
 /* 协议区域 */
 .agreement-area {
-  width: 80%;
-  margin-top: 30rpx;
+  width: 86%;
+  margin-top: 28rpx;
 }
 
 .agreement-row {
@@ -88,12 +114,14 @@
 
 /* 取消按钮 */
 .cancel-btn {
-  margin-top: 40rpx;
-  width: 60%;
-  padding: 20rpx 0;
+  margin-top: 36rpx;
+  width: 86%;
+  height: 84rpx;
+  line-height: 84rpx;
+  padding: 0;
   font-size: 28rpx;
   color: #666;
   background: transparent;
-  border: 2rpx solid #ccc;
-  border-radius: 40rpx;
+  border: 2rpx solid #d9dfeb;
+  border-radius: 44rpx;
 }

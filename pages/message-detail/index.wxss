@@ -2,6 +2,9 @@
   min-height: 100vh;
   padding: 24rpx;
   box-sizing: border-box;
+  background:
+    radial-gradient(ellipse at 14% -6%, rgba(137, 202, 255, 0.28) 0%, rgba(137, 202, 255, 0) 48%),
+    linear-gradient(180deg, #d7efff 0%, #eaf6ff 18%, #f5f9fd 46%, #f7f8fb 72%, #f4f6fa 100%);
 }
 
 /* 评论者信息区 */

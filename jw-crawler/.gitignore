@@ -5,10 +5,9 @@ node_modules/
 !.env.example
 
 captcha.png
-courses_all.json
+schedule.json
 waf_test_result.json
-schedule_samples/
-edge_case_samples/
+schedule_raw/
 login_debug/
 .logs/
 .cache/

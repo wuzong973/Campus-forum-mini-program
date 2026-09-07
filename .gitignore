@@ -39,3 +39,11 @@ __pycache__/
 *.tmp
 *.temp
 .workbuddy/
+.mimosa/
+
+# Crawler captures and local test artifacts
+jw-crawler/.logs/
+jw-crawler/captcha.png
+jw-crawler/schedule.json
+jw-crawler/schedule_raw/
+jw-crawler/login_debug/

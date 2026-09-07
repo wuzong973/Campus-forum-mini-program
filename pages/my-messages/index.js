@@ -9,7 +9,9 @@ Page({
     tabs: ['私信', '评论', '点赞', '系统'],
     messages: [],
     allMessages: [],
-    conversations: []
+    conversations: [],
+    // 各 tab 文字右上角的未读数角标：[私信, 评论, 点赞, 系统]
+    tabUnread: [0, 0, 0, 0]
   },
 
   onLoad(options) {
@@ -40,11 +42,6 @@ Page({
   },
 
   loadInteractMessages() {
-    if (request.USE_MOCK) {
-      const stored = wx.getStorageSync('user_messages') || []
-      this.setInteractionMessages(stored)
-      return
-    }
     request.get('/notification', { page: 1, pageSize: 50 }, true, { silent: true }).then((res) => {
       this.setInteractionMessages((res.list || []).map((item) => {
         // 有操作者昵称时标题带昵称：xxx 评论了你的帖子 / xxx 点赞了你的评论|帖子
@@ -76,14 +73,28 @@ Page({
     // 先用本地缓存
     const cached = messageStore.loadConversations()
     if (cached.length) {
-      this.setData({ conversations: this.formatConv(cached) })
+      this.setData({ conversations: this.formatConv(cached) }, () => this.updateTotalUnread())
     }
-    if (request.USE_MOCK) return
     messageStore.getConversations().then((res) => {
       const list = res.list || []
       messageStore.saveConversations(list)
-      this.setData({ conversations: this.formatConv(list) })
+      this.setData({ conversations: this.formatConv(list) }, () => this.updateTotalUnread())
     }).catch(() => {})
+  },
+
+  // 各 tab 右上角未读角标：私信取会话未读之和；评论/点赞/系统按通知类型统计。
+  // 进入相应会话或通知详情、未读清零后角标自动消失
+  updateTotalUnread() {
+    const pmUnread = this.data.conversations.reduce((sum, c) => sum + (Number(c.unreadCount) || 0), 0)
+    const countByType = (match) => this.data.allMessages.filter((m) => !m.read && match(m.type)).length
+    this.setData({
+      tabUnread: [
+        pmUnread,
+        countByType((t) => t === 'comment'),
+        countByType((t) => t === 'like'),
+        countByType((t) => ['system', 'errand', 'repair'].indexOf(t) > -1)
+      ]
+    })
   },
 
   onPullDownRefresh() {
@@ -92,7 +103,11 @@ Page({
 
   formatConv(list) {
     return list.map((c) => ({
+      // 同一真实用户可有多个分身会话，peerId 不再唯一，组合键避免 wx:key 冲突
+      id: c.peerId + '_' + (c.personaKey || 'normal'),
       peerId: c.peerId,
+      // 分身会话隔离键：同一真实用户的每个分身各自一个会话入口
+      personaKey: c.personaKey || '',
       peerNick: c.peerNick || '用户',
       peerAvatar: c.peerAvatar || '/assets/icons/avatar.png',
       isAnonymous: !!c.isAnonymous,
@@ -111,11 +126,13 @@ Page({
     const nick = e.currentTarget.dataset.nick
     const avatar = e.currentTarget.dataset.avatar
     const anonymous = !!e.currentTarget.dataset.anonymous
+    const personaKey = e.currentTarget.dataset.persona || ''
     wx.navigateTo({
       url: '/pages/chat/index?peerId=' + peerId +
         '&nick=' + encodeURIComponent(nick) +
         '&avatar=' + encodeURIComponent(avatar) +
-        '&anonymous=' + (anonymous ? '1' : '0')
+        '&anonymous=' + (anonymous ? '1' : '0') +
+        '&personaKey=' + encodeURIComponent(personaKey || '')
     })
   },
 
@@ -125,11 +142,6 @@ Page({
       this.setInteractionMessages(messages)
       wx.showToast({ title: '已全部标记为已读', icon: 'success' })
     }
-    if (request.USE_MOCK) {
-      wx.setStorageSync('user_messages', this.data.allMessages.map((m) => Object.assign({}, m, { read: true })))
-      done()
-      return
-    }
     request.put('/notification/read-all', {}, true).then(done).catch(() => {})
   },
 
@@ -138,7 +150,7 @@ Page({
     const target = this.data.allMessages.find((item) => Number(item.id) === Number(id))
     const messages = this.data.allMessages.map((item) => Number(item.id) === Number(id) ? Object.assign({}, item, { read: true }) : item)
     this.setInteractionMessages(messages)
-    if (!request.USE_MOCK) request.put('/notification/' + id + '/read', {}, true, { silent: true }).catch(() => {})
+    request.put('/notification/' + id + '/read', {}, true, { silent: true }).catch(() => {})
     // 评论/点赞通知进入消息详情页（展示评论者、评论内容与原帖完整信息），详情页内可跳转原帖
     // 评论内容可能较长，经 globalData 交接避免 URL 传参截断
     if (target && target.postId) {
@@ -159,7 +171,7 @@ Page({
   },
 
   setInteractionMessages(messages) {
-    this.setData({ allMessages: messages }, () => this.filterInteractionMessages())
+    this.setData({ allMessages: messages }, () => { this.filterInteractionMessages(); this.updateTotalUnread(); })
   },
 
   filterInteractionMessages() {

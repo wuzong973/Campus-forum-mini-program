@@ -1,3 +1,5 @@
 {
-  "navigationBarTitleText": "黑名单管理"
+  "navigationBarTitleText": "黑名单管理",
+  "navigationBarBackgroundColor": "#D7EFFF",
+  "navigationBarTextStyle": "black"
 }

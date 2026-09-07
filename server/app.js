@@ -140,6 +140,8 @@ async function start() {
     console.log(`广轻工后端服务运行在端口 ${PORT}`);
   });
   wsServer.init(server);
+  // 跑腿订单超时自动取消：待支付超 30 分钟取消；待接单超 30 分钟取消并原路退款
+  require("./services/errandExpiryService").start();
 }
 
 start().catch((err) => {

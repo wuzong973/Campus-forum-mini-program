@@ -114,16 +114,29 @@ exports.create = async (req, res) => {
     if (anonymousIdentity && !normalizedAnonymousIdentity) return fail(res, '匿名身份格式不正确')
     const [posts] = await pool.query('SELECT id, user_id, title FROM forum_post WHERE id = ? AND status = 1', [postId])
     if (!posts.length) return fail(res, '帖子不存在', 404)
+    // 同一评论区身份一致性：该用户在此帖子下已有匿名评论时，一律复用首次存档的分身身份，
+    // 不再采用客户端本次随机生成的身份，避免同一评论区每条评论头像昵称各不相同
+    let effectiveIdentity = normalizedAnonymousIdentity
+    if (effectiveIdentity) {
+      const [archived] = await pool.query(
+        `SELECT anonymous_identity FROM forum_comment
+         WHERE post_id = ? AND user_id = ? AND anonymous_identity IS NOT NULL
+         ORDER BY id DESC LIMIT 1`,
+        [postId, req.userId]
+      )
+      const existingIdentity = archived.length ? parseAnonymousIdentity(archived[0].anonymous_identity) : null
+      if (existingIdentity) effectiveIdentity = existingIdentity
+    }
     const imagesJson = Array.isArray(images) ? JSON.stringify(images) : null
     const [result] = await pool.query(
       'INSERT INTO forum_comment (post_id, user_id, content, images, anonymous_identity, parent_id) VALUES (?, ?, ?, ?, ?, ?)',
-      [postId, req.userId, content.trim(), imagesJson, normalizedAnonymousIdentity ? JSON.stringify(normalizedAnonymousIdentity) : null, parentId || 0]
+      [postId, req.userId, content.trim(), imagesJson, effectiveIdentity ? JSON.stringify(effectiveIdentity) : null, parentId || 0]
     )
     await pool.query('UPDATE forum_post SET comment_count = comment_count + 1 WHERE id = ?', [postId])
     if (Number(posts[0].user_id) !== Number(req.userId)) {
       // 通知快照：匿名评论用匿名形象，否则用评论者真实资料
-      let actor = normalizedAnonymousIdentity
-        ? { id: null, nickName: normalizedAnonymousIdentity.nickName, avatarUrl: normalizedAnonymousIdentity.avatarUrl }
+      let actor = effectiveIdentity
+        ? { id: null, nickName: effectiveIdentity.nickName, avatarUrl: effectiveIdentity.avatarUrl }
         : null
       if (!actor) {
         const [actors] = await pool.query('SELECT id, nick_name, avatar_url FROM sys_user WHERE id = ?', [req.userId])
@@ -142,7 +155,8 @@ exports.create = async (req, res) => {
         commentImages: Array.isArray(images) ? images : []
       }).catch(() => {})
     }
-    success(res, { id: result.insertId })
+    // 返回实际生效的匿名身份：客户端乐观上屏时用它纠偏，保证显示与服务端存档一致
+    success(res, { id: result.insertId, anonymousIdentity: effectiveIdentity })
   } catch (e) {
     fail(res, safeMessage(e), 500)
   }

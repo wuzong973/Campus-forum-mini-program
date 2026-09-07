@@ -3,7 +3,11 @@
     <slot name="trigger"></slot>
   </view>
 
-  <block wx:if="{{showMenu}}">
+  <!-- 弹窗通过 root-portal 挂到页面根节点渲染：
+       组件位于四列网格 feature-item 内，父级的 :active transform（scale）和页面
+       page-enter 动画残留的 transform 会把 position:fixed 的包含块劫持到网格单元，
+       导致第二次打开时弹窗被压成一条细竖列（错乱）。root-portal 可彻底脱离这些祖先。 -->
+  <root-portal wx:if="{{showMenu}}">
     <view class="contact-admin-mask" catchtap="closeMenu"></view>
     <view class="contact-admin-sheet" catchtap="stopPropagation">
       <view class="contact-admin-sheet-head">
@@ -30,21 +34,21 @@
       </view>
       <view class="contact-admin-cancel" catchtap="closeMenu">取消</view>
     </view>
-  </block>
+  </root-portal>
 
-  <block wx:if="{{showQr}}">
+  <root-portal wx:if="{{showQr}}">
     <view class="contact-admin-mask" catchtap="closeQr"></view>
     <view class="contact-admin-qr-dialog" catchtap="stopPropagation">
       <view class="contact-admin-qr-head">
         <view>
-          <text class="contact-admin-qr-title">添加管理员微信</text>
+          <text class="contact-admin-qr-title">{{qrTitle}}</text>
           <text class="contact-admin-qr-desc">长按二维码保存图片</text>
         </view>
         <view class="contact-admin-close" catchtap="closeQr">×</view>
       </view>
-      <image class="contact-admin-qr" src="/assets/avatar2/管理员微信.png" mode="widthFix" show-menu-by-longpress="{{true}}"></image>
-      <button class="contact-admin-qr-btn" bindtap="openQrPage">识别二维码并添加好友</button>
-      <view class="contact-admin-qr-tip">跳转网页后长按图片即可识别添加</view>
+      <image class="contact-admin-qr" src="{{qrImage}}" mode="widthFix" show-menu-by-longpress="{{true}}"></image>
+      <button class="contact-admin-qr-btn" bindtap="openQrPage">点击此处即可跳转</button>
+      <view class="contact-admin-qr-tip">如果是二维码的话长按图片即可识别</view>
     </view>
-  </block>
+  </root-portal>
 </view>

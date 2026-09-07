@@ -201,14 +201,11 @@ Page({
     semesterWeeks: [],
   },
 
-  onLoad() {
-    this.initFromConfig();
-    this.loadSchedule();
-  },
-
   onShow() {
     const tabBar = this.getTabBar && this.getTabBar()
     if (tabBar) tabBar.setSelected(1)
+    // 从教务同步/考试/成绩页返回时收起抽屉（跳转时不再提前收起，避免转场闪烁）
+    if (this.data.showDrawer) this.setData({ showDrawer: false });
     this.initFromConfig();
     this.applyCurrentWeekCourses(this.data.allCourses);
     this.loadSchedule();
@@ -612,20 +609,40 @@ Page({
 
   goAdd() {
     if (!auth.requireLogin("添加课程前请先登录小程序账号")) return;
-    wx.navigateTo({ url: "/pages/schedule-add/index" });
+    wx.navigateTo({ url: "/pkg-schedule/schedule-add/index" });
   },
 
   goOcr() {
     if (!auth.requireLogin("识别课表前请先登录小程序账号")) return;
-    wx.navigateTo({ url: "/pages/schedule-ocr/index" });
+    wx.navigateTo({ url: "/pkg-schedule/schedule-ocr/index" });
   },
 
   goSyncSchedule() {
     if (!auth.requireLogin("同步课表前请先登录小程序账号")) {
       return;
     }
+    // 先导航再反馈：跳转前不做 setData，避免抽屉收起动画
+    // 与页面重渲染抢占渲染线程，造成"闪回课表页 + 跳转延迟"
+    wx.navigateTo({ url: "/pkg-schedule/schedule-login/index" });
     wx.vibrateShort({ type: "light" });
-    wx.navigateTo({ url: "/pages/schedule-login/index" });
+  },
+
+  // 查询考试安排：与同步课表共用同一教务入口（自动同步后跳转考试页）
+  goExamSchedule() {
+    if (!auth.requireLogin("查询考试安排前请先登录小程序账号")) {
+      return;
+    }
+    wx.navigateTo({ url: "/pkg-schedule/schedule-login/index?target=exam" });
+    wx.vibrateShort({ type: "light" });
+  },
+
+  // 查询我的成绩：与同步课表共用同一教务入口（自动同步后跳转成绩页）
+  goMyGrades() {
+    if (!auth.requireLogin("查询成绩前请先登录小程序账号")) {
+      return;
+    }
+    wx.navigateTo({ url: "/pkg-schedule/schedule-login/index?target=grade" });
+    wx.vibrateShort({ type: "light" });
   },
 
   onRefresh() {
@@ -780,7 +797,7 @@ Page({
       success: (res) => {
         if (res.tapIndex === 0) {
           // 编辑课程：跳转到编辑页面
-          wx.navigateTo({ url: "/pages/schedule-edit/index" });
+          wx.navigateTo({ url: "/pkg-schedule/schedule-edit/index" });
         } else if (res.tapIndex === 1) {
           // 清空全部课表
           wx.showModal({
@@ -789,9 +806,7 @@ Page({
             success: (modalRes) => {
               if (modalRes.confirm) {
                 wx.setStorageSync("schedule_courses", []);
-                if (!request.USE_MOCK) {
-                  api.clearSchedule().catch(() => {});
-                }
+                api.clearSchedule().catch(() => {});
                 this.setData({ allCourses: [] });
                 this.loadSchedule();
                 wx.showToast({ title: "课表已清空", icon: "success" });

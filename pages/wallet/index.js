@@ -2,7 +2,7 @@ const auth = require('../../utils/auth')
 const request = require('../../utils/request')
 const { runPullDownRefresh } = require('../../utils/refresh')
 
-const STATUS_TEXT = { SUCCESS: '已到账', PENDING: '审核中', PROCESSING: '转账处理中', REJECTED: '已驳回', FAILED: '转账失败' }
+const STATUS_TEXT = { SUCCESS: '已到账', PENDING: '审核中', PROCESSING: '转账处理中', WAIT_CONFIRM: '待确认收款', REJECTED: '已驳回', FAILED: '转账失败' }
 
 // 提现规则配置
 const WITHDRAW_RULES = {
@@ -21,6 +21,9 @@ Page({
     withdrawing: '0.00',
     records: [],
     loading: false,
+    confirming: false,
+    // 已自动弹窗提醒过的提现单（每次进入页面每单只提醒一次）
+    autoPromptedIds: {},
     showWithdraw: false,
     withdrawAmount: '',
     submitting: false,
@@ -57,21 +60,51 @@ Page({
       const money = (value) => Number(value || 0).toFixed(2)
       this.setData({
         balance: money(data.available), earned: money(data.earned), withdrawing: money(data.withdrawing),
-        records: (data.records || []).map((item) => ({
-          ...item,
-          amountText: `${Number(item.amount) >= 0 ? '+' : '-'}¥${Math.abs(Number(item.amount)).toFixed(2)}`,
-          timeText: String(item.createdAt || '').replace('T', ' ').slice(0, 16),
-          statusText: STATUS_TEXT[item.status] || item.status
-        }))
+        records: (data.records || []).map((item) => {
+          const isEarning = item.type === 'earning'
+          // 收益明细的详细描述：收益关联跑腿订单标题；提现按状态补充说明
+          const detailText = isEarning
+            ? (item.orderTitle ? `来自订单「${item.orderTitle}」` : '跑腿订单收益，已到账可提现')
+            : ({
+              PENDING: '等待管理员审核，审核通过后转账',
+              PROCESSING: '微信零钱转账处理中',
+              WAIT_CONFIRM: '管理员已通过，请点击「确认收款」完成提现（24小时内有效）',
+              SUCCESS: '已转账至微信零钱',
+              REJECTED: '提现申请已驳回，金额已退回余额',
+              FAILED: '转账失败，金额已退回余额'
+            }[item.status] || '')
+          return {
+            ...item,
+            title: isEarning ? '跑腿收益' : '提现到微信零钱',
+            detailText,
+            canConfirm: !isEarning && item.status === 'WAIT_CONFIRM' && Number(item.refId) > 0,
+            amountText: `${Number(item.amount) >= 0 ? '+' : '-'}¥${Math.abs(Number(item.amount)).toFixed(2)}`,
+            timeText: String(item.createdAt || '').replace('T', ' ').slice(0, 16),
+            statusText: STATUS_TEXT[item.status] || item.status
+          }
+        })
       })
     }
-    if (request.USE_MOCK) {
-      const mock = require('../../utils/mock')
-      applySummary(mock.walletSummary)
-      this.setData({ loading: false })
-      return
-    }
-    return request.get('/wallet/summary', {}, true, { silent: true }).then(applySummary).catch(() => {}).finally(() => this.setData({ loading: false }))
+    return request.get('/wallet/summary', {}, true, { silent: true }).then((data) => {
+      applySummary(data)
+      this.autoPromptConfirm(data && data.records || [])
+    }).catch(() => {}).finally(() => this.setData({ loading: false }))
+  },
+
+  // 有「待确认收款」的提现时，进入钱包自动弹窗引导确认
+  autoPromptConfirm(records) {
+    const pending = (records || []).find((item) => item.canConfirm && !this.data.autoPromptedIds[item.refId])
+    if (!pending || this.data.confirming) return
+    this.setData({ ['autoPromptedIds.' + pending.refId]: true })
+    wx.showModal({
+      title: '提现待确认收款',
+      content: `您有一笔 ¥${Math.abs(Number(pending.amount)).toFixed(2)} 的提现已审核通过，需要您确认收款后才能到账，是否立即完成？`,
+      confirmText: '确认收款',
+      cancelText: '稍后',
+      success: (res) => {
+        if (res.confirm) this.doConfirmReceive(Number(pending.refId))
+      }
+    })
   },
 
   // 加载今日已提现次数
@@ -82,6 +115,48 @@ Page({
       return recordDate === today && item.type === 'withdrawal'
     })
     this.setData({ dailyUsed: todayRecords.length })
+  },
+
+  // 确认收款：拉起微信商家转账收款确认页（新版商家转账，用户确认后微信才打款）
+  onConfirmReceive(e) {
+    this.doConfirmReceive(Number(e.currentTarget.dataset.id))
+  },
+
+  doConfirmReceive(id) {
+    if (!Number.isInteger(id) || id < 1 || this.data.confirming) return
+    if (wx.canIUse && !wx.canIUse('requestMerchantTransfer')) {
+      return wx.showModal({ title: '提示', content: '当前微信版本过低，请将微信升级至 8.0.30 及以上后重试', showCancel: false })
+    }
+    this.setData({ confirming: true })
+    wx.showLoading({ title: '加载中', mask: true })
+    request.get(`/wallet/withdrawals/${id}/transfer-package`, {}, true).then((pkg) => {
+      wx.hideLoading()
+      if (pkg.status === 'SUCCESS') {
+        wx.showToast({ title: '该笔提现已到账', icon: 'success' })
+        return this.loadWallet()
+      }
+      wx.requestMerchantTransfer({
+        mchId: pkg.mchId,
+        appId: pkg.appId,
+        package: pkg.packageInfo,
+        success: () => {
+          wx.showToast({ title: '已确认，等待到账', icon: 'success' })
+          request.post(`/wallet/withdrawals/${id}/sync-transfer`, {}, true).catch(() => {})
+          this.loadWallet()
+        },
+        fail: (err) => {
+          const msg = String((err && err.errMsg) || '')
+          if (msg.indexOf('cancel') > -1) {
+            wx.showToast({ title: '已取消收款', icon: 'none' })
+          } else {
+            wx.showModal({ title: '收款确认失败', content: msg || '请稍后重试', showCancel: false })
+          }
+        }
+      })
+    }).catch((err) => {
+      wx.hideLoading()
+      wx.showToast({ title: (err && err.message) || '获取收款信息失败', icon: 'none' })
+    }).finally(() => this.setData({ confirming: false }))
   },
 
   onPullDownRefresh() {
@@ -125,21 +200,6 @@ Page({
     }
 
     this.setData({ submitting: true })
-    if (request.USE_MOCK) {
-      const mock = require('../../utils/mock')
-      const amount = Number(this.data.withdrawAmount)
-      mock.walletSummary.records.unshift({
-        id: Date.now(), type: 'withdrawal', amount: -amount,
-        title: '提现至微信零钱（审核中）', status: 'PENDING',
-        createdAt: new Date().toISOString()
-      })
-      mock.walletSummary.available = Number((mock.walletSummary.available - amount).toFixed(2))
-      mock.walletSummary.withdrawing = Number((mock.walletSummary.withdrawing + amount).toFixed(2))
-      wx.showToast({ title: '已提交审核', icon: 'success' })
-      this.setData({ showWithdraw: false, dailyUsed: this.data.dailyUsed + 1, submitting: false })
-      this.loadWallet()
-      return
-    }
     request.post('/wallet/withdrawals', { amount }, true, { idempotencyKey: `withdraw_${Date.now()}` }).then(() => {
       wx.showToast({ title: '已提交审核', icon: 'success' })
       this.setData({ showWithdraw: false, dailyUsed: this.data.dailyUsed + 1 })

@@ -1,16 +1,6 @@
 const request = require('../../utils/request')
 const { runPullDownRefresh } = require('../../utils/refresh')
 
-const MOCK_KEY = 'repair_mock_orders'
-
-const DEFAULT_TECHNICIANS = [
-  { name: '莫旭卿', phone: '19200444855', userId: null, chatAvailable: false },
-  { name: '冯广兴', phone: '13450662913', userId: null, chatAvailable: false },
-  { name: '蒋文鑫', phone: '15314270546', userId: null, chatAvailable: false },
-  { name: '张彬浩', phone: '13543233827', userId: null, chatAvailable: false },
-  { name: '欧阳文展', phone: '13726084801', userId: null, chatAvailable: false }
-]
-
 function today(offset) {
   const date = new Date(Date.now() + (offset || 0) * 86400000)
   const pad = (value) => String(value).padStart(2, '0')
@@ -22,11 +12,10 @@ Page({
     tab: 'book',
     deviceTypes: ['数码电子', '家具家电', '日常器物', '其他设备'],
     deviceType: '数码电子',
-    // Keep the displayed reservation fee aligned with the server-side price source.
     price: '0.99',
     contactName: '', contactPhone: '', serviceAddress: '', description: '',
     date: today(1), minDate: today(0), time: '14:00',
-    technicians: DEFAULT_TECHNICIANS, selectedTechnician: null, selectedTechnicianPhone: '',
+    technicians: [], selectedTechnician: null, selectedTechnicianPhone: '',
     images: [], orders: [], loadingOrders: false, submitting: false,
     statusText: { unpaid: '待支付', paid: '待接单', accepted: '已接单', repairing: '维修中', finished: '已完成', cancelled: '已取消' }
   },
@@ -148,21 +137,11 @@ Page({
       images: []
     }
     try {
-      if (request.USE_MOCK) {
-        await new Promise((resolve, reject) => wx.showModal({
-          title: '模拟支付', content: `需支付 ¥${this.data.price}，开发模式下将模拟支付成功。`,
-          success: (res) => res.confirm ? resolve() : reject(new Error('cancel'))
-        }))
-        const orders = wx.getStorageSync(MOCK_KEY) || []
-        orders.unshift({ id: Date.now(), order_no: `MOCK${Date.now()}`, ...payload, amount: this.data.price, status: 'paid', appointment_time: `${this.data.date} ${this.data.time}` })
-        wx.setStorageSync(MOCK_KEY, orders)
-      } else {
-        payload.images = await this.uploadImages()
-        const order = await request.post('/repair/orders', payload, true, { showLoading: '正在创建订单' })
-        const payment = await request.post(`/repair/orders/${order.id}/pay`, {}, true, { idempotencyKey: `repair_pay_${order.id}` })
-        await new Promise((resolve, reject) => wx.requestPayment({ ...payment, success: resolve, fail: reject }))
-        await this.waitForPaymentStatus(order.id)
-      }
+      payload.images = await this.uploadImages()
+      const order = await request.post('/repair/orders', payload, true, { showLoading: '正在创建订单' })
+      const payment = await request.post(`/repair/orders/${order.id}/pay`, {}, true, { idempotencyKey: `repair_pay_${order.id}` })
+      await new Promise((resolve, reject) => wx.requestPayment({ ...payment, success: resolve, fail: reject }))
+      await this.waitForPaymentStatus(order.id)
       wx.showToast({ title: '预约支付成功', icon: 'success' })
       this.setData({ tab: 'orders', description: '', images: [] })
       this.loadOrders()
@@ -186,7 +165,7 @@ Page({
   async loadOrders() {
     this.setData({ loadingOrders: true })
     try {
-      const orders = request.USE_MOCK ? (wx.getStorageSync(MOCK_KEY) || []) : await request.get('/repair/orders', {}, true)
+      const orders = await request.get('/repair/orders', {}, true)
       this.setData({ orders })
     } finally {
       this.setData({ loadingOrders: false })
@@ -194,12 +173,12 @@ Page({
   },
 
   async loadTechnicians() {
-    if (request.USE_MOCK) return
     try {
       const technicians = await request.get('/repair/technicians', {}, true, { silent: true })
       if (Array.isArray(technicians) && technicians.length) this.setData({ technicians })
     } catch (e) {
-      // 保留本地登记名单，确保接口暂不可用时仍可完成页面填写。
+      this.setData({ technicians: [], selectedTechnician: null, selectedTechnicianPhone: '' })
+      wx.showToast({ title: '维修人员暂时无法加载，请稍后重试', icon: 'none' })
     }
   }
 })

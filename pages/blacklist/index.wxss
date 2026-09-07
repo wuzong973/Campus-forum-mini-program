@@ -1,8 +1,40 @@
 .page {
   min-height: 100vh;
-  background: #f5f6f8;
+  background:
+    radial-gradient(ellipse at 14% -6%, rgba(137, 202, 255, 0.28) 0%, rgba(137, 202, 255, 0) 48%),
+    linear-gradient(180deg, #d7efff 0%, #eaf6ff 18%, #f5f9fd 46%, #f7f8fb 72%, #f4f6fa 100%);
   padding: 24rpx;
   box-sizing: border-box;
+}
+
+.type-tabs {
+  display: flex;
+  gap: 16rpx;
+  margin-bottom: 20rpx;
+}
+
+.type-tab {
+  flex: 1;
+  text-align: center;
+  padding: 16rpx 0;
+  border-radius: 999rpx;
+  background: rgba(255, 255, 255, 0.75);
+  color: #5b6b85;
+  font-size: 27rpx;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.type-tab.active {
+  background: #3a6fe3;
+  color: #ffffff;
+  font-weight: 600;
+  box-shadow: 0 4rpx 14rpx rgba(58, 111, 227, 0.32);
+}
+
+.unblock-btn.restore {
+  border-color: #3a6fe3;
+  color: #3a6fe3;
 }
 
 .black-card {
@@ -47,6 +79,45 @@
 }
 
 .black-date { color: #a6afbb; font-size: 23rpx; }
+
+.nick-line {
+  display: flex;
+  align-items: center;
+  gap: 10rpx;
+  min-width: 0;
+}
+
+.cert-tag {
+  flex-shrink: 0;
+  padding: 2rpx 12rpx;
+  border-radius: 8rpx;
+  background: #e8f1ff;
+  color: #3a6fe3;
+  font-size: 20rpx;
+  font-weight: 500;
+}
+
+.cert-tag.restored-tag {
+  background: #e8f8ef;
+  color: #1fa864;
+}
+
+.unblock-btn.restore.viewing {
+  border-color: #1fa864;
+  color: #1fa864;
+}
+
+.post-detail-text {
+  color: #42506b;
+  font-size: 25rpx;
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+
+.post-row .black-info { gap: 8rpx; }
 
 .unblock-btn {
   flex-shrink: 0;

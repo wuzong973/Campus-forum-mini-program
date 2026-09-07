@@ -7,7 +7,6 @@ const { auth, optionalAuth } = require('../middleware/auth')
 const contentSecurity = require('../middleware/contentSecurity')
 
 router.post('/phone-login', userController.phoneLogin)
-router.post('/dev-login', userController.devLogin)
 router.post('/content-check', auth, contentSecurity, userController.contentCheck)
 router.get('/info', auth, userController.getInfo)
 router.get('/my-deleted-posts', auth, userController.getMyDeletedPosts)
@@ -27,5 +26,7 @@ router.get('/interactions/stats', auth, userController.getInteractionStats)
 router.get('/interactions/:type', auth, userController.getInteractionList)
 router.get('/rider-verification', auth, userController.getRiderVerification)
 router.post('/rider-verification', auth, contentSecurity, userController.submitRiderVerification)
+// 教务系统验证：学号+密码登录成功即通过骑手认证
+router.post('/rider-verification/jw', auth, contentSecurity, userController.verifyRiderByJw)
 
 module.exports = router

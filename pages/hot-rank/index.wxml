@@ -2,7 +2,7 @@
   <!-- 自定义导航栏：点击标题切换时间段 -->
   <view class="custom-nav" style="padding-top: {{statusBarHeight}}px;">
     <view class="nav-inner">
-      <view class="nav-back" hover-class="nav-back-pressed" hover-stay-time="120" bindtap="goBack">‹ 返回</view>
+      <view class="back-pill" hover-class="back-pill-hover" hover-stay-time="80" bindtap="goBack"><text class="back-pill-icon">‹</text><text>返回</text></view>
       <view class="nav-title" bindtap="toggleMenu">
         <text>{{currentLabel}}</text>
         <text class="nav-title-arrow {{menuVisible ? 'up' : ''}}">▼</text>

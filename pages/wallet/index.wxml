@@ -68,9 +68,13 @@
     <view class="record-item flex-between" wx:for="{{records}}" wx:key="id">
       <view class="record-main">
         <text class="record-title text-body">{{item.title}}</text>
+        <text class="record-detail text-caption" wx:if="{{item.detailText}}">{{item.detailText}}</text>
         <text class="record-time text-caption">{{item.timeText}} · {{item.statusText}}</text>
       </view>
-      <text class="record-amount {{item.amount >= 0 ? 'income' : 'expense'}}">{{item.amountText}}</text>
+      <view class="record-right">
+        <text class="record-amount {{item.amount >= 0 ? 'income' : 'expense'}}">{{item.amountText}}</text>
+        <button class="confirm-btn" wx:if="{{item.canConfirm}}" loading="{{confirming}}" catchtap="onConfirmReceive" data-id="{{item.refId}}">确认收款</button>
+      </view>
     </view>
     <view class="empty text-caption" wx:if="{{!loading && records.length === 0}}">完成跑腿订单后的收益会显示在这里</view>
   </view>

@@ -2,8 +2,8 @@
   padding: 24rpx 20rpx 48rpx;
   min-height: 100vh;
   background:
-    radial-gradient(circle at 100% 0%, rgba(18, 184, 166, 0.16), transparent 300rpx),
-    linear-gradient(180deg, #eef4ff 0%, #f4f6fa 420rpx, #f4f6fa 100%);
+    radial-gradient(ellipse at 14% -6%, rgba(137, 202, 255, 0.28) 0%, rgba(137, 202, 255, 0) 48%),
+    linear-gradient(180deg, #d7efff 0%, #eaf6ff 18%, #f5f9fd 46%, #f7f8fb 72%, #f4f6fa 100%);
 }
 
 .page-state {

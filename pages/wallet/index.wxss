@@ -1,12 +1,18 @@
 .page {
   min-height: 100vh;
   padding: 24rpx;
+  background:
+    radial-gradient(ellipse at 14% -6%, rgba(137, 202, 255, 0.28) 0%, rgba(137, 202, 255, 0) 48%),
+    linear-gradient(180deg, #d7efff 0%, #eaf6ff 18%, #f5f9fd 46%, #f7f8fb 72%, #f4f6fa 100%);
 }
 
 .balance-card {
   border-radius: 16rpx;
   padding: 48rpx 32rpx;
   margin-bottom: 32rpx;
+  /* 覆盖全局 .gradient-nav 浅蓝背景：余额区改为更深的品牌蓝，与全站横幅配色一致 */
+  background: linear-gradient(135deg, #3d7bfa 0%, #5b8cff 100%);
+  box-shadow: 0 8rpx 24rpx rgba(61, 123, 250, 0.28);
 }
 
 .balance-label {
@@ -151,6 +157,12 @@
   display: block;
 }
 
+.record-detail {
+  display: block;
+  margin-top: 4rpx;
+  color: #8A94A6;
+}
+
 .record-time {
   display: block;
   margin-top: 8rpx;
@@ -163,6 +175,27 @@
 
 .record-amount.income { color: #52C41A; }
 .record-amount.expense { color: #E64340; }
+
+.record-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 12rpx;
+  flex-shrink: 0;
+  margin-left: 16rpx;
+}
+
+.confirm-btn {
+  margin: 0;
+  padding: 0 26rpx;
+  height: 52rpx;
+  line-height: 52rpx;
+  border-radius: 999rpx;
+  background: #07C160;
+  color: #ffffff;
+  font-size: 23rpx;
+  font-weight: 500;
+}
 
 .empty {
   text-align: center;

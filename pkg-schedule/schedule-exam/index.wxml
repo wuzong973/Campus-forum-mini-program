@@ -1,0 +1,72 @@
+<view class="page">
+  <!-- 顶部：导入考试安排 + 刷新 -->
+  <view class="action-row">
+    <view class="import-btn" bindtap="onImport">
+      <text class="import-text">导入考试安排</text>
+      <text class="import-plus">＋</text>
+    </view>
+    <view class="refresh-btn {{loading ? 'refreshing' : ''}}" bindtap="refresh">
+      <image class="refresh-icon" src="/assets/icons/refresh.png" mode="aspectFit"></image>
+    </view>
+  </view>
+  <view class="synced-tip" wx:if="{{syncedAtText}}">{{syncedAtText}}</view>
+
+  <!-- Tab：进行中 / 已结束 -->
+  <view class="tab-bar">
+    <view class="tab-item {{tab === 'ongoing' ? 'active' : ''}}" data-tab="ongoing" bindtap="onTabChange">
+      <text>进行中</text>
+      <view class="tab-underline" wx:if="{{tab === 'ongoing'}}"></view>
+    </view>
+    <view class="tab-item {{tab === 'ended' ? 'active' : ''}}" data-tab="ended" bindtap="onTabChange">
+      <text>已结束</text>
+      <view class="tab-underline" wx:if="{{tab === 'ended'}}"></view>
+    </view>
+  </view>
+
+  <!-- 考试列表 -->
+  <view class="exam-list" wx:if="{{tab === 'ongoing' && ongoing.length > 0}}">
+    <view class="exam-card" wx:for="{{ongoing}}" wx:key="id">
+      <view class="exam-badge" wx:if="{{item.type}}">{{item.type}}</view>
+      <view class="exam-name">{{item.name}}</view>
+      <view class="exam-info" wx:if="{{item.date || item.time}}">
+        <text class="info-label">时间</text>
+        <text class="info-value">{{item.date}} {{item.time}}</text>
+      </view>
+      <view class="exam-info" wx:if="{{item.location}}">
+        <text class="info-label">地点</text>
+        <text class="info-value">{{item.location}}</text>
+      </view>
+      <view class="exam-info" wx:if="{{item.seat}}">
+        <text class="info-label">座位</text>
+        <text class="info-value">{{item.seat}}</text>
+      </view>
+      <view class="exam-info" wx:if="{{item.semester}}">
+        <text class="info-label">学期</text>
+        <text class="info-value">{{item.semester}}</text>
+      </view>
+    </view>
+  </view>
+
+  <view class="exam-list" wx:if="{{tab === 'ended' && ended.length > 0}}">
+    <view class="exam-card ended" wx:for="{{ended}}" wx:key="id">
+      <view class="exam-badge gray" wx:if="{{item.type}}">{{item.type}}</view>
+      <view class="exam-name">{{item.name}}</view>
+      <view class="exam-info" wx:if="{{item.date || item.time}}">
+        <text class="info-label">时间</text>
+        <text class="info-value">{{item.date}} {{item.time}}</text>
+      </view>
+      <view class="exam-info" wx:if="{{item.location}}">
+        <text class="info-label">地点</text>
+        <text class="info-value">{{item.location}}</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 空状态 -->
+  <view class="empty" wx:if="{{tab === 'ongoing' && ongoing.length === 0}}">
+    <text class="empty-text">暂无考试安排</text>
+  </view>
+  <view class="empty" wx:if="{{tab === 'ended' && ended.length === 0}}">
+    <text class="empty-text">暂无已结束考试</text>
+  </view>
+</view>

@@ -1,11 +1,17 @@
 // 私信本地缓存管理 + WebSocket 连接管理
 const request = require('./request')
-const mockData = require('./mock')
 
 const WS_BASE = request.getWsUrl()
-const CACHE_PREFIX = 'pm_history_' // pm_history_<peerId>
+const CACHE_PREFIX = 'pm_history_' // pm_history_<peerId>[_persona]
 const CONV_CACHE_KEY = 'pm_conversations'
 const UNREAD_KEY = 'pm_unread_total'
+
+// 分身会话缓存键：pm_history_<peerId> 后追加分身标识，保证不同分身的本地聊天记录互不覆盖、互不残留
+function cacheKey(peerId, personaKey) {
+  const persona = String(personaKey || '').trim()
+  if (!persona) return CACHE_PREFIX + peerId
+  return CACHE_PREFIX + peerId + '_p_' + persona.replace(/[^0-9a-zA-Z\u4e00-\u9fa5]/g, '_')
+}
 
 let socket = null
 let reconnectTimer = null
@@ -31,41 +37,38 @@ function getToken() {
 }
 
 // ===== 本地缓存 =====
-function loadCache(peerId) {
-  const cached = wx.getStorageSync(CACHE_PREFIX + peerId)
+function loadCache(peerId, personaKey) {
+  const cached = wx.getStorageSync(cacheKey(peerId, personaKey))
   if (cached && cached.length) return cached
-  if (request.USE_MOCK && mockData.mockMessages && mockData.mockMessages[peerId]) {
-    return mockData.mockMessages[peerId]
-  }
   return []
 }
 
-function saveCache(peerId, messages) {
+function saveCache(peerId, messages, personaKey) {
   // 仅保留最近 200 条
   const list = messages.slice(-200)
-  wx.setStorageSync(CACHE_PREFIX + peerId, list)
+  wx.setStorageSync(cacheKey(peerId, personaKey), list)
 }
 
-function appendCache(peerId, message) {
-  const list = loadCache(peerId)
+function appendCache(peerId, message, personaKey) {
+  const list = loadCache(peerId, personaKey)
   // 去重（按 id）
   if (!list.find((m) => m.id === message.id)) {
     list.push(message)
-    saveCache(peerId, list)
+    saveCache(peerId, list, personaKey)
   }
 }
 
-function updateCacheStatus(peerId, messageId, status) {
-  const list = loadCache(peerId)
+function updateCacheStatus(peerId, messageId, status, personaKey) {
+  const list = loadCache(peerId, personaKey)
   const idx = list.findIndex((m) => m.id === messageId)
   if (idx >= 0) {
     list[idx].status = status
-    saveCache(peerId, list)
+    saveCache(peerId, list, personaKey)
   }
 }
 
-function removeCachedMessage(peerId, messageId) {
-  saveCache(peerId, loadCache(peerId).filter((item) => Number(item.id) !== Number(messageId)))
+function removeCachedMessage(peerId, messageId, personaKey) {
+  saveCache(peerId, loadCache(peerId, personaKey).filter((item) => Number(item.id) !== Number(messageId)), personaKey)
 }
 
 function saveConversations(list) {
@@ -75,16 +78,12 @@ function saveConversations(list) {
 function loadConversations() {
   const cached = wx.getStorageSync(CONV_CACHE_KEY)
   if (cached && cached.length) return cached
-  if (request.USE_MOCK) return mockData.mockConversations || []
   return []
 }
 
 function getUnreadTotal() {
   const cached = wx.getStorageSync(UNREAD_KEY)
   if (cached !== undefined && cached !== null) return cached
-  if (request.USE_MOCK && mockData.mockConversations) {
-    return mockData.mockConversations.reduce((sum, c) => sum + (c.unreadCount || 0), 0)
-  }
   return 0
 }
 
@@ -110,7 +109,6 @@ function updateTabBarBadge(n) {
 
 // ===== WebSocket 连接 =====
 function connect() {
-  if (request.USE_MOCK) return
   const token = getToken()
   if (!token) return
   if (socket && (socket.readyState === 1 || socket.readyState === 0)) return
@@ -139,8 +137,8 @@ function connect() {
       handleIncomingMessage(msg.data)
     }
     if (msg.type === 'private_message_recalled') {
-      removeCachedMessage(msg.data.peerId, msg.data.id)
-      notifyHandlers({ type: 'message_recalled', peerId: msg.data.peerId, data: msg.data })
+      removeCachedMessage(msg.data.peerId, msg.data.id, msg.data.personaKey)
+      notifyHandlers({ type: 'message_recalled', peerId: msg.data.peerId, personaKey: msg.data.personaKey || '', data: msg.data })
     }
     // 跑腿订单专属聊天消息（与私信独立）：转发给订阅方（跑腿聊天页实时刷新）
     if (msg.type === 'errand_message') {
@@ -148,6 +146,10 @@ function connect() {
     }
     if (msg.type === 'notification') {
       notifyHandlers({ type: 'notification', data: msg.data })
+    }
+    // 消息通知横幅被管理员更新：通知「我的」页与横幅详情页立即重新拉取
+    if (msg.type === 'banner_update') {
+      notifyHandlers({ type: 'banner_update', data: msg.data || null })
     }
   })
 
@@ -212,34 +214,38 @@ function handleIncomingMessage(data) {
   const currentUserId = (app.globalData.userInfo || {}).id || 0
   if (data.receiverId !== currentUserId) return
   const peerId = data.senderId
+  // 分身会话标识：同一真实用户的不同分身各自独立会话，实时消息按 personaKey 写入对应缓存
+  const personaKey = data.personaKey || ''
 
   // 写入本地缓存
   appendCache(peerId, {
     id: data.id,
     senderId: data.senderId,
     receiverId: data.receiverId,
+    personaKey,
     content: data.content,
     msgType: data.msgType || 'text',
     status: 'delivered',
     createdAt: data.createdAt,
     isMine: false
-  })
+  }, personaKey)
 
   // 更新未读数（除当前正在打开的会话）
   const pages = getCurrentPages()
   const cur = pages[pages.length - 1]
-  const inChat = cur && cur.route === 'pages/chat/index' && cur.data && cur.data.peerId === peerId
+  const inChat = cur && cur.route === 'pages/chat/index' && cur.data && cur.data.peerId === peerId &&
+    (cur.personaKey || '') === personaKey
   if (!inChat) {
     const total = getUnreadTotal() + 1
     setUnreadTotal(total)
     // 通知已注册的回调（消息列表页刷新等）
-    notifyHandlers({ type: 'new_message', peerId, data })
+    notifyHandlers({ type: 'new_message', peerId, personaKey, data })
   } else {
     // 当前正在聊天，标记已读
-    markRead(peerId)
+    markRead(peerId, personaKey)
   }
   // 触发 UI 更新
-  notifyHandlers({ type: 'message', peerId, data })
+  notifyHandlers({ type: 'message', peerId, personaKey, data })
 }
 
 function onMessage(handler) {
@@ -256,13 +262,8 @@ function notifyHandlers(payload) {
 }
 
 // ===== API 调用 =====
-function sendMessage(receiverId, content, msgType = 'text', anonymous = false, anonymousIdentity = null) {
-  if (request.USE_MOCK) {
-    const message = { id: Date.now(), senderId: (getAppInstance().globalData.userInfo || {}).id || 1, receiverId, content, msgType, status: 'sent', createdAt: new Date().toISOString(), isMine: true }
-    appendCache(receiverId, message)
-    return Promise.resolve(message)
-  }
-  const body = { receiverId, content, msgType, anonymous }
+function sendMessage(receiverId, content, msgType = 'text', anonymous = false, anonymousIdentity = null, personaKey = '') {
+  const body = { receiverId, content, msgType, anonymous, personaKey: personaKey || '' }
   // 匿名发送时携带自己一侧的分身形象，服务端首次存档后收信方列表/聊天页统一显示
   if (anonymous && anonymousIdentity && anonymousIdentity.nickName && anonymousIdentity.avatarUrl) {
     body.anonNick = anonymousIdentity.nickName
@@ -271,12 +272,8 @@ function sendMessage(receiverId, content, msgType = 'text', anonymous = false, a
   return request.post('/message/send', body, true)
 }
 
-function getHistory(peerId, page, pageSize, anonymous = false, anonymousIdentity = null, anonSide = 'peer') {
-  if (request.USE_MOCK) {
-    const list = loadCache(peerId)
-    return Promise.resolve({ list: list, total: list.length, hasMore: false })
-  }
-  const query = { peerId, page, pageSize, anonymous: anonymous ? 1 : 0 }
+function getHistory(peerId, page, pageSize, anonymous = false, anonymousIdentity = null, anonSide = 'peer', personaKey = '') {
+  const query = { peerId, page, pageSize, anonymous: anonymous ? 1 : 0, personaKey: personaKey || '' }
   // 匿名会话首次进入时把分身身份传给服务端存档（服务端只存一次）
   if (anonymousIdentity && anonymousIdentity.nickName && anonymousIdentity.avatarUrl) {
     query.anonNick = anonymousIdentity.nickName
@@ -287,19 +284,16 @@ function getHistory(peerId, page, pageSize, anonymous = false, anonymousIdentity
   return request.get('/message/history', query, true)
 }
 
-function recallMessage(peerId, messageId) {
-  if (request.USE_MOCK) { removeCachedMessage(peerId, messageId); return Promise.resolve(null) }
-  return request.post('/message/' + messageId + '/recall', {}, true).then((res) => { removeCachedMessage(peerId, messageId); return res })
+function recallMessage(peerId, messageId, personaKey = '') {
+  return request.post('/message/' + messageId + '/recall', {}, true).then((res) => { removeCachedMessage(peerId, messageId, personaKey); return res })
 }
 
 function getConversations() {
-  if (request.USE_MOCK) return Promise.resolve(loadConversations())
   return request.get('/message/conversations', {}, true)
 }
 
-function markRead(peerId) {
-  if (request.USE_MOCK) return Promise.resolve(null)
-  return request.put('/message/read', { peerId }, true, { silent: true }).then((res) => {
+function markRead(peerId, personaKey = '') {
+  return request.put('/message/read', { peerId, personaKey: personaKey || '' }, true, { silent: true }).then((res) => {
     syncUnreadCount()
     return res
   }).catch((err) => {
@@ -309,27 +303,22 @@ function markRead(peerId) {
 }
 
 function getUnreadCount() {
-  if (request.USE_MOCK) return Promise.resolve({ total: getUnreadTotal() })
   return request.get('/message/unread-count', {}, true, { silent: true })
 }
 
 function updateMessageStatus(messageId, status) {
-  if (request.USE_MOCK) return Promise.resolve(null)
   return request.put('/message/status', { messageId, status }, true, { silent: true })
 }
 
 function blockPeer(peerId) {
-  if (request.USE_MOCK) return Promise.resolve({ blocked: true })
   return request.post('/message/block', { peerId }, true)
 }
 
 function unblockPeer(peerId) {
-  if (request.USE_MOCK) return Promise.resolve({ blocked: false })
   return request.post('/message/unblock', { peerId }, true)
 }
 
 function getBlacklist() {
-  if (request.USE_MOCK) return Promise.resolve({ list: [] })
   return request.get('/message/blacklist', {}, true)
 }
 
@@ -343,7 +332,7 @@ function syncUnreadCount() {
 
 module.exports = {
   // 缓存
-  loadCache, saveCache, appendCache, updateCacheStatus, removeCachedMessage,
+  cacheKey, loadCache, saveCache, appendCache, updateCacheStatus, removeCachedMessage,
   loadConversations, saveConversations,
   getUnreadTotal, setUnreadTotal, updateTabBarBadge,
   // WebSocket

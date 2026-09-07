@@ -3,10 +3,6 @@
     "pages/index/index",
     "pages/service-all/index",
     "pages/schedule/index",
-    "pages/schedule-add/index",
-    "pages/schedule-ocr/index",
-    "pages/schedule-login/index",
-    "pages/schedule-edit/index",
     "pages/errand/index",
     "pages/errand-publish/index",
     "pages/errand-order/index",
@@ -44,15 +40,31 @@
     "pages/my-interactions/index",
     "pages/my-messages/index",
     "pages/message-detail/index",
+    "pages/banner-detail/index",
     "pages/wallet/index",
-    "pages/webview/index",
-    "pages/logs/logs",
-    "pages/admin/index"
+    "pages/webview/index"
+  ],
+  "subPackages": [
+    {
+      "root": "pkg-admin",
+      "pages": ["admin/index"]
+    },
+    {
+      "root": "pkg-schedule",
+      "pages": [
+        "schedule-exam/index",
+        "schedule-grade/index",
+        "schedule-ocr/index",
+        "schedule-login/index",
+        "schedule-edit/index",
+        "schedule-add/index"
+      ]
+    }
   ],
   "window": {
-    "navigationBarTextStyle": "white",
+    "navigationBarTextStyle": "black",
     "navigationBarTitleText": "Campus",
-    "navigationBarBackgroundColor": "#7DD3C0",
+    "navigationBarBackgroundColor": "#D7EFFF",
     "backgroundColor": "#F5F7FA",
     "backgroundTextStyle": "dark",
     "enablePullDownRefresh": true
@@ -64,10 +76,10 @@
     "backgroundColor": "#FFFFFF",
     "borderStyle": "black",
     "list": [
-      { "pagePath": "pages/index/index", "text": "Home", "iconPath": "assets/tabbar/home.png", "selectedIconPath": "assets/tabbar/home-active.png" },
-      { "pagePath": "pages/schedule/index", "text": "Schedule", "iconPath": "assets/tabbar/schedule.png", "selectedIconPath": "assets/tabbar/schedule-active.png" },
-      { "pagePath": "pages/errand/index", "text": "Errand", "iconPath": "assets/tabbar/errand.png", "selectedIconPath": "assets/tabbar/errand-active.png" },
-      { "pagePath": "pages/user/index", "text": "Profile", "iconPath": "assets/tabbar/user.png", "selectedIconPath": "assets/tabbar/user-active.png" }
+      { "pagePath": "pages/index/index", "text": "首页", "iconPath": "assets/tabbar/home.png", "selectedIconPath": "assets/tabbar/home-active.png" },
+      { "pagePath": "pages/schedule/index", "text": "课表", "iconPath": "assets/tabbar/schedule.png", "selectedIconPath": "assets/tabbar/schedule-active.png" },
+      { "pagePath": "pages/errand/index", "text": "跑腿", "iconPath": "assets/tabbar/errand.png", "selectedIconPath": "assets/tabbar/errand-active.png" },
+      { "pagePath": "pages/user/index", "text": "我的", "iconPath": "assets/tabbar/user.png", "selectedIconPath": "assets/tabbar/user-active.png" }
     ]
   },
   "permission": {
@@ -77,5 +89,15 @@
   "__usePrivacyCheck__": true,
   "style": "v2",
   "sitemapLocation": "sitemap.json",
-  "lazyCodeLoading": "requiredComponents"
+  "lazyCodeLoading": "requiredComponents",
+  "preloadRule": {
+    "pages/schedule/index": {
+      "network": "all",
+      "packages": ["pkg-schedule"]
+    },
+    "pages/user/index": {
+      "network": "wifi",
+      "packages": ["pkg-admin"]
+    }
+  }
 }

@@ -1,4 +1,6 @@
 {
   "navigationBarTitleText": "转发帖子",
+  "navigationBarBackgroundColor": "#D7EFFF",
+  "navigationBarTextStyle": "black",
   "usingComponents": {}
 }

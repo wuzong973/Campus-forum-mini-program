@@ -1,6 +1,6 @@
 <view class="page">
   <view class="nav" style="padding-top: {{statusBarHeight}}px; height: {{statusBarHeight + navBarHeight}}px;">
-    <view class="nav-content" style="height: {{navBarHeight}}px;"><view class="back-button" bindtap="goBack">‹</view><text class="nav-title">意见(必回)</text><view class="nav-placeholder"></view></view>
+    <view class="nav-content" style="height: {{navBarHeight}}px;"><view class="back-pill" hover-class="back-pill-hover" hover-stay-time="80" bindtap="goBack"><text class="back-pill-icon">‹</text><text>返回</text></view><text class="nav-title">意见(必回)</text><view class="nav-placeholder"></view></view>
   </view>
   <view style="height: {{statusBarHeight + navBarHeight}}px;"></view>
 
@@ -9,7 +9,7 @@
     <view class="feedback-card" wx:for="{{feedbacks}}" wx:for-item="feedback" wx:key="id" data-id="{{feedback.id}}" bindtap="onFeedbackTap">
       <view class="feedback-author"><image class="avatar" src="{{feedback.avatarUrl}}" mode="aspectFill"></image><view class="author-meta"><view><text class="author-name">{{feedback.nickName}}</text><text class="type-tag">{{feedback.type}}</text></view><text class="feedback-time">{{feedback.timeText}}</text></view><text class="status-tag {{feedback.status}}">{{feedback.statusText}}</text><view class="card-more" wx:if="{{feedback.canManage}}" catchtap="onCardMore" data-id="{{feedback.id}}"><image class="card-more-icon" src="/assets/icons/more.png" mode="aspectFit"></image></view></view>
       <text class="feedback-content">{{feedback.content}}</text>
-      <view class="feedback-images" wx:if="{{feedback.images.length}}"><image wx:for="{{feedback.images}}" wx:for-item="image" wx:key="*this" class="feedback-image" src="{{image}}" mode="aspectFill" data-id="{{feedback.id}}" data-url="{{image}}" catchtap="onPreviewImage"></image></view>
+      <view class="feedback-images" wx:if="{{feedback.images.length}}"><image wx:for="{{feedback.images}}" wx:for-item="image" wx:key="*this" class="feedback-image" src="{{image}}" mode="aspectFill" data-id="{{feedback.id}}" data-url="{{image}}" data-urls="{{feedback.images}}" catchtap="onPreviewImage" bindlongpress="onImageQrScan"></image></view>
       <view class="feedback-reply" wx:if="{{feedback.reply}}" catchtap="onReplyBoxTap" data-id="{{feedback.id}}">
         <view class="reply-head"><text class="reply-label">管理员回复</text><view class="reply-head-right"><text class="reply-time">{{feedback.replyNickName}} · {{feedback.replyTimeText}}</text><view class="reply-more" wx:if="{{feedback.canManageReply}}" catchtap="onReplyMore" data-id="{{feedback.id}}"><image class="reply-more-icon" src="/assets/icons/more.png" mode="aspectFit"></image></view></view></view>
         <text class="reply-content">{{feedback.reply}}</text>

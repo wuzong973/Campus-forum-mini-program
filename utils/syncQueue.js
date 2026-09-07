@@ -13,7 +13,6 @@ function hasPendingProfile() {
 }
 
 async function flushProfile() {
-  if (request.USE_MOCK) return false
   const pending = wx.getStorageSync(PROFILE_QUEUE_KEY)
   if (!pending) return false
   const payload = Object.assign({}, pending)
@@ -28,7 +27,6 @@ function queueScheduleConfig(config) {
 }
 
 async function flushScheduleConfig() {
-  if (request.USE_MOCK) return false
   const pending = wx.getStorageSync(SCHEDULE_QUEUE_KEY)
   if (!pending) return false
   const payload = Object.assign({}, pending)

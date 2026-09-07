@@ -4,7 +4,9 @@ const { safeMessage } = require("../utils/helpers");
 const {
   DEFAULT_SEMESTER_START,
   syncScheduleFromJw,
+  refreshFromJw,
   submitScheduleCaptcha,
+  getJwBinding,
 } = require("../services/jwScheduleSyncService");
 
 function inferCourseColor(name, location, startTime) {
@@ -173,25 +175,64 @@ exports.add = async (req, res) => {
     weekType,
     color,
   } = req.body;
-  if (!name) return fail(res, "课程名称不能为空");
+  if (!String(name || '').trim()) return fail(res, "课程名称不能为空");
+  const normalizedWeekDay = Number(weekDay);
+  const normalizedStartWeek = Number(startWeek || 1);
+  const normalizedEndWeek = Number(endWeek || normalizedStartWeek);
+  const normalizedWeekType = ['all', 'odd', 'even'].includes(weekType) ? weekType : 'all';
+  if (!Number.isInteger(normalizedWeekDay) || normalizedWeekDay < 1 || normalizedWeekDay > 7) return fail(res, "星期参数无效");
+  if (!Number.isInteger(normalizedStartWeek) || !Number.isInteger(normalizedEndWeek) || normalizedStartWeek < 1 || normalizedEndWeek < normalizedStartWeek || normalizedEndWeek > 30) return fail(res, "周次范围无效");
   try {
     const [result] = await pool.query(
       "INSERT INTO user_schedule (user_id, name, location, teacher, week_day, start_time, end_time, start_week, end_week, week_type, color) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
       [
         req.userId,
-        name,
-        location,
-        teacher,
-        weekDay,
-        startTime,
-        endTime,
-        startWeek,
-        endWeek,
-        weekType || "all",
-        color,
+        String(name).trim().slice(0, 64),
+        String(location || '').trim().slice(0, 128),
+        String(teacher || '').trim().slice(0, 64),
+        normalizedWeekDay,
+        String(startTime || '').trim().slice(0, 8),
+        String(endTime || '').trim().slice(0, 8),
+        normalizedStartWeek,
+        normalizedEndWeek,
+        normalizedWeekType,
+        String(color || '').trim().slice(0, 16),
       ],
     );
     success(res, { id: result.insertId });
+  } catch (e) {
+    fail(res, safeMessage(e), 500);
+  }
+};
+
+exports.replace = async (req, res) => {
+  const courses = Array.isArray(req.body.courses) ? req.body.courses : [];
+  if (!courses.length || courses.length > 100) return fail(res, "课程数据不能为空且最多导入100门");
+  const normalized = [];
+  for (const course of courses) {
+    const name = String(course.name || '').trim();
+    const weekDay = Number(course.weekDay);
+    const startWeek = Number(course.startWeek || 1);
+    const endWeek = Number(course.endWeek || startWeek);
+    if (!name || !Number.isInteger(weekDay) || weekDay < 1 || weekDay > 7 || !Number.isInteger(startWeek) || !Number.isInteger(endWeek) || startWeek < 1 || endWeek < startWeek || endWeek > 30) {
+      return fail(res, "课程数据格式无效");
+    }
+    normalized.push({
+      name: name.slice(0, 64),
+      location: String(course.location || '').trim().slice(0, 128),
+      teacher: String(course.teacher || '').trim().slice(0, 64),
+      weekDay,
+      startTime: String(course.startTime || '').trim().slice(0, 8),
+      endTime: String(course.endTime || '').trim().slice(0, 8),
+      startWeek,
+      endWeek,
+      weekType: ['all', 'odd', 'even'].includes(course.weekType) ? course.weekType : 'all',
+      color: String(course.color || '').trim().slice(0, 16),
+    });
+  }
+  try {
+    await persistScheduleCourses(req.userId, normalized);
+    success(res, { count: normalized.length });
   } catch (e) {
     fail(res, safeMessage(e), 500);
   }
@@ -219,63 +260,134 @@ exports.ocr = async (req, res) => {
       if (lowConfidenceCount)
         tips.push(lowConfidenceCount + " 门课程置信度偏低，请导入前人工核对");
     }
-    if (!courses.length) {
-      if (process.env.NODE_ENV === "production") {
-        return fail(res, "真实 OCR 服务未配置，暂不能识别课程图片", 503)
-      }
-      if (req.file && !rawText) {
-        tips.push(
-          "当前服务端未接入真实图片 OCR 引擎，仅保存了上传图片；请接入 OCR 文本结果后再调用该接口以获得稳定识别率",
-        );
-      }
-      courses = [
-        {
-          name: "大学英语(下)",
-          location: "1305",
-          teacher: "周立平",
-          weekDay: 1,
-          startTime: "14:00",
-          endTime: "17:10",
-          startWeek: 1,
-          endWeek: 16,
-          color: "#4A7AFF",
-          confidence: 60,
-        },
-        {
-          name: "机械制图",
-          location: "第四实训楼B605",
-          teacher: "艾雄",
-          weekDay: 2,
-          startTime: "14:00",
-          endTime: "17:10",
-          startWeek: 1,
-          endWeek: 16,
-          color: "#FA8C16",
-          confidence: 60,
-        },
-        {
-          name: "军体课",
-          location: "操场",
-          teacher: "潘岐辉",
-          weekDay: 3,
-          startTime: "08:30",
-          endTime: "09:55",
-          startWeek: 1,
-          endWeek: 16,
-          color: "#52C41A",
-          confidence: 60,
-        },
-      ];
-    }
+    if (!courses.length) return fail(res, "未能识别出有效课程，请上传清晰完整的课表截图", 422)
     success(res, {
       courses,
       tips,
-      strategy: rawText ? "rule-parse-v2" : "demo-fallback",
+      strategy: "rule-parse-v2",
     });
   } catch (e) {
     fail(res, safeMessage(e), 500);
   }
 };
+
+// ===== 同步结果落库与响应组装（课表/考试/成绩共用） =====
+
+async function persistScheduleCourses(userId, courses) {
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+    await connection.query("DELETE FROM user_schedule WHERE user_id = ?", [
+      userId,
+    ]);
+
+    for (const course of courses) {
+      await connection.query(
+        "INSERT INTO user_schedule (user_id, name, location, teacher, week_day, start_time, end_time, start_week, end_week, week_type, color) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+        [
+          userId,
+          course.name,
+          course.location,
+          course.teacher,
+          course.weekDay,
+          course.startTime,
+          course.endTime,
+          course.startWeek,
+          course.endWeek,
+          course.weekType || "all",
+          course.color || inferCourseColor(course.name, course.location, course.startTime),
+        ],
+      );
+    }
+
+    await connection.commit();
+  } catch (dbError) {
+    await connection.rollback();
+    throw dbError;
+  } finally {
+    connection.release();
+  }
+}
+
+async function persistExams(userId, exams) {
+  if (!exams || !exams.length) return;
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+    await connection.query("DELETE FROM user_exam WHERE user_id = ?", [userId]);
+    for (const exam of exams) {
+      await connection.query(
+        "INSERT INTO user_exam (user_id, name, type, date, time, location, seat, semester, raw) VALUES (?,?,?,?,?,?,?,?,?)",
+        [
+          userId,
+          String(exam.name || "").slice(0, 128),
+          String(exam.type || "").slice(0, 32),
+          String(exam.date || "").slice(0, 32),
+          String(exam.time || "").slice(0, 64),
+          String(exam.location || "").slice(0, 128),
+          String(exam.seat || "").slice(0, 32),
+          String(exam.semester || "").slice(0, 32),
+          exam.raw ? JSON.stringify(exam.raw) : null,
+        ],
+      );
+    }
+    await connection.commit();
+  } catch (dbError) {
+    await connection.rollback();
+    throw dbError;
+  } finally {
+    connection.release();
+  }
+}
+
+async function persistGrades(userId, grades) {
+  if (!grades || !grades.length) return;
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+    await connection.query("DELETE FROM user_grade WHERE user_id = ?", [userId]);
+    for (const grade of grades) {
+      await connection.query(
+        "INSERT INTO user_grade (user_id, semester, name, attribute, credit, gpa, score, raw) VALUES (?,?,?,?,?,?,?,?)",
+        [
+          userId,
+          String(grade.semester || "").slice(0, 32),
+          String(grade.name || "").slice(0, 128),
+          String(grade.attribute || "").slice(0, 32),
+          String(grade.credit || "").slice(0, 16),
+          String(grade.gpa || "").slice(0, 16),
+          String(grade.score || "").slice(0, 16),
+          grade.raw ? JSON.stringify(grade.raw) : null,
+        ],
+      );
+    }
+    await connection.commit();
+  } catch (dbError) {
+    await connection.rollback();
+    throw dbError;
+  } finally {
+    connection.release();
+  }
+}
+
+// 考试/成绩抓取失败不阻断课表同步：落库失败仅记录警告，不回滚课表
+function buildSyncPayload(result) {
+  return {
+    count: result.courses.length,
+    courses: result.courses,
+    startDate: result.meta.semesterStart,
+    totalWeeks: result.meta.totalWeeks,
+    rawWeekCount: result.meta.rawWeekCount,
+    rawCourseCount: result.meta.rawCourseCount,
+    partial: !!result.meta.partial,
+    currentWeek: result.meta.currentWeek || null,
+    fast: !!result.meta.fast,
+    concurrency: result.meta.concurrency || null,
+    exams: result.exams || [],
+    grades: result.grades || [],
+    warnings: result.warnings || [],
+  };
+}
 
 exports.sync = async (req, res) => {
   const username = String(req.body.username || "").trim();
@@ -309,56 +421,11 @@ exports.sync = async (req, res) => {
       scheduleStartDate: configRow && configRow.start_date,
     });
 
-    const connection = await pool.getConnection();
-    try {
-      await connection.beginTransaction();
-      await connection.query("DELETE FROM user_schedule WHERE user_id = ?", [
-        req.userId,
-      ]);
+    await persistScheduleCourses(req.userId, syncResult.courses);
+    await persistExams(req.userId, syncResult.exams).catch(() => {});
+    await persistGrades(req.userId, syncResult.grades).catch(() => {});
 
-      for (const course of syncResult.courses) {
-        await connection.query(
-          "INSERT INTO user_schedule (user_id, name, location, teacher, week_day, start_time, end_time, start_week, end_week, week_type, color) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
-          [
-            req.userId,
-            course.name,
-            course.location,
-            course.teacher,
-            course.weekDay,
-            course.startTime,
-            course.endTime,
-            course.startWeek,
-            course.endWeek,
-            course.weekType || "all",
-            course.color || inferCourseColor(course.name, course.location, course.startTime),
-          ],
-        );
-      }
-
-      await connection.commit();
-    } catch (dbError) {
-      await connection.rollback();
-      throw dbError;
-    } finally {
-      connection.release();
-    }
-
-    success(
-      res,
-      {
-        count: syncResult.courses.length,
-        courses: syncResult.courses,
-        startDate: syncResult.meta.semesterStart,
-        totalWeeks: syncResult.meta.totalWeeks,
-        rawWeekCount: syncResult.meta.rawWeekCount,
-        rawCourseCount: syncResult.meta.rawCourseCount,
-        partial: !!syncResult.meta.partial,
-        currentWeek: syncResult.meta.currentWeek || null,
-        fast: !!syncResult.meta.fast,
-        concurrency: syncResult.meta.concurrency || null,
-      },
-      "同步成功",
-    );
+    success(res, buildSyncPayload(syncResult), "同步成功");
   } catch (e) {
     if (e.code === "CAPTCHA_REQUIRED" && e.challenge) {
       return res.status(409).json({
@@ -385,58 +452,109 @@ exports.syncCaptcha = async (req, res) => {
       code,
     });
 
-    const connection = await pool.getConnection();
-    try {
-      await connection.beginTransaction();
-      await connection.query("DELETE FROM user_schedule WHERE user_id = ?", [
-        req.userId,
-      ]);
+    await persistScheduleCourses(req.userId, syncResult.courses);
+    await persistExams(req.userId, syncResult.exams).catch(() => {});
+    await persistGrades(req.userId, syncResult.grades).catch(() => {});
 
-      for (const course of syncResult.courses) {
-        await connection.query(
-          "INSERT INTO user_schedule (user_id, name, location, teacher, week_day, start_time, end_time, start_week, end_week, week_type, color) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
-          [
-            req.userId,
-            course.name,
-            course.location,
-            course.teacher,
-            course.weekDay,
-            course.startTime,
-            course.endTime,
-            course.startWeek,
-            course.endWeek,
-            course.weekType || "all",
-            course.color || inferCourseColor(course.name, course.location, course.startTime),
-          ],
-        );
-      }
-
-      await connection.commit();
-    } catch (dbError) {
-      await connection.rollback();
-      throw dbError;
-    } finally {
-      connection.release();
-    }
-
-    success(
-      res,
-      {
-        count: syncResult.courses.length,
-        courses: syncResult.courses,
-        startDate: syncResult.meta.semesterStart,
-        totalWeeks: syncResult.meta.totalWeeks,
-        rawWeekCount: syncResult.meta.rawWeekCount,
-        rawCourseCount: syncResult.meta.rawCourseCount,
-        partial: !!syncResult.meta.partial,
-        currentWeek: syncResult.meta.currentWeek || null,
-        fast: !!syncResult.meta.fast,
-        concurrency: syncResult.meta.concurrency || null,
-      },
-      "同步成功",
-    );
+    success(res, buildSyncPayload(syncResult), "同步成功");
   } catch (e) {
+    if (e.code === "CAPTCHA_REQUIRED" && e.challenge) {
+      return res.status(409).json({
+        code: 409,
+        message: e.message,
+        data: e.challenge,
+      });
+    }
     fail(res, safeMessage(e), e.status || 500);
+  }
+};
+
+// 绑定状态：是否已在服务端保存过教务账号（决定同步中心是否走免密自动同步）
+exports.bindStatus = async (req, res) => {
+  try {
+    success(res, await getJwBinding(req.userId));
+  } catch (e) {
+    fail(res, safeMessage(e), 500);
+  }
+};
+
+// 免密刷新：使用已绑定的教务账号自动同步课表 + 考试安排 + 成绩
+exports.refresh = async (req, res) => {
+  try {
+    const [[configRow]] = await pool.query(
+      "SELECT start_date FROM schedule_config WHERE user_id = ? LIMIT 1",
+      [req.userId],
+    );
+    const syncResult = await refreshFromJw({
+      userId: req.userId,
+      scheduleStartDate: configRow && configRow.start_date,
+    });
+
+    await persistScheduleCourses(req.userId, syncResult.courses);
+    await persistExams(req.userId, syncResult.exams).catch(() => {});
+    await persistGrades(req.userId, syncResult.grades).catch(() => {});
+
+    success(res, buildSyncPayload(syncResult), "刷新成功");
+  } catch (e) {
+    if (e.code === "CAPTCHA_REQUIRED" && e.challenge) {
+      return res.status(409).json({
+        code: 409,
+        message: e.message,
+        data: e.challenge,
+      });
+    }
+    fail(res, safeMessage(e), e.status || 500);
+  }
+};
+
+// 最近一次同步的考试安排（读缓存，不访问教务系统）
+exports.listExams = async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT
+        id,
+        user_id AS userId,
+        name,
+        type,
+        date,
+        time,
+        location,
+        seat,
+        semester,
+        synced_at AS syncedAt
+      FROM user_exam
+      WHERE user_id = ?
+      ORDER BY date, time, id`,
+      [req.userId],
+    );
+    success(res, rows);
+  } catch (e) {
+    fail(res, safeMessage(e), 500);
+  }
+};
+
+// 最近一次同步的成绩（读缓存，不访问教务系统）
+exports.listGrades = async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT
+        id,
+        user_id AS userId,
+        semester,
+        name,
+        attribute,
+        credit,
+        gpa,
+        score,
+        synced_at AS syncedAt
+      FROM user_grade
+      WHERE user_id = ?
+      ORDER BY semester DESC, id`,
+      [req.userId],
+    );
+    success(res, rows);
+  } catch (e) {
+    fail(res, safeMessage(e), 500);
   }
 };
 

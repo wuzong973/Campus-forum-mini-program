@@ -1,0 +1,184 @@
+.page {
+  min-height: 100vh;
+  background: #f5f7fa;
+  padding: 24rpx 32rpx 48rpx;
+  box-sizing: border-box;
+}
+
+.action-row {
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+}
+
+.import-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8rpx;
+  height: 88rpx;
+  border: 2rpx dashed #7f9df7;
+  border-radius: 44rpx;
+  background: #fbfcff;
+  transition: opacity 0.2s ease;
+}
+
+.import-btn:active {
+  opacity: 0.75;
+}
+
+.import-text {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #5b7ff0;
+}
+
+.import-plus {
+  font-size: 34rpx;
+  color: #5b7ff0;
+  font-weight: 600;
+}
+
+.refresh-btn {
+  width: 88rpx;
+  height: 88rpx;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 2rpx solid #e3eaf6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: opacity 0.2s ease;
+}
+
+.refresh-btn:active {
+  opacity: 0.75;
+}
+
+.refresh-btn.refreshing .refresh-icon {
+  animation: refresh-spin 1s linear infinite;
+}
+
+@keyframes refresh-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.refresh-icon {
+  width: 36rpx;
+  height: 36rpx;
+}
+
+.synced-tip {
+  margin-top: 12rpx;
+  font-size: 22rpx;
+  color: #9aa5b8;
+  text-align: center;
+}
+
+.tab-bar {
+  display: flex;
+  margin-top: 24rpx;
+  border-bottom: 1rpx solid #eceff5;
+}
+
+.tab-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 20rpx 0 16rpx;
+  font-size: 30rpx;
+  color: #5a6478;
+  position: relative;
+}
+
+.tab-item.active {
+  color: #5b7ff0;
+  font-weight: 600;
+}
+
+.tab-underline {
+  position: absolute;
+  bottom: 0;
+  width: 56rpx;
+  height: 6rpx;
+  border-radius: 3rpx;
+  background: #5b7ff0;
+}
+
+.exam-list {
+  margin-top: 24rpx;
+  display: flex;
+  flex-direction: column;
+  gap: 20rpx;
+}
+
+.exam-card {
+  position: relative;
+  background: #ffffff;
+  border-radius: 20rpx;
+  padding: 32rpx 28rpx 28rpx;
+  box-shadow: 0 4rpx 16rpx rgba(31, 56, 120, 0.06);
+}
+
+.exam-card.ended {
+  opacity: 0.72;
+}
+
+.exam-badge {
+  position: absolute;
+  top: 24rpx;
+  right: 24rpx;
+  padding: 6rpx 18rpx;
+  border-radius: 20rpx;
+  font-size: 22rpx;
+  color: #5b7ff0;
+  background: #edf2ff;
+}
+
+.exam-badge.gray {
+  color: #8a93a6;
+  background: #f1f3f7;
+}
+
+.exam-name {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: #1f2a44;
+  margin-bottom: 20rpx;
+  padding-right: 140rpx;
+}
+
+.exam-info {
+  display: flex;
+  align-items: flex-start;
+  gap: 16rpx;
+  margin-top: 10rpx;
+}
+
+.info-label {
+  flex-shrink: 0;
+  width: 76rpx;
+  font-size: 24rpx;
+  color: #9aa5b8;
+}
+
+.info-value {
+  font-size: 26rpx;
+  color: #3c4a63;
+  line-height: 1.5;
+}
+
+.empty {
+  padding-top: 200rpx;
+  display: flex;
+  justify-content: center;
+}
+
+.empty-text {
+  font-size: 32rpx;
+  color: #5a6478;
+}

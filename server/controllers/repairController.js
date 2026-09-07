@@ -6,7 +6,7 @@ const wechat = require('../services/wechatService')
 const { createPrivateMessage } = require('./messageController')
 const { TECHNICIANS, findTechnician } = require('../config/repairTechnicians')
 
-const DEFAULT_PRICE = 19.9
+const DEFAULT_PRICE = 0.99
 
 function makeOrderNo() {
   const date = new Date().toISOString().slice(0, 10).replace(/-/g, '')

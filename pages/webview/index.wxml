@@ -1,4 +1,11 @@
 <web-view wx:if="{{url}}" src="{{url}}"></web-view>
+<view wx:elif="{{blockedUrl}}" class="webview-blocked">
+  <view class="blocked-icon">🔗</view>
+  <view class="blocked-title">该链接无法在小程序内打开</view>
+  <view class="blocked-desc">外部链接需要配置为小程序业务域名才能直接访问。链接已自动复制，可粘贴到浏览器中打开。</view>
+  <view class="blocked-url">{{blockedUrl}}</view>
+  <view class="blocked-btn" bindtap="onCopyBlockedUrl">复制链接</view>
+</view>
 <view wx:else class="webview-empty">
   <text>链接无效</text>
 </view>

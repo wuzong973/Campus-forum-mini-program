@@ -1,6 +1,17 @@
 const auth = require('../../utils/auth')
 const request = require('../../utils/request')
+const format = require('../../utils/format')
 const { runPullDownRefresh } = require('../../utils/refresh')
+
+// 状态文案（与接单大厅保持一致）
+const STATUS_TEXT = {
+  pending: '待接单',
+  accepted: '进行中',
+  done: '已完成',
+  unpaid: '待支付',
+  cancelled: '已取消',
+  refunding: '退款中'
+}
 
 Page({
   data: {
@@ -39,11 +50,7 @@ Page({
 
   refresh() {
     this.loadWallet()
-    if (!request.USE_MOCK) {
-      this._loadFromServer()
-    } else {
-      this._loadFromMock()
-    }
+    this._loadFromServer()
   },
 
   // 收益卡片数据：与钱包页共用 /wallet/summary，提现只能在钱包页发起
@@ -58,44 +65,11 @@ Page({
         }
       })
     }
-    if (request.USE_MOCK) {
-      apply(require('../../utils/mock').walletSummary)
-      return
-    }
     request.get('/wallet/summary', {}, true, { silent: true }).then(apply).catch(() => {})
   },
 
   goWallet() {
     wx.navigateTo({ url: '/pages/wallet/index' })
-  },
-
-  _loadFromMock() {
-    const mock = require('../../utils/mock')
-    const published = mock.myPublishedOrders.slice()
-    const accepted = mock.myAcceptedOrders.slice()
-    const isPublished = this.data.activeTab === 0
-    const list = isPublished ? published : accepted
-
-    const counts = { unpaid: 0, pending: 0, inProgress: 0, done: 0, cancelled: 0 }
-    const all = [...mock.myPublishedOrders, ...mock.myAcceptedOrders]
-    all.forEach((o) => {
-      const status = this.effectiveStatus(o, Number(o.publisherId || o.publisher_id) > 0)
-      if (status === 'unpaid') counts.unpaid++
-      else if (status === 'pending') counts.pending++
-      else if (o.status === 'accepted') counts.inProgress++
-      else if (o.status === 'finished') counts.done++
-      else if (o.status === 'cancelled') counts.cancelled++
-    })
-
-    const statusMap = ['unpaid', 'pending', 'accepted', 'finished', 'cancelled']
-    const target = statusMap[this.data.activeStatus]
-    const filtered = target ? list.filter((o) => this.effectiveStatus(o, isPublished) === target) : list
-
-    this.setData({
-      counts,
-      orders: filtered.map((o) => this.normalizeOrder(o)),
-      emptyText: isPublished ? '还没有发布的订单' : '还没有接过的订单'
-    })
   },
 
   _loadFromServer() {
@@ -135,43 +109,46 @@ Page({
   },
 
   normalizeOrder(o) {
-    const timeLimit = o.pickupTimeType || o.pickup_time_type || '尽快'
-    const genderReq = o.genderRequirement || o.gender_requirement || o.genderReq || '不限性别'
-    const isLargeItem = o.isLargeItem || o.is_large_item || false
-    const isUrgent = o.isUrgent || o.is_urgent || false
-    const extraTags = []
-    if (isLargeItem) extraTags.push('大件')
-    if (isUrgent) extraTags.push('加急')
     const isPublished = this.data.activeTab === 0
     const effectiveStatus = this.effectiveStatus(o, isPublished)
     const paymentStatus = String(o.paymentStatus || o.payment_status || 'SUCCESS').toUpperCase()
     const statusClass = o.status === 'cancelled' && paymentStatus === 'REFUNDING' ? 'refunding' : (effectiveStatus === 'finished' ? 'done' : effectiveStatus)
+    // 性别限制标签分类（与接单大厅一致）
+    const genderRaw = o.gender_requirement || o.genderRequirement || ''
+    const genderClass = genderRaw === '限男生' ? 'male' : (genderRaw === '限女生' ? 'female' : 'any')
+    const expectText = o.expectTime || o.expect_time || o.appointmentTime ||
+      (o.pickupTimeType === 'scheduled' && (o.pickupTime || o.pickup_time) ? (o.pickupTime || o.pickup_time) : '越快越好')
     return {
       id: o.id,
-      type: o.type || '快递',
-      title: o.title || ((o.type || '快递') + '代拿'),
-      desc: o.desc || o.description,
-      reward: o.reward || o.totalAmount,
-      pickupAddr: o.pickupAddr || o.pickup_addr || '',
-      deliveryAddr: o.deliveryAddr || o.delivery_addr || '',
-      campus: o.campus || '未填写校区',
-      status: effectiveStatus === 'finished' ? 'done' : effectiveStatus,
+      // 与接单大厅相同的卡片版式：头像+昵称+校区/性别标签+状态胶囊 / 公开描述+红色金额 / 期望完成时间
+      statusText: STATUS_TEXT[statusClass] || '待接单',
       statusClass,
-      paymentStatus,
-      publisherName: o.publisherName || o.publisher_name || '',
-      accepterName: o.accepterName || o.accepter_name || '',
+      price: o.reward || o.totalAmount,
+      descText: (o.remark || o.description || o.desc || o.title || ((o.type || '快递') + '代拿')).trim(),
+      campus: o.campus || '',
+      genderText: genderRaw,
+      genderClass,
+      authorName: o.publisher_name || o.publisherName || '校园用户',
+      avatarUrl: o.publisher_avatar || o.publisherAvatar || '/assets/icons/avatar.png',
+      expectText,
+      publishTime: format.formatRelativeTime(o.createdAt || o.created_at) || '刚刚',
+      role: o.role || (isPublished ? 'publisher' : 'accepter'),
       publisherId: o.publisherId || o.publisher_id || 0,
       accepterId: o.accepterId || o.accepter_id || o.acceptorId || o.acceptor_id || 0,
-      role: o.role || (this.data.activeTab === 0 ? 'publisher' : 'accepter'),
-      createdAt: o.createdAt || o.created_at,
-      acceptedAt: o.acceptedAt || o.accepted_at,
-      itemCount: o.itemCount || 1,
-      timeLimit: timeLimit,
-      genderReq: genderReq,
-      noUpstairs: false,
-      extraTags: extraTags,
+      action: this.cardAction(statusClass, isPublished),
       raw: o
     }
+  },
+
+  // 各标签下的主操作按钮（与接单大厅"我发布的/我接的单"逻辑一致）
+  cardAction(statusKey, isPublished) {
+    if (isPublished) {
+      if (statusKey === 'unpaid') return 'pay'
+      if (statusKey === 'pending') return 'cancel'
+      if (statusKey === 'accepted') return 'contact'
+      return ''
+    }
+    return statusKey === 'accepted' ? 'finish' : ''
   },
 
   effectiveStatus(o, isPublished) {
@@ -197,33 +174,9 @@ Page({
     this.refresh()
   },
 
-  onAccept(e) {
-    const order = e.detail.order
-    if (!auth.requireLogin('操作需要先登录')) return
-    wx.showModal({
-      title: '确认接单',
-      content: '确定接受此订单？',
-      success: (res) => {
-        if (!res.confirm) return
-        if (request.USE_MOCK) {
-          order.status = 'accepted'
-          order.role = 'accepter'
-          order.acceptedAt = new Date().toISOString()
-          this.refresh()
-          wx.showToast({ title: '接单成功', icon: 'success' })
-        } else {
-          request.post('/errand/' + order.id + '/accept', {}, true).then(() => {
-            wx.showToast({ title: '接单成功', icon: 'success' })
-            this.refresh()
-          }).catch(() => {})
-        }
-      }
-    })
-  },
-
   onPay(e) {
-    const order = e.detail.order
-    if (!order || order.status !== 'unpaid') return
+    const order = e.currentTarget.dataset.order || {}
+    if (!order.id || order.statusClass !== 'unpaid') return
     request.post('/errand/' + order.id + '/pay', {}, true, { idempotencyKey: 'errand_repay_' + order.id }).then((payment) => {
       return new Promise((resolve, reject) => wx.requestPayment({ ...payment, success: resolve, fail: reject }))
     }).then(() => {
@@ -236,58 +189,24 @@ Page({
   },
 
   onOpenDetail(e) {
-    const order = e.detail.order || {}
+    const order = e.currentTarget.dataset.order || {}
     if (!order.id) return
     wx.navigateTo({ url: '/pages/errand-detail/index?id=' + order.id })
   },
 
   onFinish(e) {
-    const order = e.detail.order
+    const order = e.currentTarget.dataset.order || {}
     if (order && order.id) {
       wx.navigateTo({ url: '/pages/errand-complete/index?id=' + order.id })
-      return
-    }
-    if (request.USE_MOCK) {
-      wx.chooseMedia({
-        count: 1,
-        mediaType: ['image'],
-        sourceType: ['camera'],
-        success: (res) => {
-          const photoPath = res.tempFiles[0].tempFilePath
-          wx.showModal({
-            title: '确认完成',
-            content: '送达照片已拍摄，确认完成此订单？',
-            success: (modalRes) => {
-              if (!modalRes.confirm) return
-              order.status = 'finished'
-              order.deliveryPhoto = photoPath
-              this.refresh()
-              wx.showToast({ title: '订单已完成', icon: 'success' })
-            }
-          })
-        },
-        fail: () => {
-          wx.showToast({ title: '需要送达照片才能完成订单', icon: 'none' })
-        }
-      })
-    } else {
-      wx.showModal({
-        title: '确认完成',
-        content: '确认完成此订单？',
-        success: (modalRes) => {
-          if (!modalRes.confirm) return
-          request.post('/errand/' + order.id + '/finish', {}, true).then(() => {
-            wx.showToast({ title: '订单已完成', icon: 'success' })
-            this.refresh()
-          }).catch(() => {})
-        }
-      })
     }
   },
 
   onContact(e) {
-    const order = e.detail.order
-    const peerId = order.role === 'publisher' ? order.accepterId : order.publisherId
+    const order = e.currentTarget.dataset.order || {}
+    const raw = order.raw || {}
+    const peerId = Number(order.role === 'publisher'
+      ? (order.accepterId || raw.accepterId || raw.accepter_id || 0)
+      : (order.publisherId || raw.publisherId || raw.publisher_id || 0))
     if (!peerId) {
       wx.showToast({ title: '对方暂未接单，暂无法联系', icon: 'none' })
       return
@@ -297,56 +216,10 @@ Page({
   },
 
   onCancel(e) {
-    const order = e.detail.order
+    const order = e.currentTarget.dataset.order || {}
     if (order && order.id) {
       const roleParam = order.role === 'publisher' ? '&role=publisher' : ''
       wx.navigateTo({ url: '/pages/errand-cancel/index?id=' + order.id + roleParam })
-      return
-    }
-    if (request.USE_MOCK) {
-      if (order.role === 'accepter') {
-        const acceptedAt = order.acceptedAt || order.createdAt
-        const elapsed = Date.now() - new Date(acceptedAt).getTime()
-        if (elapsed >= 5 * 60 * 1000) {
-          wx.showModal({
-            title: '无法取消',
-            content: '接单已超过5分钟，请联系发布者让发布者取消订单',
-            confirmText: '去联系',
-            success: (res) => {
-              if (res.confirm) {
-                wx.navigateTo({ url: '/pages/errand-chat/index?orderId=' + order.id })
-              }
-            }
-          })
-          return
-        }
-      }
-      wx.showModal({
-        title: '确认取消',
-        content: '确定要取消此订单吗？',
-        confirmText: '确认取消',
-        confirmColor: '#ee4444',
-        success: (res) => {
-          if (!res.confirm) return
-          order.status = 'cancelled'
-          this.refresh()
-          wx.showToast({ title: '订单已取消', icon: 'success' })
-        }
-      })
-    } else {
-      wx.showModal({
-        title: '确认取消',
-        content: '确定要取消此订单吗？',
-        confirmText: '确认取消',
-        confirmColor: '#ee4444',
-        success: (res) => {
-          if (!res.confirm) return
-          request.post('/errand/' + order.id + '/cancel', {}, true, { idempotencyKey: 'errand_cancel_' + order.id }).then((data) => {
-            wx.showToast({ title: data && data.refundStatus ? '订单已取消，退款处理中' : '订单已取消', icon: 'success' })
-            this.refresh()
-          }).catch(() => {})
-        }
-      })
     }
   },
 

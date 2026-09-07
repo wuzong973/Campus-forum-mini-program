@@ -2,7 +2,7 @@
   <!-- 自定义导航栏（绿色系与跑腿主题一致，标题与私信聊天区分） -->
   <view class="custom-nav" style="padding-top: {{statusBarHeight}}px;">
     <view class="nav-content" style="height: {{navBarHeight}}px;">
-      <view class="nav-back" hover-class="nav-back-hover" hover-stay-time="80" bindtap="onNavBack"><text class="nav-back-icon">‹</text></view>
+      <view class="back-pill" hover-class="back-pill-hover" hover-stay-time="80" bindtap="onNavBack"><text class="back-pill-icon">‹</text><text>返回</text></view>
       <view class="nav-title-wrap"><text class="nav-title">跑腿聊天</text></view>
       <view class="nav-right">
         <text class="order-status" wx:if="{{statusText}}">{{statusText}}</text>
@@ -36,7 +36,7 @@
         <text class="sender-name">{{item.nickname}}</text>
         <view class="message-bubble {{item.type === 'image' || item.type === 'video' ? 'media-bubble' : ''}}">
           <text wx:if="{{item.type === 'text'}}" class="message-text">{{item.content}}</text>
-          <image wx:elif="{{item.type === 'image'}}" class="message-image" src="{{item.content}}" mode="widthFix" data-src="{{item.content}}" catchtap="onPreviewImage"></image>
+          <image wx:elif="{{item.type === 'image'}}" class="message-image" src="{{item.content}}" mode="widthFix" data-src="{{item.content}}" catchtap="onPreviewImage" bindlongpress="onImageQrScan"></image>
           <video wx:elif="{{item.type === 'video'}}" class="message-video" src="{{item.content}}" controls object-fit="contain"></video>
           <text wx:else class="message-emoji">{{item.content}}</text>
         </view>

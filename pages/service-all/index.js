@@ -23,7 +23,41 @@ Page({
 
   onServiceTap(e) {
     const item = e.detail.item
-    // 跳转到外部小程序（乘车码 / 食堂菜单 等）
+    // 教务考试安排：进入考试安排页
+    if (item.name === '考试安排') {
+      wx.vibrateShort({ type: 'light' })
+      wx.navigateTo({ url: '/pkg-schedule/schedule-exam/index' })
+      return
+    }
+    // 教务成绩查询：进入成绩查询页
+    if (item.name === '成绩查询') {
+      wx.vibrateShort({ type: 'light' })
+      wx.navigateTo({ url: '/pkg-schedule/schedule-grade/index' })
+      return
+    }
+    // 失物招领：切回首页并定位到"失物寻物"分类
+    if (item.name === '失物招领') {
+      wx.vibrateShort({ type: 'light' })
+      wx.setStorageSync('home_pending_category', '失物寻物')
+      wx.switchTab({ url: '/pages/index/index' })
+      return
+    }
+    // 二手闲置：切回首页并定位到"二手闲置"分类
+    if (item.name === '二手闲置') {
+      wx.vibrateShort({ type: 'light' })
+      wx.setStorageSync('home_pending_category', '二手闲置')
+      wx.switchTab({ url: '/pages/index/index' })
+      return
+    }
+    // 教务系统：跳转教务系统首页（webview 内嵌）
+    if (item.name === '教务系统') {
+      wx.vibrateShort({ type: 'light' })
+      wx.navigateTo({
+        url: '/pages/webview/index?url=' + encodeURIComponent('https://jw.gdipu.edu.cn/jsxsd') + '&title=' + encodeURIComponent('教务系统')
+      })
+      return
+    }
+    // 跳转到外部小程序（乘车码 / 零食店 等）
     if (item.miniAppId) {
       wx.vibrateShort({ type: 'light' })
       wx.navigateToMiniProgram({
@@ -41,9 +75,9 @@ Page({
       })
       return
     }
-    // 跳转到外部 H5 页面（订水系统 / 教务系统 等）
+    // 跳转到外部 H5 页面（订水系统 / 自助购电 等）
     if (item.link) {
-      if (!/^https:\/\//i.test(item.link)) {
+      if (!/^https?:\/\//i.test(item.link)) {
         wx.showToast({ title: '该服务链接暂不可用', icon: 'none' })
         return
       }
@@ -57,7 +91,7 @@ Page({
       '代拿跑腿': '/pages/errand/index',
       '课程表': '/pages/schedule/index',
       '社区论坛': '/pages/index/index',
-      '广轻维修': '/pages/repair/index',
+      '广轻义修': '/pages/repair/index',
       '校园地图': '/pages/campus-map/index'
     }
     const url = routes[item.name]

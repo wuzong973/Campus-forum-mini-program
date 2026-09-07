@@ -2,9 +2,8 @@ const auth = require('../../utils/auth')
 const request = require('../../utils/request')
 const wechat = require('../../utils/wechat')
 const format = require('../../utils/format')
+const qr = require('../../utils/qr')
 const { runPullDownRefresh } = require('../../utils/refresh')
-
-const MOCK_KEY = 'public_feedback'
 
 Page({
   data: {
@@ -61,11 +60,6 @@ Page({
     if (this.data.loading || (!reset && !this.data.hasMore)) return Promise.resolve()
     const page = reset ? 1 : this.data.page
     this.setData({ loading: true })
-    if (request.USE_MOCK) {
-      const list = (wx.getStorageSync(MOCK_KEY) || []).map((item) => this.formatFeedback(item))
-      this.setData({ feedbacks: list, page: 2, hasMore: false, loading: false })
-      return Promise.resolve()
-    }
     return request.get('/feedback', { page, pageSize: 20 }, false, { silent: true })
       .then((data) => {
         const list = (data.list || []).map((item) => this.formatFeedback(item))
@@ -156,14 +150,6 @@ Page({
       this.setData({ feedbacks })
       wx.showToast({ title: target === 'resolved' ? '已标记为已解决' : '已取消解决', icon: 'success' })
     }
-    if (request.USE_MOCK) {
-      const list = (wx.getStorageSync(MOCK_KEY) || []).map((item) => (
-        String(item.id) === String(feedback.id) ? Object.assign({}, item, { status: target }) : item
-      ))
-      wx.setStorageSync(MOCK_KEY, list)
-      apply()
-      return
-    }
     request.put('/feedback/' + feedback.id + '/status', { status: target }, true, { showLoading: '处理中...' })
       .then(apply)
       .catch((error) => wx.showToast({ title: error.message || '操作失败，请稍后重试', icon: 'none' }))
@@ -186,12 +172,6 @@ Page({
       confirmColor: '#e64340',
       success: (res) => {
         if (!res.confirm) return
-        if (request.USE_MOCK) {
-          wx.setStorageSync(MOCK_KEY, (wx.getStorageSync(MOCK_KEY) || []).filter((item) => String(item.id) !== String(feedback.id)))
-          this.setData({ feedbacks: this.data.feedbacks.filter((item) => String(item.id) !== String(feedback.id)) })
-          wx.showToast({ title: '已删除', icon: 'success' })
-          return
-        }
         request.del('/feedback/' + feedback.id, {}, true).then(() => {
           this.setData({ feedbacks: this.data.feedbacks.filter((item) => String(item.id) !== String(feedback.id)) })
           wx.showToast({ title: '已删除', icon: 'success' })
@@ -300,18 +280,6 @@ Page({
       this.setData({ feedbacks, commentEditorId: null, commentReplyTo: 0, commentTargetNick: '', commentDraft: '', commentSubmitting: false })
       wx.showToast({ title: '评论已发布', icon: 'success' })
     }
-    if (request.USE_MOCK) {
-      const user = getApp().globalData.userInfo || {}
-      finish({
-        id: Date.now(),
-        userId: user.id,
-        nickName: user.nickName || '校园同学',
-        replyToNick: this.data.commentTargetNick || '',
-        content,
-        createdAt: new Date().toISOString()
-      })
-      return
-    }
     request.post('/feedback/' + feedbackId + '/comments', payload, true, { showLoading: '发布中...' })
       .then(finish)
       .catch((error) => {
@@ -352,16 +320,6 @@ Page({
           ))
           this.setData({ feedbacks })
           wx.showToast({ title: '评论已删除', icon: 'success' })
-        }
-        if (request.USE_MOCK) {
-          const list = (wx.getStorageSync(MOCK_KEY) || []).map((item) => (
-            String(item.id) === String(feedback.id)
-              ? Object.assign({}, item, { comments: (item.comments || []).filter((c) => String(c.id) !== String(comment.id)) })
-              : item
-          ))
-          wx.setStorageSync(MOCK_KEY, list)
-          finish()
-          return
         }
         request.del('/feedback/comments/' + comment.id, {}, true).then(finish).catch((error) => {
           wx.showToast({ title: error.message || '删除失败，请稍后重试', icon: 'none' })
@@ -409,16 +367,6 @@ Page({
           this.setData({ feedbacks, expandedId: null, editingReplyId: null, replyDraft: '' })
           wx.showToast({ title: '回复已删除', icon: 'success' })
         }
-        if (request.USE_MOCK) {
-          const list = (wx.getStorageSync(MOCK_KEY) || []).map((item) => (
-            String(item.id) === String(feedback.id)
-              ? Object.assign({}, item, { reply: '', replyUserId: 0, replyNickName: '', replyAt: null, status: 'pending' })
-              : item
-          ))
-          wx.setStorageSync(MOCK_KEY, list)
-          finish()
-          return
-        }
         request.del('/feedback/' + feedback.id + '/reply', {}, true).then(finish).catch((error) => {
           wx.showToast({ title: error.message || '删除失败，请稍后重试', icon: 'none' })
         })
@@ -457,16 +405,6 @@ Page({
       ))
       this.setData({ feedbacks, expandedId: null, replyDraft: '', editingReplyId: null, replySubmitting: false })
       wx.showToast({ title: isEdit ? '回复已更新' : '回复已发布', icon: 'success' })
-    }
-    if (request.USE_MOCK) {
-      const list = (wx.getStorageSync(MOCK_KEY) || []).map((item) => (
-        String(item.id) === String(feedbackId)
-          ? Object.assign({}, item, { reply: content, replyNickName: item.replyNickName || '管理员', replyAt: new Date().toISOString(), status: item.status === 'resolved' ? 'resolved' : 'replied' })
-          : item
-      ))
-      wx.setStorageSync(MOCK_KEY, list)
-      finish({ reply: content, replyNickName: '管理员', replyAt: new Date().toISOString() })
-      return
     }
     const req = isEdit
       ? request.put('/feedback/' + feedbackId + '/reply', { content }, true, { showLoading: '保存中...' })
@@ -517,6 +455,12 @@ Page({
     if (current && urls.length) wx.previewImage({ current, urls })
   },
 
+  // 长按反馈图片：统一二维码识别菜单（识别 / 预览）
+  onImageQrScan(e) {
+    const { url, urls } = e.currentTarget.dataset
+    qr.recognize(url, urls)
+  },
+
   submitFeedback() {
     const content = this.data.feedbackContent.trim()
     if (content.length < 10) {
@@ -537,16 +481,6 @@ Page({
         scrollTop: 0
       })
       wx.showToast({ title: '意见已公开发布', icon: 'success' })
-    }
-    if (request.USE_MOCK) {
-      const user = getApp().globalData.userInfo || {}
-      const created = Object.assign({
-        id: Date.now(), userId: user.id, images: this.data.images.slice(), status: 'pending', createdAt: new Date().toISOString(),
-        nickName: user.nickName || '校园同学', avatarUrl: user.avatarUrl || '/assets/icons/avatar.png'
-      }, payload(this.data.images.slice()))
-      wx.setStorageSync(MOCK_KEY, [created].concat(wx.getStorageSync(MOCK_KEY) || []))
-      finish(created)
-      return
     }
     wechat.uploadImages(this.data.images)
       .then((images) => request.post('/feedback', payload(images), true, { showLoading: '发布中...' }).then((result) => ({ result, images })))
@@ -574,16 +508,6 @@ Page({
       ))
       this.setData({ feedbacks, showForm: false, editingId: null, feedbackContent: '', images: [], submitting: false })
       wx.showToast({ title: '意见已更新', icon: 'success' })
-    }
-    if (request.USE_MOCK) {
-      const list = (wx.getStorageSync(MOCK_KEY) || []).map((item) => (
-        String(item.id) === String(this.data.editingId)
-          ? Object.assign({}, item, { type: this.data.feedbackType, content, images: this.data.images.slice() })
-          : item
-      ))
-      wx.setStorageSync(MOCK_KEY, list)
-      finish(this.data.images.slice())
-      return
     }
     const remoteUrls = []
     const localPaths = []

@@ -1,8 +1,8 @@
 .page{min-height:100vh;background:#f6f7f9;padding:0 16rpx 200rpx;box-sizing:border-box;color:#2f4054}
 .topbar{position:fixed;z-index:5;top:0;left:0;right:0;background:#fff}
 .topbar-inner{display:flex;align-items:center;justify-content:space-between;padding:0 12rpx}
-.back{font-size:64rpx;line-height:1;width:72rpx;color:#1f2b3a}
-.topbar-right{width:150rpx}
+
+.topbar-right{width:132rpx}
 .nav-title{font-size:34rpx;font-weight:600;color:#1f2b3a}
 .nav-space{width:100%}
 .card{background:#fff;border-radius:18rpx;margin:20rpx 8rpx 0;padding:28rpx 24rpx;box-shadow:0 3rpx 14rpx rgba(25,45,75,.05)}

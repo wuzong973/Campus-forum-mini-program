@@ -1,6 +1,7 @@
 const request = require('../../utils/request')
 const format = require('../../utils/format')
 const api = require('../../utils/api')
+const qr = require('../../utils/qr')
 
 Page({
   data: {
@@ -45,6 +46,8 @@ Page({
       canViewProfile: actorUserId > 0,
       content,
       mediaItems,
+      // 图片 URL 列表：长按识别菜单里"预览大图"使用
+      mediaUrls: mediaItems.filter((m) => !m.video).map((m) => m.url),
       time: payload.time || '',
       actionTitle,
       postTitle: payload.postTitle || ''
@@ -64,8 +67,14 @@ Page({
     wx.previewImage({ current: url, urls })
   },
 
+  // 长按评论图片：统一二维码识别菜单（识别 / 预览）
+  onImageQrScan(e) {
+    const { url, urls } = e.currentTarget.dataset
+    qr.recognize(url, urls)
+  },
+
   loadPost() {
-    if (!this.data.postId || request.USE_MOCK) {
+    if (!this.data.postId) {
       this.setData({ loading: false })
       return
     }

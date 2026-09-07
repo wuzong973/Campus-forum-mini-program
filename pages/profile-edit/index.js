@@ -72,7 +72,7 @@ Page({
     if (!nick) { wx.showToast({ title: '昵称不能为空', icon: 'none' }); return }
     wx.showLoading({ title: '保存中...', mask: true })
     try {
-      if (!request.USE_MOCK) await request.put('/user/info', { nickName: nick }, true)
+      await request.put('/user/info', { nickName: nick }, true)
       this._applyProfile({ nickName: nick })
       this.setData({ showSheet: '', nickName: nick })
       wx.hideLoading()
@@ -108,8 +108,8 @@ Page({
         wx.showLoading({ title: '上传中...', mask: true })
         try {
           let avatarUrl = path
-          if (!request.USE_MOCK) avatarUrl = (await wechat.uploadImages([path]))[0] || path
-          if (!request.USE_MOCK) await request.put('/user/info', { avatarUrl }, true)
+          avatarUrl = (await wechat.uploadImages([path]))[0] || path
+          await request.put('/user/info', { avatarUrl }, true)
           this._applyProfile({ avatarUrl })
           this.setData({ avatarUrl })
           wx.hideLoading()
@@ -147,7 +147,7 @@ Page({
     this.setData({ savingAvatar: true })
     wx.showLoading({ title: '更换中...', mask: true })
     try {
-      if (!request.USE_MOCK) await request.put('/user/info', { avatarUrl }, true)
+      await request.put('/user/info', { avatarUrl }, true)
       this._applyProfile({ avatarUrl })
       this.setData({ avatarUrl, showSheet: '', savingAvatar: false })
       wx.hideLoading()

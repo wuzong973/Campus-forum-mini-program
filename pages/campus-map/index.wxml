@@ -2,7 +2,7 @@
   <map id="campusMap" class="map" latitude="{{latitude}}" longitude="{{longitude}}" scale="{{scale}}" markers="{{markers}}" polygons="{{polygons}}" enable-satellite="{{satellite}}" show-location enable-zoom enable-scroll bindmarkertap="onMarkerTap"></map>
 
   <view class="topbar" style="padding-top: {{statusBarHeight}}px;">
-    <view class="back-btn" bindtap="goBack"><text>‹</text></view>
+    <view class="back-pill" hover-class="back-pill-hover" hover-stay-time="80" bindtap="goBack"><text class="back-pill-icon">‹</text><text>返回</text></view>
     <view class="campus-trigger" bindtap="openCampusPicker"><text>{{campus.name}}</text><text class="chevron">⌄</text></view>
     <view class="top-spacer"></view>
   </view>

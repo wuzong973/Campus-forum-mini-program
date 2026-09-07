@@ -157,7 +157,7 @@ App({
 
   syncScheduleConfig() {
     const request = require('./utils/request')
-    if (!this.globalData.token || request.USE_MOCK) return Promise.resolve(null)
+    if (!this.globalData.token) return Promise.resolve(null)
     return request.get('/schedule/config', {}, true, { silent: true }).then((config) => {
       if (!config) return null
       this.globalData.scheduleConfig = Object.assign({}, this.globalData.scheduleConfig, config)

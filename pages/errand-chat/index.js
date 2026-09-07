@@ -1,6 +1,8 @@
 const api = require('../../utils/api')
 const wechat = require('../../utils/wechat')
 const messageStore = require('../../utils/messageStore')
+const image = require('../../utils/image')
+const qr = require('../../utils/qr')
 
 // 跑腿订单专属聊天页：接单人与发单人的独立会话（双方真实身份，与私信完全分开）
 function formatTime(value) {
@@ -226,8 +228,15 @@ Page({
       sourceType: ['album', 'camera'],
       maxDuration: 60,
       success: async (res) => {
-        const file = (res.tempFiles || [])[0]
-        if (!file || !file.tempFilePath) return
+        // maxDuration 只限制拍摄，相册长视频需按 duration 二次校验
+        const raw = (res.tempFiles || [])[0]
+        if (!raw || !raw.tempFilePath) return
+        const { valid } = image.splitOverlongVideos([raw])
+        if (!valid.length) {
+          wx.showToast({ title: '视频不能超过1分钟，请重新选择', icon: 'none' })
+          return
+        }
+        const file = raw
         this.setData({ activePanel: '' })
         wx.showLoading({ title: '发送视频...', mask: true })
         try {
@@ -252,6 +261,13 @@ Page({
     const current = e.currentTarget.dataset.src
     const urls = this.data.messages.filter((item) => item.type === 'image').map((item) => item.content)
     wx.previewImage({ current, urls })
+  },
+
+  // 长按图片消息：统一二维码识别菜单（识别 / 预览）
+  onImageQrScan(e) {
+    const src = e.currentTarget.dataset.src
+    const urls = this.data.messages.filter((item) => item.type === 'image').map((item) => item.content)
+    qr.recognize(src, urls)
   },
 
   onLoadMore() {

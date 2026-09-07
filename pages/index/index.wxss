@@ -208,7 +208,7 @@
 
 .notice-text {
   font-size: 24rpx;
-  color: #646566;
+  color: var(--banner-fg, #646566);
   flex: 1;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -220,7 +220,7 @@
 }
 
 .notice-admin {
-  color: #0066cc;
+  color: var(--banner-fg, #0066cc);
   font-size: 24rpx;
   font-weight: 600;
   text-decoration: underline;
@@ -231,7 +231,7 @@
   padding: 4rpx 10rpx;
   border-radius: 999rpx;
   background: rgba(250, 173, 20, 0.16);
-  color: #d48806;
+  color: var(--banner-fg, #d48806);
   font-size: 20rpx;
 }
 
@@ -509,62 +509,85 @@
 
 .post-feed { margin: 0 12rpx; }
 
-/* 浮动操作按钮 */
+/* 浮动操作按钮：每日热榜 / 私信 / 回到顶部（固定右下角） */
 .float-actions {
   position: fixed;
   right: 24rpx;
-  bottom: 400rpx;
+  /* 兜底值：env() 不生效时也能避开底部导航 */
+  bottom: 210rpx;
+  /* 展开态基线：置顶按钮底边距底部导航的参考线 */
+  bottom: calc(200rpx + env(safe-area-inset-bottom));
   display: flex;
   flex-direction: column;
-  gap: 20rpx;
-  opacity: 0;
-  transform: translateY(40rpx);
-  transition: all 0.3s ease;
-  pointer-events: none;
+  align-items: center;
+  gap: 18rpx;
   z-index: 90;
+  /* 初始整体下移一个图标高度（隐藏置顶按钮的位置），出现时被顶起复位 */
+  transform: translateY(84rpx);
+  transition: transform 0.32s cubic-bezier(0.22, 0.61, 0.36, 1);
 }
 
-.float-actions.show {
-  opacity: 1;
+/* 「回到置顶」出现：整个图标组被顶起一个身位 */
+.float-actions.rise {
   transform: translateY(0);
-  pointer-events: auto;
 }
 
 .float-btn {
-  width: 88rpx;
-  height: 88rpx;
-  background: #e5e5e5;
+  width: 84rpx;
+  height: 84rpx;
+  background: #ffffff;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 3rpx 10rpx rgba(0, 0, 0, 0.08);
+  box-shadow: 0 6rpx 20rpx rgba(31, 44, 75, 0.14);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
-.float-btn:active {
+.float-btn-pressed {
   transform: scale(0.92);
+  box-shadow: 0 3rpx 10rpx rgba(31, 44, 75, 0.1);
 }
 
-.float-btn-publish {
-  background: #4a7aff;
+/* 图标配色（iconfont 字体图标） */
+.float-icon {
+  font-size: 46rpx;
+  line-height: 1;
 }
 
-.float-btn-icon {
-  width: 48rpx;
-  height: 48rpx;
+.float-icon-hot {
+  color: #ff6b35;
 }
 
-.float-btn-publish .float-btn-icon {
-  filter: brightness(0) invert(1);
+.float-icon-msg {
+  color: #4a90f8;
 }
 
-.float-btn-text {
-  font-size: 18rpx;
-  color: #646566;
+/* 回到顶部：随容器顶起而淡入滑出。
+   隐藏态占位保留（transform 不影响布局，前两个按钮位置由容器统一控制），不可交互 */
+.float-btn-top {
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(28rpx);
+  transition:
+    transform 0.32s cubic-bezier(0.22, 0.61, 0.36, 1),
+    opacity 0.26s ease-out;
 }
 
-.float-btn-publish .float-btn-text {
-  color: #fff;
+.float-btn-top.show {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0);
+}
+
+/* 显示态下保留按压缩放反馈（.show 优先级高于 hover-class，需显式覆盖） */
+.float-btn-top.show.float-btn-pressed {
+  transform: translateY(0) scale(0.92);
+}
+
+/* 回到顶部图标颜色：深灰箭头 */
+.float-btn-top .float-icon {
+  color: #5e6675;
 }
 
 /* ============ 骨架屏 ============ */
@@ -949,7 +972,7 @@
 .hot-rank-stats { display: flex; align-items: center; gap: 20rpx; color: #9aa5b2; font-size: 21rpx; }
 .hot-rank-stats view { display: flex; align-items: center; gap: 4rpx; }
 .hot-rank-stats image { width: 30rpx; height: 30rpx; opacity: .7; }
-.hot-rank-empty { padding: 72rpx 0; text-align: center; color: #98a2b3; font-size: 27rpx; }
+.hot-rank-empty { padding: 72rpx 0; text-align: center; color: #98a2b3; font-size: 26rpx; }
 
 /* 首页热榜预览 */
 .today-hot-card {
@@ -970,7 +993,7 @@
 .today-hot-text { display: block; overflow: hidden; flex: 1; min-width: 0; color: #222; font-size: 25rpx; line-height: 38rpx; text-overflow: ellipsis; white-space: nowrap; }
 .today-hot-card { transition: var(--transition); }
 .today-hot-card:active { transform: translateY(-2rpx); box-shadow: 0 12rpx 26rpx rgba(237, 176, 42, 0.14); }
-.today-hot-loading { padding: 24rpx 18rpx; color: #9aa5b1; font-size: 25rpx; text-align: center; }
+.today-hot-loading { padding: 24rpx 18rpx; color: #9aa5b1; font-size: 26rpx; text-align: center; }
 
 @keyframes sheetUp {
   from {

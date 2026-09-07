@@ -161,6 +161,26 @@
       </view>
       <text class="sync-arrow">></text>
     </view>
+    <view class="drawer-item sync-item exam-item" bindtap="goExamSchedule">
+      <view class="sync-icon-wrap exam-icon-wrap">
+        <image class="sync-icon" src="/assets/icons/svc-exam.png" mode="aspectFit"></image>
+      </view>
+      <view class="sync-text">
+        <text class="sync-title">查询考试安排</text>
+        <text class="sync-desc">同步并查看考试时间与地点</text>
+      </view>
+      <text class="sync-arrow">></text>
+    </view>
+    <view class="drawer-item sync-item grade-item" bindtap="goMyGrades">
+      <view class="sync-icon-wrap grade-icon-wrap">
+        <image class="sync-icon" src="/assets/icons/svc-grade.png" mode="aspectFit"></image>
+      </view>
+      <view class="sync-text">
+        <text class="sync-title">查询我的成绩</text>
+        <text class="sync-desc">同步并查看各科成绩与绩点</text>
+      </view>
+      <text class="sync-arrow">></text>
+    </view>
     <view class="drawer-item flex-between">
       <text>隐藏周末</text>
       <switch checked="{{hideWeekend}}" bindchange="onHideWeekend" color="#4A7AFF" />
@@ -184,9 +204,6 @@
         <text class="edit-desc">管理已添加的课程</text>
       </view>
       <text class="edit-arrow">></text>
-    </view>
-    <view class="drawer-item back" bindtap="closeDrawer">
-      <text>返回</text>
     </view>
   </view>
 </view>

@@ -1,4 +1,5 @@
 const request = require('../../utils/request')
+const qr = require('../../utils/qr')
 const { runPullDownRefresh } = require('../../utils/refresh')
 
 Page({
@@ -53,6 +54,12 @@ Page({
     wx.previewImage({ current, urls: this.data.images })
   },
 
+  // 长按凭证图：统一二维码识别菜单（识别 / 预览）
+  onImageQrScan(e) {
+    const { url, urls } = e.currentTarget.dataset
+    qr.recognize(url, urls)
+  },
+
   removeImage(e) {
     const images = this.data.images.slice()
     images.splice(Number(e.currentTarget.dataset.index), 1)
@@ -60,7 +67,7 @@ Page({
   },
 
   uploadImages() {
-    if (!this.data.images.length || request.USE_MOCK) return Promise.resolve([])
+    if (!this.data.images.length) return Promise.resolve([])
     const token = getApp().globalData.token || wx.getStorageSync('token') || ''
     return Promise.all(this.data.images.map((filePath) => new Promise((resolve, reject) => {
       wx.uploadFile({
@@ -102,21 +109,10 @@ Page({
   doFinish(description) {
     this.setData({ submitting: true })
     this.uploadImages().then((images) => {
-      if (request.USE_MOCK) {
-        const mock = require('../../utils/mock')
-        ;[...mock.myAcceptedOrders, ...mock.myPublishedOrders].forEach((o) => {
-          if (String(o.id) === String(this.data.id)) o.status = 'finished'
-        })
-        return null
-      }
       return request.post('/errand/' + this.data.id + '/finish', { description, images }, true, { idempotencyKey: 'errand_finish_' + this.data.id })
     }).then(() => {
       wx.showToast({ title: '提交成功', icon: 'success' })
       setTimeout(() => wx.navigateBack(), 700)
     }).catch(() => {}).finally(() => this.setData({ submitting: false }))
-  },
-
-  contactService() {
-    wx.showToast({ title: '客服将在工作时间联系你', icon: 'none' })
   }
 })

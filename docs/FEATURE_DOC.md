@@ -16,13 +16,13 @@ MySQL 8.0 + Redis 7
 
 ### 2.1 工具层
 
-| 模块 | 路径 | 功能 |
-|------|------|------|
+| 模块     | 路径               | 功能                                  |
+| -------- | ------------------ | ------------------------------------- |
 | 请求封装 | `utils/request.js` | Token注入、超时15s、401跳转、静默模式 |
-| API 层 | `utils/api.js` | 统一 Mock/API 双通道数据获取 |
-| 鉴权 | `utils/auth.js` | 登录检查、用户信息持久化、资料同步 |
-| 图片 | `utils/image.js` | 压缩、批量选择、图标常量 |
-| 微信能力 | `utils/wechat.js` | 登录、内容检查、图片上传 |
+| API 层   | `utils/api.js`     | 统一 Mock/API 双通道数据获取          |
+| 鉴权     | `utils/auth.js`    | 登录检查、用户信息持久化、资料同步    |
+| 图片     | `utils/image.js`   | 压缩、批量选择、图标常量              |
+| 微信能力 | `utils/wechat.js`  | 登录、内容检查、图片上传              |
 
 ### 2.2 用户认证系统
 
@@ -74,20 +74,19 @@ MySQL 8.0 + Redis 7
 
 ### 2.9 后端新增接口
 
-| 方法 | 路径 | 说明 |
-|------|------|------|
-| POST | `/user/content-check` | 内容安全检查 |
-| POST | `/user/upload/image` | 图片上传（multer, 5MB限制） |
-| GET | `/health` | 健康检查（含数据库状态） |
+| 方法 | 路径                  | 说明                        |
+| ---- | --------------------- | --------------------------- |
+| POST | `/user/content-check` | 内容安全检查                |
+| POST | `/user/upload/image`  | 图片上传（multer, 5MB限制） |
+| GET  | `/health`             | 健康检查（含数据库状态）    |
 
 ## 3. 配置说明
 
-### 前端切换生产模式
+### 前端接口配置
 
 ```javascript
 // utils/request.js
-const BASE_URL = 'https://payun01.cn/api/v1'
-const USE_MOCK = false
+const BASE_URL = "https://payun01.cn/api/v1";
 ```
 
 ### 后端环境变量
@@ -99,6 +98,6 @@ const USE_MOCK = false
 1. 用户点击发布 → `auth.requireLogin` 检查
 2. 选择图片 → `imageUtil.chooseAndCompress`
 3. 提交 → `wechat.checkContent` 内容安全
-4. `wechat.uploadImages` 上传图片（非Mock）
+4. `wechat.uploadImages` 上传图片
 5. `POST /post` 创建帖子
-6. Mock 模式下写入 `mock.posts` 数组
+6. 服务端持久化帖子并返回真实记录

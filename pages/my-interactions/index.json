@@ -1,5 +1,7 @@
 {
   "navigationBarTitleText": "互动记录",
+  "navigationBarBackgroundColor": "#D7EFFF",
+  "navigationBarTextStyle": "black",
   "usingComponents": {
     "post-card": "/components/post-card/post-card",
     "empty-state": "/components/empty-state/empty-state"

@@ -12,7 +12,7 @@
 
 | 模块 | 端点 | 客户端调用方 | 用途 |
 | --- | --- | --- | --- |
-| 用户 | `POST /user/phone-login`、`POST /user/dev-login` | login | 登录 |
+| 用户 | `POST /user/phone-login` | login | 微信手机号登录 |
 | 用户 | `GET/PUT /user/info`、`POST /user/verify` | settings、auth | 账户数据与认证 |
 | 用户 | `GET /user/profile/:id`、`GET /user/profile/:id/posts` | profile 页面 | 公开个人资料 |
 | 用户 | `POST /user/content-check`、`POST /user/upload/image` | 发布、图片工具 | 安全检查和图片上传 |
@@ -22,7 +22,7 @@
 | 分享 | `POST /share`、`GET/DELETE /share/:id` | 分享页面 | 转发生命周期 |
 | 消息 | `POST /message/send`；`GET /message/history`、`/conversations`、`/unread-count`；`PUT /message/read`、`/status` | messageStore、chat | 持久化私信 |
 | WebSocket | `wss://<域名>/ws?token=<JWT>` | messageStore | 推送 `private_message` 和心跳 |
-| 课表 | `GET /schedule/list`、`/config`；`POST /add`、`/clear`、`/ocr`、`/sync`、`/sync/captcha`；`PUT /config` | 课表模块、设置同步 | 课程与跨设备配置 |
+| 课表 | `GET /schedule/list`、`/config`；`POST /add`、`/replace`、`/clear`、`/ocr`、`/sync`、`/sync/captcha`；`PUT /config` | 课表模块、设置同步 | 课程与跨设备配置 |
 | 跑腿 | `GET /errand/list`；`POST /errand`；`POST /errand/:id/accept`、`/finish` | 跑腿模块 | 跑腿订单生命周期 |
 | 维修 | `GET/POST /repair/orders`；`POST /repair/orders/:id/pay`；`POST /repair/payment/notify` | 维修页面、支付回调 | 维修预约与支付状态 |
 | 服务 | `GET /service/list` | service-all | 服务目录 |

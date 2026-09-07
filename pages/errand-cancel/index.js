@@ -1,4 +1,5 @@
 const request = require('../../utils/request')
+const qr = require('../../utils/qr')
 const { runPullDownRefresh } = require('../../utils/refresh')
 
 // 取消原因方与对应的快捷理由（与温馨提示的30分钟规则联动）
@@ -85,6 +86,12 @@ Page({
     wx.previewImage({ current, urls: this.data.images })
   },
 
+  // 长按凭证图：统一二维码识别菜单（识别 / 预览）
+  onImageQrScan(e) {
+    const { url, urls } = e.currentTarget.dataset
+    qr.recognize(url, urls)
+  },
+
   removeImage(e) {
     const images = this.data.images.slice()
     images.splice(Number(e.currentTarget.dataset.index), 1)
@@ -92,7 +99,7 @@ Page({
   },
 
   uploadImages() {
-    if (!this.data.images.length || request.USE_MOCK) return Promise.resolve([])
+    if (!this.data.images.length) return Promise.resolve([])
     const token = getApp().globalData.token || wx.getStorageSync('token') || ''
     return Promise.all(this.data.images.map((filePath) => new Promise((resolve, reject) => {
       wx.uploadFile({
@@ -151,15 +158,6 @@ Page({
 
   // 发布者取消整个订单（赏金原路退回）
   doCancelOrder(reason) {
-    if (request.USE_MOCK) {
-      const mock = require('../../utils/mock');
-      [...mock.myAcceptedOrders, ...mock.myPublishedOrders].forEach((o) => {
-        if (String(o.id) === String(this.data.id)) o.status = 'cancelled'
-      })
-      wx.showToast({ title: '订单已取消', icon: 'success' })
-      setTimeout(() => wx.navigateBack(), 700)
-      return
-    }
     this.setData({ submitting: true })
     this.uploadImages().then((images) => {
       const reasonSide = (this._sideKeys || ['self', 'accepter'])[this.data.sideIndex]
@@ -174,16 +172,6 @@ Page({
   doRelease(side, reason) {
     this.setData({ submitting: true })
     this.uploadImages().then((images) => {
-      if (request.USE_MOCK) {
-        const mock = require('../../utils/mock')
-        ;[...mock.myAcceptedOrders, ...mock.myPublishedOrders].forEach((o) => {
-          if (String(o.id) === String(this.data.id)) {
-            o.status = 'cancelled'
-            o.paymentStatus = 'REFUNDING'
-          }
-        })
-        return { mode: 'released' }
-      }
       return request.post('/errand/' + this.data.id + '/release', {
         reasonSide: side,
         reason,

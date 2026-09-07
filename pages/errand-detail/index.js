@@ -1,5 +1,6 @@
 const auth = require('../../utils/auth')
 const request = require('../../utils/request')
+const qr = require('../../utils/qr')
 const { runPullDownRefresh } = require('../../utils/refresh')
 
 // 订单信息统一使用 YYYY-MM-DD HH:mm:ss 展示（与订单编号的紧凑时间规则一致）
@@ -26,7 +27,9 @@ const LOG_LABELS = {
   cancel_rejected: '发单人拒绝取消接单，订单继续进行',
   self_cancel: '接单方因自身原因取消接单，订单已终止，赏金原路退回',
   finished: '订单完成',
-  cancelled: '发布者取消订单，赏金原路退回'
+  cancelled: '发布者取消订单，赏金原路退回',
+  timeout_cancelled: '订单超时，系统自动取消',
+  deadline_cancelled: '超过截止接单时间，系统自动取消，赏金原路退回'
 }
 
 const STATUS_TEXT = {
@@ -58,7 +61,9 @@ Page({
     showReview: false,
     reviewRating: 5,
     reviewContent: '',
-    reviewing: false
+    reviewing: false,
+    showContactSheet: false,
+    contactPhoneText: ''
   },
 
   onLoad(options) {
@@ -92,14 +97,6 @@ Page({
   loadOrder() {
     if (!this.data.id) return
     this.setData({ loading: true })
-    if (request.USE_MOCK) {
-      const mock = require('../../utils/mock')
-      const published = mock.myPublishedOrders.find((item) => String(item.id) === String(this.data.id))
-      const accepted = mock.myAcceptedOrders.find((item) => String(item.id) === String(this.data.id))
-      const order = published || accepted || mock.errandOrders.find((item) => String(item.id) === String(this.data.id))
-      this.applyOrder(this.normalizeOrder(order), null, !!(published || accepted))
-      return
-    }
     request.get('/errand/' + this.data.id, {}, true).then((data) => {
       this.applyOrder(this.normalizeOrder(data.order), data.cancelRequest || null, !!data.canViewRemark)
     }).catch(() => this.setData({ loading: false }))
@@ -123,14 +120,26 @@ Page({
       bottomMode,
       guideStep,
       requestPending,
-      canHandleRequest: requestPending && role === 'publisher'
+      canHandleRequest: requestPending && role === 'publisher',
+      contactPhoneText: this.buildContactPhoneText(order)
     })
+  },
+
+  // 电话联系文案：接单方优先拨"发单方发布订单时填写的手机号"（receiver_phone），
+  // 发单人联系接单方时展示接单人注册手机号（服务端 contact_phone）
+  buildContactPhoneText(order) {
+    if (!order) return ''
+    const phone = order.role === 'publisher'
+      ? (order.contactPhone || '')
+      : (order.receiverPhone || order.contactPhone || '')
+    return phone ? '拨打 ' + phone : '对方暂未提供电话'
   },
 
   normalizeOrder(order) {
     if (!order) return null
     const appointmentTime = order.appointmentTime || order.appointment_time || ''
     const createdText = toDashText(order.createdAt || order.created_at)
+    const deadlineText = toDashText(order.acceptDeadline || order.accept_deadline)
     const acceptedRaw = order.acceptedAt || order.accepted_at
     const finishedRaw = order.finishedAt || order.finished_at
     const contactPhone = order.contact_phone || ''
@@ -161,6 +170,7 @@ Page({
       pickupTimeType: order.pickupTimeType || order.pickup_time_type || '尽快',
       appointmentText: toAppointmentText(appointmentTime),
       createdText,
+      deadlineText,
       acceptedText: toDashText(acceptedRaw),
       finishedText: toDashText(finishedRaw),
       orderNoText: orderNo,
@@ -179,13 +189,6 @@ Page({
       success: (result) => {
         if (!result.confirm) return
         this.setData({ accepting: true })
-        if (request.USE_MOCK) {
-          order.status = 'accepted'
-          order.role = 'acceptor'
-          this.setData({ order, canViewRemark: true, accepting: false })
-          wx.showToast({ title: '接单成功', icon: 'success' })
-          return
-        }
         request.post('/errand/' + order.id + '/accept', {}, true).then(() => {
           wx.showToast({ title: '接单成功', icon: 'success' })
           this.loadOrder()
@@ -213,13 +216,43 @@ Page({
   onContact() {
     const order = this.data.order
     if (!order) return
-    // 尚未接单的浏览者：聊天仅限接单人与发单人，引导先接单
+    // 尚未接单的浏览者：聊天/电话仅限接单人与发单人，引导先接单
     if (order.role !== 'publisher' && order.role !== 'acceptor' && order.status === 'pending') {
       wx.showToast({ title: '接单后即可与发单人沟通', icon: 'none' })
       return
     }
-    // 进入跑腿订单专属聊天（双方真实身份，与私信/匿名聊天完全独立）
-    if (order.id) wx.navigateTo({ url: '/pages/errand-chat/index?orderId=' + order.id })
+    // 弹出联系方式选择：在线联系 / 电话联系
+    this.setData({ showContactSheet: true })
+  },
+
+  closeContactSheet() {
+    this.setData({ showContactSheet: false })
+  },
+
+  // 在线联系：进入跑腿订单专属聊天（双方真实身份，与私信/匿名聊天完全独立）
+  onOnlineContact() {
+    this.setData({ showContactSheet: false })
+    const order = this.data.order
+    if (order && order.id) wx.navigateTo({ url: '/pages/errand-chat/index?orderId=' + order.id })
+  },
+
+  // 电话联系：调起系统拨号。号码取"发单方发布订单时填写的手机号"；
+  // 发单人联系接单方时无发布手机号，使用接单人注册手机号
+  onPhoneContact() {
+    this.setData({ showContactSheet: false })
+    const order = this.data.order
+    if (!order) return
+    const phone = order.role === 'publisher'
+      ? (order.contactPhone || '')
+      : (order.receiverPhone || order.contactPhone || '')
+    if (!phone) {
+      wx.showToast({ title: '对方暂未提供联系电话', icon: 'none' })
+      return
+    }
+    wx.makePhoneCall({
+      phoneNumber: String(phone),
+      fail: () => {} // 用户取消拨号属正常操作，不提示错误
+    })
   },
 
   copyOrderNo() {
@@ -237,18 +270,13 @@ Page({
     wx.previewImage({ current, urls: this.data.order.finishImages })
   },
 
+  // 长按图片：统一二维码识别菜单（识别 / 预览），完成凭证图与取消凭证图共用
+  onImageQrScan(e) {
+    const { url, urls } = e.currentTarget.dataset
+    qr.recognize(url, urls)
+  },
+
   openLogs() {
-    if (request.USE_MOCK) {
-      const order = this.data.order
-      const logs = []
-      if (order) {
-        logs.push({ id: 1, text: LOG_LABELS.created, timeText: order.createdText })
-        if (order.acceptedText) logs.push({ id: 2, text: LOG_LABELS.accepted, timeText: order.acceptedText })
-        if (order.finishedText) logs.push({ id: 3, text: LOG_LABELS.finished, timeText: order.finishedText })
-      }
-      this.setData({ logs, showLogs: true })
-      return
-    }
     request.get('/errand/' + this.data.id + '/logs', {}, true).then((data) => {
       const list = (data && data.list) || []
       this.setData({
@@ -317,10 +345,6 @@ Page({
   submitReview() {
     const order = this.data.order
     if (!order || this.data.reviewing) return
-    if (request.USE_MOCK) {
-      wx.showToast({ title: '演示模式暂不支持评价', icon: 'none' })
-      return
-    }
     this.setData({ reviewing: true })
     request.post('/errand/' + order.id + '/review', {
       rating: this.data.reviewRating,

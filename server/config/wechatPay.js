@@ -35,6 +35,21 @@ module.exports = {
   platformPublicKeyPath: process.env.WX_PLATFORM_PUBLIC_KEY_PATH || '',
   // 支付结果回调通知地址
   notifyUrl: process.env.WX_PAY_NOTIFY_URL || '',
+  // 退款结果回调通知地址：未单独配置时由支付回调地址推导（/payment/notify → /payment/refund/notify）
+  refundNotifyUrl: process.env.WX_REFUND_NOTIFY_URL || String(process.env.WX_PAY_NOTIFY_URL || '').replace('/payment/notify', '/payment/refund/notify'),
   // 商家转账到零钱结果通知地址
-  transferNotifyUrl: process.env.WX_TRANSFER_NOTIFY_URL || ''
+  transferNotifyUrl: process.env.WX_TRANSFER_NOTIFY_URL || '',
+  // 新版「商家转账（用户确认收款）」转账场景ID：在商户平台-产品中心-商家转账中申请，如 1000（现金营销）、1006（企业报销）
+  transferSceneId: process.env.WX_TRANSFER_SCENE_ID || '1000',
+  // 转账场景报备信息（必填），可通过 env 传 JSON 数组覆盖默认值
+  transferSceneReportInfos: (() => {
+    try {
+      const parsed = JSON.parse(process.env.WX_TRANSFER_SCENE_REPORT_INFOS || '')
+      if (Array.isArray(parsed) && parsed.length) return parsed
+    } catch (e) { /* 使用默认值 */ }
+    return [
+      { info_type: '活动名称', info_content: '校园跑腿奖励' },
+      { info_type: '奖励说明', info_content: '跑腿订单收益提现' }
+    ]
+  })()
 }

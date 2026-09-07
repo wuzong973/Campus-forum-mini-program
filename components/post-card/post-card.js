@@ -2,6 +2,7 @@ const format = require("../../utils/format");
 const auth = require("../../utils/auth");
 const request = require("../../utils/request");
 const api = require("../../utils/api");
+const qr = require("../../utils/qr");
 const anonymousIdentity = require("../../utils/anonymousIdentity");
 
 Component({
@@ -22,6 +23,7 @@ Component({
     displayContent: "",
     isLongContent: false,
     previewImages: [],
+    imageUrls: [],
     imageLayout: "none",
     canManageNote: false,
     showNoteEditor: false,
@@ -33,6 +35,9 @@ Component({
     showSharePopup: false,
     anonPopup: null,
     authorPopup: null,
+    // 点赞动效状态（纯视觉，不参与业务逻辑）
+    likeAnim: "",
+    likeHeartFly: false,
   },
   observers: {
     "post.createdAt, post.content, post.images, post.viewCount, post.nickName, post.certLabel": function (
@@ -49,6 +54,7 @@ Component({
         authorName: nickName || "校园同学",
         certLabel: certLabel || "",
         previewImages: this.toPreviewImages(images),
+        imageUrls: this.toStringUrls(images),
         imageLayout: this.getImageLayout(images || []),
       });
       this.processContent(content);
@@ -63,10 +69,17 @@ Component({
         authorName: (post && post.nickName) || "校园同学",
         certLabel: (post && post.certLabel) || "",
         previewImages: this.toPreviewImages(post && post.images),
+        imageUrls: this.toStringUrls(post && post.images),
         imageLayout: this.getImageLayout(((post && post.images) || [])),
         canManageNote: this.canManagePostContent(),
       });
       this.processContent(post && post.content);
+    },
+    detached() {
+      // 动效定时器清理，防止组件销毁后仍触发 setData
+      ["_likeAnimTimer", "_likeHeartTimer"].forEach((key) => {
+        if (this[key]) { clearTimeout(this[key]); this[key] = null; }
+      });
     },
   },
   methods: {
@@ -85,10 +98,28 @@ Component({
     },
 
     toPreviewImages(images) {
-      return (Array.isArray(images) ? images : [])
-        .slice(0, 3)
-        .filter((url) => typeof url === "string" && url)
-        .map((url) => ({ url, failed: false }));
+      // 帖子媒体兼容两种形态：纯 URL 字符串（旧帖）与混合数组（视频项为 {type:'video', url}）
+      return ((Array.isArray(images) ? images : []))
+        .map((item) => {
+          if (typeof item === "string" && item) return { url: item, isVideo: false, failed: false };
+          if (item && typeof item === "object" && item.url && item.type === "video") return { url: item.url, isVideo: true, failed: false };
+          return null;
+        })
+        .filter(Boolean)
+        .slice(0, 3);
+    },
+
+    // 图片 URL 字符串列表（长按识别菜单的"预览大图"使用）
+    toStringUrls(images) {
+      return ((Array.isArray(images) ? images : []))
+        .map((item) => (typeof item === "string" ? item : (item && item.url) || ""))
+        .filter(Boolean);
+    },
+
+    // 长按图片：统一二维码识别菜单（识别 / 预览）
+    onImageQrScan(e) {
+      const { url, urls } = e.currentTarget.dataset;
+      qr.recognize(url, urls);
     },
 
     onPreviewImage(e) {
@@ -210,13 +241,17 @@ Component({
         success: (res) => {
           if (!res.confirm) return;
           this.setData({ authorPopup: null });
-          // 发起方使用随机分身身份，服务端首次进入时存档，全程同一形象
+          // 发起方使用随机分身身份，服务端首次进入时存档，全程同一形象；
+          // personaKey 以该分身头像为隔离键，不同分身各自对应独立聊天会话
           const persona = anonymousIdentity.generate();
           wx.navigateTo({
             url: "/pages/chat/index?peerId=" + popup.userId +
               "&nick=" + encodeURIComponent(popup.nick || "校园同学") +
               "&avatar=" + encodeURIComponent(popup.avatar || "/assets/icons/avatar.png") +
               "&anonymous=1" +
+              "&personaKey=" + encodeURIComponent(persona.avatarUrl) +
+              // 记录来源帖子：聊天页「回到帖子」在消息通知等入口也能返回本帖
+              "&postId=" + this.data.post.id +
               "&anonSelfNick=" + encodeURIComponent(persona.nickName) +
               "&anonSelfAvatar=" + encodeURIComponent(persona.avatarUrl)
           });
@@ -254,16 +289,44 @@ Component({
         content: "与匿名用户对话时，你也自动变为匿名用户",
         confirmText: "确认",
         cancelText: "取消",
-        success: (res) => {
-          if (!res.confirm) return;
-          this.setData({ anonPopup: null });
-          wx.navigateTo({
-            url: "/pages/chat/index?peerId=" + popup.userId +
-              "&nick=" + encodeURIComponent(popup.nick || "匿名用户") +
-              "&avatar=" + encodeURIComponent(popup.avatar || "/assets/icons/avatar.png") +
-              "&anonymous=1"
-          });
-        }
+      success: (res) => {
+        if (!res.confirm) return;
+        this.setData({ anonPopup: null });
+        wx.navigateTo({
+          // 与对方的某个分身对话：personaKey 用该分身头像作隔离键，
+          // 对方其他分身（同一真实用户）的聊天记录不会出现在本会话
+          url: "/pages/chat/index?peerId=" + popup.userId +
+            "&nick=" + encodeURIComponent(popup.nick || "匿名用户") +
+            "&avatar=" + encodeURIComponent(popup.avatar || "/assets/icons/avatar.png") +
+            "&anonymous=1" +
+            "&personaKey=" + encodeURIComponent(popup.avatar || "/assets/icons/avatar.png") +
+            // 记录来源帖子：聊天页「回到帖子」在消息通知等入口也能返回本帖
+            "&postId=" + this.data.post.id
+        });
+      }
+      });
+    },
+
+    // ===== 点赞动效（纯视觉层，不改动业务状态与父组件数据流）=====
+    playLikeAnim(stateKey) {
+      this.setData({ likeAnim: stateKey });
+      if (this._likeAnimTimer) clearTimeout(this._likeAnimTimer);
+      this._likeAnimTimer = setTimeout(() => {
+        this.setData({ likeAnim: "" });
+        this._likeAnimTimer = null;
+      }, stateKey === "anim-pop" ? 420 : 300);
+    },
+
+    flyLikeHeart() {
+      if (this._likeHeartTimer) clearTimeout(this._likeHeartTimer);
+      this.setData({ likeHeartFly: false });
+      // 先卸载再在下一帧重建节点，保证连续点赞时上浮动画每次都能重新触发
+      wx.nextTick(() => {
+        this.setData({ likeHeartFly: true });
+        this._likeHeartTimer = setTimeout(() => {
+          this.setData({ likeHeartFly: false });
+          this._likeHeartTimer = null;
+        }, 900);
       });
     },
 
@@ -277,11 +340,20 @@ Component({
       );
       this.setData({ post });
       this.triggerEvent("like", { post });
-      if (!request.USE_MOCK) {
-        request
-          .post("/post/" + post.id + "/like", {}, true, { silent: true })
-          .catch(() => {});
-      }
+      this.playLikeAnim(post.isLiked ? "anim-pop" : "anim-unpop");
+      if (post.isLiked) this.flyLikeHeart();
+      request.post("/post/" + post.id + "/like", {}, true, { silent: true }).catch(() => {
+        const reverted = Object.assign({}, this.data.post);
+        reverted.isLiked = !reverted.isLiked;
+        reverted.likeCount = Math.max(
+          0,
+          (Number(reverted.likeCount) || 0) + (reverted.isLiked ? 1 : -1),
+        );
+        this.setData({ post: reverted });
+        this.triggerEvent("like", { post: reverted });
+        this.playLikeAnim("anim-unpop");
+        wx.showToast({ title: "操作失败，请重试", icon: "none" });
+      });
     },
 
     onComment() {
@@ -324,13 +396,15 @@ Component({
       this.setData({ post });
       this.triggerEvent("favorite", { post });
       api.favoritePost(post.id).catch(() => {
-        post.isFavorited = !post.isFavorited;
-        post.favoriteCount = Math.max(
+        const reverted = Object.assign({}, this.data.post);
+        reverted.isFavorited = !reverted.isFavorited;
+        reverted.favoriteCount = Math.max(
           0,
-          (Number(post.favoriteCount) || 0) + (post.isFavorited ? 1 : -1),
+          (Number(reverted.favoriteCount) || 0) + (reverted.isFavorited ? 1 : -1),
         );
-        this.setData({ post });
-        this.triggerEvent("favorite", { post });
+        this.setData({ post: reverted });
+        this.triggerEvent("favorite", { post: reverted });
+        wx.showToast({ title: "操作失败，请重试", icon: "none" });
       });
     },
 
@@ -390,7 +464,7 @@ Component({
       const post = this.data.post || {};
       if (!await this.confirmAction('删除帖子', '删除后无法恢复，确认删除这条帖子吗？')) return;
       try {
-        if (!request.USE_MOCK) await api.deletePost(post.id);
+        await api.deletePost(post.id);
         this.triggerEvent('remove', { postId: post.id });
         wx.showToast({ title: '帖子已删除', icon: 'success' });
       } catch (err) {
@@ -400,9 +474,9 @@ Component({
 
     async markNotInterested() {
       const post = this.data.post || {};
-      if (!await this.confirmAction('拉黑确认', '将永久隐藏此帖子及同分类内容，确认继续吗？')) return;
+      if (!await this.confirmAction('拉黑确认', '拉黑后将不再向你展示这条帖子，可在「我的→我删除的→隐藏」中恢复，确认拉黑吗？')) return;
       try {
-        if (!request.USE_MOCK) await api.markPostNotInterested(post.id);
+        await api.markPostNotInterested(post.id, true);
         this.triggerEvent('close', { postId: post.id });
         wx.showToast({ title: '已拉黑', icon: 'success' });
       } catch (err) {
@@ -415,7 +489,7 @@ Component({
       const post = this.data.post || {};
       if (!await this.confirmAction('隐藏帖子', '隐藏后这条帖子将不再对你展示，可在「我的→我删除的→隐藏」中恢复，确认隐藏吗？')) return;
       try {
-        if (!request.USE_MOCK) await api.markPostNotInterested(post.id, true);
+        await api.markPostNotInterested(post.id, true);
         this.triggerEvent('close', { postId: post.id });
         wx.showToast({ title: '已隐藏', icon: 'success' });
       } catch (err) {
@@ -427,7 +501,7 @@ Component({
       const post = this.data.post || {};
       if (!await this.confirmAction('举报内容', '确认提交举报吗？管理员将收到帖子编号、举报人和提交时间。')) return;
       try {
-        if (!request.USE_MOCK) await api.reportPost(post.id);
+        await api.reportPost(post.id);
         wx.showToast({ title: '举报已提交', icon: 'success' });
       } catch (err) {
         wx.showToast({ title: err.message || '举报失败', icon: 'none' });
@@ -489,10 +563,6 @@ Component({
         this.triggerEvent("reviewnote", { postId: post.id, reviewNote });
         wx.showToast({ title: "备注已保存", icon: "success" });
       };
-      if (request.USE_MOCK) {
-        finish();
-        return;
-      }
       api.updatePostReviewNote(this.data.post.id, reviewNote).then(finish).catch(() => {
         this.setData({ savingNote: false });
       });

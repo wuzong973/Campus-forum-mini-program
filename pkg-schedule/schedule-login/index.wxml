@@ -1,0 +1,100 @@
+<view class="page">
+  <view class="login-header">
+    <image class="school-logo" src="{{userAvatar || '/assets/icons/avatar.png'}}" mode="aspectFill"></image>
+    <text class="school-name">教务系统同步</text>
+    <text class="school-desc">绑定后自动同步课表、考试安排与成绩</text>
+  </view>
+
+  <!-- 已绑定：展示同步状态 + 刷新 + 快捷入口 -->
+  <block wx:if="{{bound}}">
+    <view class="bound-card">
+      <view class="bound-row">
+        <view class="bound-info">
+          <text class="bound-title">已绑定教务账号</text>
+          <text class="bound-desc">学号 {{bindUsername || '—'}}</text>
+          <text class="bound-time" wx:if="{{lastSyncText}}">{{lastSyncText}}</text>
+        </view>
+        <view class="refresh-btn {{autoSyncing ? 'refreshing' : ''}}" bindtap="onManualRefresh">
+          <image class="refresh-icon" src="/assets/icons/refresh.png" mode="aspectFit"></image>
+          <text class="refresh-text">{{autoSyncing ? '同步中…' : '刷新'}}</text>
+        </view>
+      </view>
+      <view class="quick-entries">
+        <view class="quick-entry exam" bindtap="goExamPage">
+          <image class="quick-icon" src="/assets/icons/svc-exam.png" mode="aspectFit"></image>
+          <text class="quick-text">查看考试安排</text>
+          <text class="quick-arrow">></text>
+        </view>
+        <view class="quick-entry grade" bindtap="goGradePage">
+          <image class="quick-icon" src="/assets/icons/svc-grade.png" mode="aspectFit"></image>
+          <text class="quick-text">查看我的成绩</text>
+          <text class="quick-arrow">></text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 需要人工验证码时出现 -->
+    <view class="captcha-card" wx:if="{{captchaChallenge}}">
+      <view class="captcha-title-row">
+        <text class="captcha-title">验证码</text>
+        <text class="captcha-refresh" bindtap="refreshCaptcha">换一张</text>
+      </view>
+      <view class="captcha-row">
+        <image class="captcha-image" src="{{captchaImage}}" mode="aspectFit"></image>
+        <input
+          class="captcha-input"
+          maxlength="4"
+          placeholder="4位验证码"
+          value="{{captchaCode}}"
+          bindinput="onCaptchaInput"
+        />
+      </view>
+      <text class="captcha-tip">OCR 未能自动识别时，需要手动输入一次验证码继续同步。</text>
+      <button class="login-btn captcha-submit" bindtap="onLogin" loading="{{loading}}">提交验证码并同步</button>
+    </view>
+  </block>
+
+  <!-- 未绑定：登录表单 -->
+  <block wx:else>
+    <view class="form-card">
+      <view class="form-item">
+        <text class="form-label">学号</text>
+        <input class="form-input" placeholder="请输入学号" value="{{username}}" bindinput="onUsernameInput" />
+      </view>
+      <view class="form-item">
+        <text class="form-label">密码</text>
+        <input class="form-input" type="password" placeholder="请输入密码" value="{{password}}" bindinput="onPasswordInput" />
+      </view>
+    </view>
+
+    <view class="captcha-card" wx:if="{{captchaChallenge}}">
+      <view class="captcha-title-row">
+        <text class="captcha-title">验证码</text>
+        <text class="captcha-refresh" bindtap="refreshCaptcha">换一张</text>
+      </view>
+      <view class="captcha-row">
+        <image class="captcha-image" src="{{captchaImage}}" mode="aspectFit"></image>
+        <input
+          class="captcha-input"
+          maxlength="4"
+          placeholder="4位验证码"
+          value="{{captchaCode}}"
+          bindinput="onCaptchaInput"
+        />
+      </view>
+      <text class="captcha-tip">OCR 未能自动识别时，需要手动输入一次验证码继续同步。</text>
+    </view>
+
+    <button class="login-btn" bindtap="onLogin" loading="{{loading}}">
+      {{captchaChallenge ? '提交验证码并同步' : '同步课表'}}
+    </button>
+  </block>
+
+  <view class="tips">
+    <text class="tips-title">说明</text>
+    <text class="tips-text">1. 首次绑定需输入教务账号密码，同步课表后会一并同步考试安排与成绩。</text>
+    <text class="tips-text">2. 已绑定后再次进入本页面会自动刷新课表、考试与成绩数据。</text>
+    <text class="tips-text">3. 数据更新不及时时，可点击「刷新」按钮手动同步。</text>
+    <text class="tips-text">4. 如果出现验证码，请按图片输入后继续同步。</text>
+  </view>
+</view>

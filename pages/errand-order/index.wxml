@@ -50,20 +50,45 @@
     </view>
   </scroll-view>
 
-  <!-- 订单列表 -->
+  <!-- 订单列表（与接单大厅一致的版式：头像+昵称+校区/性别标签+状态胶囊 / 公开描述+红色金额 / 期望完成时间） -->
   <view class="order-list">
-    <view wx:for="{{orders}}" wx:key="id" class="anim-stagger">
-      <errand-card
-        order="{{item}}"
-        bind:accept="onAccept"
-        bind:pay="onPay"
-        bind:finish="onFinish"
-        bind:cancel="onCancel"
-        bind:contact="onContact"
-        bind:open="onOpenDetail"
-      />
-    </view>
-    <empty-state wx:if="{{orders.length === 0}}" text="{{emptyText}}" icon="" />
+    <block wx:for="{{orders}}" wx:key="id">
+      <view class="order-card" data-order="{{item}}" bindtap="onOpenDetail">
+        <view class="card-head">
+          <image class="card-avatar" src="{{item.avatarUrl}}" mode="aspectFill"></image>
+          <view class="card-user">
+            <view class="card-name-row">
+              <text class="card-name">{{item.authorName}}</text>
+              <text class="card-tag tag-campus" wx:if="{{item.campus}}">{{item.campus}}</text>
+              <text class="card-tag tag-gender-{{item.genderClass}}" wx:if="{{item.genderText}}">{{item.genderText}}</text>
+            </view>
+            <text class="card-time">{{item.publishTime}}</text>
+          </view>
+          <text class="status-pill {{item.statusClass}}">{{item.statusText}}</text>
+        </view>
+        <view class="card-body">
+          <view class="card-desc-row">
+            <text class="card-title">{{item.descText}}</text>
+            <text class="amount-price">¥{{item.price}}</text>
+          </view>
+          <text class="card-expect">期望完成时间：{{item.expectText}}</text>
+        </view>
+        <view class="card-foot" wx:if="{{item.action}}">
+          <view class="foot-actions">
+            <view class="card-btn btn-pay" wx:if="{{item.action === 'pay'}}" catchtap="onPay" data-order="{{item}}">去支付</view>
+            <view class="card-btn btn-finish" wx:elif="{{item.action === 'finish'}}" catchtap="onFinish" data-order="{{item}}">立即完成</view>
+            <view class="card-btn btn-ghost" wx:elif="{{item.action === 'cancel'}}" catchtap="onCancel" data-order="{{item}}">取消订单</view>
+            <view class="card-btn" wx:elif="{{item.action === 'contact'}}" catchtap="onContact" data-order="{{item}}">联系对方</view>
+          </view>
+        </view>
+      </view>
+    </block>
+  </view>
+
+  <!-- 空状态 -->
+  <view class="empty-state" wx:if="{{orders.length === 0}}">
+    <text class="empty-title">{{emptyText}}</text>
+    <text class="empty-desc">你可以调整标签或状态筛选，也可以下拉刷新再看看。</text>
   </view>
 
   <!-- 空状态发布入口 -->

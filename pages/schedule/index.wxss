@@ -537,6 +537,23 @@
   margin-left: 12rpx;
 }
 
+/* 考试安排 / 成绩查询入口项：与同步课表项同构，仅换主题色 */
+.exam-item {
+  background: linear-gradient(135deg, #fff3e6 0%, #fff7ec 100%);
+}
+
+.exam-icon-wrap {
+  background: #fa8c16;
+}
+
+.grade-item {
+  background: linear-gradient(135deg, #eafbe4 0%, #f2fdf0 100%);
+}
+
+.grade-icon-wrap {
+  background: #52c41a;
+}
+
 /* ============ 课表容器 ============ */
 .schedule-container {
   margin: 0 24rpx 24rpx;

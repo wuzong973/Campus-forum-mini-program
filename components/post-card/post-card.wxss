@@ -8,7 +8,7 @@
 .post-anonymous-label { display: inline-flex; align-items: stretch; overflow: hidden; height: 30rpx; border-radius: 4rpx; background: #f34e72; color: #fff; font-size: 18rpx; font-weight: 700; line-height: 30rpx; }
 .post-anonymous-main { padding: 0 8rpx; }
 .post-anonymous-tag { padding: 0 5rpx; background: #f6d84a; color: #4c5b22; font-size: 15rpx; line-height: 30rpx; }
-.post-pin-tag { padding: 0 5rpx; background: #ff6b2c; color: #fff; font-size: 15rpx; line-height: 30rpx; }
+.post-pin-tag { flex: 0 0 auto; margin-right: 10rpx; padding: 0 8rpx; border-radius: 4rpx; background: #ff6b2c; color: #fff; font-size: 15rpx; line-height: 30rpx; }
 .post-deleted-stamp { position: absolute; top: 82rpx; right: 30rpx; z-index: 1; padding: 14rpx 20rpx; border: 5rpx solid rgba(120, 126, 137, .62); border-radius: 50%; color: rgba(120, 126, 137, .78); font-size: 28rpx; font-weight: 700; transform: rotate(-12deg); }
 .post-cert-label { flex: 0 0 auto; padding: 2rpx 10rpx; border-radius: 4rpx; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #fff; font-size: 20rpx; font-weight: 500; line-height: 1.4; }
 .post-time { color: #a5afbc; font-size: 21rpx; }
@@ -29,6 +29,8 @@
 .images-single .post-img-wrap { height: 310rpx; }
 .images-double .post-img-wrap { height: 228rpx; }
 .post-img { width: 100%; height: 100%; }
+/* 列表内视频：直接渲染 video 组件显示视频画面（首帧），不再用深色占位块 */
+.post-video { width: 100%; height: 100%; background: #000; border-radius: 8rpx; }
 .post-img-error { display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; color: #8290a0; font-size: 22rpx; }
 .image-count { position: absolute; right: 8rpx; bottom: 8rpx; min-width: 44rpx; height: 32rpx; padding: 0 8rpx; border-radius: 16rpx; background: rgba(0, 0, 0, .56); color: #fff; font-size: 20rpx; line-height: 32rpx; text-align: center; }
 .post-footer { display: flex; align-items: center; justify-content: space-between; gap: 16rpx; margin-top: 18rpx; padding-top: 14rpx; border-top: 1rpx solid #f0f2f5; }
@@ -76,3 +78,22 @@
 .author-sheet-btn.ghost { background: #fff; color: #333; border: 1rpx solid #e3e3e8; }
 .author-sheet-btn.primary { background: #f8503a; color: #fff; }
 
+
+/* ===== 点赞动效（纯视觉层）：按压缩小回弹 + 弹跳切换 + 飘心 ===== */
+.footer-action { position: relative; transition: transform .18s cubic-bezier(.34, 1.56, .64, 1); }
+.action-pressed { transform: scale(.82); }
+.footer-action.anim-pop .footer-action-icon { animation: cardActionPop .38s cubic-bezier(.2, .9, .3, 1.35); }
+.footer-action.anim-unpop .footer-action-icon { animation: cardActionUnpop .28s ease; }
+@keyframes cardActionPop { 0% { transform: scale(.55); } 55% { transform: scale(1.22); } 100% { transform: scale(1); } }
+@keyframes cardActionUnpop { 0% { transform: scale(1.18); } 100% { transform: scale(1); } }
+.heart-fly { position: absolute; left: 6rpx; top: -12rpx; width: 26rpx; height: 26rpx; pointer-events: none; z-index: 3; animation: heartFloatUp .85s cubic-bezier(.22, .61, .36, 1) forwards; }
+.heart-fly-core { position: absolute; left: 1rpx; top: 4rpx; width: 24rpx; height: 22rpx; }
+.heart-fly-core::before, .heart-fly-core::after { content: ""; position: absolute; top: 0; width: 12rpx; height: 19rpx; border-radius: 12rpx 12rpx 0 0; background: #e75e6b; }
+.heart-fly-core::before { left: 12rpx; transform: rotate(-45deg); transform-origin: 0 100%; }
+.heart-fly-core::after { left: 0; transform: rotate(45deg); transform-origin: 100% 100%; }
+@keyframes heartFloatUp { 0% { transform: translateY(0) scale(.5); opacity: 0; } 18% { transform: translateY(-14rpx) scale(1.15); opacity: 1; } 60% { transform: translateY(-58rpx) scale(1); opacity: .92; } 100% { transform: translateY(-96rpx) scale(.85); opacity: 0; } }
+
+/* ===== 点赞图标 SVG 双态：未选中灰描边，选中整体实心红 ===== */
+.footer-action-icon { background-size: 100% 100%; background-repeat: no-repeat; }
+.act-heart { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%2399a5b4' d='M16.5 3c-1.74 0-3.41.81-4.5 2.09C10.91 3.81 9.24 3 7.5 3 4.42 3 2 5.42 2 8.5c0 3.78 3.4 6.86 8.55 11.54L12 21.35l1.45-1.32C18.6 15.36 22 12.28 22 8.5 22 5.42 19.58 3 16.5 3zm-4.4 15.55l-.1.1-.1-.1C7.14 14.24 4 11.39 4 8.5 4 6.5 5.5 5 7.5 5c1.54 0 3.04.99 3.57 2.36h1.87C13.46 5.99 14.96 5 16.5 5c2 0 3.5 1.5 3.5 3.5 0 2.89-3.14 5.74-7.9 10.05z'/%3E%3C/svg%3E"); }
+.act-heart.on { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23e75e6b' d='M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z'/%3E%3C/svg%3E"); }

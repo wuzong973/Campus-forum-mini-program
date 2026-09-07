@@ -3,7 +3,7 @@
     <!-- 顶部自动轮播横幅（管理后台「内容配置-发布横幅」可编辑） -->
     <swiper class="publish-banner-swiper" wx:if="{{publishBanners.length}}" autoplay circular interval="3000" duration="500">
       <swiper-item wx:for="{{publishBanners}}" wx:key="id">
-        <view class="publish-banner style-{{item.style}}">
+        <view class="publish-banner style-{{item.style}}" style="{{item.bannerStyle}}" data-index="{{index}}" bindtap="onPublishBannerTap">
           <text class="publish-banner-icon" wx:if="{{item.icon}}">{{item.icon}}</text>
           <text class="publish-banner-text">{{item.text}}</text>
           <text class="publish-banner-close" data-index="{{index}}" catchtap="onClosePublishBanner">✕</text>
@@ -13,7 +13,7 @@
     <view class="editor-card">
       <view class="notice-tip"><text class="notice-mark">!</text> 禁止发布重复信息、广告营销类、含二维码等内容</view>
       <textarea class="content-input" placeholder="请输入投稿内容..." maxlength="500" value="{{content}}" bindinput="onInput" auto-height></textarea>
-      <view class="image-grid"><view class="image-item" wx:for="{{mediaList}}" wx:key="path"><image src="{{item.thumb || item.path}}" mode="aspectFill" class="thumb"></image><view class="image-remove" data-index="{{index}}" bindtap="onRemoveImage">×</view></view><view class="image-add" bindtap="onChooseImage" wx:if="{{mediaList.length < 9}}"><image src="/assets/icons/camera.png" class="camera-icon" mode="aspectFit"></image><text>{{mediaList.length}} / 9</text></view></view>
+      <view class="image-grid"><view class="image-item" wx:for="{{mediaList}}" wx:key="path"><image src="{{item.thumb || item.path}}" mode="aspectFill" class="thumb"></image><view wx:if="{{item.type === 'video'}}" class="thumb-video-badge">▶{{item.duration ? ' ' + item.duration + 's' : ''}}</view><view class="image-remove" data-index="{{index}}" bindtap="onRemoveImage">×</view></view><view class="image-add" bindtap="onChooseImage" wx:if="{{mediaList.length < 9}}"><image src="/assets/icons/camera.png" class="camera-icon" mode="aspectFit"></image><text>{{mediaList.length}} / 9</text></view></view>
     </view>
 
     <view class="component-card">

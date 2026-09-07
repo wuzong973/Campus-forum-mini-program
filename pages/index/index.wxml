@@ -21,7 +21,7 @@
     lower-threshold="120"
     scroll-top="{{scrollTop}}"
     scroll-into-view="{{scrollIntoView}}"
-    refresher-enabled="{{true}}"
+    refresher-enabled="{{!hotAreaTouching}}"
     refresher-triggered="{{scrollRefreshing}}"
     bindrefresherrefresh="onContentRefresh"
     enhanced
@@ -54,17 +54,26 @@
     </view>
 
     <!-- 公告 -->
-    <view class="notice-bar">
+    <view class="notice-bar" style="{{noticeStyle}}">
       <image class="notice-icon-img icon-sm" src="/assets/icons/notice.png" mode="aspectFit"></image>
       <text class="notice-text">{{notice}}</text>
-      <contact-admin class="notice-admin-wrap" direct>
-        <view slot="trigger" class="notice-admin">管理员</view>
+      <contact-admin wx:if="{{!noticeLinkUrl}}" id="noticeAdmin" class="notice-admin-wrap" direct>
+        <view slot="trigger" class="notice-admin">{{noticeLinkText}}</view>
       </contact-admin>
+      <text wx:else class="notice-admin" catchtap="onNoticeLinkTap">{{noticeLinkText}}</text>
       <text class="notice-tail" wx:if="{{noticeTailText}}" bindtap="onNoticeTailTap">{{noticeTailText}}</text>
     </view>
 
     <!-- 今日热榜预览：两行竖向轮换，点击进入完整榜单 -->
-    <view class="today-hot-card card anim-slide-up" wx:if="{{hotPosts.length}}" bindtap="onTodayHotTap">
+    <!-- 触摸落在热榜内时临时禁用下拉刷新，避免误触发（touchstart 决定整个手势周期） -->
+    <view
+      class="today-hot-card card anim-slide-up"
+      wx:if="{{hotPosts.length}}"
+      bindtap="onTodayHotTap"
+      bindtouchstart="onHotAreaTouchStart"
+      bindtouchend="onHotAreaTouchEnd"
+      bindtouchcancel="onHotAreaTouchEnd"
+    >
       <view class="today-hot-header">
         <view class="today-hot-title-wrap"><text class="today-hot-fire">🔥</text><text class="today-hot-title">每日热榜</text></view>
         <view class="today-hot-more">点击查看</view>
@@ -78,7 +87,13 @@
         </swiper-item>
       </swiper>
     </view>
-    <view class="today-hot-card card today-hot-loading" wx:elif="{{hotLoading}}">热榜更新中...</view>
+    <view
+      class="today-hot-card card today-hot-loading"
+      wx:elif="{{hotLoading}}"
+      bindtouchstart="onHotAreaTouchStart"
+      bindtouchend="onHotAreaTouchEnd"
+      bindtouchcancel="onHotAreaTouchEnd"
+    >热榜更新中...</view>
 
     <!-- 校园服务 -->
     <view class="section service-section card anim-slide-up">
@@ -154,11 +169,11 @@
       <view class="hot-rank-list" wx:if="{{hotPosts.length}}">
         <view class="hot-rank-card" wx:for="{{hotPosts}}" wx:key="id" data-id="{{item.id}}" bindtap="onHotPostTap">
           <view class="hot-rank-card-header">
-            <image class="hot-rank-avatar" src="{{item.avatarUrl || '/assets/icons/avatar.png'}}" mode="aspectFill"></image>
+            <image class="hot-rank-avatar" src="{{item.avatarUrl || '/assets/icons/avatar.png'}}" mode="aspectFill" lazy-load></image>
             <view class="hot-rank-author">
               <view class="hot-rank-nick-row">
                 <text class="hot-rank-nick">{{item.nickName}}</text>
-                <view class="hot-rank-post-label"><text class="post-label-main">帖子</text><text class="post-label-an" wx:if="{{item.isAnonymous}}">AN</text></view>
+                <view class="hot-rank-post-label"><text class="post-label-main">作者</text><text class="post-label-an" wx:if="{{item.isAnonymous}}">AN</text></view>
               </view>
               <view class="hot-rank-meta">
                 <text class="hot-meta-category">{{item.category || '日常话题'}}</text>
@@ -217,13 +232,6 @@
     </block>
   </scroll-view>
 
-  <!-- 浮动操作按钮 -->
-  <view class="float-actions {{showFloatBtns ? 'show' : ''}}">
-    <view class="float-btn pressable" bindtap="onScrollToTop">
-      <image class="float-btn-icon" src="/assets/icons/scroll-top.png" mode="aspectFit"></image>
-    </view>
-  </view>
-
   <view class="comment-sheet-mask" wx:if="{{commentSheetVisible}}" bindtap="closeCommentSheet"></view>
   <view class="comment-sheet" wx:if="{{commentSheetVisible}}" catchtap="noop">
     <view class="comment-sheet-handle"></view>
@@ -235,7 +243,7 @@
     <scroll-view class="comment-sheet-list" scroll-y enhanced show-scrollbar="{{false}}">
       <view class="comment-sheet-loading" wx:if="{{commentSheetLoading}}">评论加载中...</view>
       <view class="sheet-comment" wx:for="{{commentSheetComments}}" wx:key="id">
-        <image class="sheet-comment-avatar" src="{{item.avatarUrl || '/assets/icons/avatar.png'}}" mode="aspectFill" data-userid="{{item.userId}}" catchtap="onCommentAvatarTap"></image>
+        <image class="sheet-comment-avatar" src="{{item.avatarUrl || '/assets/icons/avatar.png'}}" mode="aspectFill" lazy-load data-userid="{{item.userId}}" catchtap="onCommentAvatarTap"></image>
         <view class="sheet-comment-main">
           <view class="sheet-comment-meta">
             <text class="sheet-comment-name">{{item.nickName}}</text>
@@ -243,7 +251,7 @@
           </view>
           <text class="sheet-comment-content">{{item.content}}</text>
           <view class="sheet-comment-images" wx:if="{{item.images && item.images.length}}">
-            <image class="sheet-comment-image" wx:for="{{item.images}}" wx:for-item="img" wx:key="*this" src="{{img}}" mode="aspectFill"></image>
+            <image class="sheet-comment-image" wx:for="{{item.images}}" wx:for-item="img" wx:key="*this" src="{{img}}" mode="aspectFill" lazy-load></image>
           </view>
         </view>
         <view class="sheet-comment-like">
@@ -281,5 +289,18 @@
     <view class="sheet-emoji-panel" wx:if="{{commentSheetEmojiVisible}}">
       <view class="sheet-emoji-item" wx:for="{{commentSheetEmojis}}" wx:key="*this" data-emoji="{{item}}" catchtap="onSheetEmojiTap">{{item}}</view>
     </view>
+  </view>
+</view>
+
+<!-- 浮动操作按钮：放在 .page 外部，避免祖先 transform 导致 fixed 失效 -->
+<view class="float-actions {{showTopBtn ? 'rise' : ''}}">
+  <view class="float-btn" hover-class="float-btn-pressed" hover-stay-time="120" aria-label="每日热榜" bindtap="onTodayHotTap">
+    <text class="iconfont float-icon icon-remen float-icon-hot"></text>
+  </view>
+  <view class="float-btn" hover-class="float-btn-pressed" hover-stay-time="120" aria-label="私信" bindtap="goMessages">
+    <text class="iconfont float-icon icon-xiaoxi1 float-icon-msg"></text>
+  </view>
+  <view class="float-btn float-btn-top {{showTopBtn ? 'show' : ''}}" hover-class="float-btn-pressed" hover-stay-time="120" aria-label="回到顶部" bindtap="onScrollToTop">
+    <text class="iconfont float-icon icon-zhiding"></text>
   </view>
 </view>

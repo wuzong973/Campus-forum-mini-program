@@ -1,7 +1,7 @@
 $server = "193.112.187.95"
 $user = "root"
 $pass = "Wzl@88888"
-$remotePath = "/root/校园论坛小程序/server"
+$remotePath = "/home/springboot/server"
 
 # Files to upload
 $files = @(
@@ -15,6 +15,8 @@ $files = @(
     "server\routes\userRoutes.js",
     "server\routes\feedbackRoutes.js",
     "server\controllers\feedbackController.js",
+    "server\controllers\walletController.js",
+    "server\services\wechatPayV3Service.js",
     "server\utils\migrations.js"
 )
 

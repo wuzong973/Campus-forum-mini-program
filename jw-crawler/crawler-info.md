@@ -239,9 +239,9 @@ GET   https://jw.gdipu.edu.cn/jsxsd/framework/xsMain.jsp  [200] ← 最终首页
 
 **返回**：`text/html;charset=UTF-8`，HTML 片段，包含 `<table id="tab1" class="kb_table">`。
 
-`rq` 可传任意日期，系统自动匹配对应周的课表。HAR 中抓到过 `2026-02-04`、`2026-03-03`、`2026-04-01`、`2026-07-09`、`2026-07-23` 等多个日期的请求。
+`rq` 可传任意日期，系统自动匹配对应周的课表。
 
-### 1.13 课表 HTML 解析规则（已通过 kb.html 验证）
+### 1.13 课表 HTML 解析规则
 
 **表格结构**：
 
@@ -266,16 +266,12 @@ GET   https://jw.gdipu.edu.cn/jsxsd/framework/xsMain.jsp  [200] ← 最终首页
 - 课程名称、课程学分、课程属性、上课时间、上课地点、上课校区、分组名
 - 星期、节次范围、小节、时间范围
 
-**验证结果**：`kb.html`（第 17 周）成功解析出 5 门课程。
-
 ### 1.14 已实现的代码功能
 
-| 文件                   | 功能                                                                     |
-| ---------------------- | ------------------------------------------------------------------------ |
-| `crawler.js`           | 登录认证、课表抓取、课表解析、主动限流、指数退避重试、批量抓取、日期生成 |
-| `captcha-ocr.js`       | 本地验证码 OCR 识别，支持命令行自测和本地语言包                          |
-| `waf-test.js`          | WAF 阈值/IP 封禁探测脚本                                                 |
-| `edge-case-capture.js` | 特殊场景课表样本抓取脚本（7 类场景，17 个日期）                          |
+| 文件             | 功能                                                                     |
+| ---------------- | ------------------------------------------------------------------------ |
+| `crawler.js`     | 登录认证、课表抓取、课表解析、主动限流、指数退避重试、批量抓取、日期生成 |
+| `captcha-ocr.js` | 本地验证码 OCR 识别，支持命令行自测和本地语言包                          |
 
 **`crawler.js` 主要方法**：
 
@@ -397,9 +393,9 @@ GET   https://jw.gdipu.edu.cn/jsxsd/framework/xsMain.jsp  [200] ← 最终首页
 
 ### 2.9 多周课表 HTML 结构是否一致
 
-- **现状**：只有第 17 周一个样本
+- **现状**：不同周次可能存在结构差异
 - **风险**：空课表、单双周、调课、考试周等场景的 HTML 结构可能不同
-- **验证方法**：抓取第 1、10、19 周及特殊日期的课表 HTML
+- **验证方法**：使用真实账号抓取第 1、10、19 周及特殊日期的课表 HTML
 
 ### 2.10 课表是否有额外可选参数
 
@@ -409,9 +405,9 @@ GET   https://jw.gdipu.edu.cn/jsxsd/framework/xsMain.jsp  [200] ← 最终首页
 
 ### 2.11 WAF 实际阈值
 
-- **现状**：`waf-test.js` 已编写但尚未运行
-- **风险**：不知道安全的最小请求间隔
-- **验证方法**：非高峰时段运行 `waf-test.js`
+- **现状**：安全的最小请求间隔需结合线上环境确认
+- **风险**：请求过密可能触发限流
+- **验证方法**：在服务方允许的范围内进行受控验证
 
 ### 2.12 其他业务接口的请求与响应格式
 
@@ -529,14 +525,13 @@ GET   https://jw.gdipu.edu.cn/jsxsd/framework/xsMain.jsp  [200] ← 最终首页
 ### P1：验证课表抓取
 
 4. 登录成功后，调用 `getSchedule('2026-07-03')` 获取课表
-5. 对比返回结果与 `kb.html` 的解析结果
-6. 运行 `getScheduleBatch` 批量抓取 1~19 周，保存原始 HTML
+5. 对比线上接口返回结果与业务页面展示
+6. 运行 `getScheduleBatch` 批量抓取 1~19 周，按需保存原始 HTML
 
 ### P2：稳定性验证
 
-7. 运行 `waf-test.js` 测试安全间隔（非高峰时段）
-8. 运行 `edge-case-capture.js` 抓取边界场景样本
-9. 根据实测结果调整 `baseDelay` 和 `jitter`
+7. 在受控环境验证请求安全间隔（非高峰时段）
+8. 根据线上结果调整 `baseDelay` 和 `jitter`
 
 ### P3：功能扩展
 
@@ -555,15 +550,10 @@ GET   https://jw.gdipu.edu.cn/jsxsd/framework/xsMain.jsp  [200] ← 最终首页
 
 ## 附 A：关键文件清单
 
-| 文件                               | 说明                                 |
-| ---------------------------------- | ------------------------------------ |
-| `d:\校园论坛\crawler.js`           | 爬虫主代码                           |
-| `d:\校园论坛\waf-test.js`          | WAF 阈值测试脚本                     |
-| `d:\校园论坛\edge-case-capture.js` | 边界场景抓取脚本                     |
-| `d:\校园论坛\package.json`         | 依赖配置                             |
-| `d:\校园论坛\kb.html`              | 第 17 周课表 HTML 样本               |
-| `d:\校园论坛\jw.gdip.edu.cn.har`   | 第一个 HAR 抓包（旧域名，无 Cookie） |
-| `d:\校园论坛\jw.gdipu.edu.cn.har`  | 第二个 HAR 抓包（新域名，含 Cookie） |
+| 文件                       | 说明       |
+| -------------------------- | ---------- |
+| `d:\校园论坛\crawler.js`   | 爬虫主代码 |
+| `d:\校园论坛\package.json` | 依赖配置   |
 
 ---
 
@@ -576,30 +566,25 @@ crawler.js (核心类 JwCrawler)
   └── captcha-ocr.js                                   (验证码OCR)
         └── tesseract.js + eng.traineddata
 
-waf-test.js
-  └── crawler.js
-
-edge-case-capture.js
-  └── crawler.js
 ```
 
 ---
 
 ## 附 C：环境变量与配置一览
 
-| 环境变量                | 命令行参数             | 默认值               | 说明                     |
-| ----------------------- | ---------------------- | -------------------- | ------------------------ |
-| `JW_ACCOUNT`            | `--account`            | -                    | 学号                     |
-| `JW_PASSWORD`           | `--password`           | -                    | 密码                     |
-| `JW_USE_OCR`            | `--ocr`                | `false`              | 启用本地 OCR             |
-| `JW_CAPTCHA`            | `--captcha`            | -                    | 手动指定验证码（调试用） |
-| `JW_CAPTCHA_ATTEMPTS`   | `--captcha-attempts`   | `1`                  | 验证码重试次数           |
-| `JW_OCR_MIN_CONFIDENCE` | `--ocr-min-confidence` | `0`                  | OCR 最低置信度           |
-| `JW_CAPTCHA_PATH`       | `--captcha-path`       | `./captcha.png`      | 验证码保存路径           |
-| `JW_SEMESTER_START`     | `--semester-start`     | `2026-03-02`         | 学期第一周周一           |
-| `JW_TOTAL_WEEKS`        | `--weeks`              | `19`                 | 抓取周数                 |
-| `JW_OUTPUT`             | `--output`             | `courses_all.json`   | 输出文件                 |
-| `JW_SAVE_DIR`           | `--save-dir`           | `./schedule_samples` | 原始 HTML 保存目录       |
+| 环境变量                | 命令行参数             | 默认值           | 说明                     |
+| ----------------------- | ---------------------- | ---------------- | ------------------------ |
+| `JW_ACCOUNT`            | `--account`            | -                | 学号                     |
+| `JW_PASSWORD`           | `--password`           | -                | 密码                     |
+| `JW_USE_OCR`            | `--ocr`                | `false`          | 启用本地 OCR             |
+| `JW_CAPTCHA`            | `--captcha`            | -                | 手动指定验证码（调试用） |
+| `JW_CAPTCHA_ATTEMPTS`   | `--captcha-attempts`   | `1`              | 验证码重试次数           |
+| `JW_OCR_MIN_CONFIDENCE` | `--ocr-min-confidence` | `0`              | OCR 最低置信度           |
+| `JW_CAPTCHA_PATH`       | `--captcha-path`       | `./captcha.png`  | 验证码保存路径           |
+| `JW_SEMESTER_START`     | `--semester-start`     | `2026-03-02`     | 学期第一周周一           |
+| `JW_TOTAL_WEEKS`        | `--weeks`              | `19`             | 抓取周数                 |
+| `JW_OUTPUT`             | `--output`             | `schedule.json`  | 输出文件                 |
+| `JW_SAVE_DIR`           | `--save-dir`           | `./schedule_raw` | 原始 HTML 保存目录       |
 
 ---
 
@@ -617,7 +602,7 @@ edge-case-capture.js
 | 2.8  | 登录失败后验证码复用     | 🟡 中    | 🟡 中    | 🟡 **中** | 每次重试重新获取验证码                  |
 | 2.9  | 多周课表 HTML 一致性     | 🔴 高    | 🟡 中    | 🔴 **高** | 抓取多周样本验证解析鲁棒性              |
 | 2.10 | 课表额外参数             | 🟢 低    | 🟢 低    | 🟢 **低** | 当前功能无需额外参数                    |
-| 2.11 | WAF 实际阈值             | 🟡 中    | 🟢 低    | 🟢 **低** | 已准备 waf-test.js，非高峰测试          |
+| 2.11 | WAF 实际阈值             | 🟡 中    | 🟢 低    | 🟢 **低** | 在服务方允许的范围内进行受控验证        |
 | 2.12 | 其他业务接口格式         | 🟢 低    | 🟢 低    | 🟢 **低** | 扩展时再抓包                            |
 
 **高优先级风险（需立即关注）**：2.1（加密正确性）、2.4（重定向 Cookie）、2.9（多周 HTML 一致性）
@@ -662,4 +647,4 @@ edge-case-capture.js
 | 2026-07-03 | 完成 crawler-info.md 初版：已知/不确定/缺失信息分类                       |
 | 2026-07-03 | 分析第二份 HAR，确认统一域名 `jw.gdipu.edu.cn`、Cookie 机制、简化登录字段 |
 | 2026-07-02 | 实现 `crawler.js` 主爬虫、验证码 OCR、课表解析                            |
-| 2026-07-02 | 分析第一份 HAR 和课表 HTML 样本 `kb.html`                                 |
+| 2026-07-02 | 完成课表解析与线上接口流程梳理                                            |

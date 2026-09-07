@@ -1,3 +1,5 @@
 {
-  "navigationBarTitleText": "消息详情"
+  "navigationBarTitleText": "消息详情",
+  "navigationBarBackgroundColor": "#D7EFFF",
+  "navigationBarTextStyle": "black"
 }

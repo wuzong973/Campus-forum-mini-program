@@ -1,4 +1,6 @@
 {
   "navigationBarTitleText": "帖子海报",
+  "navigationBarBackgroundColor": "#D7EFFF",
+  "navigationBarTextStyle": "black",
   "usingComponents": {}
 }

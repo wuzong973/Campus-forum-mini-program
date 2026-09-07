@@ -63,29 +63,54 @@ function generateAnonIdentity() {
   return { nickName: pick(ANON_NAMES), avatarUrl: pick(ANON_AVATARS) }
 }
 
-async function getOrCreateConversation(userId, peerId, anonymousRequested = false, anonymousIdentity = null, anonSide = 'peer') {
+// 分身会话隔离键：直接采用分身头像路径（服务端校验过必须来自 /assets/avatar1/，天然唯一）。
+// 普通私信固定为 ''。同一真实用户的每个分身各自建立独立会话，聊天记录互不可见
+function normalizePersonaKey(personaKey) {
+  const value = String(personaKey || '').trim()
+  if (!value) return ''
+  return value.slice(0, 255)
+}
+
+async function getOrCreateConversation(userId, peerId, anonymousRequested = false, anonymousIdentity = null, anonSide = 'peer', personaKey = '', sourcePostId = 0) {
   if (userId === peerId) throw new Error('不能给自己发私信')
+  const persona = normalizePersonaKey(personaKey)
   const [users] = await pool.query('SELECT id, nick_name, avatar_url, allow_anonymous_pm FROM sys_user WHERE id = ? AND status = 1', [peerId])
   if (!users.length) throw new Error('用户不存在')
-  // 对方关闭“允许被匿名私信”后，禁止以匿名身份建立会话
-  if (anonymousRequested && Number(users[0].allow_anonymous_pm) === 0) throw new Error('对方不允许匿名私信')
+  // 对方关闭“允许被匿名私信”后，仅禁止建立【新】的匿名会话；
+  // 已存在的匿名会话（建立时对方仍允许）继续可用，避免开关变更把历史会话变成无法发送的死局。
+  // 检查按分身隔离：与分身 A 的既有会话不受影响，但无法用新分身 B 建立新会话
+  if (anonymousRequested && Number(users[0].allow_anonymous_pm) === 0) {
+    const [existingConv] = await pool.query('SELECT id FROM private_conversation WHERE user_id = ? AND peer_id = ? AND persona_key = ? LIMIT 1', [userId, peerId, persona])
+    if (!existingConv.length) throw new Error('对方不允许匿名私信')
+  }
   const conn = await pool.getConnection()
   try {
     await conn.beginTransaction()
-    const [mine] = await conn.query('SELECT id, is_anonymous FROM private_conversation WHERE user_id = ? AND peer_id = ? FOR UPDATE', [userId, peerId])
+    const [mine] = await conn.query('SELECT id, is_anonymous FROM private_conversation WHERE user_id = ? AND peer_id = ? AND persona_key = ? FOR UPDATE', [userId, peerId, persona])
     let myConvId = mine[0] && mine[0].id
     let peerConvId
     if (!myConvId) {
-      const [result] = await conn.query('INSERT INTO private_conversation (user_id, peer_id, is_anonymous) VALUES (?, ?, ?)', [userId, peerId, anonymousRequested ? 1 : 0])
+      const [result] = await conn.query('INSERT INTO private_conversation (user_id, peer_id, persona_key, is_anonymous) VALUES (?, ?, ?, ?)', [userId, peerId, persona, anonymousRequested ? 1 : 0])
       myConvId = result.insertId
     }
-    const [peer] = await conn.query('SELECT id FROM private_conversation WHERE user_id = ? AND peer_id = ? FOR UPDATE', [peerId, userId])
+    const [peer] = await conn.query('SELECT id FROM private_conversation WHERE user_id = ? AND peer_id = ? AND persona_key = ? FOR UPDATE', [peerId, userId, persona])
     if (peer.length) peerConvId = peer[0].id
     else {
-      const [result] = await conn.query('INSERT INTO private_conversation (user_id, peer_id, is_anonymous) VALUES (?, ?, ?)', [peerId, userId, anonymousRequested ? 1 : 0])
+      // 分身私信（anonSide='self'）中接收方是普通用户：其会话行必须保持 is_anonymous=0，
+      // 否则普通用户一方会被永久误标为匿名（聊天页强制进入匿名模式、回复也变成匿名身份）
+      const peerAnonymousFlag = anonymousRequested && anonSide !== 'self' ? 1 : 0
+      const [result] = await conn.query('INSERT INTO private_conversation (user_id, peer_id, persona_key, is_anonymous) VALUES (?, ?, ?, ?)', [peerId, userId, persona, peerAnonymousFlag])
       peerConvId = result.insertId
     }
-    if (anonymousRequested) await conn.query('UPDATE private_conversation SET is_anonymous = 1 WHERE id IN (?, ?)', [myConvId, peerConvId])
+    if (anonymousRequested) {
+      // 分身私信（anonSide='self'）：仅发起方记为匿名，接收方是普通用户，保持普通身份
+      // 回复匿名帖子（anonSide='peer'）：确认弹窗已告知「你也自动变为匿名用户」，双方均记为匿名
+      if (anonSide === 'self') {
+        await conn.query('UPDATE private_conversation SET is_anonymous = 1 WHERE id = ?', [myConvId])
+      } else {
+        await conn.query('UPDATE private_conversation SET is_anonymous = 1 WHERE id IN (?, ?)', [myConvId, peerConvId])
+      }
+    }
     // 首次以匿名方式进入时存档分身身份（只存一次，之后不再覆盖，保证全程同一个匿名头像）
     // anonSide=peer：分身属于对方（分身卡片私信）；anonSide=self：分身属于发起方自己（分身私信普通用户）
     const identity = anonymousRequested ? parseAnonymousIdentity(anonymousIdentity) : null
@@ -99,50 +124,66 @@ async function getOrCreateConversation(userId, peerId, anonymousRequested = fals
         await conn.query('UPDATE private_conversation SET anon_self_identity = ? WHERE id = ? AND anon_self_identity IS NULL', [payload, peerConvId])
       }
     }
-    const [state] = await conn.query('SELECT is_anonymous, anon_peer_identity, anon_self_identity FROM private_conversation WHERE id = ?', [myConvId])
+    // 来源帖子：首次从帖子详情发起私信时记录（只记一次，之后不再覆盖），
+    // 双方会话都写入，任何一方从消息列表进入聊天都能「回到帖子」
+    const sourcePost = Number(sourcePostId) > 0 ? Math.floor(Number(sourcePostId)) : 0
+    if (sourcePost) {
+      await conn.query('UPDATE private_conversation SET source_post_id = ? WHERE id IN (?, ?) AND source_post_id IS NULL', [sourcePost, myConvId, peerConvId])
+    }
+    const [state] = await conn.query(
+      `SELECT c.is_anonymous, c.anon_peer_identity, c.anon_self_identity, c.source_post_id, IFNULL(p.is_anonymous, 0) AS peer_is_anonymous
+       FROM private_conversation c
+       LEFT JOIN private_conversation p ON p.user_id = c.peer_id AND p.peer_id = c.user_id AND p.persona_key = c.persona_key
+       WHERE c.id = ?`, [myConvId])
     await conn.commit()
     return {
       myConvId,
       peerConvId,
+      personaKey: persona,
       peerInfo: users[0],
+      sourcePostId: state[0] ? (Number(state[0].source_post_id) || 0) : 0,
       isAnonymous: !!(state[0] && state[0].is_anonymous),
+      peerIsAnonymous: !!(state[0] && Number(state[0].peer_is_anonymous) === 1),
       peerAnonymous: state[0] ? parseAnonymousIdentity(state[0].anon_peer_identity) : null,
       selfAnonymous: state[0] ? parseAnonymousIdentity(state[0].anon_self_identity) : null
     }
   } catch (e) { await conn.rollback(); throw e } finally { conn.release() }
 }
 
-async function getPendingMessage(userId, peerId, conn = pool) {
+async function getPendingMessage(userId, peerId, conn = pool, personaKey = '') {
   // The one-message waiting rule only applies before the other participant has
   // ever replied. Once both sides have sent a message, this conversation is open.
+  // 等待规则按分身会话隔离：对方在其他分身会话中的回复不影响本会话
+  const persona = normalizePersonaKey(personaKey)
   const [replies] = await conn.query(
     `SELECT id FROM private_message
-     WHERE sender_id = ? AND receiver_id = ? AND status != 'recalled'
+     WHERE sender_id = ? AND receiver_id = ? AND persona_key = ? AND status != 'recalled'
      LIMIT 1`,
-    [peerId, userId]
+    [peerId, userId, persona]
   )
   if (replies.length) return null
 
   const [rows] = await conn.query(
     `SELECT id FROM private_message
-     WHERE sender_id = ? AND receiver_id = ? AND status != 'recalled'
+     WHERE sender_id = ? AND receiver_id = ? AND persona_key = ? AND status != 'recalled'
      ORDER BY id DESC LIMIT 1`,
-    [userId, peerId]
+    [userId, peerId, persona]
   )
   return rows[0] || null
 }
 
-async function updateConversationPreview(conn, userId, peerId) {
+async function updateConversationPreview(conn, userId, peerId, personaKey = '') {
+  const persona = normalizePersonaKey(personaKey)
   const [latest] = await conn.query(
     `SELECT id, content, msg_type, created_at FROM private_message
-     WHERE ((sender_id = ? AND receiver_id = ?) OR (sender_id = ? AND receiver_id = ?)) AND status != 'recalled'
+     WHERE ((sender_id = ? AND receiver_id = ?) OR (sender_id = ? AND receiver_id = ?)) AND persona_key = ? AND status != 'recalled'
      ORDER BY id DESC LIMIT 1`,
-    [userId, peerId, peerId, userId]
+    [userId, peerId, peerId, userId, persona]
   )
   const message = latest[0]
   const text = message ? (message.msg_type === 'image' ? '[图片]' : message.content.slice(0, 500)) : ''
   const time = message ? message.created_at : null
-  await conn.query('UPDATE private_conversation SET last_message_id = ?, last_message_text = ?, last_message_time = ? WHERE (user_id = ? AND peer_id = ?) OR (user_id = ? AND peer_id = ?)', [message ? message.id : null, text, time, userId, peerId, peerId, userId])
+  await conn.query('UPDATE private_conversation SET last_message_id = ?, last_message_text = ?, last_message_time = ? WHERE (user_id = ? AND peer_id = ? AND persona_key = ?) OR (user_id = ? AND peer_id = ? AND persona_key = ?)', [message ? message.id : null, text, time, userId, peerId, persona, peerId, userId, persona])
 }
 
 async function isBlocked(userId, targetId) {
@@ -151,7 +192,7 @@ async function isBlocked(userId, targetId) {
   return rows.length > 0
 }
 
-async function createPrivateMessage(senderId, receiverId, content, msgType = 'text', anonymousRequested = false, anonymousIdentity = null) {
+async function createPrivateMessage(senderId, receiverId, content, msgType = 'text', anonymousRequested = false, anonymousIdentity = null, personaKey = '') {
   // 拉黑双向拦截：接收方拉黑发送方时拒绝投递，发送方拉黑接收方时提示先解除
   if (await isBlocked(receiverId, senderId)) throw new Error('消息发送失败，对方已将你加入黑名单')
   if (await isBlocked(senderId, receiverId)) throw new Error('你已拉黑对方，请先解除拉黑后再发送')
@@ -160,7 +201,12 @@ async function createPrivateMessage(senderId, receiverId, content, msgType = 'te
   const identity = anonymousRequested
     ? (parseAnonymousIdentity(anonymousIdentity) || generateAnonIdentity())
     : null
-  const conversation = await getOrCreateConversation(senderId, receiverId, anonymousRequested, identity, 'self')
+  // 分身会话键：优先用入口显式传入的分身标识；未传时以最终存档的分身头像兜底，
+  // 保证同一分身始终落在同一个隔离会话中
+  const persona = normalizePersonaKey(personaKey) || (identity ? normalizePersonaKey(identity.avatarUrl) : '')
+  const conversation = await getOrCreateConversation(senderId, receiverId, anonymousRequested, identity, 'self', persona)
+  // 会话只要存在匿名侧（即匿名发起方），消息统一走匿名渠道，双方查看/回复都落在同一份记录里
+  const channelAnonymous = conversation.isAnonymous || conversation.peerIsAnonymous
   const text = String(content).trim()
   const type = ['text', 'image', 'emoji', 'video'].includes(msgType) ? msgType : 'text'
   const lastText = type === 'image' ? '[图片]' : type === 'video' ? '[视频]' : text.slice(0, 500)
@@ -170,15 +216,16 @@ async function createPrivateMessage(senderId, receiverId, content, msgType = 'te
     await conn.beginTransaction()
     // Lock the sender's conversation row so concurrent requests cannot bypass the one-message rule.
     await conn.query('SELECT id FROM private_conversation WHERE id = ? FOR UPDATE', [conversation.myConvId])
-    if (await getPendingMessage(senderId, receiverId, conn)) throw new Error('请等待对方回复后再发送；可长按上一条消息撤回')
-    // 按发送时的匿名请求标记渠道，匿名/普通私信在同一会话内各看各的记录
-    const [result] = await conn.query('INSERT INTO private_message (conversation_id, sender_id, receiver_id, content, msg_type, is_anonymous) VALUES (?, ?, ?, ?, ?, ?)', [conversation.myConvId, senderId, receiverId, text, type, anonymousRequested ? 1 : 0])
+    if (await getPendingMessage(senderId, receiverId, conn, persona)) throw new Error('请等待对方回复后再发送；可长按上一条消息撤回')
+    // 按会话的匿名侧标记消息渠道，匿名/普通私信在同一会话内各看各的记录；
+    // persona_key 让不同分身的消息彻底隔离，互不串扰
+    const [result] = await conn.query('INSERT INTO private_message (conversation_id, sender_id, receiver_id, persona_key, content, msg_type, is_anonymous) VALUES (?, ?, ?, ?, ?, ?, ?)', [conversation.myConvId, senderId, receiverId, persona, text, type, channelAnonymous ? 1 : 0])
     messageId = result.insertId
     await conn.query('UPDATE private_conversation SET last_message_id = ?, last_message_text = ?, last_message_time = NOW() WHERE id = ?', [messageId, lastText, conversation.myConvId])
     await conn.query('UPDATE private_conversation SET last_message_id = ?, last_message_text = ?, last_message_time = NOW(), unread_count = unread_count + 1 WHERE id = ?', [messageId, lastText, conversation.peerConvId])
     await conn.commit()
   } catch (e) { await conn.rollback(); throw e } finally { conn.release() }
-  const data = { id: messageId, senderId, receiverId, content: text, msgType: type, createdAt: new Date().toISOString(), status: 'sent', isAnonymous: conversation.isAnonymous }
+  const data = { id: messageId, senderId, receiverId, personaKey: persona, content: text, msgType: type, createdAt: new Date().toISOString(), status: 'sent', isAnonymous: channelAnonymous }
   wsServer.sendToUser(receiverId, { type: 'private_message', data })
   return data
 }
@@ -195,9 +242,10 @@ exports.send = async (req, res) => {
       content,
       msgType,
       !!req.body.anonymous,
-      { nickName: req.body.anonNick, avatarUrl: req.body.anonAvatar }
+      { nickName: req.body.anonNick, avatarUrl: req.body.anonAvatar },
+      req.body.personaKey
     )
-    success(res, { id: message.id, status: message.status, createdAt: message.createdAt, isAnonymous: message.isAnonymous })
+    success(res, { id: message.id, status: message.status, createdAt: message.createdAt, isAnonymous: message.isAnonymous, personaKey: message.personaKey })
   } catch (e) { fail(res, safeMessage(e), 400) }
 }
 
@@ -212,26 +260,46 @@ exports.history = async (req, res) => {
   try {
     const anonIdentity = parseAnonymousIdentity({ nickName: req.query.anonNick, avatarUrl: req.query.anonAvatar })
     const anonSide = req.query.anonSide === 'self' ? 'self' : 'peer'
-    const conversation = await getOrCreateConversation(req.userId, peerId, req.query.anonymous === '1', anonIdentity, anonSide)
-    // 匿名/普通是同一会话里的两条独立记录：显式传了 anonymous 参数按参数选渠道，
-    // 未传（旧入口）沿用会话当前的匿名标记
-    const channelAnonymous = req.query.anonymous === undefined
-      ? !!conversation.isAnonymous
-      : req.query.anonymous === '1'
-    const params = [req.userId, peerId, peerId, req.userId, channelAnonymous ? 1 : 0]
-    const [countRows] = await pool.query("SELECT COUNT(*) AS total FROM private_message WHERE ((sender_id = ? AND receiver_id = ?) OR (sender_id = ? AND receiver_id = ?)) AND status != 'recalled' AND is_anonymous = ?", params)
+    // 分身会话键：入口显式传入优先；匿名入口未传时以分身头像兜底。
+    // history 只读取该分身自己的消息，其他分身/普通渠道的记录不会出现在本会话
+    const personaKey = normalizePersonaKey(req.query.personaKey) ||
+      (req.query.anonymous === '1' && anonIdentity ? normalizePersonaKey(anonIdentity.avatarUrl) : '')
+    const conversation = await getOrCreateConversation(req.userId, peerId, req.query.anonymous === '1', anonIdentity, anonSide, personaKey, parseInt(req.query.postId, 10) || 0)
+    // 消息渠道按会话实际的匿名侧计算：任一方是匿名发起方，双方查看/回复都落在同一匿名渠道，
+    // 普通用户一方也能看到匿名消息并正常回复
+    const channelAnonymous = conversation.isAnonymous || conversation.peerIsAnonymous
+    const params = [req.userId, peerId, peerId, req.userId, conversation.personaKey, channelAnonymous ? 1 : 0]
+    const [countRows] = await pool.query("SELECT COUNT(*) AS total FROM private_message WHERE ((sender_id = ? AND receiver_id = ?) OR (sender_id = ? AND receiver_id = ?)) AND persona_key = ? AND status != 'recalled' AND is_anonymous = ?", params)
     const [rows] = await pool.query(
       `SELECT m.*, u.nick_name AS sender_nick, u.avatar_url AS sender_avatar FROM private_message m
        LEFT JOIN sys_user u ON m.sender_id = u.id
-       WHERE ((m.sender_id = ? AND m.receiver_id = ?) OR (m.sender_id = ? AND m.receiver_id = ?)) AND m.status != 'recalled' AND m.is_anonymous = ?
+       WHERE ((m.sender_id = ? AND m.receiver_id = ?) OR (m.sender_id = ? AND m.receiver_id = ?)) AND m.persona_key = ? AND m.status != 'recalled' AND m.is_anonymous = ?
        ORDER BY m.id DESC LIMIT ? OFFSET ?`,
       params.concat([pageSize, offset])
     )
     const total = countRows[0].total
-    const pending = await getPendingMessage(req.userId, peerId)
+    const pending = await getPendingMessage(req.userId, peerId, pool, conversation.personaKey)
     const [blocked, blockedByPeer] = await Promise.all([isBlocked(req.userId, peerId), isBlocked(peerId, req.userId)])
-    const list = rows.map((r) => ({ id: r.id, conversationId: r.conversation_id, senderId: r.sender_id, receiverId: r.receiver_id, content: r.content, msgType: r.msg_type, status: r.status, senderNick: r.sender_nick, senderAvatar: r.sender_avatar, createdAt: r.created_at }))
-    success(res, { list: list.reverse(), total, hasMore: offset + pageSize < total, canSend: !pending && !blocked && !blockedByPeer, pendingMessageId: pending ? pending.id : 0, isAnonymous: conversation.isAnonymous, blocked, blockedByPeer, peerAnonymous: conversation.peerAnonymous, selfAnonymous: conversation.selfAnonymous })
+    // 匿名渠道消息：LEFT JOIN sys_user 带出的是发送方真实身份，他人发送的消息必须清洗，
+    // 优先用存档的分身身份展示；无存档分身时兜底用对方真实昵称头像（对方发帖时所用身份），
+    // 不再显示笼统的「匿名用户」；自己发送的保留真实身份（前端匿名模式也不使用 senderAvatar）
+    const fallbackNick = (conversation.peerInfo && conversation.peerInfo.nick_name) || '校园同学'
+    const fallbackAvatar = (conversation.peerInfo && conversation.peerInfo.avatar_url) || '/assets/icons/avatar.png'
+    const list = rows.map((r) => {
+      const item = { id: r.id, conversationId: r.conversation_id, senderId: r.sender_id, receiverId: r.receiver_id, personaKey: r.persona_key, content: r.content, msgType: r.msg_type, status: r.status, senderNick: r.sender_nick, senderAvatar: r.sender_avatar, createdAt: r.created_at }
+      if (channelAnonymous && Number(r.sender_id) !== Number(req.userId)) {
+        const persona = conversation.peerAnonymous
+        item.senderNick = persona ? persona.nickName : fallbackNick
+        item.senderAvatar = persona ? persona.avatarUrl : fallbackAvatar
+      }
+      return item
+    })
+    // 对方身份展示：有存档分身时下发分身（peerAnonymous）；
+    // 没有时下发对方真实身份（peerNormal，即对方发布帖子所用的头像昵称），前端不再误显示为「匿名用户」
+    const peerNormal = !conversation.peerAnonymous
+      ? { nickName: fallbackNick, avatarUrl: fallbackAvatar }
+      : null
+    success(res, { list: list.reverse(), total, hasMore: offset + pageSize < total, canSend: !pending && !blocked && !blockedByPeer, pendingMessageId: pending ? pending.id : 0, isAnonymous: conversation.isAnonymous, personaKey: conversation.personaKey, peerNormal, blocked, blockedByPeer, peerAnonymous: conversation.peerAnonymous, selfAnonymous: conversation.selfAnonymous, sourcePostId: conversation.sourcePostId || 0 })
   } catch (e) { fail(res, safeMessage(e), 400) }
 }
 
@@ -240,27 +308,33 @@ exports.recall = async (req, res) => {
   const conn = await pool.getConnection()
   try {
     await conn.beginTransaction()
-    const [rows] = await conn.query('SELECT id, sender_id, receiver_id, status FROM private_message WHERE id = ? FOR UPDATE', [messageId])
+    const [rows] = await conn.query('SELECT id, sender_id, receiver_id, persona_key, status FROM private_message WHERE id = ? FOR UPDATE', [messageId])
     const message = rows[0]
     if (!message || Number(message.sender_id) !== Number(req.userId) || message.status === 'recalled') throw new Error('消息无法撤回')
-    const [replies] = await conn.query("SELECT id FROM private_message WHERE sender_id = ? AND receiver_id = ? AND status != 'recalled' AND id > ? LIMIT 1", [message.receiver_id, message.sender_id, message.id])
+    // 「对方已回复」判断限定在同一分身会话内，其他分身的回复不影响本会话撤回
+    const [replies] = await conn.query("SELECT id FROM private_message WHERE sender_id = ? AND receiver_id = ? AND persona_key = ? AND status != 'recalled' AND id > ? LIMIT 1", [message.receiver_id, message.sender_id, message.persona_key, message.id])
     if (replies.length) throw new Error('对方已回复，无法撤回')
     await conn.query("UPDATE private_message SET status = 'recalled' WHERE id = ?", [messageId])
     await conn.query('INSERT INTO private_message_recall_log (message_id, operator_id, receiver_id) VALUES (?, ?, ?)', [messageId, req.userId, message.receiver_id])
-    await updateConversationPreview(conn, message.sender_id, message.receiver_id)
+    await updateConversationPreview(conn, message.sender_id, message.receiver_id, message.persona_key)
     await conn.commit()
-    wsServer.sendToUser(message.receiver_id, { type: 'private_message_recalled', data: { id: messageId, peerId: req.userId } })
+    wsServer.sendToUser(message.receiver_id, { type: 'private_message_recalled', data: { id: messageId, peerId: req.userId, personaKey: message.persona_key } })
     success(res, null)
   } catch (e) { await conn.rollback(); fail(res, safeMessage(e), 400) } finally { conn.release() }
 }
 
 exports.conversations = async (req, res) => {
   try {
-    const [rows] = await pool.query(`SELECT c.id, c.peer_id, c.unread_count, c.last_message_text, c.last_message_time, c.is_anonymous, c.anon_peer_identity, u.nick_name AS peer_nick, u.avatar_url AS peer_avatar FROM private_conversation c LEFT JOIN sys_user u ON c.peer_id = u.id WHERE c.user_id = ? AND c.status = 1 ORDER BY c.last_message_time DESC`, [req.userId])
+    // 会话按分身隔离：同一真实用户的每个分身各自一行，persona_key 标识所属分身
+    const [rows] = await pool.query(`SELECT c.id, c.peer_id, c.persona_key, c.unread_count, c.last_message_text, c.last_message_time, c.is_anonymous, c.anon_peer_identity, IFNULL(p.is_anonymous, 0) AS peer_is_anonymous, u.nick_name AS peer_nick, u.avatar_url AS peer_avatar FROM private_conversation c LEFT JOIN sys_user u ON c.peer_id = u.id LEFT JOIN private_conversation p ON p.user_id = c.peer_id AND p.peer_id = c.user_id AND p.persona_key = c.persona_key WHERE c.user_id = ? AND c.status = 1 ORDER BY c.last_message_time DESC`, [req.userId])
     success(res, { list: rows.map((r) => {
-      // 匿名会话已存档过分身身份时，列表也展示分身，保证各入口一致
+      // 匿名会话已存档过分身身份时，列表也展示分身，保证各入口一致；
+      // 无存档分身（含历史遗留会话）时兜底展示对方真实昵称头像，
+      // 即对方发布帖子时所用的头像与昵称，不再显示笼统的「匿名用户」
       const persona = parseAnonymousIdentity(r.anon_peer_identity)
-      return { id: r.id, peerId: r.peer_id, peerNick: persona ? persona.nickName : (r.is_anonymous ? '匿名用户' : r.peer_nick), peerAvatar: persona ? persona.avatarUrl : (r.is_anonymous ? '/assets/icons/avatar.png' : r.peer_avatar), unreadCount: r.unread_count, lastMessage: r.last_message_text, lastTime: r.last_message_time, isAnonymous: !!r.is_anonymous }
+      const fallbackNick = persona ? persona.nickName : (r.peer_nick || '校园同学')
+      const fallbackAvatar = persona ? persona.avatarUrl : (r.peer_avatar || '/assets/icons/avatar.png')
+      return { id: r.id, peerId: r.peer_id, personaKey: r.persona_key || '', peerNick: fallbackNick, peerAvatar: fallbackAvatar, unreadCount: r.unread_count, lastMessage: r.last_message_text, lastTime: r.last_message_time, isAnonymous: !!r.is_anonymous }
     }) })
   } catch (e) { fail(res, safeMessage(e), 500) }
 }
@@ -269,9 +343,10 @@ exports.markRead = async (req, res) => {
   const peerId = parseInt(req.body.peerId, 10)
   if (!peerId) return fail(res, '缺少peerId')
   try {
-    await getOrCreateConversation(req.userId, peerId)
-    await pool.query('UPDATE private_conversation SET unread_count = 0 WHERE user_id = ? AND peer_id = ?', [req.userId, peerId])
-    await pool.query("UPDATE private_message SET status = 'read' WHERE sender_id = ? AND receiver_id = ? AND status NOT IN ('read', 'recalled')", [peerId, req.userId])
+    // 按分身会话清零未读：personaKey 缺省为 ''（普通会话），只影响对应那一行
+    const persona = normalizePersonaKey(req.body.personaKey)
+    await pool.query('UPDATE private_conversation SET unread_count = 0 WHERE user_id = ? AND peer_id = ? AND persona_key = ?', [req.userId, peerId, persona])
+    await pool.query("UPDATE private_message SET status = 'read' WHERE sender_id = ? AND receiver_id = ? AND persona_key = ? AND status NOT IN ('read', 'recalled')", [peerId, req.userId, persona])
     success(res, null)
   } catch (e) { fail(res, safeMessage(e), 400) }
 }
@@ -310,8 +385,8 @@ exports.unblock = async (req, res) => {
 exports.blacklist = async (req, res) => {
   try {
     const [rows] = await pool.query(
-      `SELECT b.blocked_id AS userId, u.nick_name AS nick, u.avatar_url AS avatar, b.created_at FROM user_blacklist b
+      `SELECT b.blocked_id AS userId, u.nick_name AS nick, u.avatar_url AS avatar, u.campus, u.cert_label AS certLabel, u.is_verified AS verified, u.created_at AS registeredAt, b.created_at FROM user_blacklist b
        LEFT JOIN sys_user u ON b.blocked_id = u.id WHERE b.user_id = ? ORDER BY b.created_at DESC`, [req.userId])
-    success(res, { list: rows.map((r) => ({ userId: r.userId, nick: r.nick, avatar: r.avatar, createdAt: r.created_at })) })
+    success(res, { list: rows.map((r) => ({ userId: r.userId, nick: r.nick, avatar: r.avatar, campus: r.campus || '', certLabel: r.certLabel || '', verified: !!r.verified, registeredAt: r.registeredAt, createdAt: r.created_at })) })
   } catch (e) { fail(res, safeMessage(e), 500) }
 }

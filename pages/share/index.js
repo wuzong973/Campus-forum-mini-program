@@ -49,16 +49,6 @@ Page({
 
     this.setData({ sharing: true })
 
-    if (request.USE_MOCK) {
-      // Mock 模式
-      setTimeout(() => {
-        this.setData({ sharing: false })
-        wx.showToast({ title: '转发成功', icon: 'success' })
-        setTimeout(() => wx.navigateBack(), 1500)
-      }, 500)
-      return
-    }
-
     api.createShare(this.data.postId, this.data.shareContent).then(() => {
       this.setData({ sharing: false })
       wx.showToast({ title: '转发成功', icon: 'success' })

@@ -1,5 +1,7 @@
 {
   "navigationBarTitleText": "帖子详情",
+  "navigationBarBackgroundColor": "#D7EFFF",
+  "navigationBarTextStyle": "black",
   "usingComponents": {
     "share-popup": "/components/share-popup/share-popup"
   }

@@ -3,7 +3,7 @@
     <image class="hero-cover" src="{{profile.coverUrl || '/assets/banners/profile-cover.jpg'}}" mode="aspectFill"></image>
     <view class="hero-mask"></view>
     <view class="nav-bar" style="height: {{navBarHeight}}px;">
-      <view class="nav-back" bindtap="onBack">‹</view>
+      <view class="back-pill" hover-class="back-pill-hover" hover-stay-time="80" bindtap="onBack"><text class="back-pill-icon">‹</text><text>返回</text></view>
       <text class="nav-title">校园主页</text>
       <view class="nav-placeholder"></view>
     </view>

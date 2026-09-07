@@ -6,6 +6,7 @@ const wechatConfig = require("../config/wechat");
 const { success, fail } = require("../middleware/auth");
 const { safeMessage, clampPageSize, parseImages } = require("../utils/helpers");
 const { getAccessToken } = require("../utils/wechatToken");
+const { verifyJwAccount } = require("../services/jwScheduleSyncService");
 
 function parseJson(value, fallback = null) {
   if (!value) return fallback;
@@ -128,59 +129,6 @@ exports.phoneLogin = async (req, res) => {
       id: user.id,
       nickName: user.nick_name,
       avatarUrl: user.avatar_url,
-      phone: user.phone,
-      role: user.role || 'user',
-      token,
-    });
-  } catch (e) {
-    fail(res, safeMessage(e), 500);
-  }
-};
-
-exports.devLogin = async (req, res) => {
-  if (process.env.NODE_ENV === "production") {
-    return fail(res, "生产环境不允许模拟登录", 403);
-  }
-
-  const phone = String(req.body.phone || "13800138000").trim();
-  const nickName = String(req.body.nickName || "校园用户").trim();
-
-  try {
-    let [rows] = await pool.query(
-      'SELECT * FROM sys_user WHERE phone = ? AND phone <> "" LIMIT 1',
-      [phone],
-    );
-
-    let user;
-    if (rows.length) {
-      user = rows[0];
-    } else {
-      const openid = "dev_" + phone;
-      const [result] = await pool.query(
-        "INSERT INTO sys_user (openid, nick_name, avatar_url, phone) VALUES (?, ?, ?, ?)",
-        [openid, nickName, "", phone],
-      );
-      user = {
-        id: result.insertId,
-        openid,
-        nick_name: nickName,
-        avatar_url: "",
-        phone,
-      };
-    }
-
-    const token = jwt.sign({ userId: user.id }, jwtConfig.secret, {
-      expiresIn: jwtConfig.expiresIn,
-    });
-
-    success(res, {
-      id: user.id,
-      nickName: user.nick_name,
-      avatarUrl: user.avatar_url,
-      studentId: user.student_id,
-      isVerified: user.is_verified,
-      gender: user.gender,
-      campus: user.campus,
       phone: user.phone,
       role: user.role || 'user',
       token,
@@ -364,17 +312,18 @@ exports.updatePhone = async (req, res) => {
 
 exports.verify = async (req, res) => {
   const { studentId, realName } = req.body;
-  if (!studentId || !/^\d{6,12}$/.test(studentId))
-    return fail(res, "请输入有效学号");
+  // 学号位数不限制，填多少位都可以（DB student_id 为 VARCHAR(32)，超长截断）
+  const normalizedStudentId = String(studentId || "").trim().slice(0, 32);
+  if (!normalizedStudentId) return fail(res, "请输入学号");
   try {
     const [exist] = await pool.query(
       "SELECT id FROM sys_user WHERE student_id = ? AND id != ?",
-      [studentId, req.userId],
+      [normalizedStudentId, req.userId],
     );
     if (exist.length) return fail(res, "该学号已被认证");
     await pool.query(
       "UPDATE sys_user SET student_id = ?, real_name = ?, is_verified = 1 WHERE id = ?",
-      [studentId, realName || "", req.userId],
+      [normalizedStudentId, realName || "", req.userId],
     );
     success(res, null, "认证成功");
   } catch (e) {
@@ -464,15 +413,60 @@ exports.getRiderVerification = async (req, res) => {
   }
 };
 
+// 教务系统验证（骑手认证方式一）：学号+密码登录教务系统，成功即通过认证成为骑手
+exports.verifyRiderByJw = async (req, res) => {
+  const body = req.body || {};
+  let studentId = String(body.studentId || '').trim();
+  const password = String(body.password || '');
+  const phone = String(body.phone || '').trim();
+
+  if (!studentId) return fail(res, "请输入学号");
+  // 学号位数不限制，填多少位都可以（DB student_id 为 VARCHAR(32)，超长截断）
+  studentId = studentId.slice(0, 32);
+  if (!password) return fail(res, "请输入教务系统密码");
+  if (!phone) return fail(res, "请绑定联系手机号");
+
+  try {
+    const [exist] = await pool.query("SELECT id, status FROM rider_verification WHERE user_id = ?", [req.userId]);
+    if (exist.length && exist[0].status === 'approved') return fail(res, "您已通过骑手认证", 409);
+
+    // 教务系统登录验证：密码仅用于本次登录验证，不保存、不落库
+    try {
+      await verifyJwAccount({ userId: req.userId, username: studentId, password });
+    } catch (verifyError) {
+      return fail(res, safeMessage(verifyError), verifyError.status || 500);
+    }
+
+    // 验证通过 → 直接通过认证，具备接单资格
+    if (exist.length) {
+      await pool.query(
+        "UPDATE rider_verification SET student_id=?, campus_credential='', phone=?, status='approved', review_note='教务系统验证自动通过', reviewed_by=NULL, reviewed_at=NOW() WHERE user_id=?",
+        [studentId, phone, req.userId]
+      );
+    } else {
+      await pool.query(
+        "INSERT INTO rider_verification (user_id, student_id, campus_credential, phone, status, review_note, reviewed_at) VALUES (?, ?, ?, ?, 'approved', '教务系统验证自动通过', NOW())",
+        [req.userId, studentId, phone]
+      );
+    }
+    // 与管理员人工审核通过的行为保持一致
+    await pool.query("UPDATE sys_user SET is_verified = 1 WHERE id = ?", [req.userId]);
+    success(res, { status: 'approved' }, "教务系统验证通过，你已成为骑手");
+  } catch (e) {
+    fail(res, safeMessage(e), 500);
+  }
+};
+
 exports.submitRiderVerification = async (req, res) => {
   const body = req.body || {};
   const campusName = String(body.campusName || '').trim();
-  const studentId = String(body.studentId || '').trim();
+  let studentId = String(body.studentId || '').trim();
   const campusCredential = String(body.campusCredential || '').trim();
   const phone = String(body.phone || '').trim();
 
-  if (!campusName || !studentId || !campusCredential) return fail(res, "校园认证信息不完整");
-  if (!/^\d{6,12}$/.test(studentId)) return fail(res, "请输入有效学号");
+  // 证件人工审核路径：学号 + 证件照片必填，姓名改为可选；学号位数不限制（超长截断至 32 位）
+  if (!studentId || !campusCredential) return fail(res, "校园认证信息不完整");
+  studentId = studentId.slice(0, 32);
   if (!phone) return fail(res, "请绑定联系手机号");
 
   try {

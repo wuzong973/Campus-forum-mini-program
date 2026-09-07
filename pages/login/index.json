@@ -1,1 +1,6 @@
-{}
+{
+  "navigationBarTitleText": "",
+  "navigationBarBackgroundColor": "#FFFFFF",
+  "navigationBarTextStyle": "black",
+  "enablePullDownRefresh": false
+}

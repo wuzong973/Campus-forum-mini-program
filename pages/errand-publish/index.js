@@ -5,12 +5,6 @@ const wechat = require('../../utils/wechat')
 const { runPullDownRefresh } = require('../../utils/refresh')
 const LAST_FORM_KEY = 'errand_last_form'
 
-// 发布页顶部轮播横幅：管理后台未配置时的本地默认（可在后台「内容配置-发布横幅」维护）
-const DEFAULT_PUBLISH_BANNERS = [
-  { id: 'default-1', text: '禁止引导私下交易，违规封禁！', icon: '🚫', style: 'red' },
-  { id: 'default-2', text: '吃好喝好没烦恼。', icon: '😄', style: 'green' }
-]
-
 Page({
   data: {
     statusBarHeight: 20,
@@ -46,9 +40,17 @@ Page({
     isUrgent: false,
     // 期望完成时间（手动填写）
     appointmentValue: '',
+    // 截止接单时间（可选）：到期无人接单自动取消并退款
+    deadlineText: '',
+    acceptDeadlineValue: null,
+    showDeadlineSheet: false,
+    deadlineDays: [],
+    deadlineHours: [],
+    deadlineMinutes: [],
+    deadlinePickerValue: [0, 0, 0],
     agreed: false,
     submitting: false,
-    publishBanners: DEFAULT_PUBLISH_BANNERS.slice()
+    publishBanners: []
   },
 
   onLoad() {
@@ -57,9 +59,14 @@ Page({
     if (!auth.requireLogin('发布跑腿需要先登录')) {
       setTimeout(() => wx.navigateBack(), 500)
     }
-    this.loadPublishBanners()
-    // 自动填充个人设置中选择的校区
+    // 轮播横幅由 onShow 统一拉取（首次进入 onShow 也会触发）
+    // 根据个人设置（个人中心校区）自动选中校区
     this.applyProfileCampus()
+  },
+
+  onShow() {
+    // 管理员后台更新发布横幅样式后，再次进入发布页即可同步（onLoad 只走一次）
+    this.loadPublishBanners()
   },
 
   // ===== 顶部轮播横幅 =====
@@ -69,10 +76,34 @@ Page({
         id: b.id || 'b' + i,
         text: b.text,
         style: b.style || 'red',
-        icon: b.icon || ''
+        icon: b.icon || '',
+        link: b.link || '',
+        linkText: b.linkText || '',
+        bannerStyle: (b.bgColor ? 'background:' + b.bgColor + ';' : '') + (b.textColor ? 'color:' + b.textColor + ';' : '')
       }))
       if (list.length) this.setData({ publishBanners: list })
     }).catch(() => {})
+  },
+
+  // 点击发布横幅：配置了跳转链接则按类型跳转，未配置则打开横幅详情页
+  onPublishBannerTap(e) {
+    const banner = this.data.publishBanners[Number(e.currentTarget.dataset.index)] || {}
+    const link = String(banner.link || '').trim()
+    if (/^https?:\/\//i.test(link)) {
+      wx.navigateTo({
+        url: '/pages/webview/index?url=' + encodeURIComponent(link) + '&title=' + encodeURIComponent(banner.linkText || '公告详情')
+      })
+      return
+    }
+    if (link) {
+      const path = link.charAt(0) === '/' ? link : '/' + link
+      wx.navigateTo({
+        url: path,
+        fail: () => wx.switchTab({ url: path, fail: () => wx.navigateTo({ url: '/pages/banner-detail/index?scope=publish&id=' + (banner.id || '') }) })
+      })
+      return
+    }
+    wx.navigateTo({ url: '/pages/banner-detail/index?scope=publish&id=' + (banner.id || '') })
   },
   onClosePublishBanner(e) {
     const index = Number(e.currentTarget.dataset.index)
@@ -265,6 +296,135 @@ Page({
     wx.navigateTo({ url: '/pages/agreement/index?type=errand' })
   },
 
+  // ===== 截止接单时间选择 =====
+  // 模型：_deadlineSel 保存选中的「日期偏移 + 时 + 分」值；
+  // 可选时分数组每次都按【当前时刻】动态重建——选「今天」时只保留当前时刻之后的选项
+  //（最近的未来时刻 = 下一分钟），选其他日期则全天任意时间可选。
+  onOpenDeadlineSheet() {
+    const now = new Date()
+    const dayNames = ['今天', '明天', '后天', '大后天']
+    const days = dayNames.map((name, offset) => {
+      const d = new Date(now.getTime() + offset * 86400000)
+      return { offset, label: name + '(' + (d.getMonth() + 1) + '月' + d.getDate() + '日)' }
+    })
+    let sel
+    if (this.data.acceptDeadlineValue) {
+      // 已设置过则回显原选择
+      const old = this.data.acceptDeadlineValue
+      sel = { day: this._deadlineDayOffset(old, now), hour: old.getHours(), minute: old.getMinutes() }
+    } else {
+      // 默认初始可选时间：最近的未来时刻（下一分钟；23:59 的下一分钟进入下一小时）
+      let hour = now.getHours()
+      let minute = now.getMinutes() + 1
+      if (minute > 59) { minute = 0; hour += 1 }
+      sel = { day: 0, hour, minute }
+    }
+    this._deadlineSel = sel
+    this.setData({ showDeadlineSheet: true, deadlineDays: days })
+    this._applyDeadlineRange()
+  },
+
+  // 计算目标日期落在 今天(0)~大后天(3) 的偏移，越界则夹紧
+  _deadlineDayOffset(date, now) {
+    const a = new Date(date.getFullYear(), date.getMonth(), date.getDate())
+    const b = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+    const diff = Math.round((a.getTime() - b.getTime()) / 86400000)
+    return Math.max(0, Math.min(diff, 3))
+  },
+
+  // 按当前时刻重建「可选时 / 可选分」数组，并夹紧当前选择值：
+  // - 今天：小时从当前小时开始；若所选小时正是起始小时，分钟从下一分钟开始（当前分钟不可选，保证确认时必为未来时刻）
+  // - 今天 23:59 之后进入下一小时，起始小时自动 +1（边界处理）
+  // - 今天以外日期：0-23 时、0-59 分全量可选
+  _applyDeadlineRange() {
+    const sel = this._deadlineSel || { day: 0, hour: 0, minute: 0 }
+    const now = new Date()
+    const isToday = Number(sel.day) === 0
+    let minHour = 0
+    let minMinute = 0
+    if (isToday) {
+      minHour = now.getHours()
+      minMinute = now.getMinutes() + 1
+      if (minMinute > 59) { minMinute = 0; minHour += 1 }
+    }
+    const hours = []
+    for (let h = Math.min(minHour, 23); h <= 23; h++) hours.push(h)
+    if (!hours.length) hours.push(23)
+    let hour = Number(sel.hour)
+    if (!Number.isInteger(hour) || hour < hours[0]) hour = hours[0]
+    if (hour > 23) hour = 23
+    // 仅当今天且所选小时正是起始小时时，分钟受「下一分钟起」限制
+    const minuteMin = isToday && hour === Math.min(minHour, 23) ? Math.min(minMinute, 59) : 0
+    const minutes = []
+    for (let m = minuteMin; m <= 59; m++) minutes.push(m)
+    let minute = Number(sel.minute)
+    if (!Number.isInteger(minute) || minute < minuteMin) minute = minuteMin
+    if (minute > 59) minute = 59
+    sel.hour = hour
+    sel.minute = minute
+    this.setData({
+      deadlineHours: hours,
+      deadlineMinutes: minutes,
+      deadlinePickerValue: [Number(sel.day), Math.max(0, hours.indexOf(hour)), Math.max(0, minutes.indexOf(minute))]
+    })
+  },
+
+  onDeadlinePickerChange(e) {
+    const v = e.detail.value || []
+    const sel = this._deadlineSel
+    if (!sel) return
+    sel.day = Number(v[0]) || 0
+    const hours = this.data.deadlineHours
+    const minutes = this.data.deadlineMinutes
+    if (hours.length) sel.hour = hours[Math.min(Number(v[1]) || 0, hours.length - 1)]
+    if (minutes.length) sel.minute = minutes[Math.min(Number(v[2]) || 0, minutes.length - 1)]
+    // 实时用当前时刻重算可选范围：切到今天自动剔除已过去时刻，切到其他日期恢复全天可选；
+    // 已选的时/分值在合法范围内尽量保留
+    this._applyDeadlineRange()
+  },
+
+  onCloseDeadlineSheet() {
+    this.setData({ showDeadlineSheet: false })
+  },
+
+  // 清空时间，不限时
+  onDeadlineUnlimited() {
+    this.setData({ deadlineText: '', acceptDeadlineValue: null, showDeadlineSheet: false })
+  },
+
+  // 字段上的「清除」快捷按钮
+  onClearDeadline() {
+    this.setData({ deadlineText: '', acceptDeadlineValue: null })
+  },
+
+  onConfirmDeadline() {
+    const sel = this._deadlineSel
+    if (!sel) { this.setData({ showDeadlineSheet: false }); return }
+    const now = new Date()
+    const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() + Number(sel.day), Number(sel.hour), Number(sel.minute), 0)
+    // 弹窗停留较久可能导致所选时刻刚过期：刷新可选范围并顺延到最近的未来时刻，让用户重新确认
+    if (d.getTime() <= Date.now()) {
+      wx.showToast({ title: '所选时间已过期，已重新刷新可选时间', icon: 'none' })
+      this._applyDeadlineRange()
+      return
+    }
+    const p = (n) => String(n).padStart(2, '0')
+    const dayNames = ['今天', '明天', '后天', '大后天']
+    this.setData({
+      deadlineText: (dayNames[Number(sel.day)] || '') + ' ' + p(d.getMonth() + 1) + '月' + p(d.getDate()) + '日 ' + p(Number(sel.hour)) + ':' + p(Number(sel.minute)) + ' 前',
+      acceptDeadlineValue: d,
+      showDeadlineSheet: false
+    })
+  },
+
+  // 截止接单时间 → 'YYYY-MM-DD HH:mm:00'（未设置返回 null）
+  formatAcceptDeadline() {
+    const d = this.data.acceptDeadlineValue
+    if (!d) return null
+    const p = (n) => String(n).padStart(2, '0')
+    return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) + ' ' + p(d.getHours()) + ':' + p(d.getMinutes()) + ':00'
+  },
+
   // 发布并支付
   onSubmit() {
     const { title, remark, baseAmount, wechatId, receiverPhone } = this.data
@@ -323,6 +483,7 @@ Page({
       deliveryRoom: '',
       pickupTimeType: '预约',
       appointmentTime: this.data.appointmentValue.trim(),
+      acceptDeadline: this.formatAcceptDeadline(),
       remark: remark.trim(),
       privateInfo: this.data.privateInfo.trim(),
       wechatId: this.data.wechatId.trim(),
@@ -331,27 +492,6 @@ Page({
       totalAmount: parseFloat(fee.total),
       isLargeItem: this.data.isLargeItem,
       isUrgent: this.data.isUrgent
-    }
-
-    if (request.USE_MOCK) {
-      const mock = require('../../utils/mock')
-      const order = Object.assign(
-        {
-          id: Date.now(),
-          status: 'pending',
-          publisherName: '我',
-          role: 'publisher',
-          createdAt: new Date().toISOString()
-        },
-        payload
-      )
-      mock.myPublishedOrders.unshift(order)
-      mock.errandOrders.unshift(order)
-      this._saveLastForm()
-      wx.showToast({ title: '发布成功', icon: 'success' })
-      setTimeout(() => wx.navigateBack(), 1200)
-      this.setData({ submitting: false })
-      return
     }
 
     // 真实模式：先将本地临时图片上传到服务器，再携带图片 URL 创建订单

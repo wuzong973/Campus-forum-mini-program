@@ -4,7 +4,7 @@
     <view class="post-user-info">
       <view class="post-nick-row">
         <text class="post-nick">{{authorName}}</text>
-        <view class="post-anonymous-label"><text class="post-anonymous-main">帖子</text><text class="post-anonymous-tag" wx:if="{{post.isAnonymous}}">AN</text><text class="post-pin-tag" wx:if="{{post.pinned}}">置顶</text></view>
+        <view class="post-anonymous-label"><text class="post-anonymous-main">作者</text><text class="post-anonymous-tag" wx:if="{{post.isAnonymous}}">AN</text></view>
         <text class="post-review-note" wx:if="{{post.reviewNote}}">备注：{{post.reviewNote}}</text>
         <text class="post-cert-label" wx:if="{{certLabel && !post.isAnonymous}}">{{certLabel}}</text>
       </view>
@@ -16,6 +16,7 @@
         <text>{{viewText}}</text>
       </view>
     </view>
+    <text class="post-pin-tag" wx:if="{{post.pinned}}">置顶</text>
     <view class="more-btn" wx:if="{{!readonly}}" catchtap="onClose"><image class="more-btn-icon" src="/assets/icons/more.png" mode="aspectFit"></image></view>
   </view>
 
@@ -28,7 +29,8 @@
 
   <view class="post-images images-{{imageLayout}}" wx:if="{{previewImages.length}}">
     <view class="post-img-wrap" wx:for="{{previewImages}}" wx:key="url">
-      <image wx:if="{{!item.failed}}" src="{{item.url}}" mode="aspectFill" class="post-img" lazy-load data-url="{{item.url}}" catchtap="onPreviewImage" binderror="onImageError"></image>
+      <video wx:if="{{item.isVideo}}" class="post-video" src="{{item.url}}" object-fit="contain" controls show-center-play-btn catchtap="noop"></video>
+      <image wx:elif="{{!item.failed}}" src="{{item.url}}" mode="aspectFill" class="post-img" lazy-load data-url="{{item.url}}" data-urls="{{imageUrls}}" catchtap="onPreviewImage" bindlongpress="onImageQrScan" binderror="onImageError"></image>
       <view wx:else class="post-img-error" data-url="{{item.url}}" catchtap="onRetryImage">图片加载失败</view>
       <view class="image-count" wx:if="{{index === 2 && post.images.length > 3}}">+{{post.images.length - 3}}</view>
     </view>
@@ -39,7 +41,7 @@
       <view class="campus-tag">{{post.campus || '未设置校区'}}</view>
     </view>
     <view class="footer-actions">
-      <view class="footer-action {{post.isLiked ? 'active-like' : ''}}" catchtap="onLike"><image class="footer-action-icon" src="/assets/icons/heart-outline.png" mode="aspectFit"></image><text>{{post.likeCount > 0 ? post.likeCount : '点赞'}}</text></view>
+      <view class="footer-action {{post.isLiked ? 'active-like' : ''}} {{likeAnim}}" hover-class="action-pressed" hover-start-time="0" hover-stay-time="120" catchtap="onLike"><view class="footer-action-icon act-heart {{post.isLiked ? 'on' : ''}}"></view><text>{{post.likeCount > 0 ? post.likeCount : '点赞'}}</text><view class="heart-fly" wx:if="{{likeHeartFly}}"><view class="heart-fly-core"></view></view></view>
       <view class="footer-action" catchtap="onComment"><image class="footer-action-icon" src="/assets/icons/comment.png" mode="aspectFit"></image><text>{{post.commentCount > 0 ? post.commentCount : '评论'}}</text></view>
     </view>
   </view>

@@ -125,6 +125,18 @@ function saveUser(user) {
   }
   app.globalData.userInfo = info
   wx.setStorageSync('userInfo', info)
+  // 服务端缺少有效头像/昵称时（新用户或历史脏数据），把本地展示用的头像昵称回传服务器，
+  // 保证私信、帖子等场景其他用户能看到真实头像，而不是默认图标
+  if (user.id && (!serverAvatar || avatar.isDefaultName(serverNickName))) {
+    if (!saveUser._syncedProfiles) saveUser._syncedProfiles = {}
+    if (!saveUser._syncedProfiles[user.id] && avatar.isStoredAvatar(avatarUrl)) {
+      saveUser._syncedProfiles[user.id] = true
+      syncProfile({
+        avatarUrl,
+        nickName: avatar.isDefaultName(serverNickName) ? nickName : undefined
+      }).catch(() => {})
+    }
+  }
   // 登录成功后记录活跃时间，启动 90 天时效计时
   loginExpiry.recordActiveTime()
   return info
@@ -141,10 +153,6 @@ function logout() {
 }
 
 function syncProfile(fields) {
-  if (request.USE_MOCK) {
-    saveUser({ ...getAppSafe().globalData.userInfo, ...fields })
-    return Promise.resolve({ queued: false })
-  }
   if (!isLoggedIn()) {
     saveUser({ ...getAppSafe().globalData.userInfo, ...fields })
     return Promise.resolve()

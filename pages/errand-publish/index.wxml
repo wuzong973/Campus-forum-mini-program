@@ -2,7 +2,7 @@
   <!-- 顶部自动轮播横幅（管理后台「内容配置-发布横幅」可编辑） -->
   <swiper class="publish-banner-swiper" wx:if="{{publishBanners.length}}" autoplay circular interval="3000" duration="500">
     <swiper-item wx:for="{{publishBanners}}" wx:key="id">
-      <view class="publish-banner style-{{item.style}}">
+      <view class="publish-banner style-{{item.style}}" style="{{item.bannerStyle}}" data-index="{{index}}" bindtap="onPublishBannerTap">
         <text class="publish-banner-icon" wx:if="{{item.icon}}">{{item.icon}}</text>
         <text class="publish-banner-text">{{item.text}}</text>
         <text class="publish-banner-close" data-index="{{index}}" catchtap="onClosePublishBanner">✕</text>
@@ -15,6 +15,7 @@
 " data-field="remark" bindinput="onInput" value="{{remark}}" /><view class="quick-tags"><view class="quick-tag" data-field="remark" data-tag="送达地点：" bindtap="onQuickTagTap">送达地点</view><view class="quick-tag" data-field="remark" data-tag="期望完成时间：" bindtap="onQuickTagTap">期望完成时间</view></view><view class="add-image" bindtap="onChooseImage" wx:if="{{images.length < maxImages}}"><text>＋</text></view><view class="image-list"><view class="image-item" wx:for="{{images}}" wx:key="*this"><image src="{{item}}" mode="aspectFill" bindtap="onPreviewImage" data-index="{{index}}"/><text class="remove" bindtap="onRemoveImage" data-index="{{index}}">×</text></view></view></view>
   <view class="card"><view class="field-head"><view><text class="field-title">隐私信息</text><text class="private-tip">ⓘ 只有接单者可见，例如：取件码、门牌号等</text></view><text class="counter">{{privateInfo.length || 0}}/200</text></view><textarea class="desc-input private-input" maxlength="200" placeholder="输入隐私信息(可选)" data-field="privateInfo" bindinput="onInput" value="{{privateInfo}}" /><view class="quick-tags"><view class="quick-tag" data-field="privateInfo" data-tag="取件码：" bindtap="onQuickTagTap">取件码</view><view class="quick-tag" data-field="privateInfo" data-tag="手机尾号：" bindtap="onQuickTagTap">手机尾号</view></view><view class="add-image" bindtap="onChooseImage" wx:if="{{images.length < maxImages}}"><text>＋</text></view></view>
   <view class="card compact-card"><text class="field-title">期望完成时间 <text class="required">*</text></text><text class="hint">例如：今天下午3点前，明天上午等</text><input class="soft-input" maxlength="30" placeholder="请输入期望完成时间" data-field="appointmentValue" bindinput="onInput" value="{{appointmentValue}}" /></view>
+  <view class="card compact-card"><text class="field-title">截止接单时间</text><text class="hint">超过该时间仍无人接单，订单将自动取消并退款</text><view class="soft-input deadline-field" bindtap="onOpenDeadlineSheet"><text class="{{deadlineText ? 'deadline-value' : 'deadline-placeholder'}}">{{deadlineText || '不设置（点击选择时间）'}}</text><text class="deadline-clear" wx:if="{{deadlineText}}" catchtap="onClearDeadline">清除</text></view></view>
   <view class="card compact-card"><text class="field-title">悬赏金额 <text class="required">*</text></text><text class="hint">金额范围：2-500元</text><input class="soft-input amount-input" type="number" maxlength="3" placeholder="请输入悬赏金额" data-field="baseAmount" bindinput="onBaseAmountInput" value="{{baseAmount}}" /><text class="amount-error" wx:if="{{baseAmount && (baseAmount < 2 || baseAmount > 500)}}">请输入2-500元的金额</text></view>
   <view class="card compact-card"><view class="field-head"><text class="field-title">联系方式 <text class="required">*</text></text><view class="use-last"><text class="use-last-text">使用上次</text><switch checked="{{useLastContact}}" color="#4388ff" bindchange="onToggleLastContact"/></view></view><view class="contact-input"><text class="contact-icon">●</text><input placeholder="请输入微信号" data-field="wechatId" bindinput="onInput" value="{{wechatId}}" /></view><view class="contact-input"><text class="contact-icon phone">⌕</text><input type="number" placeholder="请输入手机号" data-field="receiverPhone" bindinput="onInput" value="{{receiverPhone}}" /></view></view>
   <view class="card advanced-card"><text class="field-title">性别限制 <text class="required">*</text></text><view class="gender-row"><view wx:for="{{genderRestrictions}}" wx:key="*this" class="gender-btn {{activeGenderRestriction === index ? 'active' : ''}}" data-index="{{index}}" bindtap="onGenderRestrictionSelect">{{item}}</view></view></view>
@@ -23,11 +24,33 @@
     <view class="agreement-row">
       <view class="agree-check {{agreed ? 'checked' : ''}}" bindtap="toggleAgree"><text wx:if="{{agreed}}" class="agree-tick">✓</text></view>
       <text class="agree-text" bindtap="toggleAgree">我已阅读并同意</text>
-      <text class="agree-link" bindtap="openAgreement">《在校生论坛互助发单系统协议》</text>
+      <text class="agree-link" bindtap="openAgreement">《广轻工论坛互助发单系统协议》</text>
     </view>
     <view class="pay-row">
       <text class="pay-label">确认支付 <text class="pay-amount">¥{{totalAmount || '0'}}</text></text>
       <button class="pay-btn" bindtap="onSubmit" loading="{{submitting}}">支付发布</button>
+    </view>
+  </view>
+
+  <!-- 截止接单时间选择弹窗（今天~大后天 + 时 + 分，可清空不限时） -->
+  <view class="sheet-mask" wx:if="{{showDeadlineSheet}}" bindtap="onCloseDeadlineSheet"></view>
+  <view class="deadline-sheet" wx:if="{{showDeadlineSheet}}">
+    <view class="deadline-sheet-title">设置截止接单时间</view>
+    <picker-view class="deadline-picker" value="{{deadlinePickerValue}}" bindchange="onDeadlinePickerChange" indicator-style="height: 88rpx;">
+      <picker-view-column>
+        <view wx:for="{{deadlineDays}}" wx:key="offset" class="deadline-picker-item">{{item.label}}</view>
+      </picker-view-column>
+      <picker-view-column>
+        <view wx:for="{{deadlineHours}}" wx:key="*this" class="deadline-picker-item">{{item}} 时</view>
+      </picker-view-column>
+      <picker-view-column>
+        <view wx:for="{{deadlineMinutes}}" wx:key="*this" class="deadline-picker-item">{{item}} 分</view>
+      </picker-view-column>
+    </picker-view>
+    <view class="deadline-unlimited" bindtap="onDeadlineUnlimited">清空时间，不限时</view>
+    <view class="deadline-sheet-actions">
+      <view class="deadline-sheet-btn cancel" bindtap="onCloseDeadlineSheet">关闭</view>
+      <view class="deadline-sheet-btn confirm" bindtap="onConfirmDeadline">确认</view>
     </view>
   </view>
 </view>

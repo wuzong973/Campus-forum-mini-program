@@ -4,14 +4,6 @@
   "packOptions": {
     "ignore": [
       {
-        "value": "__pycache__",
-        "type": "folder"
-      },
-      {
-        "value": ".pyc",
-        "type": "suffix"
-      },
-      {
         "value": "jw-crawler",
         "type": "folder"
       },
@@ -20,19 +12,7 @@
         "type": "folder"
       },
       {
-        "value": "find_large.ps1",
-        "type": "file"
-      },
-      {
-        "value": "generate_icons.py",
-        "type": "file"
-      },
-      {
         "value": "docs",
-        "type": "folder"
-      },
-      {
-        "value": "_unused-assets",
         "type": "folder"
       },
       {
@@ -42,6 +22,34 @@
       {
         "value": "node_modules",
         "type": "folder"
+      },
+      {
+        "value": ".workbuddy",
+        "type": "folder"
+      },
+      {
+        "value": ".git",
+        "type": "folder"
+      },
+      {
+        "value": ".mimosa",
+        "type": "folder"
+      },
+      {
+        "value": ".video_agent",
+        "type": "folder"
+      },
+      {
+        "value": ".v2c",
+        "type": "folder"
+      },
+      {
+        "value": ".gitignore",
+        "type": "file"
+      },
+      {
+        "value": "deploy_full.py",
+        "type": "file"
       },
       {
         "value": ".env",
@@ -68,34 +76,6 @@
         "type": "file"
       },
       {
-        "value": "verify.py",
-        "type": "file"
-      },
-      {
-        "value": "gen_icon.bat",
-        "type": "file"
-      },
-      {
-        "value": "gen_icon.js",
-        "type": "file"
-      },
-      {
-        "value": "gen_icon.py",
-        "type": "file"
-      },
-      {
-        "value": "gen_scroll_top.bat",
-        "type": "file"
-      },
-      {
-        "value": "gen_scroll_top.py",
-        "type": "file"
-      },
-      {
-        "value": "icon_gen.html",
-        "type": "file"
-      },
-      {
         "value": "git-push.bat",
         "type": "file"
       },
@@ -112,6 +92,10 @@
         "type": "file"
       },
       {
+        "value": "desktop.ini",
+        "type": "file"
+      },
+      {
         "value": "%SystemDrive%",
         "type": "folder"
       }
@@ -120,10 +104,10 @@
   },
   "setting": {
     "coverView": true,
-    "es6": true,
+    "es6": false,
     "postcss": true,
     "minified": true,
-    "enhance": true,
+    "enhance": false,
     "showShadowRootInWxmlPanel": true,
     "packNpmRelationList": [],
     "babelSetting": {

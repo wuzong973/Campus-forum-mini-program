@@ -1,7 +1,7 @@
 <view class="page">
   <view class="nav" style="padding-top: {{statusBarHeight}}px; height: {{statusBarHeight + navBarHeight}}px;">
     <view class="nav-content" style="height: {{navBarHeight}}px;">
-      <view class="back-button" bindtap="goBack"><text class="back-icon">‹</text><text>返回</text></view>
+      <view class="back-pill" hover-class="back-pill-hover" hover-stay-time="80" bindtap="goBack"><text class="back-pill-icon">‹</text><text>返回</text></view>
       <text class="nav-title">设置</text>
       <view class="nav-placeholder"></view>
     </view>

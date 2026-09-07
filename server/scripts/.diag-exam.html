@@ -1,0 +1,260 @@
+
+  
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+
+<head id="headerid1">
+	<base target='_self'>
+	<title>我的考试 - 考试安排查询</title>	
+	<meta http-equiv="pragma" content="no-cache">
+	<meta http-equiv="cache-control" content="no-cache">
+	<meta http-equiv="expires" content="0">
+	<meta http-equiv="keywords" content="湖南强智科技教务系统">
+	<meta http-equiv="description" content="湖南强智科技教务系统">
+	<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<script type="text/javascript" src="/jsxsd/js/jquery-min.js" language="javascript" ></script>
+<script type="text/javascript" src="/jsxsd/js/common.js" language="javascript" ></script>
+<script type="text/javascript" src="/jsxsd/js/iepngfix_tilebg.js" language="javascript" ></script>
+<script type="text/javascript" src="/jsxsd/js/easyui/jquery.easyui.min.js" language="javascript" ></script>
+<script type="text/javascript" src="/jsxsd/js/jquery.autocomplete.min.js" language="javascript" ></script>
+<link href="/jsxsd/framework/images/common.css" rel="stylesheet" type="text/css" />
+<link href="/jsxsd/framework/images/blue.css" rel="stylesheet" type="text/css" id="link_theme" />
+<link href="/jsxsd/framework/images/workstation.css" rel="stylesheet" type="text/css" /> 
+<link href="/jsxsd/css/easyui.css" rel="stylesheet" type="text/css" />
+<link href="/jsxsd/css/jquery.autocomplete.css" rel="stylesheet" type="text/css" />
+</head>
+<iframe id="notSession" name="notSession" style="display: none;" src=""></iframe>
+<script type="text/javascript">
+jQuery(document).ready(function(){
+	window.setInterval(function(){
+		 document.getElementById("notSession").src = "/jsxsd/framework/blankPage.jsp";
+	 }, 1000 * 60 * 10);
+});
+</script>
+<body style="height: 750px;">
+ 
+<div class="Nsb_pw">   
+	
+
+
+
+
+
+
+
+ 
+	
+	<div class="Nsb_layout_r">
+	<div class="Nsb_layout_r title">考试安排查询</div>
+	<form action="" name="ksapQueryForm" id="ksapQueryForm" method="post" target="fcenter">
+		<input type="hidden" id="xqlbmc" name="xqlbmc" value=""/>
+		<input type="hidden" id="sxxnxq" name="sxxnxq" value=""/>
+		<input type="hidden" id="dqxnxq" name="dqxnxq" value=""/>
+		<input type="hidden" id="ckbz" name="ckbz" value=""/>
+		<table width="100%" border="0" cellspacing="0" cellpadding="0" class="no_border_table">
+			<tr>
+				<th width="80px" align="right">学年学期：</th>
+				
+				<td width="160px">
+					<select id="xnxqid" name="xnxqid" style="width: 150px;">
+						
+							<option selected value="2026-2027-1">2026-2027-1</option>
+						
+							<option  value="2025-2026-2">2025-2026-2</option>
+						
+							<option  value="2025-2026-1">2025-2026-1</option>
+						
+							<option  value="2024-2025-2">2024-2025-2</option>
+						
+							<option  value="2024-2025-1">2024-2025-1</option>
+						
+							<option  value="2023-2024-2">2023-2024-2</option>
+						
+							<option  value="2023-2024-1">2023-2024-1</option>
+						
+							<option  value="2022-2023-2">2022-2023-2</option>
+						
+							<option  value="2022-2023-1">2022-2023-1</option>
+						
+							<option  value="2021-2022-2">2021-2022-2</option>
+						
+							<option  value="2021-2022-1">2021-2022-1</option>
+						
+							<option  value="2020-2021-2">2020-2021-2</option>
+						
+							<option  value="2020-2021-1">2020-2021-1</option>
+						
+							<option  value="2019-2020-2">2019-2020-2</option>
+						
+							<option  value="2019-2020-1">2019-2020-1</option>
+						
+							<option  value="2018-2019-2">2018-2019-2</option>
+						
+							<option  value="2018-2019-1">2018-2019-1</option>
+						
+							<option  value="2017-2018-2">2017-2018-2</option>
+						
+							<option  value="2017-2018-1">2017-2018-1</option>
+						
+							<option  value="2016-2017-2">2016-2017-2</option>
+						
+							<option  value="2016-2017-1">2016-2017-1</option>
+						
+							<option  value="2015-2016-2">2015-2016-2</option>
+						
+							<option  value="2015-2016-1">2015-2016-1</option>
+						
+							<option  value="2014-2015-2">2014-2015-2</option>
+						
+							<option  value="2014-2015-1">2014-2015-1</option>
+						
+							<option  value="2013-2014-2">2013-2014-2</option>
+						
+							<option  value="2013-2014-1">2013-2014-1</option>
+						
+							<option  value="2012-2013-2">2012-2013-2</option>
+						
+							<option  value="2012-2013-1">2012-2013-1</option>
+						
+							<option  value="2011-2012-2">2011-2012-2</option>
+						
+							<option  value="2011-2012-1">2011-2012-1</option>
+						
+							<option  value="2010-2011-2">2010-2011-2</option>
+						
+							<option  value="2010-2011-1">2010-2011-1</option>
+						
+							<option  value="2009-2010-2">2009-2010-2</option>
+						
+							<option  value="2009-2010-1">2009-2010-1</option>
+						
+							<option  value="2008-2009-2">2008-2009-2</option>
+						
+							<option  value="2008-2009-1">2008-2009-1</option>
+						
+							<option  value="2007-2008-2">2007-2008-2</option>
+						
+							<option  value="2007-2008-1">2007-2008-1</option>
+						
+							<option  value="2006-2007-2">2006-2007-2</option>
+						
+							<option  value="2006-2007-1">2006-2007-1</option>
+						
+							<option  value="2005-2006-2">2005-2006-2</option>
+						
+							<option  value="2005-2006-1">2005-2006-1</option>
+						
+							<option  value="2004-2005-2">2004-2005-2</option>
+						
+							<option  value="2004-2005-1">2004-2005-1</option>
+						
+							<option  value="2003-2004-2">2003-2004-2</option>
+						
+							<option  value="2003-2004-1">2003-2004-1</option>
+						
+							<option  value="2002-2003-2">2002-2003-2</option>
+						
+							<option  value="2002-2003-1">2002-2003-1</option>
+						
+					</select>
+				</td>
+				
+				<th width="70px" align="right">学期类别：</th>
+				<td width="160px">
+					<select id="xqlb" name="xqlb" style="width: 150px;">
+						<option value="">---请选择---</option>
+						
+						   <option value="1">期初</option>
+						
+						   <option value="2">期中</option>
+						
+						   <option value="3">期末</option>
+						
+					</select>
+				</td>
+				
+					<td >
+						<input type="button" id="btn_query" value="查 询" onclick="queryKsap()" class="button el-button"/>
+					</td>
+				
+			</tr>
+		</table>
+	</form>
+	</div>
+</div>
+<div id="frameView" style="width:100%;HEIGHT:100%"> 
+		<IFRAME frameBorder="0" id="fcenter" name="fcenter" style="HEIGHT:100%;width:100%;" scrolling="auto" ></IFRAME> 
+</div> 
+ 
+<script language="javascript">
+function queryKsap() {
+	if(jQuery("#xqlb").val() != "") {
+		jQuery("#xqlbmc").val(jQuery("#xqlb option:selected").text());
+	}
+	document.forms["ksapQueryForm"].action = "/jsxsd/xsks/xsksap_list";
+	document.forms["ksapQueryForm"].submit();
+}
+loadjs();
+function loadjs(){
+if( ''!=''){
+alert('');
+}
+
+}
+
+function viewKsxz(){//NEW_XSD_KSBM_WDKS_KSAPCX_KSXZCK
+    var sxxnxq = $('#sxxnxq').val();//生效学年学期
+    var xzxnxq = $('#xnxqid_0').val();//选择学年学期
+	if(sxxnxq!= xzxnxq){
+      alert("当前学年学期未启用考试须知查看！")
+	}else{
+        var url="/jsxsd/xsks/ksxzView";
+        window.open (url,"newwindow","height=600,width=794,top=50,left=200,toolbar=no,menubar=no,location=no, status=no");
+    }
+}
+
+function gradeChange(){
+    var xzxnxq = $('select  option:selected').val();//选择学年学期
+    var sxxnxq = $('#sxxnxq').val();//生效学年学期
+    var dqxnxq = $('#dqxnxq').val();//当前学年学期
+    var ckbz = $('#ckbz').val();//查看状态
+    console.log("选择学年学期",xzxnxq)
+    console.log("生效学年学期",sxxnxq)
+    console.log("当前学年学期",dqxnxq)
+    console.log("查看状态",ckbz)
+	if(dqxnxq!=sxxnxq){
+        if(sxxnxq!= xzxnxq){
+            document.getElementById("btn_query_2").disabled=false;
+        }else{
+			if(ckbz=="1"){
+                document.getElementById("btn_query_2").disabled=true;
+            }else{
+                document.getElementById("btn_query_2").disabled=false;
+			}
+        }
+	}else{
+        if(sxxnxq!= xzxnxq){
+            if(ckbz=="1"){
+                document.getElementById("btn_query_0").disabled=false;
+			}else{
+                document.getElementById("btn_query_1").disabled=false;
+			}
+        }else{
+            if(ckbz=="1"){
+                document.getElementById("btn_query_0").disabled=true;
+            }else{
+                document.getElementById("btn_query_1").disabled=true;
+            }
+        }
+	}
+
+}
+
+
+</script>
+</body>
+</html>

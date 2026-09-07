@@ -170,6 +170,47 @@ CREATE TABLE IF NOT EXISTS schedule_config (
   updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB;
 
+-- 5.1 教务考试安排缓存（每次同步整体覆盖）
+CREATE TABLE IF NOT EXISTS user_exam (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  user_id INT UNSIGNED NOT NULL,
+  name VARCHAR(128) DEFAULT '',
+  type VARCHAR(32) DEFAULT '',
+  date VARCHAR(32) DEFAULT '',
+  time VARCHAR(64) DEFAULT '',
+  location VARCHAR(128) DEFAULT '',
+  seat VARCHAR(32) DEFAULT '',
+  semester VARCHAR(32) DEFAULT '',
+  raw JSON,
+  synced_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  INDEX idx_user_exam (user_id, id)
+) ENGINE=InnoDB;
+
+-- 5.2 教务成绩缓存（每次同步整体覆盖）
+CREATE TABLE IF NOT EXISTS user_grade (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  user_id INT UNSIGNED NOT NULL,
+  semester VARCHAR(32) DEFAULT '',
+  name VARCHAR(128) DEFAULT '',
+  attribute VARCHAR(32) DEFAULT '',
+  credit VARCHAR(16) DEFAULT '',
+  gpa VARCHAR(16) DEFAULT '',
+  score VARCHAR(16) DEFAULT '',
+  raw JSON,
+  synced_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  INDEX idx_user_grade (user_id, id)
+) ENGINE=InnoDB;
+
+-- 5.3 教务账号绑定凭证（AES-256-GCM 加密存储，用于免密自动同步）
+CREATE TABLE IF NOT EXISTS jw_credential (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  user_id INT UNSIGNED NOT NULL UNIQUE,
+  username VARCHAR(32) NOT NULL DEFAULT '',
+  password_enc TEXT,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB;
+
+
 -- 6. 跑腿订单表
 CREATE TABLE IF NOT EXISTS errand_order (
   id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -507,6 +548,7 @@ CREATE TABLE IF NOT EXISTS private_conversation (
   id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   user_id INT UNSIGNED NOT NULL,
   peer_id INT UNSIGNED NOT NULL,
+  persona_key VARCHAR(255) NOT NULL DEFAULT '',
   last_message_id INT UNSIGNED DEFAULT NULL,
   unread_count INT DEFAULT 0,
   last_message_text VARCHAR(512) DEFAULT '',
@@ -515,7 +557,7 @@ CREATE TABLE IF NOT EXISTS private_conversation (
   is_anonymous TINYINT(1) NOT NULL DEFAULT 0,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  UNIQUE KEY uk_user_peer (user_id, peer_id),
+  UNIQUE KEY uk_user_peer_persona (user_id, peer_id, persona_key),
   INDEX idx_peer (peer_id)
 ) ENGINE=InnoDB;
 
@@ -525,6 +567,7 @@ CREATE TABLE IF NOT EXISTS private_message (
   conversation_id INT UNSIGNED NOT NULL,
   sender_id INT UNSIGNED NOT NULL,
   receiver_id INT UNSIGNED NOT NULL,
+  persona_key VARCHAR(255) NOT NULL DEFAULT '',
   content TEXT NOT NULL,
   msg_type VARCHAR(16) DEFAULT 'text',
   is_anonymous TINYINT(1) NOT NULL DEFAULT 0,
@@ -574,11 +617,11 @@ SELECT * FROM (
   SELECT 3, '成绩查询', '📊', '', 3 UNION ALL
   SELECT 3, '考试安排', '✏️', '', 4 UNION ALL
   SELECT 3, '教务系统', '🎓', '', 5 UNION ALL
-  SELECT 4, '食堂菜单', '🍜', '', 1 UNION ALL
+  SELECT 4, '轻友指南', '📚', '', 1 UNION ALL
   SELECT 4, '校车时刻', '🚌', '', 2 UNION ALL
   SELECT 4, '失物招领', '🔍', '', 3 UNION ALL
   SELECT 4, '校园地图', '🗺️', '', 4 UNION ALL
   SELECT 4, '乘车码', '🎫', '', 5 UNION ALL
-  SELECT 5, '通知公告', '📢', '', 1
+  SELECT 5, '教务文档', '📄', '', 1
 ) AS seed
 WHERE NOT EXISTS (SELECT 1 FROM service_item LIMIT 1);

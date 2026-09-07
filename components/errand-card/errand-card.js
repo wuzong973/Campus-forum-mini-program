@@ -51,8 +51,8 @@ Component({
       if (order.role === 'publisher') {
         // 发布者：订单未完成时随时可取消
         showCancel = true
-      } else if (order.role === 'accepter') {
-        // 接单者：接单5分钟内可取消
+      } else if (order.role === 'accepter' || order.role === 'acceptor') {
+        // 接单者：接单5分钟内可取消（服务端 orderRole 返回 'acceptor'，本地推断历史值为 'accepter'，两者都兼容）
         const acceptedAt = order.acceptedAt || order.createdAt
         if (acceptedAt) {
           const elapsed = Date.now() - new Date(acceptedAt).getTime()

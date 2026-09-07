@@ -1,5 +1,5 @@
 <view class="page">
-  <view class="topbar" style="padding-top: {{statusBarHeight}}px;"><view class="topbar-inner" style="height: {{navBarHeight}}px;"><view class="back" bindtap="goBack">‹</view><text class="nav-title">广轻工论坛</text><view class="topbar-right"></view></view></view>
+  <view class="topbar" style="padding-top: {{statusBarHeight}}px;"><view class="topbar-inner" style="height: {{navBarHeight}}px;"><view class="back-pill" hover-class="back-pill-hover" hover-stay-time="80" bindtap="goBack"><text class="back-pill-icon">‹</text><text>返回</text></view><text class="nav-title">订单详情</text><view class="topbar-right"></view></view></view>
   <view class="nav-space" style="height: {{statusBarHeight + navBarHeight}}px;"></view>
 
   <view wx:if="{{loading && !order}}" class="loading-tip">加载中…</view>
@@ -20,6 +20,7 @@
       <view class="desc-box"><text>{{order.remark || order.description || order.title}}</text></view>
       <view class="row"><text class="row-label">所在校区</text><text class="row-value">{{order.campus || '不限校区'}}</text></view>
       <view class="row"><text class="row-label">下单时间</text><text class="row-value">{{order.createdText}}</text></view>
+      <view class="row" wx:if="{{order.deadlineText}}"><text class="row-label">截止接单时间</text><text class="row-value">{{order.deadlineText}}</text></view>
       <view class="row" wx:if="{{order.pickupAddr}}"><text class="row-label">取件地址</text><text class="row-value">{{order.pickupAddr}}</text></view>
       <view class="row" wx:if="{{order.deliveryAddr}}"><text class="row-label">送达地址</text><text class="row-value">{{order.deliveryAddr}}</text></view>
       <button class="contact" bindtap="onContact"><text class="contact-icon">✆</text>{{order.role === 'publisher' ? '联系接单方' : '联系需求方'}}</button>
@@ -51,7 +52,7 @@
       <text class="section-title">完成信息</text>
       <view class="finish-desc">{{order.finishDescription || order.finish_description || '未填写完成说明'}}</view>
       <view class="finish-images" wx:if="{{order.finishImages.length}}">
-        <image wx:for="{{order.finishImages}}" wx:key="*this" src="{{item}}" mode="aspectFill" data-src="{{item}}" bindtap="previewFinishImage"/>
+        <image wx:for="{{order.finishImages}}" wx:key="*this" src="{{item}}" mode="aspectFill" data-src="{{item}}" data-urls="{{order.finishImages}}" bindtap="previewFinishImage" bindlongpress="onImageQrScan"/>
       </view>
     </view>
 
@@ -63,7 +64,7 @@
       </view>
       <text class="request-reason">{{cancelRequest.reason}}</text>
       <view class="request-images" wx:if="{{cancelRequest.images.length}}">
-        <image wx:for="{{cancelRequest.images}}" wx:key="*this" src="{{item}}" mode="aspectFill" data-src="{{item}}" bindtap="previewRequestImage"/>
+        <image wx:for="{{cancelRequest.images}}" wx:key="*this" src="{{item}}" mode="aspectFill" data-src="{{item}}" data-urls="{{cancelRequest.images}}" bindtap="previewRequestImage" bindlongpress="onImageQrScan"/>
       </view>
       <view class="request-actions" wx:if="{{canHandleRequest}}">
         <button class="btn-reject" bindtap="respondRequest" data-approve="0">拒绝</button>
@@ -148,6 +149,30 @@
       </view>
       <textarea class="review-text" placeholder="说说这次跑腿体验吧…" maxlength="200" value="{{reviewContent}}" bindinput="onReviewInput"/>
       <button class="review-submit" bindtap="submitReview" disabled="{{reviewing}}">提交评价</button>
+    </view>
+  </view>
+
+  <!-- 联系方式选择弹窗：在线联系进聊天，电话联系拨打电话 -->
+  <view class="mask" wx:if="{{showContactSheet}}" bindtap="closeContactSheet">
+    <view class="contact-popup" catchtap="noop">
+      <text class="contact-popup-title">选择联系方式</text>
+      <view class="contact-option" hover-class="contact-option-hover" hover-stay-time="80" bindtap="onOnlineContact">
+        <view class="contact-option-icon online">✉</view>
+        <view class="contact-option-body">
+          <text class="contact-option-name">在线联系</text>
+          <text class="contact-option-desc">进入聊天页面与对方沟通</text>
+        </view>
+        <text class="contact-arrow">›</text>
+      </view>
+      <view class="contact-option" hover-class="contact-option-hover" hover-stay-time="80" bindtap="onPhoneContact">
+        <view class="contact-option-icon phone">✆</view>
+        <view class="contact-option-body">
+          <text class="contact-option-name">电话联系</text>
+          <text class="contact-option-desc">{{contactPhoneText}}</text>
+        </view>
+        <text class="contact-arrow">›</text>
+      </view>
+      <view class="contact-cancel" bindtap="closeContactSheet">取消</view>
     </view>
   </view>
 </view>

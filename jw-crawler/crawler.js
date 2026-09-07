@@ -18,7 +18,7 @@ wrapper.wrapper(axios);
 class JwCrawler {
   constructor(options = {}) {
     this.options = {
-      baseURL: options.baseURL || "http://jw.gdipu.edu.cn",
+      baseURL: options.baseURL || "https://jw.gdipu.edu.cn",
 
       // 最大重定向次数
       maxRedirects: options.maxRedirects || 5,
@@ -1245,13 +1245,13 @@ class JwCrawler {
    * @param {string} options.saveDir 原始 HTML 保存目录
    */
   async getScheduleBatch(dates, options = {}) {
-    const { saveRaw = true, saveDir = "./schedule_samples" } = options;
+    const { saveRaw = true, saveDir = "./schedule_raw" } = options;
     const results = [];
 
     if (saveRaw) {
       try {
         await fs.mkdir(saveDir, { recursive: true });
-      } catch (e) {}
+      } catch (e) { }
     }
 
     console.log(
@@ -1285,6 +1285,371 @@ class JwCrawler {
     }
 
     return results;
+  }
+
+  // ==================== 考试安排 / 成绩查询 ====================
+
+  /**
+   * 提取当前学期编号（如 2026-2027-1）
+   * 优先从新版考试安排查询页的学期下拉框读取，失败时用正则兜底
+   */
+  async getXnxqid() {
+    if (this.cachedXnxqid) return this.cachedXnxqid;
+
+    try {
+      const page = await this.fetchExamQueryPageHtml();
+      const $ = cheerio.load(page.html);
+
+      const selectors = ["#xnxqid", "#xnxqd", "#xnxq", "select[name='xnxqid']"];
+      for (const sel of selectors) {
+        const node = $(sel);
+        if (!node.length) continue;
+        const selected =
+          node.attr("value") ||
+          node.find("option[selected]").attr("value") ||
+          node.find("option:selected").attr("value");
+        if (selected && /\d{4}-\d{4}-\d/.test(selected)) {
+          this.cachedXnxqid = String(selected).trim();
+          return this.cachedXnxqid;
+        }
+      }
+
+      const fallback = String(page.html || "").match(/\d{4}-\d{4}-[12]/);
+      if (fallback) {
+        this.cachedXnxqid = fallback[0];
+        return this.cachedXnxqid;
+      }
+    } catch (err) {
+      if (this.options.verbose) {
+        console.warn(`  [警告] 提取学期编号失败: ${err.message}`);
+      }
+    }
+
+    return "";
+  }
+
+  /**
+   * 请求新版考试安排查询页（xsksap_query，含学期下拉与查询表单）
+   */
+  async fetchExamQueryPageHtml() {
+    const res = await this.requestWithRetry(
+      () =>
+        this.instance.get("/jsxsd/xsks/xsksap_query", {
+          headers: {
+            Referer: `${this.options.baseURL}/jsxsd/framework/xsMain_new.jsp?t1=1`,
+          },
+        }),
+      "考试安排查询页",
+    );
+    const html = typeof res.data === "string" ? res.data : "";
+    if (res.status !== 200 || !html.includes("xsksap")) {
+      throw new Error(`考试安排查询页响应异常（${res.status}）`);
+    }
+    return { html };
+  }
+
+  /**
+   * 请求旧版考试安排查询页（KsapCxList，作为兼容兜底）
+   */
+  async fetchExamPageHtmlLegacy(xnxqid) {
+    const query = xnxqid ? `?xnxqid=${encodeURIComponent(xnxqid)}` : "?xnxqid=";
+    const paths = ["/jsxsd/xsks/KsapCxList", "/jsxsd/xsks/KsapCxList.aspx"];
+
+    let lastError = null;
+    for (const p of paths) {
+      try {
+        const res = await this.requestWithRetry(
+          () =>
+            this.instance.get(p + query, {
+              headers: {
+                Referer: `${this.options.baseURL}/jsxsd/framework/xsMain_new.jsp?t1=1`,
+              },
+            }),
+          `考试安排页 ${p}`,
+        );
+        const html = typeof res.data === "string" ? res.data : "";
+        if (res.status === 200 && html.includes("<table")) {
+          return { path: p, html };
+        }
+        lastError = new Error(`考试安排页响应异常（${res.status}）`);
+      } catch (err) {
+        lastError = err;
+      }
+    }
+    throw lastError || new Error("无法打开考试安排查询页面");
+  }
+
+  /**
+   * 请求成绩查询页（dataType=list 返回全部学期成绩）
+   */
+  async fetchGradePageHtml() {
+    const query =
+      "?kksj=&kcxn=&kcmc=&xsxm=&dataType=list&zc=&xqlb=&kcxz=&kcgs=";
+    const paths = ["/jsxsd/kscj/cjcx_list", "/jsxsd/kscj/cjcx_list.aspx"];
+
+    let lastError = null;
+    for (const p of paths) {
+      try {
+        const res = await this.requestWithRetry(
+          () =>
+            this.instance.get(p + query, {
+              headers: {
+                Referer: `${this.options.baseURL}/jsxsd/framework/xsMain_new.jsp?t1=1`,
+              },
+            }),
+          `成绩查询页 ${p}`,
+        );
+        const html = typeof res.data === "string" ? res.data : "";
+        if (res.status === 200 && html.includes("<table")) {
+          return { path: p, html };
+        }
+        lastError = new Error(`成绩查询页响应异常（${res.status}）`);
+      } catch (err) {
+        lastError = err;
+      }
+    }
+    throw lastError || new Error("无法打开成绩查询页面");
+  }
+
+  /**
+   * 获取考试安排（已解析为结构化数组）
+   * 新版强智：GET xsksap_query 取学期 → POST xsksap_list 出数据表（#dataList）
+   * 旧版强智：GET KsapCxList 兜底
+   */
+  async getExamSchedule() {
+    // ---- 新版流程 ----
+    try {
+      const page = await this.fetchExamQueryPageHtml();
+      const $ = cheerio.load(page.html);
+      let xnxqid = "";
+      for (const sel of ["#xnxqid", "#xnxqd", "#xnxq"]) {
+        const node = $(sel);
+        if (!node.length) continue;
+        xnxqid =
+          node.attr("value") ||
+          node.find("option[selected]").attr("value") ||
+          node.find("option:selected").attr("value") ||
+          "";
+        if (xnxqid) break;
+      }
+      if (!xnxqid) {
+        const m = String(page.html || "").match(/\d{4}-\d{4}-[12]/);
+        xnxqid = m ? m[0] : "";
+      }
+      this.cachedXnxqid = xnxqid || this.cachedXnxqid;
+
+      const res = await this.requestWithRetry(
+        () =>
+          this.instance.post(
+            "/jsxsd/xsks/xsksap_list",
+            qs.stringify({
+              xqlbmc: "",
+              sxxnxq: "",
+              dqxnxq: "",
+              ckbz: "",
+              xnxqid: xnxqid || "",
+              xqlb: "",
+            }),
+            {
+              headers: {
+                "Content-Type": "application/x-www-form-urlencoded",
+                Referer: `${this.options.baseURL}/jsxsd/xsks/xsksap_query`,
+              },
+            },
+          ),
+        "考试安排数据",
+      );
+      const resHtml = typeof res.data === "string" ? res.data : "";
+      if (res.status === 200 && resHtml.includes("<table")) {
+        const rows = this.parseHtmlTable(resHtml, ["dataList"]);
+        return rows.map((row) => ({
+          raw: row,
+          ...this.normalizeExamRow(row),
+        }));
+      }
+      throw new Error(`考试安排数据响应异常（${res.status}）`);
+    } catch (err) {
+      if (this.options.verbose) {
+        console.warn(`  [警告] 新版考试查询失败，尝试旧版: ${err.message}`);
+      }
+    }
+
+    // ---- 旧版兜底 ----
+    const first = await this.fetchExamPageHtmlLegacy("");
+    const $ = cheerio.load(first.html);
+    let xnxqid = "";
+    for (const sel of ["#xnxqid", "#xnxqd", "#xnxq"]) {
+      const node = $(sel);
+      if (!node.length) continue;
+      xnxqid =
+        node.attr("value") ||
+        node.find("option[selected]").attr("value") ||
+        node.find("option:selected").attr("value") ||
+        "";
+      if (xnxqid) break;
+    }
+    if (!xnxqid) {
+      const m = String(first.html || "").match(/\d{4}-\d{4}-[12]/);
+      xnxqid = m ? m[0] : "";
+    }
+    this.cachedXnxqid = xnxqid || this.cachedXnxqid;
+
+    const page = xnxqid ? await this.fetchExamPageHtmlLegacy(xnxqid) : first;
+    const rows = this.parseHtmlTable(page.html, ["dataList"]);
+    return rows.map((row) => ({
+      raw: row,
+      ...this.normalizeExamRow(row),
+    }));
+  }
+
+  /**
+   * 获取全部成绩（已解析为结构化数组）
+   */
+  async getGrades() {
+    const page = await this.fetchGradePageHtml();
+    const rows = this.parseHtmlTable(page.html, ["dataList"]);
+    return rows
+      .map((row) => ({ raw: row, ...this.normalizeGradeRow(row) }))
+      .filter((item) => item.name);
+  }
+
+  /**
+   * 解析 HTML 表格为「表头名 -> 单元格」对象数组。
+   * 优先使用指定 id 的表格，否则取行数最多的表格。
+   */
+  parseHtmlTable(html, preferIds = []) {
+    const $ = cheerio.load(html);
+    let table = null;
+
+    for (const id of preferIds) {
+      const t = $("#" + id);
+      if (t.length && t.find("tr").length >= 1) {
+        table = t;
+        break;
+      }
+    }
+
+    if (!table) {
+      let maxRows = 0;
+      $("table").each((_, t) => {
+        const n = $(t).find("tr").length;
+        if (n > maxRows) {
+          maxRows = n;
+          table = $(t);
+        }
+      });
+      if (maxRows < 2) table = null;
+    }
+
+    if (!table) return [];
+
+    const headers = table
+      .find("tr")
+      .first()
+      .find("th,td")
+      .map((_, el) => $(el).text().trim())
+      .get();
+
+    const rows = [];
+    table
+      .find("tr")
+      .slice(1)
+      .each((_, tr) => {
+        const cells = $(tr)
+          .find("td")
+          .map((_, el) => $(el).text().trim())
+          .get();
+        if (!cells.length || !cells.join("").replace(/\s|&nbsp;/g, "")) return;
+        const row = {};
+        headers.forEach((h, i) => {
+          row[h || `列${i + 1}`] = cells[i] || "";
+        });
+        rows.push(row);
+      });
+
+    return rows;
+  }
+
+  /**
+   * 从表格行中按表头关键词提取考试字段
+   * 兼容新版表头（序号|校区|考场校区|考试场次|课程编号|课程名称|授课教师|考试时间|考场|座位号|...）
+   * 与旧版表头（课程名称|考试日期|考试时间|考试地点|座位号|...）
+   */
+  normalizeExamRow(row) {
+    const keys = Object.keys(row);
+    const valueOf = (key) => String(row[key] || "").trim();
+    const pick = (re) => {
+      for (const key of keys) {
+        if (re.test(key)) return valueOf(key);
+      }
+      return "";
+    };
+
+    const timeRaw = pick(/时间/);
+    let date = pick(/日期/);
+    let time = timeRaw;
+
+    // 时间列包含完整日期时（如 "2026-01-15 09:00-11:00"），拆分为 date + time
+    if (!date && /\d{4}[-/年]/.test(timeRaw)) {
+      const m = timeRaw.match(/(\d{4}[-/年]\d{1,2}[-/月]\d{1,2}日?)/);
+      if (m) {
+        date = m[1];
+        time = timeRaw.replace(m[1], "").trim();
+      }
+    }
+
+    // 地点：精确「考场」列优先，其次地点/教室，最后「考场校区」（校区名而非楼栋）
+    const location =
+      (keys.includes("考场") ? valueOf("考场") : "") ||
+      pick(/地点|教室/) ||
+      pick(/考场/);
+
+    return {
+      name: pick(/课程名称|考试名称|名称/),
+      teacher: pick(/授课教师|教师/),
+      type: pick(/考试类型|类型|性质/),
+      date,
+      time,
+      location,
+      seat: pick(/座位/),
+      semester: pick(/学期/),
+    };
+  }
+
+  /**
+   * 从表格行中按表头关键词提取成绩字段
+   */
+  normalizeGradeRow(row) {
+    const pickExact = (re) => {
+      for (const key of Object.keys(row)) {
+        if (re.test(key) && !/补考|重修|绩点/.test(key))
+          return String(row[key] || "").trim();
+      }
+      return "";
+    };
+    const pick = (re) => {
+      for (const key of Object.keys(row)) {
+        if (re.test(key)) return String(row[key] || "").trim();
+      }
+      return "";
+    };
+
+    const keys = Object.keys(row);
+    const gpaKey = keys.find((k) => /^绩点$/.test(k));
+    const scoreKey =
+      keys.find((k) => /总评|总成绩|综合成绩|最终成绩/.test(k)) ||
+      keys.find((k) => /^成绩$/.test(k)) ||
+      keys.find((k) => /成绩/.test(k) && !/补考|重修|绩点/.test(k));
+
+    return {
+      semester: pickExact(/开学时间|开课学期|学期/),
+      name: pickExact(/课程名称/),
+      attribute: pickExact(/课程性质/) || pickExact(/课程属性/),
+      category: pickExact(/课程归属|归属/),
+      credit: pickExact(/^学分$|学分/),
+      gpa: gpaKey ? String(row[gpaKey] || "").trim() : "",
+      score: scoreKey ? String(row[scoreKey] || "").trim() : "",
+    };
   }
 
   // ==================== 课表解析 ====================
@@ -1427,16 +1792,6 @@ class JwCrawler {
     return dates;
   }
 
-  /**
-   * 测试：解析本地 kb.html
-   */
-  async testParseLocal(filePath = "./kb.html") {
-    const html = await fs.readFile(filePath, "utf-8");
-    const courses = this.parseSchedule(html);
-    console.log(`共解析到 ${courses.length} 门课程：\n`);
-    console.log(JSON.stringify(courses, null, 2));
-    return courses;
-  }
 }
 
 module.exports = JwCrawler;
@@ -1496,7 +1851,6 @@ function printUsage() {
   console.log(
     `
 用法：
-  node crawler.js --parse-only
   node crawler.js --account <学号> --password <密码> --ocr
 
 环境变量：
@@ -1515,7 +1869,7 @@ function printUsage() {
   --date 2026-07-03          只抓取指定日期所在周
   --semester-start 2026-03-02
   --weeks 19
-  --output courses_all.json
+  --output schedule.json
   --captcha-path captcha.png
   --captcha-attempts 3
   --ocr-min-confidence 50
@@ -1575,23 +1929,13 @@ if (require.main === module) {
     });
 
     try {
-      if (args["parse-only"]) {
-        await crawler.testParseLocal(args.file || "./kb.html");
-        return;
-      }
-
       const userAccount = args.account || process.env.JW_ACCOUNT;
       const userPassword = args.password || process.env.JW_PASSWORD;
 
       if (!userAccount || !userPassword) {
-        console.log(
-          "未提供账号或密码，已跳过真实登录；下面只测试本地 kb.html 解析。",
+        throw new Error(
+          "缺少教务账号或密码，请使用 --account/--password 或设置 JW_ACCOUNT/JW_PASSWORD。",
         );
-        console.log(
-          "需要登录时可使用 --account/--password，或设置 JW_ACCOUNT/JW_PASSWORD。",
-        );
-        await crawler.testParseLocal(args.file || "./kb.html");
-        return;
       }
 
       const manualCaptcha = args.captcha || process.env.JW_CAPTCHA || "";
@@ -1642,13 +1986,13 @@ if (require.main === module) {
       const dates = args.date
         ? [args.date]
         : JwCrawler.generateWeekDates(
-            args["semester-start"] ||
-              process.env.JW_SEMESTER_START ||
-              "2026-03-02",
-            Number(args.weeks || process.env.JW_TOTAL_WEEKS || 19),
-          );
+          args["semester-start"] ||
+          process.env.JW_SEMESTER_START ||
+          "2026-03-02",
+          Number(args.weeks || process.env.JW_TOTAL_WEEKS || 19),
+        );
 
-      const output = args.output || process.env.JW_OUTPUT || "courses_all.json";
+      const output = args.output || process.env.JW_OUTPUT || "schedule.json";
       const saveRaw =
         args["save-raw"] === false
           ? false
@@ -1656,7 +2000,7 @@ if (require.main === module) {
             ? readBool(args["save-raw"], true)
             : true;
       const saveDir =
-        args["save-dir"] || process.env.JW_SAVE_DIR || "./schedule_samples";
+        args["save-dir"] || process.env.JW_SAVE_DIR || "./schedule_raw";
 
       const results = await crawler.getScheduleBatch(dates, {
         saveRaw,

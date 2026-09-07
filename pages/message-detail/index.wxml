@@ -33,7 +33,9 @@
           mode="aspectFill"
           lazy-load
           data-url="{{item.url}}"
+          data-urls="{{mediaUrls}}"
           bindtap="onPreviewMedia"
+          bindlongpress="onImageQrScan"
         ></image>
       </block>
     </view>

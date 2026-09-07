@@ -4,10 +4,20 @@ const request = require("../../utils/request");
 const format = require("../../utils/format");
 const hotRank = require("../../utils/hot-rank");
 const wechat = require("../../utils/wechat");
+const image = require("../../utils/image");
 const anonymousIdentity = require('../../utils/anonymousIdentity');
+const qr = require("../../utils/qr");
+const messageStore = require("../../utils/messageStore");
 const { runPullDownRefresh } = require("../../utils/refresh");
 
 const POST_VIEW_SYNC_KEY = 'post_view_sync';
+const POST_STATE_SYNC_KEY = 'post_state_sync';
+
+// 评论媒体按扩展名区分图片/视频（服务端 images 字段统一存 URL 数组）
+const COMMENT_VIDEO_RE = /\.(mp4|m4v|mov|3gp|mkv|flv|avi|wmv|webm)(\?|#|$)/i;
+function isVideoUrl(url) {
+  return COMMENT_VIDEO_RE.test(String(url || ""));
+}
 
 Page({
   data: {
@@ -17,6 +27,11 @@ Page({
     detailImages: [],
     comments: [],
     rawComments: [],
+    // 操作按钮动效状态（纯视觉，不参与业务逻辑）：'' | 'anim-pop' | 'anim-unpop'
+    likeAnim: "",
+    favoriteAnim: "",
+    followAnim: "",
+    likeHeartFly: false,
     commentTotal: 0,
     expandedReplyIds: {},
     commentSort: "hot",
@@ -38,11 +53,12 @@ Page({
     savingNote: false,
     contactExpanded: false,
     commentFocus: false,
-    anonPopup: null,
-    authorPopup: null,
+    submittingComment: false,
+    avatarSheet: null,
     showEmojiPanel: false,
     commentAnonymous: false,
-    commentImages: [],
+    // 待发送的评论媒体：[{ type: 'image' | 'video', path }]
+    commentMedia: [],
     keyboardHeight: 0,
     pageHeight: 0,
     bottomBarHeight: 120,
@@ -50,6 +66,8 @@ Page({
     hotPosts: [],
     hotRankGroups: [],
     hotLoading: false,
+    // 「每日热榜」上方横幅（与消息通知横幅相互独立，详情页内管理员可编辑）
+    postBanner: { text: '', icon: '', images: [] },
     pollSelections: [],
     pollChecked: [],
     submittingVote: false,
@@ -93,12 +111,40 @@ Page({
       bottomBarHeight,
       commentAnonymous: !!((wx.getStorageSync('system_settings') || {}).commentAnonymous),
     });
-    api.setCurrentPostId(id);
     this.loadPost(id);
-    this.loadComments(id, this.data.commentSort);
+    this.loadComments(id, this.data.commentSort).catch(() => wx.showToast({ title: '评论加载失败，请重试', icon: 'none' }));
+    // 管理员保存横幅后服务端 WS 广播，停留在本页时立即刷新
+    this.unsubscribeBanner = messageStore.onMessage((payload) => {
+      if (payload && payload.type === "banner_update") this.loadPostBanner();
+    });
     if (options.comment === "1") {
-      setTimeout(() => this.setData({ commentFocus: true }), 450);
+      this._commentFocusTimer = setTimeout(() => {
+        this._commentFocusTimer = null;
+        this.setData({ commentFocus: true });
+      }, 450);
     }
+  },
+
+  // 收起评论输入框键盘：
+  // input 的 focus 绑定在 commentFocus 上，若该值残留为 true，任何 setData 重渲染都会让输入框重新聚焦并拉起键盘。
+  // 点击「匿名/公开」、评论图片/视频等非输入区域时必须先显式置 false，避免键盘被误拉起
+  blurCommentInput() {
+    if (this._commentFocusTimer) {
+      clearTimeout(this._commentFocusTimer);
+      this._commentFocusTimer = null;
+    }
+    if (this.data.commentFocus || this.data.keyboardHeight) {
+      this.setData({ commentFocus: false, keyboardHeight: 0 });
+    }
+  },
+
+  onUnload() {
+    if (this.unsubscribeBanner) this.unsubscribeBanner();
+    if (this._commentFocusTimer) clearTimeout(this._commentFocusTimer);
+    // 动效定时器清理
+    ["_likeAnimTimer", "_favoriteAnimTimer", "_followAnimTimer", "_likeHeartTimer"].forEach((key) => {
+      if (this[key]) { clearTimeout(this[key]); this[key] = null; }
+    });
   },
 
   onShow() {
@@ -107,7 +153,22 @@ Page({
       this.loadPost(this.data.post.id)
     }
     this.loadHotPosts()
+    this.loadPostBanner()
     this._hasShownOnce = true
+  },
+
+  // 「每日热榜」上方横幅：公开读取，点击进入详情页（scope=post 指向独立配置）
+  loadPostBanner() {
+    api.getPostBanner().then((banner) => {
+      const data = banner || { text: '', icon: '', images: [] }
+      data.bannerStyle = (data.bgColor ? 'background:' + data.bgColor + ';' : '') + (data.textColor ? '--banner-fg:' + data.textColor + ';' : '')
+      this.setData({ postBanner: data })
+    }).catch(() => {})
+  },
+
+  goPostBannerDetail() {
+    if (!this.data.postBanner || !this.data.postBanner.text) return
+    wx.navigateTo({ url: '/pages/banner-detail/index?scope=post' })
   },
 
   loadHotPosts() {
@@ -179,7 +240,7 @@ Page({
     const post = this.data.post || {};
     if (!await this.confirmAction('删除帖子', '删除后无法恢复，确认删除这条帖子吗？')) return;
     try {
-      if (!request.USE_MOCK) await api.deletePost(post.id);
+      await api.deletePost(post.id);
       wx.showToast({ title: '帖子已删除', icon: 'success' });
       setTimeout(() => wx.navigateBack(), 350);
     } catch (err) {
@@ -189,9 +250,9 @@ Page({
 
   async markNotInterested() {
     const post = this.data.post || {};
-    if (!await this.confirmAction('拉黑确认', '将永久隐藏此帖子及同分类内容，确认继续吗？')) return;
+    if (!await this.confirmAction('拉黑确认', '拉黑后将不再向你展示这条帖子，可在「我的→我删除的→隐藏」中恢复，确认拉黑吗？')) return;
     try {
-      if (!request.USE_MOCK) await api.markPostNotInterested(post.id);
+      await api.markPostNotInterested(post.id, true);
       wx.showToast({ title: '已拉黑', icon: 'success' });
       setTimeout(() => wx.navigateBack(), 350);
     } catch (err) {
@@ -202,9 +263,9 @@ Page({
   // 隐藏：仅隐藏这条帖子（不影响同分类其他帖子），可在「我的→我删除的→隐藏」中恢复
   async hidePost() {
     const post = this.data.post || {};
-    if (!await this.confirmAction('隐藏帖子', '隐藏后这条帖子将不再对你展示，可在「我的→我删除的→隐藏」中恢复，确认隐藏吗？')) return;
+      if (!await this.confirmAction('隐藏帖子', '隐藏后这条帖子将不再对你展示，可在「我的→我删除的→隐藏」中恢复，确认隐藏吗？')) return;
     try {
-      if (!request.USE_MOCK) await api.markPostNotInterested(post.id, true);
+      await api.markPostNotInterested(post.id, true);
       wx.showToast({ title: '已隐藏', icon: 'success' });
       setTimeout(() => wx.navigateBack(), 350);
     } catch (err) {
@@ -214,9 +275,9 @@ Page({
 
   async reportPost() {
     const post = this.data.post || {};
-    if (!await this.confirmAction('举报内容', '确认提交举报吗？管理员将收到帖子编号、举报人和提交时间。')) return;
+      if (!await this.confirmAction('举报内容', '确认提交举报吗？管理员将收到帖子编号、举报人和提交时间。')) return;
     try {
-      if (!request.USE_MOCK) await api.reportPost(post.id);
+      await api.reportPost(post.id);
       wx.showToast({ title: '举报已提交', icon: 'success' });
     } catch (err) {
       wx.showToast({ title: err.message || '举报失败', icon: 'none' });
@@ -260,16 +321,6 @@ Page({
     }
     if (this.data.savingNote || !this.data.post) return;
     if (!await this.confirmAction('保存备注', '备注会以醒目标注展示给所有用户，确认保存吗？')) return;
-    if (request.USE_MOCK) {
-      this.setData({
-        post: Object.assign({}, this.data.post, { reviewNote }),
-        showNoteEditor: false,
-        noteInputFocus: false,
-        noteKeyboardHeight: 0,
-      });
-      wx.showToast({ title: '备注已保存', icon: 'success' });
-      return;
-    }
     this.setData({ savingNote: true });
     api.updatePostReviewNote(this.data.post.id, reviewNote).then(() => {
       this.setData({
@@ -296,6 +347,8 @@ Page({
         this.setData({
           post,
           detailImages: this.toDetailImages(post.images),
+          // 帖子图片 URL 列表：长按识别菜单里"预览大图"使用
+          postImageUrls: (post.images || []).map((item) => (typeof item === 'string' ? item : (item && item.url) || '')).filter(Boolean),
           contactExpanded: false,
           pollSelections,
           pollChecked: this.buildPollChecked(post.components || [], pollSelections),
@@ -326,9 +379,20 @@ Page({
   },
 
   toDetailImages(images) {
+    // 帖子媒体兼容两种形态：旧帖子为纯 URL 字符串数组；视频帖为混合数组（视频项为 {type:'video', url}）
     return (Array.isArray(images) ? images : [])
-      .filter((url) => typeof url === 'string' && url)
-      .map((url) => ({ url, failed: false }))
+      .map((item) => {
+        if (typeof item === 'string' && item) return { type: 'image', url: item, failed: false }
+        if (item && typeof item === 'object' && item.url && item.type === 'video') return { type: 'video', url: item.url, failed: false }
+        return null
+      })
+      .filter(Boolean)
+  },
+
+  // 长按图片：统一二维码识别菜单（识别 / 预览），帖子图与评论区图共用
+  onImageQrScan(e) {
+    const { url, urls } = e.currentTarget.dataset
+    qr.recognize(url, urls)
   },
 
   // WXML 模板不支持方法调用（如 indexOf），选中态需在此预计算为布尔矩阵
@@ -370,22 +434,29 @@ Page({
       })
     }
     this.setData({ submittingVote: true })
-    if (request.USE_MOCK) {
-      const components = (post.components || []).map((component) => Object.assign({}, component, { options: (component.options || []).map((option) => Object.assign({}, option)), voterIds: (component.voterIds || []).slice() }))
-      const poll = components[pollIndex]
-      if (!poll || poll.type !== 'poll') { this.setData({ submittingVote: false }); wx.showToast({ title: '投票不存在', icon: 'none' }); return }
-      if (poll.selectedOptionIndexes && poll.selectedOptionIndexes.length) { this.setData({ submittingVote: false }); wx.showToast({ title: '你已经投过票了', icon: 'none' }); return }
-      indexes.forEach((index) => { poll.options[index].votes = (poll.options[index].votes || 0) + 1 })
-      poll.selectedOptionIndexes = indexes
-      applyComponents(components); wx.showToast({ title: '投票成功', icon: 'success' }); return
-    }
     api.votePost(post.id, indexes, pollIndex).then((result) => { applyComponents(result.components || []); wx.showToast({ title: '投票成功', icon: 'success' }) }).catch((err) => { this.setData({ submittingVote: false }); wx.showToast({ title: err.message || '投票失败', icon: 'none' }) })
   },
 
   onPreviewPostImage(e) {
+    this.blurCommentInput();
     const current = e.currentTarget.dataset.url
     const urls = ((this.data.post || {}).images || []).filter((url) => typeof url === 'string' && url)
     if (current && urls.length) wx.previewImage({ current, urls })
+  },
+
+  // 评论/回复图片点击放大预览（data-urls 传该条评论的全部图片）
+  // 预览前先收起键盘：原生预览层会吞掉 input 的 blur 事件，导致 commentFocus 残留 true，
+  // 关闭预览后输入框会被重新聚焦并拉起键盘
+  onPreviewCommentImage(e) {
+    this.blurCommentInput();
+    const current = e.currentTarget.dataset.url
+    const urls = (e.currentTarget.dataset.urls || []).filter((url) => typeof url === "string" && url);
+    if (current && urls.length) wx.previewImage({ current, urls });
+  },
+
+  // 点击评论区的视频：仅收起键盘，不干预视频控件本身的播放交互
+  onCommentVideoTap() {
+    this.blurCommentInput();
   },
 
   onPostImageError(e) {
@@ -424,7 +495,9 @@ Page({
     let anonymous = comment.anonymousIdentity || comment.anonymous_identity;
     if (typeof anonymous === 'string') { try { anonymous = JSON.parse(anonymous) } catch (e) { anonymous = null } }
     const isAnonymous = !!(comment.is_anonymous || comment.isAnonymous || (anonymous && anonymous.nickName && anonymous.avatarUrl));
-    const images = api.parseImages(comment.images);
+    const media = api.parseImages(comment.images);
+    const images = media.filter((url) => !isVideoUrl(url));
+    const videos = media.filter(isVideoUrl);
     const rawAllowPm = comment.allow_anonymous_pm !== undefined ? comment.allow_anonymous_pm : comment.allowAnonymousPm;
     return {
       id: comment.id,
@@ -433,8 +506,9 @@ Page({
       avatarUrl: isAnonymous ? anonymous.avatarUrl : (comment.avatar_url || comment.avatarUrl || ""),
       isAnonymous,
       // 有图/视频时去掉「[图片]/[视频]」占位文字，直接展示媒体本身
-      content: images.length ? format.stripMediaPlaceholder(comment.content) : String(comment.content || ""),
+      content: media.length ? format.stripMediaPlaceholder(comment.content) : String(comment.content || ""),
       images,
+      videos,
       // 匿名评论者（真实用户）是否允许被匿名私信：undefined 表示未知（不拦截），false 表示禁止
       allowAnonymousPm: rawAllowPm === undefined || rawAllowPm === null ? undefined : !!rawAllowPm,
       parentId: Number(comment.parent_id || comment.parentId || 0),
@@ -446,7 +520,30 @@ Page({
     };
   },
 
-  buildCommentThreads(rawComments, sort = this.data.commentSort, expandedReplyIds = this.data.expandedReplyIds) {
+  // 把指定 id 的条目移到数组首位（乐观更新置顶用，找不到或已在首位则原样返回）
+  moveToTopById(list, id) {
+    const index = list.findIndex((item) => Number(item.id) === Number(id));
+    if (index <= 0) return list;
+    const copy = list.slice();
+    const item = copy.splice(index, 1)[0];
+    copy.unshift(item);
+    return copy;
+  },
+
+  // 沿父评论链向上找根评论 id（回复可能是嵌套回复，置顶回复列表时需要根 id）
+  findCommentRootId(id) {
+    const byId = {};
+    this.data.rawComments.forEach((comment) => { byId[comment.id] = comment; });
+    let current = byId[id];
+    const visited = {};
+    while (current && current.parentId && byId[current.parentId] && !visited[current.id]) {
+      visited[current.id] = true;
+      current = byId[current.parentId];
+    }
+    return current ? current.id : id;
+  },
+
+  buildCommentThreads(rawComments, sort = this.data.commentSort, expandedReplyIds = this.data.expandedReplyIds, pin = null) {
     const commentsById = {};
     const authorId = Number((this.data.post || {}).userId || 0);
     const isAnonymousPost = !!((this.data.post || {}).isAnonymous);
@@ -494,16 +591,25 @@ Page({
       }
     });
 
-    return this.sortComments(roots, sort).map((thread) => {
-      const replies = thread.replies.slice().sort((a, b) => {
+    // pin: 乐观更新后临时置顶（rootId 顶层评论置顶 / replyId 回复置顶），
+    // 仅在插入成功后的那次重建生效；后续刷新/排序走服务端真实排序
+    let sortedRoots = this.sortComments(roots, sort);
+    if (pin && pin.rootId) sortedRoots = this.moveToTopById(sortedRoots, pin.rootId);
+
+    return sortedRoots.map((thread) => {
+      // 子评论按点赞数从高到低展示，同赞数按时间先后；收起态展示赞数最高的前 3 条
+      let replies = thread.replies.slice().sort((a, b) => {
         const timeA = new Date(a.createdAt || 0).getTime() || 0;
         const timeB = new Date(b.createdAt || 0).getTime() || 0;
-        return timeA - timeB || Number(a.id || 0) - Number(b.id || 0);
+        return (b.likeCount || 0) - (a.likeCount || 0) || timeA - timeB;
       });
+      if (pin && pin.replyId && Number(thread.id) === Number(pin.rootId)) {
+        replies = this.moveToTopById(replies, pin.replyId);
+      }
       const expanded = !!expandedReplyIds[thread.id];
       return Object.assign({}, thread, {
         replies,
-        recentReplies: replies.slice(-3),
+        recentReplies: replies.slice(0, 3),
         expanded,
         hasHiddenReplies: replies.length > 3,
         hiddenReplyCount: Math.max(0, replies.length - 3),
@@ -540,66 +646,164 @@ Page({
     const sort = e.currentTarget.dataset.sort;
     if (!sort || sort === this.data.commentSort) return;
     this.setData({ commentSort: sort });
-    this.loadComments(this.data.post.id, sort);
+    this.loadComments(this.data.post.id, sort).catch(() => wx.showToast({ title: '评论加载失败，请重试', icon: 'none' }));
   },
 
   onCommentAvatarTap(e) {
     const userId = e.currentTarget.dataset.userid;
     if (!userId) return;
-    if (e.currentTarget.dataset.anonymous) {
-      const ds = e.currentTarget.dataset;
-      this.showAnonPopup({
+    const ds = e.currentTarget.dataset;
+    if (ds.anonymous) {
+      this.showAvatarSheet({
         userId,
         nick: ds.nick,
         avatar: ds.avatar,
         isOwner: ds.isowner,
+        mode: 'anon',
         allowAnonymousPm: ds.allowpm,
       });
       return;
     }
-    wx.navigateTo({ url: "/pages/profile/index?id=" + userId });
+    // 普通用户评论头像：弹出「个人主页 / 私信」功能菜单，功能入口迁移至弹窗内
+    if (this.isSelfUser(userId)) {
+      wx.navigateTo({ url: "/pages/profile/index?id=" + userId });
+      return;
+    }
+    this.showAvatarSheet({
+      userId,
+      nick: ds.nick,
+      avatar: ds.avatar,
+      mode: 'normal',
+      allowAnonymousPm: ds.allowpm,
+    });
   },
 
-  showAnonPopup(options) {
+  // ---------- 头像功能菜单（统一弹窗） ----------
+  // mode: 'anon' 匿名（分身）用户，仅展示「私信」；
+  //       'normal' 普通用户，展示「个人主页」+「分身私信/私信」
+  showAvatarSheet(options) {
+    const mode = options.mode || 'normal';
+    const allowed = options.allowAnonymousPm !== false;
+    const ownerWording = options.isOwner ? '帖主' : '对方';
     this.setData({
-      anonPopup: {
+      avatarSheet: {
         userId: options.userId,
         nick: options.nick || "校园同学",
         avatar: options.avatar || "/assets/icons/avatar.png",
+        certLabel: options.certLabel || "",
         isOwner: !!options.isOwner,
-        // 对方是否允许被匿名私信：仅当明确为 false 时拦截进入聊天页
+        mode,
         allowAnonymousPm: options.allowAnonymousPm,
+        actionLabel: allowed ? "分身私信" : "私信",
+        tip: mode === 'anon'
+          ? "这是一位分身用户"
+          : (allowed
+            ? ownerWording + "允许分身私信，进入主页可以进行普通私信"
+            : ownerWording + "不允许分身私信"),
       },
     });
   },
 
-  onCloseAnonPopup() {
-    this.setData({ anonPopup: null });
+  onCloseAvatarSheet() {
+    this.setData({ avatarSheet: null });
   },
 
-  onAnonPopupMessage() {
-    const popup = this.data.anonPopup;
+  isSelfUser(userId) {
+    const userInfo = ((getApp().globalData || {}).userInfo) || wx.getStorageSync('userInfo') || {};
+    return Number(userInfo.id) === Number(userId);
+  },
+
+  onAvatarSheetProfile() {
+    const popup = this.data.avatarSheet;
     if (!popup || !popup.userId) return;
-    if (popup.allowAnonymousPm === false) {
-      this.setData({ anonPopup: null });
+    this.setData({ avatarSheet: null });
+    wx.navigateTo({ url: "/pages/profile/index?id=" + popup.userId });
+  },
+
+  onAvatarSheetMessage() {
+    const popup = this.data.avatarSheet;
+    if (!popup || !popup.userId) return;
+    if (!auth.requireLogin("私信需要先登录")) return;
+
+    // 匿名（分身）用户私信：对方明确关闭时拦截
+    if (popup.mode === 'anon' && popup.allowAnonymousPm === false) {
+      this.setData({ avatarSheet: null });
       wx.showToast({ title: "对方不允许匿名私信", icon: "none" });
       return;
     }
+    // 普通用户且对方关闭了分身私信 → 走普通私信渠道
+    if (popup.mode === 'normal' && popup.allowAnonymousPm === false) {
+      this.setData({ avatarSheet: null });
+      wx.navigateTo({
+        url: "/pages/chat/index?peerId=" + popup.userId +
+          "&nick=" + encodeURIComponent(popup.nick || "校园同学") +
+          "&avatar=" + encodeURIComponent(popup.avatar || "/assets/icons/avatar.png") +
+          // 显式声明普通私信渠道，避免曾被匿名私信过的会话被强制切回匿名视图
+          "&anonymous=0" +
+          // 记录来源帖子，聊天页「回到帖子」在消息通知入口也能返回本帖
+          "&postId=" + (this.data.post && this.data.post.id || "")
+      });
+      return;
+    }
+    // 匿名（分身）私信
     wx.showModal({
-      title: "匿名私信",
-      content: "与匿名用户对话时，你也自动变为匿名用户",
+      title: popup.mode === 'anon' ? "匿名私信" : "分身私信",
+      content: popup.mode === 'anon' ? "与匿名用户对话时，你也自动变为匿名用户" : "开启对话后，你将以匿名身份与对方交流",
       confirmText: "确认",
       cancelText: "取消",
       success: (res) => {
         if (!res.confirm) return;
-        this.setData({ anonPopup: null });
+        this.setData({ avatarSheet: null });
+        let extra = "&anonymous=1";
+        if (popup.mode !== 'anon') {
+          // 发起方使用随机分身身份，服务端首次进入时存档，全程同一形象；
+          // personaKey 以该分身头像为隔离键，不同分身各自对应独立聊天会话
+          const persona = anonymousIdentity.generate();
+          extra += "&personaKey=" + encodeURIComponent(persona.avatarUrl) +
+            "&anonSelfNick=" + encodeURIComponent(persona.nickName) +
+            "&anonSelfAvatar=" + encodeURIComponent(persona.avatarUrl);
+        } else {
+          // 与对方的某个分身对话：personaKey 用该分身头像作隔离键，
+          // 对方其他分身（同一真实用户）的聊天记录不会出现在本会话
+          extra += "&personaKey=" + encodeURIComponent(popup.avatar || "/assets/icons/avatar.png");
+        }
         wx.navigateTo({
           url: "/pages/chat/index?peerId=" + popup.userId +
-            "&nick=" + encodeURIComponent(popup.nick || "匿名用户") +
+            "&nick=" + encodeURIComponent(popup.nick || (popup.mode === 'anon' ? "匿名用户" : "校园同学")) +
             "&avatar=" + encodeURIComponent(popup.avatar || "/assets/icons/avatar.png") +
-            "&anonymous=1"
+            extra +
+            // 记录来源帖子，聊天页「回到帖子」在消息通知入口也能返回本帖
+            "&postId=" + (this.data.post && this.data.post.id || "")
         });
       }
+    });
+  },
+
+  // ===== 操作按钮动效（纯视觉层，不改动任何业务状态与存储）=====
+  playActionAnim(animKey, stateKey) {
+    const patch = {};
+    patch[animKey] = stateKey;
+    this.setData(patch);
+    const timerKey = "_" + animKey + "Timer";
+    if (this[timerKey]) clearTimeout(this[timerKey]);
+    this[timerKey] = setTimeout(() => {
+      const clear = {};
+      clear[animKey] = "";
+      this.setData(clear);
+      this[timerKey] = null;
+    }, stateKey === "anim-pop" ? 420 : 300);
+  },
+
+  flyLikeHeart() {
+    if (this._likeHeartTimer) clearTimeout(this._likeHeartTimer);
+    this.setData({ likeHeartFly: false });
+    // 先卸载再在下一帧重建节点，保证连续点赞时上浮动画每次都能重新触发
+    wx.nextTick(() => {
+      this.setData({ likeHeartFly: true });
+      this._likeHeartTimer = setTimeout(() => {
+        this.setData({ likeHeartFly: false });
+        this._likeHeartTimer = null;
+      }, 900);
     });
   },
 
@@ -609,12 +813,27 @@ Page({
     post.isLiked = !post.isLiked;
     post.likeCount = Math.max(0, (Number(post.likeCount) || 0) + (post.isLiked ? 1 : -1));
     this.setData({ post });
-    if (request.USE_MOCK) return;
-    request.post("/post/" + post.id + "/like", {}, true, { silent: true }).catch(() => {
-      post.isLiked = !post.isLiked;
-      post.likeCount = Math.max(0, (Number(post.likeCount) || 0) + (post.isLiked ? 1 : -1));
-      this.setData({ post });
-    });
+    this.playActionAnim("likeAnim", post.isLiked ? "anim-pop" : "anim-unpop");
+    if (post.isLiked) this.flyLikeHeart();
+    request.post("/post/" + post.id + "/like", {}, true, { silent: true })
+      .then((res) => {
+        const data = (res && res.data) || res || {};
+        const isLiked = data.isLiked !== undefined ? data.isLiked : post.isLiked;
+        const likeCount = data.likeCount !== undefined ? Number(data.likeCount) : post.likeCount;
+        wx.setStorageSync(POST_STATE_SYNC_KEY, {
+          id: post.id,
+          isLiked,
+          likeCount,
+          isFavorited: post.isFavorited,
+          favoriteCount: post.favoriteCount,
+        });
+      })
+      .catch(() => {
+        post.isLiked = !post.isLiked;
+        post.likeCount = Math.max(0, (Number(post.likeCount) || 0) + (post.isLiked ? 1 : -1));
+        this.setData({ post });
+        this.playActionAnim("likeAnim", "anim-unpop");
+      });
   },
 
   onFavoritePost() {
@@ -623,11 +842,26 @@ Page({
     post.isFavorited = !post.isFavorited;
     post.favoriteCount = Math.max(0, (Number(post.favoriteCount) || 0) + (post.isFavorited ? 1 : -1));
     this.setData({ post });
-    api.favoritePost(post.id).catch(() => {
-      post.isFavorited = !post.isFavorited;
-      post.favoriteCount = Math.max(0, (Number(post.favoriteCount) || 0) + (post.isFavorited ? 1 : -1));
-      this.setData({ post });
-    });
+    this.playActionAnim("favoriteAnim", post.isFavorited ? "anim-pop" : "anim-unpop");
+    api.favoritePost(post.id)
+      .then((res) => {
+        const data = (res && res.data) || res || {};
+        const isFavorited = data.isFavorited !== undefined ? data.isFavorited : post.isFavorited;
+        const favoriteCount = data.favoriteCount !== undefined ? Number(data.favoriteCount) : post.favoriteCount;
+        wx.setStorageSync(POST_STATE_SYNC_KEY, {
+          id: post.id,
+          isLiked: post.isLiked,
+          likeCount: post.likeCount,
+          isFavorited,
+          favoriteCount,
+        });
+      })
+      .catch(() => {
+        post.isFavorited = !post.isFavorited;
+        post.favoriteCount = Math.max(0, (Number(post.favoriteCount) || 0) + (post.isFavorited ? 1 : -1));
+        this.setData({ post });
+        this.playActionAnim("favoriteAnim", "anim-unpop");
+      });
   },
 
   onFollowPost() {
@@ -641,6 +875,7 @@ Page({
     if (!post.isFollowed && index > -1) followedPostIds.splice(index, 1);
     wx.setStorageSync("followed_post_ids", followedPostIds);
     this.setData({ post });
+    this.playActionAnim("followAnim", post.isFollowed ? "anim-pop" : "anim-unpop");
     wx.showToast({ title: post.isFollowed ? "已蹲帖" : "已取消蹲帖", icon: "none" });
   },
 
@@ -676,25 +911,61 @@ Page({
     wx.setClipboardData({ data: contact.value });
   },
 
+  // 点赞就地更新：仅通过数据路径修改该评论的点赞数字段，
+  // 不调用 buildCommentThreads 重建线程，列表顺序保持不变，
+  // 避免点赞后（尤其按赞数排序时）列表顺序跳动影响浏览；
+  // 重新排序只发生在下拉刷新 / 切换排序（loadComments 按服务端规则整体重建）。
+  // recentReplies 是收起态展示的独立副本，同一下标需同步更新。
+  patchCommentLike(commentId, transform) {
+    const comments = this.data.comments;
+    for (let i = 0; i < comments.length; i++) {
+      const root = comments[i];
+      const patch = {};
+      const collect = (prefix, comment) => {
+        const next = transform(comment);
+        patch[prefix + ".isLiked"] = next.isLiked;
+        patch[prefix + ".likeCount"] = next.likeCount;
+      };
+      if (Number(root.id) === Number(commentId)) {
+        collect("comments[" + i + "]", root);
+      } else {
+        const replies = root.replies || [];
+        let found = -1;
+        for (let j = 0; j < replies.length; j++) {
+          if (Number(replies[j].id) === Number(commentId)) { found = j; break; }
+        }
+        if (found < 0) continue;
+        collect("comments[" + i + "].replies[" + found + "]", replies[found]);
+        const recent = root.recentReplies || [];
+        if (found < recent.length && Number(recent[found].id) === Number(commentId)) {
+          collect("comments[" + i + "].recentReplies[" + found + "]", recent[found]);
+        }
+      }
+      // rawComments 不直接绑定渲染，仅作为线程重建的数据源，一并同步
+      patch.rawComments = this.data.rawComments.map((c) => (
+        Number(c.id) === Number(commentId) ? transform(c) : c
+      ));
+      this.setData(patch);
+      return true;
+    }
+    return false;
+  },
+
   onLikeComment(e) {
     if (!auth.requireLogin("点赞需要先登录")) return;
     const commentId = e.currentTarget.dataset.id;
-    this.updateComment(commentId, (comment) => {
+    // transform 读当前状态取反：调用两次即恢复原值，成功/回滚共用同一逻辑
+    const toggle = (comment) => {
       const liked = !comment.isLiked;
       return Object.assign({}, comment, {
         isLiked: liked,
         likeCount: Math.max(0, (comment.likeCount || 0) + (liked ? 1 : -1)),
       });
-    });
+    };
+    if (!this.patchCommentLike(commentId, toggle)) return;
     api.likeComment(commentId).catch(() => {
-      // 回滚
-      this.updateComment(commentId, (comment) => {
-        const liked = !comment.isLiked;
-        return Object.assign({}, comment, {
-          isLiked: liked,
-          likeCount: Math.max(0, (comment.likeCount || 0) + (liked ? 1 : -1)),
-        });
-      });
+      // 服务端失败：再次取反即回滚
+      this.patchCommentLike(commentId, toggle);
     });
   },
 
@@ -787,9 +1058,9 @@ Page({
 
   async reportComment(commentId) {
     if (!auth.requireLogin("举报需要先登录")) return;
-    if (!await this.confirmAction("举报评论", "确认提交举报吗？管理员将收到评论编号、举报人和提交时间。")) return;
+      if (!await this.confirmAction("举报评论", "确认提交举报吗？管理员将收到评论编号、举报人和提交时间。")) return;
     try {
-      if (!request.USE_MOCK) await api.reportComment(commentId);
+      await api.reportComment(commentId);
       wx.showToast({ title: "举报已提交", icon: "success" });
     } catch (err) {
       wx.showToast({ title: err.message || "举报失败", icon: "none" });
@@ -799,9 +1070,9 @@ Page({
   async blockCommentAuthor(userId, nick) {
     if (!auth.requireLogin("拉黑需要先登录")) return;
     if (!userId) return;
-    if (!await this.confirmAction("拉黑用户", "将拉黑「" + nick + "」并隐藏其全部评论与私信，确认继续吗？")) return;
+      if (!await this.confirmAction("拉黑用户", "将拉黑「" + nick + "」并隐藏其全部评论与私信，确认继续吗？")) return;
     try {
-      if (!request.USE_MOCK) await request.post("/message/block", { peerId: Number(userId) }, true);
+      await request.post("/message/block", { peerId: Number(userId) }, true);
       const blockedIds = (wx.getStorageSync("blocked_user_ids") || []).map(Number);
       if (blockedIds.indexOf(Number(userId)) === -1) {
         blockedIds.push(Number(userId));
@@ -826,9 +1097,35 @@ Page({
   },
 
   toggleCommentAnonymous() {
+    // 切换匿名/公开前先收起键盘，防止重渲染时输入框被重新聚焦拉起键盘
+    this.blurCommentInput();
     const commentAnonymous = !this.data.commentAnonymous;
     this.setData({ commentAnonymous });
     wx.showToast({ title: commentAnonymous ? '本条评论将匿名发布' : '已切换为公开评论', icon: 'none' });
+  },
+
+  // ===== 评论区匿名身份一致性 =====
+  // 同一帖子（评论区）内复用同一个分身身份：本地按帖子缓存，服务端还会按存档兜底，
+  // 保证同一用户在同一评论区的所有匿名评论头像与昵称稳定不变
+  loadCommentPersonaMap() {
+    try { return wx.getStorageSync("anon_comment_personas") || {} } catch (e) { return {} }
+  },
+
+  getOrCreateCommentPersona(postId) {
+    const map = this.loadCommentPersonaMap();
+    const existing = map[postId];
+    if (existing && existing.nickName && existing.avatarUrl) return existing;
+    const persona = anonymousIdentity.generate();
+    map[postId] = persona;
+    try { wx.setStorageSync("anon_comment_personas", map) } catch (e) {}
+    return persona;
+  },
+
+  saveCommentPersona(postId, persona) {
+    if (!persona || !persona.nickName || !persona.avatarUrl) return;
+    const map = this.loadCommentPersonaMap();
+    map[postId] = persona;
+    try { wx.setStorageSync("anon_comment_personas", map) } catch (e) {}
   },
 
   onInputFocus(e) {
@@ -845,80 +1142,128 @@ Page({
 
   async onSendComment() {
     if (!auth.requireLogin("评论需要先登录")) return;
+    // 防重复提交：上一条评论还在上传/落库时忽略再次点击
+    if (this.data.submittingComment) return;
     const text = this.data.commentText.trim();
-    if (!text && !this.data.commentImages.length) return;
+    const media = this.data.commentMedia.slice();
+    if (!text && !media.length) return;
     const postId = this.data.post.id;
     const parentId = this.data.replyTo || 0;
-    let images = this.data.commentImages.slice();
-    const content = text || "[图片]";
-    const anonymous = this.data.commentAnonymous ? anonymousIdentity.generate() : null;
+    const savedReplyTo = this.data.replyTo;
+    const savedReplyToNick = this.data.replyToNick;
+    const hasVideo = media.some((m) => m.type === "video");
+    const content = text || (hasVideo ? "[视频]" : "[图片]");
+    // 匿名身份：优先复用本评论区已用的分身身份，没有才生成新的
+    const anonymous = this.data.commentAnonymous ? this.getOrCreateCommentPersona(postId) : null;
+    const userInfo = (getApp().globalData.userInfo || {}) || {};
+    const nowIso = new Date().toISOString();
+    // 负数临时 id：与服务端自增 id 天然不冲突，替换/回退时按它定位
+    const tempId = -Date.now();
 
-    if (!request.USE_MOCK) wx.showLoading({ title: "发送中...", mask: true });
+    // ===== 乐观更新：先上屏，再等服务端 =====
+    // 顶层评论插入后置顶展示；回复插入到对应评论的回复列表顶部（与参考交互一致）
+    const optimisticComment = this.normalizeComment({
+      id: tempId,
+      user_id: this.data.currentUserId,
+      nick_name: anonymous ? anonymous.nickName : (userInfo.nickName || "我"),
+      avatar_url: anonymous ? anonymous.avatarUrl : (userInfo.avatarUrl || ""),
+      anonymous_identity: anonymous,
+      is_anonymous: !!anonymous,
+      content,
+      images: media.map((m) => m.path),
+      parent_id: parentId,
+      parent_nick_name: savedReplyToNick,
+      created_at: nowIso,
+    });
+    const rawWithOptimistic = this.data.rawComments.concat([optimisticComment]);
+    this.setData({
+      rawComments: rawWithOptimistic,
+      comments: this.buildCommentThreads(rawWithOptimistic),
+      commentTotal: (Number(this.data.commentTotal) || 0) + 1,
+      submittingComment: true,
+      // 输入区立即复位（失败回退时恢复草稿）
+      commentText: "",
+      commentMedia: [],
+      showEmojiPanel: false,
+      replyTo: null,
+      replyToNick: "",
+    });
+
+    // 失败回退：移除乐观记录、恢复草稿与计数
+    const rollback = () => {
+      const rawComments = this.data.rawComments.filter((c) => Number(c.id) !== tempId);
+      this.setData({
+        rawComments,
+        comments: this.buildCommentThreads(rawComments),
+        commentTotal: Math.max(0, (Number(this.data.commentTotal) || 0) - 1),
+        commentText: text,
+        commentMedia: media,
+        replyTo: savedReplyTo,
+        replyToNick: savedReplyToNick,
+        submittingComment: false,
+      });
+    };
+
+    // 用服务端返回的真实 id 替换临时评论，并保持在对应列表顶部（pin 只对本次重建生效）
+    const applySuccess = (finalComment) => {
+      let rawComments = this.data.rawComments.slice();
+      const index = rawComments.findIndex((c) => Number(c.id) === tempId);
+      if (index > -1) rawComments[index] = finalComment;
+      else rawComments = rawComments.concat([finalComment]); // 极端时序：期间列表被整体刷新过，直接补插，避免丢失
+      const pin = parentId
+        ? { rootId: this.findCommentRootId(parentId), replyId: finalComment.id }
+        : { rootId: finalComment.id };
+      this.setData({
+        rawComments,
+        comments: this.buildCommentThreads(rawComments, this.data.commentSort, this.data.expandedReplyIds, pin),
+      });
+    };
+
     try {
-      if (!request.USE_MOCK && images.length) {
-        const imageCount = images.length;
-        images = await wechat.uploadImages(images);
-        if (images.length !== imageCount || images.some((url) => !/^https?:\/\//i.test(url))) {
-          throw new Error("图片上传失败");
+      // 图片走图片上传通道，视频走视频上传通道，按原顺序合并为 URL 数组
+      let images = media.map((m) => m.path);
+      if (media.length) {
+        images = await Promise.all(
+          media.map((m) =>
+            m.type === "video"
+              ? wechat.uploadVideo(m.path)
+              : wechat.uploadImages([m.path]).then((arr) => arr[0]),
+          ),
+        );
+        if (images.some((url) => !/^https?:\/\//i.test(url))) {
+          throw new Error("媒体上传失败");
         }
       }
 
-      if (request.USE_MOCK) {
-        const key = "mock_comments_" + postId;
-        const stored = wx.getStorageSync(key) || [];
-        const newComment = {
-          id: Date.now(),
-          user_id: this.data.currentUserId,
-          nick_name: anonymous ? anonymous.nickName : ((getApp().globalData.userInfo || {}).nickName || "我"),
-          avatar_url: anonymous ? anonymous.avatarUrl : ((getApp().globalData.userInfo || {}).avatarUrl || ""),
-          anonymous_identity: anonymous,
-          is_anonymous: !!anonymous,
-          content,
-          images,
-          parent_id: parentId,
-          created_at: new Date().toISOString(),
-        };
-        stored.push(newComment);
-        wx.setStorageSync(key, stored);
-        const post = Object.assign({}, this.data.post, {
-          commentCount: (Number(this.data.post.commentCount) || 0) + 1,
-        });
-        const rawComments = this.data.rawComments.concat([this.normalizeComment(Object.assign({}, newComment, {
-          parent_nick_name: this.data.replyToNick,
-        }))]);
-        this.setData({
-          rawComments,
-          comments: this.buildCommentThreads(rawComments),
-          commentTotal: rawComments.length,
-          commentText: "",
-          commentImages: [],
-          showEmojiPanel: false,
-          replyTo: null,
-          replyToNick: "",
-          post,
-        });
-        wx.showToast({ title: "评论成功", icon: "success" });
-        return;
+      // 服务端返回真实评论 id，用它替换乐观记录；刷新时列表整体重建，天然不会重复
+      const created = await request.post("/comment", { postId, content, parentId, images, anonymousIdentity: anonymous }, true);
+      // 服务端按评论区存档复用分身身份：返回的身份与本地缓存不一致时（如换设备），以服务端为准
+      const effective = (created && created.anonymousIdentity) || anonymous;
+      if (effective && anonymous && (effective.nickName !== anonymous.nickName || effective.avatarUrl !== anonymous.avatarUrl)) {
+        this.saveCommentPersona(postId, effective);
       }
-
-      await request.post("/comment", { postId, content, parentId, images, anonymousIdentity: anonymous }, true);
+      const finalComment = this.normalizeComment({
+        id: (created && created.id) || tempId,
+        user_id: this.data.currentUserId,
+        nick_name: effective ? effective.nickName : (userInfo.nickName || "我"),
+        avatar_url: effective ? effective.avatarUrl : (userInfo.avatarUrl || ""),
+        anonymous_identity: effective,
+        is_anonymous: !!effective,
+        content,
+        images,
+        parent_id: parentId,
+        parent_nick_name: savedReplyToNick,
+        created_at: nowIso,
+      });
+      applySuccess(finalComment);
       const post = Object.assign({}, this.data.post, {
         commentCount: (Number(this.data.post.commentCount) || 0) + 1,
       });
-      this.setData({
-        commentText: "",
-        commentImages: [],
-        showEmojiPanel: false,
-        replyTo: null,
-        replyToNick: "",
-        post,
-      });
-      this.loadComments(postId);
+      this.setData({ post, submittingComment: false });
       wx.showToast({ title: "评论成功", icon: "success" });
     } catch (err) {
+      rollback();
       wx.showToast({ title: err.message || "评论失败", icon: "none" });
-    } finally {
-      if (!request.USE_MOCK) wx.hideLoading();
     }
   },
 
@@ -935,12 +1280,17 @@ Page({
 
   toggleCommentReplies(e) {
     const id = e.currentTarget.dataset.id;
-    const expandedReplyIds = Object.assign({}, this.data.expandedReplyIds, {
-      [id]: !this.data.expandedReplyIds[id],
-    });
+    const comments = this.data.comments;
+    const index = comments.findIndex((c) => Number(c.id) === Number(id));
+    if (index < 0) return;
+    const expanded = !comments[index].expanded;
+    // 只定点更新目标评论的 expanded 一个字段：
+    // 旧实现每次都 buildCommentThreads 全量重建 comments 数组（所有对象引用变化），
+    // 渲染层对整表替换 + 嵌套列表切换的 diff 易发生节点复用错位，
+    // 导致点某条评论的"收起"却收起了列表最前面的评论；路径化更新从根源消除该问题
     this.setData({
-      expandedReplyIds,
-      comments: this.buildCommentThreads(this.data.rawComments, this.data.commentSort, expandedReplyIds),
+      ["comments[" + index + "].expanded"]: expanded,
+      ["expandedReplyIds." + id]: expanded,
     });
   },
 
@@ -960,30 +1310,42 @@ Page({
     });
   },
 
-  onChooseCommentImage() {
+  // 评论可附图也可附视频（共 3 个位置），视频走视频上传通道
+  onChooseCommentMedia() {
     if (!auth.requireLogin("评论需要先登录")) return;
     wx.chooseMedia({
-      count: Math.max(1, 3 - this.data.commentImages.length),
-      mediaType: ["image"],
+      count: Math.max(1, 3 - this.data.commentMedia.length),
+      mediaType: ["image", "video"],
       sourceType: ["album", "camera"],
       sizeType: ["compressed"],
+      maxDuration: 60,
       success: (res) => {
-        const paths = (res.tempFiles || [])
-          .map((item) => item.tempFilePath)
-          .filter(Boolean);
+        // maxDuration 只限制拍摄，相册长视频需按 duration 二次校验；
+        // 图/视频混选时只过滤超限视频，图片保留
+        const { valid, overLong } = image.splitOverlongVideos(res.tempFiles || []);
+        if (overLong) {
+          wx.showToast({ title: "视频不能超过1分钟，已自动过滤", icon: "none" });
+        }
+        const items = valid
+          .map((file) => ({
+            type: file.fileType === "video" ? "video" : "image",
+            path: file.tempFilePath,
+          }))
+          .filter((m) => m.path);
+        if (!items.length) return;
         this.setData({
-          commentImages: this.data.commentImages.concat(paths).slice(0, 3),
+          commentMedia: this.data.commentMedia.concat(items).slice(0, 3),
           showEmojiPanel: false,
         });
       },
     });
   },
 
-  onRemoveCommentImage(e) {
+  onRemoveCommentMedia(e) {
     const index = e.currentTarget.dataset.index;
-    const commentImages = this.data.commentImages.slice();
-    commentImages.splice(index, 1);
-    this.setData({ commentImages });
+    const commentMedia = this.data.commentMedia.slice();
+    commentMedia.splice(index, 1);
+    this.setData({ commentMedia });
   },
 
   onEditComment(e) {
@@ -1016,13 +1378,6 @@ Page({
     }
     const commentId = this.data.editCommentId;
 
-    if (request.USE_MOCK) {
-      this.updateComment(commentId, (comment) => Object.assign({}, comment, { content }));
-      this.onCloseEditModal();
-      wx.showToast({ title: "编辑成功", icon: "success" });
-      return;
-    }
-
     request
       .put("/comment/" + commentId, { content }, true)
       .then(() => {
@@ -1042,15 +1397,6 @@ Page({
       content: "确定要删除这条评论吗？",
       success: (res) => {
         if (res.confirm) {
-          if (request.USE_MOCK) {
-            const rawComments = this.data.rawComments.filter((comment) => Number(comment.id) !== Number(id));
-            const post = Object.assign({}, this.data.post, {
-              commentCount: Math.max(0, (Number(this.data.post.commentCount) || 0) - 1),
-            });
-            this.setData({ rawComments, comments: this.buildCommentThreads(rawComments), commentTotal: rawComments.length, post });
-            wx.showToast({ title: "删除成功", icon: "success" });
-            return;
-          }
           request
             .delete("/comment/" + id, {}, true)
             .then(() => {
@@ -1079,9 +1425,7 @@ Page({
     post.isLiked = liked;
     post.likeCount = Math.max(0, (Number(post.likeCount) || 0) + (liked ? 1 : -1));
     this.setData({ post });
-    if (!request.USE_MOCK) {
-      request.post("/post/" + post.id + "/like", {}, true).catch(() => {});
-    }
+    request.post("/post/" + post.id + "/like", {}, true).catch(() => {});
   },
 
   onShare() {
@@ -1093,71 +1437,30 @@ Page({
     if (!userId) return;
     const post = this.data.post || {};
     if (post.isAnonymous) {
-      this.showAnonPopup({
+      this.showAvatarSheet({
         userId,
         nick: post.nickName,
         avatar: post.avatarUrl,
         isOwner: true,
+        mode: 'anon',
         allowAnonymousPm: post.allowAnonymousPm,
       });
       return;
     }
-    if (this.showAuthorPopup(post)) return;
-    wx.navigateTo({ url: "/pages/profile/index?id=" + userId });
-  },
-
-  // 普通帖帖主头像：允许匿名私信时弹出「个人主页/分身私信」选择，
-  // 关闭了该设置或查看自己的帖子时保持直接进入主页
-  showAuthorPopup(post) {
-    if (!post || !post.userId) return false;
-    if (post.allowAnonymousPm === false) return false;
-    const userInfo = ((getApp().globalData || {}).userInfo) || wx.getStorageSync('userInfo') || {};
-    if (Number(userInfo.id) === Number(post.userId)) return false;
-    this.setData({
-      authorPopup: {
-        userId: post.userId,
-        nick: post.nickName || "校园同学",
-        avatar: post.avatarUrl || "/assets/icons/avatar.png",
-        certLabel: post.certLabel || "",
-      },
-    });
-    return true;
-  },
-
-  onCloseAuthorPopup() {
-    this.setData({ authorPopup: null });
-  },
-
-  onAuthorPopupProfile() {
-    const popup = this.data.authorPopup;
-    if (!popup || !popup.userId) return;
-    this.setData({ authorPopup: null });
-    wx.navigateTo({ url: "/pages/profile/index?id=" + popup.userId });
-  },
-
-  onAuthorPopupMessage() {
-    const popup = this.data.authorPopup;
-    if (!popup || !popup.userId) return;
-    if (!auth.requireLogin("私信需要先登录")) return;
-    wx.showModal({
-      title: "分身私信",
-      content: "开启对话后，你将以匿名身份与对方交流",
-      confirmText: "确认",
-      cancelText: "取消",
-      success: (res) => {
-        if (!res.confirm) return;
-        this.setData({ authorPopup: null });
-        // 发起方使用随机分身身份，服务端首次进入时存档，全程同一形象
-        const persona = anonymousIdentity.generate();
-        wx.navigateTo({
-          url: "/pages/chat/index?peerId=" + popup.userId +
-            "&nick=" + encodeURIComponent(popup.nick || "校园同学") +
-            "&avatar=" + encodeURIComponent(popup.avatar || "/assets/icons/avatar.png") +
-            "&anonymous=1" +
-            "&anonSelfNick=" + encodeURIComponent(persona.nickName) +
-            "&anonSelfAvatar=" + encodeURIComponent(persona.avatarUrl)
-        });
-      }
+    // 查看自己的帖子时保持直接进入主页
+    if (this.isSelfUser(userId)) {
+      wx.navigateTo({ url: "/pages/profile/index?id=" + userId });
+      return;
+    }
+    // 普通帖帖主头像：弹出「个人主页 / 分身私信(或私信)」功能菜单
+    this.showAvatarSheet({
+      userId,
+      nick: post.nickName,
+      avatar: post.avatarUrl,
+      certLabel: post.certLabel,
+      isOwner: true,
+      mode: 'normal',
+      allowAnonymousPm: post.allowAnonymousPm,
     });
   },
 
@@ -1177,7 +1480,7 @@ Page({
     }
     runPullDownRefresh(this, [
       () => this.loadPost(postId),
-      () => this.loadComments(postId),
+      () => this.loadComments(postId).catch(() => {}),
       () => this.loadHotPosts(),
     ]);
   },

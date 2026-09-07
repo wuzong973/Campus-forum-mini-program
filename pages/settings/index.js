@@ -3,8 +3,8 @@ const SETTINGS_KEY = 'system_settings'
 const DEFAULT_SETTINGS = {
   postAnonymous: false,
   commentAnonymous: false,
-  commentPublic: false,
-  anonymousMessage: false,
+  commentPublic: true,
+  anonymousMessage: true,
   hideProfilePosts: false,
   messageBanner: false,
   activitySubscription: false,

@@ -15,17 +15,12 @@ Page({
   },
 
   loadDeletionRequest() {
-    if (request.USE_MOCK) return Promise.resolve()
     return request.get('/user/deletion-request', {}, true, { silent: true })
       .then((deletionRequest) => this.setData({ deletionRequest }))
       .catch(() => this.setData({ deletionRequest: null }))
   },
 
   onDeleteAccount() {
-    if (request.USE_MOCK) {
-      wx.showToast({ title: '演示模式暂不支持注销账号', icon: 'none' })
-      return
-    }
     wx.showModal({
       title: '注销账号',
       content: '提交后将进入 7 天冷静期。冷静期内可随时撤销，期满后将按平台规则处理相关数据。确定提交吗？',
@@ -45,10 +40,6 @@ Page({
   },
 
   onCancelDeletion() {
-    if (request.USE_MOCK) {
-      wx.showToast({ title: '演示模式暂不支持该操作', icon: 'none' })
-      return
-    }
     wx.showModal({
       title: '撤销注销申请',
       content: '撤销后账号将继续正常使用。',

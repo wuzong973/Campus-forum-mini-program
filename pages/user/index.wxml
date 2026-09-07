@@ -28,20 +28,31 @@
 
   <block wx:for="{{sections}}" wx:for-item="section" wx:key="title">
     <view class="feature-section">
+      <view class="msg-banner" wx:if="{{section.title === '消息通知' && msgBanner.text}}" style="{{msgBanner.bannerStyle}}" bindtap="goBannerDetail">
+        <view class="msg-banner-left">
+          <text class="msg-banner-icon">{{msgBanner.icon}}</text>
+          <text class="msg-banner-text">{{msgBanner.text}}</text>
+        </view>
+        <text class="msg-banner-arrow">查看 »</text>
+      </view>
       <text class="section-title">{{section.title}}</text>
       <view class="feature-grid columns-{{section.columns}}">
         <block wx:for="{{section.items}}" wx:for-item="feature" wx:key="name">
           <view wx:if="{{feature.type === 'contact'}}" class="feature-item">
             <contact-admin class="feature-contact">
               <view slot="trigger" class="feature-trigger">
-                <view class="feature-icon-wrap"><image class="feature-icon" src="{{feature.icon}}" mode="aspectFit"></image></view>
+                <view class="feature-icon-wrap">
+                  <text wx:if="{{feature.fontIcon}}" class="iconfont2 {{feature.fontIcon}} feature-font-icon" style="color: {{feature.fontColor}};"></text>
+                  <image wx:else class="feature-icon" src="{{feature.icon}}" mode="aspectFit"></image>
+                </view>
                 <text class="feature-name">{{feature.name}}</text>
               </view>
             </contact-admin>
           </view>
           <view wx:elif="{{!feature.adminOnly || isAdmin}}" class="feature-item" data-route="{{feature.route}}" data-admin-only="{{feature.adminOnly}}" bindtap="onFeatureTap">
             <view class="feature-icon-wrap">
-              <image class="feature-icon" src="{{feature.icon}}" mode="aspectFit"></image>
+              <text wx:if="{{feature.fontIcon}}" class="iconfont2 {{feature.fontIcon}} feature-font-icon" style="color: {{feature.fontColor}};"></text>
+              <image wx:else class="feature-icon" src="{{feature.icon}}" mode="aspectFit"></image>
               <view class="feature-badge" wx:if="{{feature.badge === 'unread' && unreadCount > 0}}">{{unreadCount > 99 ? '99+' : unreadCount}}</view>
             </view>
             <text class="feature-name">{{feature.name}}</text>

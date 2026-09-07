@@ -1,3 +1,5 @@
 {
-  "navigationBarTitleText": "钱包"
+  "navigationBarTitleText": "钱包",
+  "navigationBarBackgroundColor": "#D7EFFF",
+  "navigationBarTextStyle": "black"
 }

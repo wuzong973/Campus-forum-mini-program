@@ -1,8 +1,8 @@
 .page { min-height: 100vh; background: #f5f6fb; color: #202331; }
 .nav { position: fixed; z-index: 10; top: 0; left: 0; right: 0; box-sizing: border-box; background: #ffffff; border-bottom: 1rpx solid #edf0f4; }
 .nav-content { display: flex; align-items: center; justify-content: space-between; padding: 0 24rpx; }
-.back-button, .nav-placeholder { width: 80rpx; }
-.back-button { color: #14213d; font-size: 64rpx; font-weight: 300; line-height: .7; }
+/* 返回按钮使用全局 .back-pill 样式（app.wxss） */
+.nav-placeholder { width: 132rpx; }
 .nav-title { color: #151a28; font-size: 32rpx; font-weight: 700; }
 .feedback-list { box-sizing: border-box; padding: 18rpx 24rpx calc(160rpx + env(safe-area-inset-bottom)); }
 .public-tip { margin-bottom: 16rpx; padding: 18rpx 22rpx; border-radius: 14rpx; background: #edf4ff; color: #4371be; font-size: 23rpx; line-height: 1.5; }

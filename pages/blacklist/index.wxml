@@ -1,18 +1,56 @@
 <view class="page">
-  <view class="black-card">
-    <view class="black-row" wx:for="{{list}}" wx:key="userId">
-      <image class="black-avatar" src="{{item.avatar || '/assets/icons/avatar.png'}}" mode="aspectFill"></image>
-      <view class="black-info">
-        <text class="black-nick">{{item.nick || '已注销用户'}}</text>
-        <text class="black-date">拉黑于 {{item.dateText}}</text>
-      </view>
-      <view class="unblock-btn" hover-class="btn-hover" bindtap="onUnblock" data-index="{{index}}">解除拉黑</view>
-    </view>
-    <view class="black-empty" wx:if="{{!loading && loaded && list.length === 0}}">
-      <image class="empty-icon" src="/assets/icons/ic-lock-purple.png" mode="aspectFit"></image>
-      <text class="empty-text">黑名单还是空的</text>
-      <text class="empty-sub">在聊天或帖子中拉黑的用户会显示在这里</text>
-    </view>
-    <view class="black-loading" wx:if="{{loading && !list.length}}">加载中...</view>
+  <view class="type-tabs">
+    <view class="type-tab {{activeTab === 'users' ? 'active' : ''}}" data-tab="users" bindtap="onSwitchTab">拉黑的用户</view>
+    <view class="type-tab {{activeTab === 'posts' ? 'active' : ''}}" data-tab="posts" bindtap="onSwitchTab">拉黑的帖子</view>
   </view>
+
+  <!-- 拉黑的用户 -->
+  <block wx:if="{{activeTab === 'users'}}">
+    <view class="black-card">
+      <view class="black-row" wx:for="{{list}}" wx:key="userId" data-index="{{index}}" bindtap="onPreviewUser">
+        <image class="black-avatar" src="{{item.avatar || '/assets/icons/avatar.png'}}" mode="aspectFill"></image>
+        <view class="black-info">
+          <view class="nick-line">
+            <text class="black-nick">{{item.nick || '已注销用户'}}</text>
+            <text class="cert-tag" wx:if="{{item.verified || item.certLabel}}">{{item.certLabel || '已认证'}}</text>
+            <text class="cert-tag restored-tag" wx:if="{{item.restored}}">已恢复</text>
+          </view>
+          <text class="black-date" wx:if="{{item.campus}}">校区：{{item.campus}}</text>
+          <text class="black-date">注册于 {{item.registeredText || '—'}} · 拉黑于 {{item.dateText}}</text>
+        </view>
+        <view class="unblock-btn {{item.restored ? 'viewing' : ''}}" hover-class="btn-hover" catchtap="onUnblock" data-index="{{index}}">{{item.restored ? '查看主页' : '恢复展示'}}</view>
+      </view>
+      <view class="black-empty" wx:if="{{!loading && loaded && list.length === 0}}">
+        <image class="empty-icon" src="/assets/icons/ic-lock-purple.png" mode="aspectFit"></image>
+        <text class="empty-text">黑名单还是空的</text>
+        <text class="empty-sub">在聊天或帖子中拉黑的用户会显示在这里</text>
+      </view>
+      <view class="black-loading" wx:if="{{loading && !list.length}}">加载中...</view>
+    </view>
+  </block>
+
+  <!-- 拉黑的帖子 -->
+  <block wx:if="{{activeTab === 'posts'}}">
+    <view class="black-card">
+      <view class="black-row post-row" wx:for="{{posts}}" wx:key="id" data-index="{{index}}" bindtap="onPreviewPost">
+        <image class="black-avatar" src="{{item.avatarUrl || '/assets/icons/avatar.png'}}" mode="aspectFill"></image>
+        <view class="black-info">
+          <view class="nick-line">
+            <text class="black-nick">{{item.nickName}}</text>
+            <text class="cert-tag" wx:if="{{item.verified || item.certLabel}}">{{item.certLabel || '已认证'}}</text>
+            <text class="cert-tag restored-tag" wx:if="{{item.restored}}">已恢复</text>
+          </view>
+          <text class="post-detail-text">{{item.displayText}}</text>
+          <text class="black-date">{{item.category || '无分类'}} · 拉黑于 {{item.dateText}}</text>
+        </view>
+        <view class="unblock-btn restore {{item.restored ? 'viewing' : ''}}" hover-class="btn-hover" catchtap="onRestorePost" data-index="{{index}}">{{item.restored ? '查看帖子' : '恢复展示'}}</view>
+      </view>
+      <view class="black-empty" wx:if="{{!postLoading && postLoaded && posts.length === 0}}">
+        <image class="empty-icon" src="/assets/icons/ic-lock-purple.png" mode="aspectFit"></image>
+        <text class="empty-text">还没有拉黑的帖子</text>
+        <text class="empty-sub">在帖子右上角「···」中选择拉黑，帖子会显示在这里</text>
+      </view>
+      <view class="black-loading" wx:if="{{postLoading && !posts.length}}">加载中...</view>
+    </view>
+  </block>
 </view>

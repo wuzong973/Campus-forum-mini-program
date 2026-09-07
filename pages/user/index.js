@@ -15,7 +15,7 @@ Page({
       { icon: '/assets/icons/wallet.png', name: '钱包', route: '/pages/wallet/index' },
       { icon: '/assets/icons/order.png', name: '订单', route: '/pages/errand-order/index' },
       { icon: '/assets/icons/ic-lock-purple.png', name: '黑名单管理', route: '/pages/blacklist/index', iconDark: true },
-      { icon: '/assets/icons/menu.png', name: '管理后台', route: '/pages/admin/index', adminOnly: true }
+      { icon: '/assets/icons/menu.png', name: '管理后台', route: '/pkg-admin/admin/index', adminOnly: true }
     ],
     interactionStats: { liked: 0, shared: 0, commented: 0, favorited: 0 },
     sections: [
@@ -29,29 +29,29 @@ Page({
           { icon: '/assets/icons/star-outline.png', name: '已收藏', route: '/pages/my-interactions/index?type=favorited', stat: 'favorited' }
         ],
         items: [
-          { icon: '/assets/icons/post.png', name: '我的帖子', route: '/pages/my-posts/index' },
+          { fontIcon: 'if-tiezi', fontColor: '#4a7aff', name: '我的帖子', route: '/pages/my-posts/index' },
           { icon: '/assets/icons/heart.png', name: '点赞我的', route: '/pages/my-messages/index?tab=2' },
           { icon: '/assets/icons/comment.png', name: '评论我的', route: '/pages/my-messages/index?tab=1' },
-          { icon: '/assets/icons/notice.png', name: '消息通知', route: '/pages/my-messages/index?tab=3', badge: 'unread' }
+          { fontIcon: 'if-xiaoxitongzhi', fontColor: '#4a90f8', name: '消息通知', route: '/pages/my-messages/index?tab=3', badge: 'unread' }
         ]
       },
       {
         title: '更新公告',
         columns: 4,
         items: [
-          { icon: '/assets/icons/notice.png', name: '更新公告', route: '/pages/announcements/index' },
-          { icon: '/assets/icons/about.png', name: '关于我们', route: '/pages/about/index' },
+          { fontIcon: 'if-gengxingonggao', fontColor: '#faad14', name: '更新公告', route: '/pages/announcements/index' },
+          { fontIcon: 'if-guanyuwomen', fontColor: '#52c41a', name: '关于我们', route: '/pages/about/index' },
           { icon: '/assets/icons/rider.png', name: '骑手认证', route: '/pages/rider-verify/index' },
-          { icon: '/assets/icons/avatar.png', name: '个人中心', route: '/pages/profile-edit/index' }
+          { fontIcon: 'if-gerenzhongxin', fontColor: '#ff7a45', name: '个人中心', route: '/pages/profile-edit/index' }
         ]
       },
       {
         title: '系统设置',
         columns: 4,
         items: [
-          { icon: '/assets/icons/settings.png', name: '系统设置', route: '/pages/settings/index' },
-          { icon: '/assets/icons/feedback.png', name: '意见(必回)', route: '/pages/feedback/index' },
-          { icon: '/assets/icons/service.png', name: '联系客服', type: 'contact' },
+          { fontIcon: 'if-xitongshezhi', fontColor: '#315cff', name: '系统设置', route: '/pages/settings/index' },
+          { fontIcon: 'if-yijian', fontColor: '#12b8a6', name: '意见(必回)', route: '/pages/feedback/index' },
+          { fontIcon: 'if-lianxikefu', fontColor: '#5e6675', name: '联系客服', type: 'contact' },
           { icon: '/assets/icons/help.png', name: '常见问题', route: '/pages/help/index' }
         ]
       }
@@ -59,7 +59,12 @@ Page({
   },
 
   onLoad() {
-    this.unsubscribe = messageStore.onMessage(() => {
+    this.unsubscribe = messageStore.onMessage((payload) => {
+      if (payload && payload.type === 'banner_update') {
+        // 管理员更新了消息通知横幅，实时刷新
+        this.loadMsgBanner()
+        return
+      }
       this.setData({ unreadCount: messageStore.getUnreadTotal() })
     })
   },
@@ -83,6 +88,7 @@ Page({
       unreadCount: messageStore.getUnreadTotal()
     })
     this.loadInteractionStats()
+    this.loadMsgBanner()
     this.refreshUserInfo()
   },
 
@@ -119,6 +125,20 @@ Page({
     api.getMyInteractionStats().then((stats) => {
       this.setData({ interactionStats: stats })
     }).catch(() => {})
+  },
+
+  // 消息通知卡片顶部横幅：点击进入详情页（详情页内管理员可编辑发布）
+  loadMsgBanner() {
+    api.getMessageBanner().then((banner) => {
+      const data = banner || { text: '', icon: '', images: [] }
+      data.bannerStyle = (data.bgColor ? 'background:' + data.bgColor + ';' : '') + (data.textColor ? '--banner-fg:' + data.textColor + ';' : '')
+      this.setData({ msgBanner: data })
+    }).catch(() => {})
+  },
+
+  goBannerDetail() {
+    if (!this.data.msgBanner || !this.data.msgBanner.text) return
+    wx.navigateTo({ url: '/pages/banner-detail/index' })
   },
 
   goLogin() {

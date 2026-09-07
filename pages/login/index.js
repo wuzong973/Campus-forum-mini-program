@@ -20,10 +20,10 @@ Page({
     } catch (e) {}
   },
 
-  _finishLogin(user, simulated) {
+  _finishLogin(user) {
     auth.saveUser(user);
     this._postLogin();
-    wx.showToast({ title: simulated ? "登录成功（模拟）" : "登录成功", icon: "success" });
+    wx.showToast({ title: "登录成功", icon: "success" });
     const pages = getCurrentPages();
     if (pages.length > 1) {
       setTimeout(() => wx.navigateBack(), 900);

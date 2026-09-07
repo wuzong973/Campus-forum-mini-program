@@ -1,5 +1,5 @@
 <view class="page">
-  <view class="topbar" style="padding-top: {{statusBarHeight}}px;"><view class="topbar-inner" style="height: {{navBarHeight}}px;"><view class="back" bindtap="goBack">‹</view><text class="nav-title">广轻工论坛</text><view class="topbar-right"></view></view></view>
+  <view class="topbar" style="padding-top: {{statusBarHeight}}px;"><view class="topbar-inner" style="height: {{navBarHeight}}px;"><view class="back-pill" hover-class="back-pill-hover" hover-stay-time="80" bindtap="goBack"><text class="back-pill-icon">‹</text><text>返回</text></view><text class="nav-title">订单处理</text><view class="topbar-right"></view></view></view>
   <view class="nav-space" style="height: {{statusBarHeight + navBarHeight}}px;"></view>
 
   <view class="card">
@@ -15,7 +15,7 @@
     <text class="section-title">上传图片证明</text>
     <view class="upload-grid">
       <view class="upload-thumb" wx:for="{{images}}" wx:key="*this">
-        <image src="{{item}}" mode="aspectFill" data-src="{{item}}" bindtap="previewImage"/>
+        <image src="{{item}}" mode="aspectFill" data-src="{{item}}" data-urls="{{images}}" bindtap="previewImage" bindlongpress="onImageQrScan"/>
         <view class="thumb-delete" data-index="{{index}}" catchtap="removeImage">×</view>
       </view>
       <view class="upload-box" wx:if="{{images.length < 3}}" bindtap="chooseImage">
@@ -25,10 +25,10 @@
     </view>
   </view>
 
-  <view class="service-tip">如有疑问，请尽快联系<text bindtap="contactService">客服处理</text></view>
+  <view class="service-tip">如有疑问，请尽快联系<contact-admin style="display: inline;"><text slot="trigger">客服处理</text></contact-admin></view>
 
   <view class="bottom-actions">
-    <button class="secondary" bindtap="submit" disabled="{{submitting}}">确认提交</button>
     <button class="primary" bindtap="goBack">我再想想</button>
+    <button class="secondary" bindtap="submit" disabled="{{submitting}}">确认提交</button>
   </view>
 </view>

@@ -4,7 +4,7 @@ const { clampPageSize, safeMessage } = require('../utils/helpers')
 const { writeAdminAudit } = require('../utils/adminAudit')
 
 const ADMIN_ROLES = ['super_admin', 'content_admin', 'user_admin', 'operator']
-const CONTENT_TYPES = ['category', 'tag', 'notice', 'banner', 'publish_banner']
+const CONTENT_TYPES = ['category', 'tag', 'notice', 'banner', 'publish_banner', 'message_banner', 'post_banner']
 const POST_STATUS = [0, 1, 2, 3]
 
 function pageParams(query) {
@@ -62,7 +62,7 @@ exports.stats = async (req, res) => {
       statOne("SELECT COUNT(*) total, SUM(status = 'finished') finished, IFNULL(SUM(CASE WHEN status = 'finished' THEN reward ELSE 0 END), 0) amount FROM errand_order"),
       statOne('SELECT COUNT(*) total, IFNULL(SUM(status = 1), 0) online, IFNULL(SUM(sales_count), 0) sales FROM virtual_item'),
       statOne('SELECT COUNT(*) posts7d, COUNT(DISTINCT user_id) activeUsers7d FROM forum_post WHERE created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)'),
-      pool.query('SELECT action, target_type targetType, target_id targetId, created_at createdAt FROM admin_audit_log ORDER BY id DESC LIMIT 8').then(([rows]) => rows).catch(() => [])
+      pool.query('SELECT l.action, l.target_type targetType, l.target_id targetId, l.created_at createdAt, u.nick_name adminName FROM admin_audit_log l LEFT JOIN sys_user u ON u.id = l.admin_id ORDER BY l.id DESC LIMIT 8').then(([rows]) => rows).catch(() => [])
     ])
     success(res, {
       users: { total: num(users.total), enabled: num(users.enabled), active7d: num(activity.activeUsers7d) },
@@ -117,9 +117,61 @@ exports.listPosts = async (req, res) => {
     if (keyword) { where += ' AND (p.title LIKE ? OR p.content LIKE ? OR u.nick_name LIKE ?)'; const q = '%' + keyword + '%'; params.push(q, q, q) }
     const [[count], [list]] = await Promise.all([
       pool.query(`SELECT COUNT(*) total FROM forum_post p LEFT JOIN sys_user u ON u.id = p.user_id ${where}`, params),
-      pool.query(`SELECT p.id, p.user_id userId, p.title, p.category, p.content, p.status, p.pinned, p.review_note reviewNote, p.created_at createdAt, p.updated_at updatedAt, p.like_count likeCount, p.comment_count commentCount, u.nick_name nickName FROM forum_post p LEFT JOIN sys_user u ON u.id = p.user_id ${where} ORDER BY p.pinned DESC, p.created_at DESC LIMIT ? OFFSET ?`, params.concat([pageSize, offset]))
+      pool.query(`SELECT p.id, p.user_id userId, p.title, p.category, p.content, p.status, p.pinned, p.review_note reviewNote, p.created_at createdAt, p.updated_at updatedAt, p.like_count likeCount, p.comment_count commentCount, u.nick_name nickName, u.avatar_url avatarUrl FROM forum_post p LEFT JOIN sys_user u ON u.id = p.user_id ${where} ORDER BY p.pinned DESC, p.created_at DESC LIMIT ? OFFSET ?`, params.concat([pageSize, offset]))
     ])
     success(res, { list, total: Number(count.total), page, hasMore: offset + list.length < Number(count.total) })
+  } catch (e) { fail(res, safeMessage(e), 500) }
+}
+
+// ===== 跑腿订单流程（管理后台「日志」tab）：展示 xx 发布订单、xx 接单等全流程 =====
+const CANCEL_LOG_ACTIONS = ['cancelled', 'timeout_cancelled', 'deadline_cancelled', 'self_cancel', 'cancel_approved']
+
+exports.listErrandOrders = async (req, res) => {
+  const { page, pageSize, offset } = pageParams(req.query)
+  const status = String(req.query.status || '')
+  const keyword = String(req.query.keyword || '').trim().slice(0, 64)
+  let where = 'WHERE 1 = 1'
+  const params = []
+  if (['pending', 'accepted', 'finished', 'cancelled'].includes(status)) { where += ' AND e.status = ?'; params.push(status) }
+  if (keyword) {
+    where += ' AND (e.title LIKE ? OR p.nick_name LIKE ? OR a.nick_name LIKE ?' + (/^\d+$/.test(keyword) ? ' OR e.id = ?' : '') + ')'
+    const q = '%' + keyword + '%'
+    params.push(q, q, q)
+    if (/^\d+$/.test(keyword)) params.push(Number(keyword))
+  }
+  try {
+    const [[count], [list]] = await Promise.all([
+      pool.query(`SELECT COUNT(*) total FROM errand_order e LEFT JOIN sys_user p ON e.publisher_id = p.id LEFT JOIN sys_user a ON e.acceptor_id = a.id ${where}`, params),
+      pool.query(`SELECT e.id, e.title, e.reward, e.status, e.payment_status paymentStatus, e.created_at createdAt, e.accepted_at acceptedAt, e.finished_at finishedAt,
+        p.nick_name publisherName, p.phone publisherPhone, p.avatar_url publisherAvatar,
+        a.nick_name acceptorName, a.phone acceptorPhone, a.avatar_url acceptorAvatar,
+        (SELECT l.detail FROM errand_order_log l WHERE l.order_id = e.id ORDER BY l.created_at DESC, l.id DESC LIMIT 1) lastDetail,
+        (SELECT l.created_at FROM errand_order_log l WHERE l.order_id = e.id ORDER BY l.created_at DESC, l.id DESC LIMIT 1) lastAt
+       FROM errand_order e LEFT JOIN sys_user p ON e.publisher_id = p.id LEFT JOIN sys_user a ON e.acceptor_id = a.id
+       ${where} ORDER BY e.id DESC LIMIT ? OFFSET ?`, params.concat([pageSize, offset]))
+    ])
+    success(res, { list, total: Number(count.total), page, hasMore: offset + list.length < Number(count.total) })
+  } catch (e) { fail(res, safeMessage(e), 500) }
+}
+
+exports.errandOrderDetail = async (req, res) => {
+  const id = intId(req.params.id)
+  if (!id) return fail(res, 'Invalid order id')
+  try {
+    const [[order]] = await pool.query(`SELECT e.*, p.nick_name publisherName, p.phone publisherPhone, p.avatar_url publisherAvatar,
+      a.nick_name acceptorName, a.phone acceptorPhone, a.avatar_url acceptorAvatar
+      FROM errand_order e LEFT JOIN sys_user p ON e.publisher_id = p.id LEFT JOIN sys_user a ON e.acceptor_id = a.id
+      WHERE e.id = ?`, [id])
+    if (!order) return fail(res, '订单不存在', 404)
+    const [logs] = await pool.query(`SELECT l.id, l.action, l.detail, l.created_at createdAt, l.actor_id actorId, u.nick_name actorName
+      FROM errand_order_log l LEFT JOIN sys_user u ON u.id = l.actor_id
+      WHERE l.order_id = ? ORDER BY l.created_at ASC, l.id ASC`, [id])
+    // 取消时间：取取消类流水的最后一条（发单取消/超时取消/截止取消/接单方取消/审批取消）
+    let cancelledAt = null
+    for (const log of logs) {
+      if (CANCEL_LOG_ACTIONS.includes(log.action)) cancelledAt = log.createdAt
+    }
+    success(res, { order, logs, cancelledAt })
   } catch (e) { fail(res, safeMessage(e), 500) }
 }
 

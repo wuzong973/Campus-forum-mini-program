@@ -1,0 +1,6 @@
+{
+  "navigationBarTitleText": "考试安排",
+  "navigationBarBackgroundColor": "#F5F7FA",
+  "navigationBarTextStyle": "black",
+  "enablePullDownRefresh": true
+}

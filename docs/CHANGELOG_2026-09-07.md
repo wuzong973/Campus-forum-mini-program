@@ -49,12 +49,12 @@ python .\deploy_full.py
 
 可选变量及默认值：
 
-| 变量 | 默认值 | 说明 |
-| --- | --- | --- |
-| `DEPLOY_SERVER` | `193.112.187.95` | SSH 服务器地址 |
-| `DEPLOY_USER` | `root` | SSH 用户名 |
-| `DEPLOY_PASSWORD` | 无 | 必填，不写入代码 |
-| `DEPLOY_REMOTE_BASE` | `/home/springboot/server` | 服务端部署目录 |
+| 变量                 | 默认值                    | 说明             |
+| -------------------- | ------------------------- | ---------------- |
+| `DEPLOY_SERVER`      | `193.112.187.95`          | SSH 服务器地址   |
+| `DEPLOY_USER`        | `root`                    | SSH 用户名       |
+| `DEPLOY_PASSWORD`    | 无                        | 必填，不写入代码 |
+| `DEPLOY_REMOTE_BASE` | `/home/springboot/server` | 服务端部署目录   |
 
 部署脚本依赖 `paramiko`。如果当前 Python 环境未安装，请先执行：
 

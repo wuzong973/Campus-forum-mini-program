@@ -131,7 +131,13 @@ exports.list = async (req, res) => {
       // 占位符仅 CASE WHEN 两处使用 userId，传 4 个会导致 IN/LIMIT/OFFSET 参数整体错位
       [userId, userId].concat(params, [pageSize, offset])
     )
-    success(res, { list: rows, total: count.total, hasMore: offset + pageSize < count.total })
+    // 补充每条订单的当前用户角色，供小程序端取消按钮显隐判断
+    const list = rows.map((order) => {
+      const normalized = { ...order }
+      normalized.role = orderRole(normalized, req.userId)
+      return normalized
+    })
+    success(res, { list, total: count.total, hasMore: offset + pageSize < count.total })
   } catch (e) {
     fail(res, safeMessage(e), 500)
   }
@@ -154,10 +160,20 @@ exports.create = async (req, res) => {
   }
   try {
     const images = Array.isArray(body.images) ? body.images.filter((item) => typeof item === 'string' && item).slice(0, 3) : []
+    // 截止接单时间（可选）：仅接受「当前时间 ~ 5 天内」的有效时间，格式化为 DATETIME 存库
+    let acceptDeadline = null
+    if (body.acceptDeadline) {
+      const d = new Date(String(body.acceptDeadline).replace(' ', 'T'))
+      const now = Date.now()
+      if (!Number.isNaN(d.getTime()) && d.getTime() > now && d.getTime() < now + 5 * 86400000) {
+        const p = (n) => String(n).padStart(2, '0')
+        acceptDeadline = `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:00`
+      }
+    }
     const [result] = await pool.query(
-      `INSERT INTO errand_order (publisher_id, type, title, description, reward, pickup_addr, delivery_addr, campus, gender_requirement, pickup_time_type, appointment_time, receiver_name, receiver_phone, delivery_building, delivery_room, remark, images, is_large_item, is_urgent, payment_status)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'UNPAID')`,
-      [req.userId, String(body.type || '').trim(), title, String(body.description || '').trim(), reward, String(body.pickupAddr || '').trim(), String(body.deliveryAddr || '').trim(), String(body.campus).trim(), String(body.genderRequirement).trim(), body.pickupTimeType || '尽快', body.pickupTimeType === '预约' ? body.appointmentTime : null, receiverName, receiverPhone, deliveryBuilding, deliveryRoom, String(body.remark || '').trim(), JSON.stringify(images), body.isLargeItem ? 1 : 0, body.isUrgent ? 1 : 0]
+      `INSERT INTO errand_order (publisher_id, type, title, description, reward, pickup_addr, delivery_addr, campus, gender_requirement, pickup_time_type, appointment_time, accept_deadline, receiver_name, receiver_phone, delivery_building, delivery_room, remark, images, is_large_item, is_urgent, payment_status)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'UNPAID')`,
+      [req.userId, String(body.type || '').trim(), title, String(body.description || '').trim(), reward, String(body.pickupAddr || '').trim(), String(body.deliveryAddr || '').trim(), String(body.campus).trim(), String(body.genderRequirement).trim(), body.pickupTimeType || '尽快', body.pickupTimeType === '预约' ? body.appointmentTime : null, acceptDeadline, receiverName, receiverPhone, deliveryBuilding, deliveryRoom, String(body.remark || '').trim(), JSON.stringify(images), body.isLargeItem ? 1 : 0, body.isUrgent ? 1 : 0]
     )
     success(res, { id: result.insertId })
   } catch (e) {
@@ -247,8 +263,12 @@ exports.cancel = async (req, res) => {
     await logOrder(pool, order.id, req.userId, 'cancelled', `发布者取消订单${reasonDetail}，赏金将原路退回`)
     // 取消后遗留的待处理取消申请一并关闭
     await pool.query("UPDATE errand_cancel_request SET status = 'rejected', handled_at = NOW() WHERE order_id = ? AND status = 'pending'", [order.id])
-    if (order.acceptor_id) await notify(order.acceptor_id, '跑腿订单已取消', `“${order.title}”已被发布者取消`, order.id)
-    success(res, null, '订单已取消')
+    if (order.acceptor_id) await notify(order.acceptor_id, '跑腿订单已取消', `“${order.title}”已被发布者取消，赏金将原路退回发单人`, order.id)
+    // 发布者取消同样要发起赏金退款（与接单方取消/同意取消申请路径保持一致）
+    const refundStatus = await refundOrderTolerant(order.id)
+    success(res, { refundStatus }, refundStatus === 'FAILED'
+      ? '订单已取消，退款发起失败，系统会自动重试，也可联系客服处理'
+      : '订单已取消，赏金将原路退回')
   } catch (e) {
     fail(res, safeMessage(e), 500)
   }
@@ -374,7 +394,13 @@ async function listMine(req, res, field) {
        WHERE e.${field} = ? ORDER BY e.created_at DESC`,
       [req.userId]
     )
-    success(res, { list: rows })
+    // 补充每条订单的当前用户角色（myPublished→publisher，myAccepted→acceptor），供小程序端取消按钮显隐判断
+    const list = rows.map((order) => {
+      const normalized = { ...order }
+      normalized.role = orderRole(normalized, req.userId)
+      return normalized
+    })
+    success(res, { list })
   } catch (e) {
     fail(res, safeMessage(e), 500)
   }

@@ -1,0 +1,218 @@
+.page {
+  min-height: 100vh;
+  background: #f5f7fa;
+  padding: 24rpx 32rpx 48rpx;
+  box-sizing: border-box;
+}
+
+.action-row {
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+}
+
+.import-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8rpx;
+  height: 88rpx;
+  border: 2rpx dashed #7f9df7;
+  border-radius: 44rpx;
+  background: #fbfcff;
+  transition: opacity 0.2s ease;
+}
+
+.import-btn:active {
+  opacity: 0.75;
+}
+
+.import-text {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #5b7ff0;
+}
+
+.import-plus {
+  font-size: 34rpx;
+  color: #5b7ff0;
+  font-weight: 600;
+}
+
+.refresh-btn {
+  width: 88rpx;
+  height: 88rpx;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 2rpx solid #e3eaf6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: opacity 0.2s ease;
+}
+
+.refresh-btn:active {
+  opacity: 0.75;
+}
+
+.refresh-btn.refreshing .refresh-icon {
+  animation: refresh-spin 1s linear infinite;
+}
+
+@keyframes refresh-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.refresh-icon {
+  width: 36rpx;
+  height: 36rpx;
+}
+
+.synced-tip {
+  margin-top: 12rpx;
+  font-size: 22rpx;
+  color: #9aa5b8;
+  text-align: center;
+}
+
+.filter-row {
+  margin-top: 24rpx;
+}
+
+.semester-scroll {
+  width: 100%;
+  white-space: nowrap;
+}
+
+.semester-chips {
+  display: inline-flex;
+  gap: 16rpx;
+  padding-bottom: 8rpx;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 12rpx 28rpx;
+  border-radius: 32rpx;
+  background: #ffffff;
+  border: 1rpx solid #e3eaf6;
+  font-size: 26rpx;
+  color: #5a6478;
+  flex-shrink: 0;
+}
+
+.chip.active {
+  background: #edf2ff;
+  border-color: #7f9df7;
+  color: #5b7ff0;
+  font-weight: 600;
+}
+
+.summary-card {
+  margin-top: 20rpx;
+  display: flex;
+  background: #ffffff;
+  border-radius: 20rpx;
+  padding: 24rpx 0;
+  box-shadow: 0 4rpx 16rpx rgba(31, 56, 120, 0.06);
+}
+
+.summary-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6rpx;
+}
+
+.summary-value {
+  font-size: 36rpx;
+  font-weight: 700;
+  color: #1f2a44;
+}
+
+.summary-value.gpa {
+  color: #5b7ff0;
+}
+
+.summary-label {
+  font-size: 22rpx;
+  color: #9aa5b8;
+}
+
+.grade-list {
+  margin-top: 24rpx;
+  display: flex;
+  flex-direction: column;
+  gap: 16rpx;
+}
+
+.grade-card {
+  display: flex;
+  align-items: center;
+  gap: 24rpx;
+  background: #ffffff;
+  border-radius: 20rpx;
+  padding: 28rpx;
+  box-shadow: 0 4rpx 16rpx rgba(31, 56, 120, 0.06);
+}
+
+.grade-score {
+  width: 96rpx;
+  height: 96rpx;
+  border-radius: 20rpx;
+  background: #edf2ff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.grade-score.fail {
+  background: #ffefe8;
+}
+
+.score-num {
+  font-size: 34rpx;
+  font-weight: 700;
+  color: #5b7ff0;
+}
+
+.grade-score.fail .score-num {
+  color: #f56c3d;
+}
+
+.grade-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.grade-name {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #1f2a44;
+  margin-bottom: 10rpx;
+}
+
+.grade-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8rpx 24rpx;
+  font-size: 24rpx;
+  color: #8a93a6;
+}
+
+.empty {
+  padding-top: 200rpx;
+  display: flex;
+  justify-content: center;
+}
+
+.empty-text {
+  font-size: 32rpx;
+  color: #5a6478;
+}

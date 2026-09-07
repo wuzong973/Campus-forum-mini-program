@@ -83,6 +83,23 @@ function sendToUser(userId, payload) {
 }
 
 /**
+ * 向所有在线连接广播消息（如横幅配置更新，让在线用户实时刷新）
+ * @param {object} payload
+ */
+function broadcast(payload) {
+  if (!wss) return false
+  const text = JSON.stringify(payload)
+  let sent = 0
+  wss.clients.forEach((ws) => {
+    if (ws.readyState === WebSocket.OPEN) {
+      ws.send(text)
+      sent += 1
+    }
+  })
+  return sent > 0
+}
+
+/**
  * 判断用户是否在线
  */
 function isOnline(userId) {
@@ -90,4 +107,4 @@ function isOnline(userId) {
   return !!(set && set.size)
 }
 
-module.exports = { init, sendToUser, isOnline }
+module.exports = { init, sendToUser, broadcast, isOnline }

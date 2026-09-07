@@ -33,14 +33,9 @@
   color: #fff;
 }
 
-.nav-back,
+/* 返回按钮使用全局 .back-pill 样式（app.wxss） */
 .nav-placeholder {
-  width: 64rpx;
-}
-
-.nav-back {
-  font-size: 44rpx;
-  line-height: 1;
+  width: 132rpx;
 }
 
 .nav-title {

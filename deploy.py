@@ -23,8 +23,11 @@ files = [
     ("server/controllers/uploadController.js", "controllers/uploadController.js"),
     ("server/controllers/errandController.js", "controllers/errandController.js"),
     ("server/controllers/messageController.js", "controllers/messageController.js"),
+    ("server/controllers/commentController.js", "controllers/commentController.js"),
     ("server/controllers/configController.js", "controllers/configController.js"),
     ("server/controllers/scheduleController.js", "controllers/scheduleController.js"),
+    ("server/routes/scheduleRoutes.js", "routes/scheduleRoutes.js"),
+    ("server/services/jwScheduleSyncService.js", "services/jwScheduleSyncService.js"),
     ("server/routes/configRoutes.js", "routes/configRoutes.js"),
     ("server/controllers/postController.js", "controllers/postController.js"),
     ("server/routes/adminRoutes.js", "routes/adminRoutes.js"),
@@ -33,12 +36,22 @@ files = [
     ("server/routes/feedbackRoutes.js", "routes/feedbackRoutes.js"),
     ("server/routes/errandRoutes.js", "routes/errandRoutes.js"),
     ("server/controllers/feedbackController.js", "controllers/feedbackController.js"),
+    ("server/services/errandExpiryService.js", "services/errandExpiryService.js"),
+    ("server/services/wechatPayV3Service.js", "services/wechatPayV3Service.js"),
+    ("server/config/wechatPay.js", "config/wechatPay.js"),
     ("server/utils/migrations.js", "utils/migrations.js"),
 ]
 
 static_files = [
     ("web-static/wechat-qr.html", "wechat-qr.html"),
     ("web-static/assets/admin-wechat-qr.png", "assets/admin-wechat-qr.png"),
+    ("web-static/services/index.html", "services/index.html"),
+]
+
+# 非 server 目录的远端文件（绝对远端路径）：教务爬虫被 jwScheduleSyncService 引用，
+# 改动 crawler.js 后必须同步上传，否则线上仍是旧逻辑
+extra_files = [
+    ("jw-crawler/crawler.js", "/home/springboot/jw-crawler/crawler.js"),
 ]
 
 parser = argparse.ArgumentParser()
@@ -56,6 +69,13 @@ if not args.static_only:
         remote = f"{REMOTE_BASE}/{remote_rel.replace(chr(92), '/')}"
         print(f"Uploading: {local_rel}")
         sftp.put(local, remote)
+        print(f"  OK")
+
+    for local_rel, remote_abs in extra_files:
+        local = os.path.join(LOCAL_BASE, local_rel)
+        ssh.exec_command(f"mkdir -p '{os.path.dirname(remote_abs)}'")
+        print(f"Uploading extra: {local_rel} -> {remote_abs}")
+        sftp.put(local, remote_abs)
         print(f"  OK")
 
 # 静态网页文件（nginx 直接托管，无需重启 pm2）

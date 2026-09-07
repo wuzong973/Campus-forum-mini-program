@@ -1,6 +1,7 @@
 const auth = require('../../utils/auth')
 const wechat = require('../../utils/wechat')
 const request = require('../../utils/request')
+const qr = require('../../utils/qr')
 const { runPullDownRefresh } = require('../../utils/refresh')
 
 const VERIFY_KEY = 'runner_verification'
@@ -12,8 +13,9 @@ Page({
     stage: 'overview',
     campusVerified: false,
     phoneBound: false,
-    campusName: '',
     studentId: '',
+    jwPassword: '',
+    verifyMethod: 'jw',
     campusCredential: '',
     campusAgreed: false,
     submitting: false,
@@ -64,7 +66,6 @@ Page({
   },
 
   loadServerVerification() {
-    if (request.USE_MOCK) return
     request.get('/user/rider-verification', {}, true).then((data) => {
       if (!data || !data.status || data.status === 'none') return
       const saved = wx.getStorageSync(VERIFY_KEY) || {}
@@ -73,7 +74,6 @@ Page({
         campusVerified,
         verificationStatus: data.status,
         reviewNote: data.reviewNote || '',
-        campusName: data.campusName || saved.campusName || '',
         studentId: data.studentId || saved.studentId || '',
         campusCredential: data.campusCredential || saved.campusCredential || ''
       }))
@@ -81,7 +81,6 @@ Page({
         campusVerified,
         verificationStatus: data.status,
         reviewNote: data.reviewNote || '',
-        campusName: data.campusName || this.data.campusName,
         studentId: data.studentId || this.data.studentId,
         campusCredential: data.campusCredential || this.data.campusCredential
       })
@@ -97,7 +96,6 @@ Page({
       phoneBound: status.phoneBound,
       verificationStatus: saved.verificationStatus || status.verificationStatus || 'none',
       reviewNote: saved.reviewNote || status.reviewNote || '',
-      campusName: saved.campusName || this.data.campusName,
       studentId: saved.studentId || this.data.studentId,
       campusCredential: saved.campusCredential || this.data.campusCredential
     })
@@ -128,6 +126,12 @@ Page({
     this.setData({ [e.currentTarget.dataset.field]: e.detail.value })
   },
 
+  switchVerifyMethod(e) {
+    const method = e.currentTarget.dataset.method
+    if (['jw', 'credential'].indexOf(method) < 0) return
+    this.setData({ verifyMethod: method })
+  },
+
   toggleAgreement() {
     this.setData({ campusAgreed: !this.data.campusAgreed })
   },
@@ -146,49 +150,114 @@ Page({
     if (src) wx.previewImage({ urls: [src], current: src })
   },
 
+  // 长按凭证图：统一二维码识别菜单（识别 / 预览）
+  onImageQrScan(e) {
+    const src = e.currentTarget.dataset.src
+    qr.recognize(src, src ? [src] : [])
+  },
+
   saveVerification(fields) {
     const saved = wx.getStorageSync(VERIFY_KEY) || {}
     wx.setStorageSync(VERIFY_KEY, Object.assign({}, saved, fields))
   },
 
+  checkCommonPreflight() {
+    const { phoneBound, campusAgreed } = this.data
+    if (!phoneBound) {
+      wx.showToast({ title: '请先绑定联系手机号', icon: 'none' })
+      return false
+    }
+    if (!campusAgreed) {
+      wx.showToast({ title: '请阅读并同意相关协议', icon: 'none' })
+      return false
+    }
+    return true
+  },
+
+  checkStudentId() {
+    const studentId = String(this.data.studentId || '').trim()
+    if (!studentId) {
+      wx.showToast({ title: '请输入学号', icon: 'none' })
+      return ''
+    }
+    // 学号位数不限制，填多少位都可以
+    return studentId
+  },
+
+  // 认证方式一：教务系统验证（学号+密码），登录成功即通过认证
+  submitJw() {
+    const { jwPassword } = this.data
+    const studentId = this.checkStudentId()
+    if (!studentId) return
+    if (!jwPassword) {
+      wx.showToast({ title: '请输入教务系统密码', icon: 'none' })
+      return
+    }
+    if (!this.checkCommonPreflight()) return
+
+    this.setData({ submitting: true })
+
+    const userInfo = getApp().globalData.userInfo || wx.getStorageSync('userInfo') || {}
+    request.post('/user/rider-verification/jw', {
+      studentId,
+      password: jwPassword,
+      phone: userInfo.phone || ''
+    }, true)
+      .then((data) => this.finishJwApprove(data, studentId))
+      .catch((error) => {
+        this.setData({ submitting: false })
+        wx.showToast({ title: (error && error.message) || '教务系统验证失败', icon: 'none' })
+      })
+      .then(() => this.setData({ jwPassword: '' }))
+  },
+
+  finishJwApprove(data, studentId) {
+    this.saveVerification({
+      campusVerified: true,
+      studentId,
+      verificationStatus: 'approved',
+      reviewNote: ''
+    })
+    this.setData({
+      campusVerified: true,
+      stage: 'overview',
+      submitting: false,
+      verificationStatus: 'approved',
+      reviewNote: ''
+    })
+    this.updateSteps()
+    wx.showToast({ title: (data && data.message) || '验证通过，你已成为骑手', icon: 'success' })
+  },
+
+  // 认证方式二：上传证件人工审核
   submitCampus() {
-    const { campusName, studentId, campusCredential, campusAgreed, phoneBound } = this.data
-    if (!campusName.trim() || !studentId.trim()) {
-      wx.showToast({ title: '请填写姓名和学号', icon: 'none' })
+    const { studentId, campusCredential } = this.data
+    const trimmedStudentId = String(studentId || '').trim()
+    if (!trimmedStudentId) {
+      wx.showToast({ title: '请输入学号', icon: 'none' })
       return
     }
-    if (!/^\d{6,12}$/.test(studentId.trim())) {
-      wx.showToast({ title: '请输入 6-12 位学号', icon: 'none' })
-      return
-    }
+    // 学号位数不限制，填多少位都可以
     if (!campusCredential) {
       wx.showToast({ title: '请上传学生证或校园卡', icon: 'none' })
       return
     }
-    if (!phoneBound) {
-      wx.showToast({ title: '请先绑定联系手机号', icon: 'none' })
-      return
-    }
-    if (!campusAgreed) {
-      wx.showToast({ title: '请阅读并同意相关协议', icon: 'none' })
-      return
-    }
+    if (!this.checkCommonPreflight()) return
 
     this.setData({ submitting: true })
     const submit = (credential) => {
       const userInfo = getApp().globalData.userInfo || wx.getStorageSync('userInfo') || {}
       return request.post('/user/rider-verification', {
-        campusName: campusName.trim(),
-        studentId: studentId.trim(),
+        studentId: trimmedStudentId,
         campusCredential: credential,
-        phone: userInfo.phone || ''
+        phone: userInfo.phone || '',
+        campusName: userInfo.campus || ''
       }, true)
     }
     const finish = (data, credential) => {
       this.saveVerification({
         campusVerified: true,
-        campusName: campusName.trim(),
-        studentId: studentId.trim(),
+        studentId: trimmedStudentId,
         campusCredential: credential,
         verificationStatus: 'pending',
         reviewNote: ''
@@ -205,10 +274,6 @@ Page({
       wx.showToast({ title: (data && data.message) || '认证信息已提交，等待审核', icon: 'success' })
     }
 
-    if (request.USE_MOCK) {
-      finish(null, campusCredential)
-      return
-    }
     wechat.uploadImages([campusCredential])
       .then((urls) => {
         const credential = urls[0]

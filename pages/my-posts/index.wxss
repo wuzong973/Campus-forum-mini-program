@@ -24,15 +24,7 @@
   box-sizing: border-box;
 }
 
-.nav-back {
-  padding: 10rpx 26rpx;
-  border-radius: 999rpx;
-  background: #ffffff;
-  box-shadow: 0 4rpx 14rpx rgba(32, 48, 76, .12);
-  color: #27364a;
-  font-size: 28rpx;
-  font-weight: 600;
-}
+/* 返回按钮使用全局 .back-pill 样式（app.wxss） */
 
 .nav-title {
   position: absolute;

@@ -63,6 +63,14 @@ Page({
     runPullDownRefresh(this, () => this.loadCurrentTab())
   },
 
+  onUnload() {
+    // 支付成功后的延迟刷新定时器：页面已卸载时不再向其 setData
+    if (this._payRefreshTimer) {
+      clearTimeout(this._payRefreshTimer)
+      this._payRefreshTimer = null
+    }
+  },
+
   // ===== 标签页调度 =====
   onListTab(e) {
     const index = Number(e.currentTarget.dataset.index)
@@ -96,11 +104,6 @@ Page({
     this.setData({ loading: true })
     const need = sources.filter((key) => !this._mineCache[key])
     const loads = need.map((key) => {
-      if (request.USE_MOCK) {
-        const mock = require('../../utils/mock')
-        const list = key === 'published' ? mock.myPublishedOrders.slice() : mock.myAcceptedOrders.slice()
-        return Promise.resolve({ key, list })
-      }
       const url = key === 'published' ? '/errand/my-published' : '/errand/my-accepted'
       return request.get(url, {}, true, { silent: true }).then((res) => ({ key, list: (res && res.list) || [] }))
     })
@@ -122,13 +125,13 @@ Page({
 
   initCampusFilter() {
     const userInfo = getApp().globalData.userInfo || wx.getStorageSync('userInfo') || {}
-    const isAdmin = ['admin', 'super_admin'].indexOf(userInfo.role) > -1
-    const userCampusGroup = this.data.campusGroups.find((group) => group.campuses.indexOf(userInfo.campus) > -1)
-    const visibleCampusGroups = isAdmin ? this.data.campusGroups : (userCampusGroup ? [userCampusGroup] : [])
+    // 所有用户都可看到全部校区分组与「全部区域」；默认选中自己所在的校区分组
+    const visibleCampusGroups = this.data.campusGroups
+    const userCampusGroup = visibleCampusGroups.find((group) => group.campuses.indexOf(userInfo.campus) > -1)
     const activeRegion = userCampusGroup ? visibleCampusGroups.indexOf(userCampusGroup) : -1
     const group = activeRegion > -1 ? visibleCampusGroups[activeRegion] : null
     this.setData({
-      isAdmin,
+      isAdmin: ['admin', 'super_admin'].indexOf(userInfo.role) > -1,
       visibleCampusGroups,
       activeRegion,
       subCampuses: group ? group.campuses : [],
@@ -155,8 +158,18 @@ Page({
     // 性别限制标签分类：限男生/限女生/不限性别（发布时必选，用于订单卡片展示）
     const genderRaw = o.gender_requirement || o.genderRequirement || ''
     const genderClass = genderRaw === '限男生' ? 'male' : (genderRaw === '限女生' ? 'female' : 'any')
+    // 角色判定：服务端 orderRole 返回 'publisher'/'acceptor'/'viewer'；
+    // 服务端未返回时（旧版本接口/本地数据）按当前登录用户身份兜底推断，供卡片取消按钮显隐使用
+    const myId = (getApp().globalData.userInfo || {}).id
+    const role = o.role || (myId != null && String(o.publisher_id || o.publisherId) === String(myId)
+      ? 'publisher'
+      : (myId != null && o.acceptor_id != null && String(o.acceptor_id) === String(myId) ? 'acceptor' : ''))
     return {
       id: o.id,
+      role: role,
+      // 接单/发布时间透传：接单方"5 分钟内可取消"的判断依赖（服务端字段 accepted_at）
+      createdAt: o.createdAt || o.created_at || '',
+      acceptedAt: o.acceptedAt || o.accepted_at || '',
       status: STATUS_TEXT[statusKey] || '待接单',
       statusClass: statusKey,
       price: o.reward || o.totalAmount,
@@ -255,10 +268,6 @@ Page({
       content: '确定接受此订单？',
       success: (res) => {
         if (!res.confirm) return
-        if (request.USE_MOCK) {
-          wx.showToast({ title: '接单成功', icon: 'success' })
-          return
-        }
         request.post('/errand/' + orderId + '/accept', {}, true).then(() => {
           wx.showToast({ title: '接单成功', icon: 'success' })
           this._mineCache = { published: null, accepted: null }
@@ -277,7 +286,7 @@ Page({
     }).then(() => {
       wx.showToast({ title: '支付成功，正在确认', icon: 'success' })
       this._mineCache = { published: null, accepted: null }
-      setTimeout(() => this.loadCurrentTab(), 1000)
+      this._payRefreshTimer = setTimeout(() => this.loadCurrentTab(), 1000)
     }).catch((error) => {
       const message = String((error && (error.errMsg || error.message)) || '')
       if (/cancel/.test(message)) wx.showToast({ title: '已取消支付', icon: 'none' })

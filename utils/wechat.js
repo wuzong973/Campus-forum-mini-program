@@ -25,7 +25,7 @@ function phoneLogin(phoneCode) {
             if ((!serverNickName || serverNickName === '校园用户' || serverNickName === '微信用户') && saved && saved.nickName) {
               defaultFields.nickName = saved.nickName
             }
-            if (Object.keys(defaultFields).length && !request.USE_MOCK) {
+            if (Object.keys(defaultFields).length) {
               return auth.syncProfile(defaultFields).catch(() => null).then(() => data)
             }
             return data

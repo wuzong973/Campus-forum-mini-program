@@ -1,10 +1,9 @@
 .page { min-height: 100vh; background: #f7f7f7; color: #2f2f2f; }
 .nav { position: fixed; z-index: 10; top: 0; left: 0; right: 0; box-sizing: border-box; background: #ffffff; border-bottom: 1rpx solid #eeeeee; }
 .nav-content { display: flex; align-items: center; justify-content: space-between; padding: 0 22rpx; }
-.back-button { display: flex; width: 140rpx; align-items: center; color: #172033; font-size: 30rpx; font-weight: 600; }
-.back-icon { margin-right: 10rpx; font-size: 62rpx; font-weight: 300; line-height: .7; }
+/* 返回按钮使用全局 .back-pill 样式（app.wxss） */
 .nav-title { color: #141b2b; font-size: 33rpx; font-weight: 700; }
-.nav-placeholder { width: 140rpx; }
+.nav-placeholder { width: 132rpx; }
 .settings-content { padding: 18rpx 18rpx calc(48rpx + env(safe-area-inset-bottom)); }
 .setting-group { margin-bottom: 16rpx; overflow: hidden; border-radius: 16rpx; background: #ffffff; }
 .group-title { display: block; padding: 18rpx 30rpx; background: #f3f3f3; color: #a4a4a4; font-size: 25rpx; }

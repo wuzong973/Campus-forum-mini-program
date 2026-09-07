@@ -2,7 +2,7 @@
   <!-- 自定义导航栏 -->
   <view class="custom-nav" style="padding-top: {{statusBarHeight}}px;">
     <view class="nav-content" style="height: {{navBarHeight}}px;">
-      <view class="nav-back" hover-class="nav-back-hover" hover-stay-time="80" bindtap="onNavBack"><text class="nav-back-icon">‹</text></view>
+      <view class="back-pill" hover-class="back-pill-hover" hover-stay-time="80" bindtap="onNavBack"><text class="back-pill-icon">‹</text><text>返回</text></view>
       <view class="nav-title-wrap">
         <view
           class="back-post-btn {{returning ? 'is-returning' : ''}}"
@@ -34,11 +34,11 @@
     bindscrolltoupper="onLoadMore"
   >
     <view class="message-item {{item.isSelf ? 'self' : 'other'}}" wx:for="{{messages}}" wx:key="id" id="msg-{{item.id}}">
-      <image class="avatar" src="{{item.avatar}}" mode="aspectFill"></image>
+      <image class="avatar" src="{{item.avatar}}" mode="aspectFill" lazy-load></image>
       <view class="message-content">
         <view class="message-bubble {{item.type === 'image' || item.type === 'video' ? 'media-bubble' : ''}}" bindlongpress="onRecallMessage" data-id="{{item.id}}">
           <text wx:if="{{item.type === 'text'}}" class="message-text">{{item.content}}</text>
-          <image wx:elif="{{item.type === 'image'}}" class="message-image" src="{{item.content}}" mode="widthFix" data-src="{{item.content}}" catchtap="onPreviewImage"></image>
+          <image wx:elif="{{item.type === 'image'}}" class="message-image" src="{{item.content}}" mode="widthFix" data-src="{{item.content}}" catchtap="onPreviewImage" bindlongpress="onImageQrScan" lazy-load></image>
           <video wx:elif="{{item.type === 'video'}}" class="message-video" src="{{item.content}}" controls object-fit="contain"></video>
           <text wx:else class="message-emoji">{{item.content}}</text>
         </view>

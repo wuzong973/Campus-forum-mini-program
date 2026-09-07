@@ -1,0 +1,74 @@
+<view class="page">
+  <!-- 顶部：导入成绩 + 刷新 -->
+  <view class="action-row">
+    <view class="import-btn" bindtap="onImport">
+      <text class="import-text">导入成绩</text>
+      <text class="import-plus">＋</text>
+    </view>
+    <view class="refresh-btn {{loading ? 'refreshing' : ''}}" bindtap="refresh">
+      <image class="refresh-icon" src="/assets/icons/refresh.png" mode="aspectFit"></image>
+    </view>
+  </view>
+  <view class="synced-tip" wx:if="{{syncedAtText}}">{{syncedAtText}}</view>
+
+  <!-- 学期筛选 + 汇总 -->
+  <view class="filter-row">
+    <scroll-view scroll-x class="semester-scroll" enhanced show-scrollbar="{{false}}">
+      <view class="semester-chips">
+        <view
+          class="chip {{selectedSemester === 'all' ? 'active' : ''}}"
+          data-semester="all"
+          bindtap="onSemesterTap"
+        >
+          <text>全部学期</text>
+        </view>
+        <view
+          class="chip {{selectedSemester === item ? 'active' : ''}}"
+          wx:for="{{semesters}}"
+          wx:key="*this"
+          data-semester="{{item}}"
+          bindtap="onSemesterTap"
+        >
+          <text>{{item}}</text>
+        </view>
+      </view>
+    </scroll-view>
+    <view class="summary-card">
+      <view class="summary-item">
+        <text class="summary-value">{{summary.courseCount}}</text>
+        <text class="summary-label">课程</text>
+      </view>
+      <view class="summary-item" wx:if="{{summary.creditTotal}}">
+        <text class="summary-value">{{summary.creditTotal}}</text>
+        <text class="summary-label">总学分</text>
+      </view>
+      <view class="summary-item" wx:if="{{summary.gpa}}">
+        <text class="summary-value gpa">{{summary.gpa}}</text>
+        <text class="summary-label">绩点</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 成绩列表 -->
+  <view class="grade-list" wx:if="{{filtered.length > 0}}">
+    <view class="grade-card" wx:for="{{filtered}}" wx:key="id">
+      <view class="grade-score {{item.pass === false ? 'fail' : ''}}">
+        <text class="score-num">{{item.score || '—'}}</text>
+      </view>
+      <view class="grade-body">
+        <view class="grade-name">{{item.name}}</view>
+        <view class="grade-meta">
+          <text wx:if="{{item.credit}}">学分 {{item.credit}}</text>
+          <text wx:if="{{item.gpa}}">绩点 {{item.gpa}}</text>
+          <text wx:if="{{item.attribute}}">{{item.attribute}}</text>
+          <text wx:if="{{item.semester && selectedSemester === 'all'}}">{{item.semester}}</text>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 空状态 -->
+  <view class="empty" wx:if="{{filtered.length === 0}}">
+    <text class="empty-text">暂无考试成绩</text>
+  </view>
+</view>

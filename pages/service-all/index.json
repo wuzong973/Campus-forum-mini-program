@@ -1,5 +1,7 @@
 {
   "navigationBarTitleText": "全部校园服务",
+  "navigationBarBackgroundColor": "#D7EFFF",
+  "navigationBarTextStyle": "black",
   "usingComponents": {
     "service-grid": "/components/service-grid/service-grid"
   }

@@ -1,0 +1,32 @@
+<view wx:if="{{show}}" class="cp-mask" catchtap="close">
+  <view class="cp-panel" catchtap="noop">
+    <view class="cp-title">{{title}}</view>
+
+    <view class="cp-grid">
+      <view
+        wx:for="{{presets}}"
+        wx:key="*this"
+        class="cp-cell {{hex === item ? 'on' : ''}}"
+        style="background: {{item}};"
+        data-hex="{{item}}"
+        bindtap="onPresetTap"
+      ></view>
+    </view>
+
+    <view class="cp-hex-row">
+      <text class="cp-hex-label">色值</text>
+      <input class="cp-hex-input" value="{{hexInput}}" maxlength="7" placeholder="#4A7AFF" bindinput="onHexInput" bindconfirm="onHexApply" />
+      <view class="cp-hex-apply" bindtap="onHexApply">应用</view>
+    </view>
+
+    <view class="cp-preview-bar" wx:if="{{hex}}" style="background: {{hex}}; color: {{previewText}};">
+      <text>{{hex}} · 预览文字效果</text>
+    </view>
+    <view class="cp-preview-empty" wx:else>从色板中选择，或输入十六进制色值</view>
+
+    <view class="cp-actions">
+      <view class="cp-btn cp-btn-ghost" bindtap="onClear">恢复默认</view>
+      <view class="cp-btn cp-btn-primary" bindtap="onConfirm">确定</view>
+    </view>
+  </view>
+</view>

@@ -3,43 +3,151 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>添加管理员微信</title>
+<title></title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
     min-height: 100vh;
-    background: #f2f5f9;
+    background: #f5f7fa;
     font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Helvetica Neue", sans-serif;
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     justify-content: center;
-    padding: 32px 20px;
+    padding: 24px 12px 60px;
   }
   .card {
     width: 100%;
     max-width: 420px;
     background: #fff;
-    border-radius: 16px;
-    padding: 30px 22px 32px;
-    box-shadow: 0 12px 40px rgba(16, 33, 58, .12);
-    text-align: center;
+    border-radius: 9px;
+    padding: 15px;
+    box-shadow: 0 3px 8px rgba(33, 55, 88, .045);
   }
-  h1 { color: #18263d; font-size: 21px; font-weight: 700; }
-  .tip { margin-top: 8px; color: #8b97a8; font-size: 13px; }
-  .qr {
+  /* ===== 顶部横幅胶囊（与小程序公告详情页同款） ===== */
+  .hero-banner {
+    display: flex;
+    align-items: center;
+    margin-bottom: 12px;
+    padding: 11px 13px;
+    border-radius: 7px;
+    background: linear-gradient(90deg, #3d7bfa 0%, #5b8cff 100%);
+    box-shadow: 0 3px 8px rgba(61, 123, 250, .28);
+  }
+  .hero-banner-icon { margin-right: 6px; color: var(--banner-fg, #ffffff); font-size: 16px; line-height: 1; }
+  .hero-banner-text { color: var(--banner-fg, #ffffff); font-size: 15px; font-weight: 600; line-height: 1.4; word-break: break-all; }
+  /* ===== 二维码大图（widthFix 同款等比展示） ===== */
+  .hero-img {
     display: block;
-    width: min(72vw, 300px);
-    margin: 20px auto 0;
+    width: 100%;
+    border-radius: 6px;
+    background: #f0f2f5;
   }
-  .hint { margin-top: 18px; color: #25b978; font-size: 14px; font-weight: 600; }
+  .hint { margin-top: 8px; color: #98a2b3; font-size: 12px; text-align: center; }
+  /* ===== 相关链接（复制行，与小程序公告详情页同款） ===== */
+  .hero-link {
+    display: flex;
+    align-items: center;
+    margin-top: 8px;
+    padding: 10px 12px;
+    border-radius: 6px;
+    background: #f5f8ff;
+  }
+  .hero-link:active { opacity: .75; }
+  .hero-link-label { flex-shrink: 0; color: #3d7bfa; font-size: 13px; font-weight: 600; }
+  .hero-link-value { flex: 1; min-width: 0; margin: 0 8px; overflow: hidden; color: #7a8699; font-size: 12px; white-space: nowrap; text-overflow: ellipsis; }
+  .hero-link-action { flex-shrink: 0; color: #3d7bfa; font-size: 12px; }
 </style>
 </head>
 <body>
   <div class="card">
-    <h1>添加管理员微信</h1>
-    <p class="tip">长按下方二维码，识别并添加管理员好友</p>
-    <img class="qr" src="/assets/admin-wechat-qr.png" alt="管理员微信二维码">
-    <p class="hint">长按上方图片 → 识别图中二维码</p>
+    <div class="hero-banner" id="hero-banner">
+      <span class="hero-banner-icon">📢</span>
+      <span class="hero-banner-text" id="page-title">二维码识别</span>
+    </div>
+    <img id="page-qr" class="hero-img" src="/assets/admin-wechat-qr.png" alt="管理员微信二维码">
+    <p class="hint">长按图片可保存；微信好友码请保存后打开微信「扫一扫 → 相册」识别添加</p>
+    <div class="hero-link" id="hero-link" style="display:none">
+      <span class="hero-link-label" id="link-label">相关链接</span>
+      <span class="hero-link-value" id="link-value"></span>
+      <span class="hero-link-action" id="link-copy">复制</span>
+    </div>
   </div>
+  <script>
+    // 与小程序「公告详情页」同版式：标题/文字取管理后台「公告-公告文字」，二维码取「公告-链接图片」，
+    // 横幅配色取公告背景/文字颜色，底部展示公告跳转路径（带复制）。
+    // 优先级：URL 参数（小程序弹窗实时传入）> 接口 /api/v1/config/home > 默认内容。
+    (function () {
+      var el = function (id) { return document.getElementById(id); };
+      var setText = function (id, value) { if (value) el(id).textContent = value; };
+      var setQr = function (url) {
+        if (!/^https?:\/\//i.test(url)) return;
+        // 加时间戳避免浏览器缓存导致后台换图后仍显示旧图
+        el('page-qr').src = url + (url.indexOf('?') > -1 ? '&' : '?') + '_t=' + Date.now();
+      };
+      var apply = function (c) {
+        if (c.text) setText('page-title', c.text);
+        if (c.img) setQr(c.img);
+        if (c.bgColor || c.textColor) {
+          var banner = el('hero-banner');
+          if (c.bgColor) banner.style.background = c.bgColor;
+          if (c.textColor) {
+            banner.style.setProperty('--banner-fg', c.textColor);
+            banner.style.boxShadow = 'none';
+          }
+        }
+        if (c.linkUrl) {
+          setText('link-label', c.linkText || '相关链接');
+          setText('link-value', c.linkUrl);
+          el('hero-link').style.display = 'flex';
+        }
+      };
+      // 复制相关链接
+      el('link-copy').addEventListener('click', function () {
+        var value = el('link-value').textContent || '';
+        if (!value) return;
+        var done = function () {
+          var action = el('link-copy');
+          action.textContent = '已复制';
+          setTimeout(function () { action.textContent = '复制'; }, 1500);
+        };
+        var legacy = function () {
+          var ta = document.createElement('textarea');
+          ta.value = value;
+          document.body.appendChild(ta);
+          ta.select();
+          try { document.execCommand('copy'); } catch (e) {}
+          document.body.removeChild(ta);
+          done();
+        };
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(value).then(done, legacy);
+        } else legacy();
+      });
+
+      // ① 小程序弹窗跳转时通过 URL 参数实时传入配置；带 qr 参数时为"识别此图"场景，
+      //    二维码固定展示该图片，不被公告配置覆盖
+      var params = new URLSearchParams(location.search);
+      var qText = params.get('text') || '';
+      var qImg = params.get('qr') || '';
+      if (qText || qImg) apply({ text: qText, img: qImg });
+      // ② 始终拉取后台配置：蓝色横幅文字/配色/链接跟随公告配置；
+      //    仅当未指定 qr 参数时，二维码才跟随公告"链接图片"
+      fetch('/api/v1/config/home', { cache: 'no-store' })
+        .then(function (res) { return res.json(); })
+        .then(function (res) {
+          var notice = (res && res.data && res.data.notice) || null;
+          if (!notice) return;
+          apply({
+            text: String(notice.text || '').trim(),
+            img: qImg ? '' : String(notice.tailImage || '').trim(),
+            bgColor: String(notice.bgColor || '').trim(),
+            textColor: String(notice.textColor || '').trim(),
+            linkUrl: String(notice.linkUrl || '').trim(),
+            linkText: String(notice.linkText || '').trim()
+          });
+        })
+        .catch(function () { /* 拉取失败保持当前内容 */ });
+    })();
+  </script>
 </body>
 </html>

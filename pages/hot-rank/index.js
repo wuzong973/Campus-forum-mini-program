@@ -33,7 +33,7 @@ Page({
   loadPosts() {
     const period = this.data.periods[this.data.periodIndex]
     this.setData({ loading: true })
-    return api.getHotPostRank(period.key, 50).then((res) => {
+    return api.getHotPostRank(period.key, 15).then((res) => {
       this.setData({ posts: (res && res.list) || [], loading: false })
     }).catch(() => this.setData({ posts: [], loading: false }))
   },

@@ -36,4 +36,8 @@ router.get('/admins', requireAdmin('admin.manage'), controller.listAdmins)
 router.post('/admins', requireAdmin('admin.manage'), controller.createAdmin)
 router.get('/audit-logs', requireAdmin('admin.manage'), controller.listAuditLogs)
 
+// 跑腿订单流程（日志 tab：xx 发布订单 → xx 接单 → 完成/取消 全流程与双方用户信息）
+router.get('/errand-orders', requireAdmin('admin.manage'), controller.listErrandOrders)
+router.get('/errand-orders/:id', requireAdmin('admin.manage'), controller.errandOrderDetail)
+
 module.exports = router

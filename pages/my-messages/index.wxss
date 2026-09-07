@@ -1,6 +1,9 @@
 .page {
   min-height: 100vh;
   padding: 24rpx;
+  background:
+    radial-gradient(ellipse at 14% -6%, rgba(137, 202, 255, 0.28) 0%, rgba(137, 202, 255, 0) 48%),
+    linear-gradient(180deg, #d7efff 0%, #eaf6ff 18%, #f5f9fd 46%, #f7f8fb 72%, #f4f6fa 100%);
 }
 
 .tabs {
@@ -9,6 +12,7 @@
 }
 
 .tab {
+  position: relative;
   font-size: 28rpx;
   color: #969799;
   padding-bottom: 8rpx;
@@ -18,6 +22,25 @@
   color: #4A7AFF;
   font-weight: 500;
   border-bottom: 4rpx solid #4A7AFF;
+}
+
+/* tab 文字右上角的未读数字角标（样式对齐「我的-消息通知」feature-badge） */
+.tab-badge {
+  position: absolute;
+  top: -14rpx;
+  right: -30rpx;
+  min-width: 30rpx;
+  height: 30rpx;
+  padding: 0 7rpx;
+  border: 2rpx solid #ffffff;
+  border-radius: 18rpx;
+  background: #ff5a5f;
+  color: #ffffff;
+  font-size: 18rpx;
+  line-height: 26rpx;
+  text-align: center;
+  box-sizing: border-box;
+  pointer-events: none;
 }
 
 .read-all {
