@@ -35,5 +35,20 @@ module.exports = {
   createAdmin: (query, role) => post('/admins', { query, role }),
   auditLogs: (data) => get('/audit-logs', data),
   errandOrders: (data) => get('/errand-orders', data),
-  errandOrderDetail: (id) => get('/errand-orders/' + id)
+  errandOrderDetail: (id) => get('/errand-orders/' + id),
+  // 社团&组织管理
+  clubCategories: () => get('/club/categories'),
+  createClubCategory: (data) => post('/club/categories', data),
+  updateClubCategory: (id, data) => put('/club/categories/' + id, data),
+  deleteClubCategory: (id) => del('/club/categories/' + id),
+  createClub: (data) => post('/club/clubs', data),
+  updateClub: (id, data) => put('/club/clubs/' + id, data),
+  deleteClub: (id) => del('/club/clubs/' + id),
+  // 广轻群聊管理
+  groupChatApplies: (data) => get('/group-chat/applies', data),
+  reviewGroupChatApply: (id, action, note) => post('/group-chat/applies/' + id + '/review', { action, note: note || '' }),
+  groupChatGroups: (data) => get('/group-chat/groups', data),
+  createGroupChatGroup: (data) => post('/group-chat/groups', data),
+  updateGroupChatGroup: (id, data) => put('/group-chat/groups/' + id, data),
+  deleteGroupChatGroup: (id) => del('/group-chat/groups/' + id)
 }

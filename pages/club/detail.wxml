@@ -1,0 +1,91 @@
+<view class="page page-enter" wx:if="{{category}}">
+  <view class="hero" style="background:linear-gradient(180deg, {{category.theme.soft}} 0%, rgba(244,246,250,0) 100%);">
+    <view class="hero-card">
+      <view class="hero-icon" style="background:{{category.theme.gradient}};box-shadow:0 14rpx 30rpx {{category.theme.shadow}};">
+        <text class="hero-icon-char">{{category.char}}</text>
+      </view>
+      <view class="hero-info">
+        <view class="hero-name">{{category.name}}</view>
+        <view class="hero-slogan">{{category.slogan}}</view>
+      </view>
+      <view class="hero-chip" style="background:{{category.theme.soft}};color:{{category.theme.deep}};">{{category.clubs.length}} 个社团</view>
+    </view>
+  </view>
+
+  <view class="section anim-slide-up">
+    <view class="section-head">
+      <view class="section-bar" style="background:{{category.theme.gradient}};"></view>
+      <text class="section-title">分类定位</text>
+    </view>
+    <text class="section-text">{{category.position}}</text>
+  </view>
+
+  <view class="section anim-slide-up" style="--i:1">
+    <view class="section-head">
+      <view class="section-bar" style="background:{{category.theme.gradient}};"></view>
+      <text class="section-title">涵盖范围</text>
+    </view>
+    <text class="section-text">{{category.scopeIntro}}</text>
+    <view class="chip-wrap">
+      <view
+        class="chip"
+        wx:for="{{category.scope}}"
+        wx:key="*this"
+        style="background:{{category.theme.soft}};color:{{category.theme.deep}};"
+      >{{item}}</view>
+    </view>
+  </view>
+
+  <view class="section anim-slide-up" style="--i:2">
+    <view class="section-head">
+      <view class="section-bar" style="background:{{category.theme.gradient}};"></view>
+      <text class="section-title">特色说明</text>
+    </view>
+    <view class="feature" wx:for="{{category.features}}" wx:key="title">
+      <view class="feature-dot" style="background:{{category.theme.gradient}};box-shadow:0 6rpx 14rpx {{category.theme.shadow}};">{{index + 1}}</view>
+      <view class="feature-body">
+        <text class="feature-title">{{item.title}}</text>
+        <text class="feature-desc">{{item.desc}}</text>
+      </view>
+    </view>
+  </view>
+
+  <view class="section anim-slide-up" style="--i:3">
+    <view class="section-head">
+      <view class="section-bar" style="background:{{category.theme.gradient}};"></view>
+      <text class="section-title">代表社团</text>
+      <text class="section-hint">点击查看详情</text>
+    </view>
+    <view class="club-item" wx:for="{{category.clubs}}" wx:key="name">
+      <view class="club-row" data-index="{{index}}" bindtap="onToggleClub" hover-class="club-row--hover" hover-stay-time="100">
+        <view class="club-badge" style="background:{{category.theme.soft}};color:{{category.theme.deep}};">{{item.firstChar}}</view>
+        <view class="club-brief">
+          <text class="club-title">{{item.name}}</text>
+          <text class="club-tags ellipsis">{{item.tags}}</text>
+        </view>
+        <text class="club-toggle {{expandedIndex === index ? 'open' : ''}}">›</text>
+      </view>
+      <view class="club-detail {{expandedIndex === index ? 'show' : ''}}">
+        <view class="club-detail-inner">
+          <text class="club-intro">{{item.intro}}</text>
+          <view class="club-recruit" style="background:{{category.theme.soft}};">
+            <text class="club-recruit-label" style="color:{{category.theme.deep}};">招新</text>
+            <text class="club-recruit-text">{{item.recruit}}</text>
+          </view>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <view class="join-card" style="background:{{category.theme.soft}};">
+    <view class="join-text">
+      <text class="join-title">想加入{{category.name}}社团？</text>
+      <text class="join-sub">{{category.contact}}</text>
+    </view>
+    <button
+      class="join-btn"
+      style="background:{{category.theme.gradient}};box-shadow:0 10rpx 22rpx {{category.theme.shadow}};"
+      bindtap="onCopyContact"
+    >复制联系方式</button>
+  </view>
+</view>

@@ -262,3 +262,21 @@ image {
 .back-pill-hover {
   background: #eef1f5;
 }
+
+/* ===== 全局图标悬浮交互工具类 =====
+   用法：在可点击的图标容器上加 hover-class="fx-icon-hover" hover-stay-time="120"，
+   容器本身加 class="fx-icon-lift" 获得平滑过渡。 */
+.fx-icon-lift {
+  transition: transform .18s ease;
+}
+.fx-icon-hover {
+  transform: translateY(-6rpx) scale(1.02);
+}
+.fx-icon-hover .icon-wrap,
+.fx-icon-hover .feature-icon-wrap,
+.fx-icon-hover .shortcut-icon-wrap,
+.fx-icon-hover .tab-icon-wrap {
+  box-shadow:
+    0 16rpx 30rpx rgba(49, 92, 255, .24),
+    0 4rpx 10rpx rgba(49, 92, 255, .10);
+}

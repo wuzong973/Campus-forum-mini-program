@@ -629,6 +629,18 @@ Page({
       wx.navigateTo({ url: '/pages/campus-map/index' })
       return
     }
+    // 广轻群聊：进入群聊分类页面
+    if (item.name === '广轻群聊') {
+      wx.vibrateShort({ type: 'light' })
+      wx.navigateTo({ url: '/pages/group-chat/index' })
+      return
+    }
+    // 社团&组织：进入社团组织页面（六大分类）
+    if (item.name === '社团&组织') {
+      wx.vibrateShort({ type: 'light' })
+      wx.navigateTo({ url: '/pages/club/index' })
+      return
+    }
     // 跳转到外部小程序（乘车码 / 零食店 等）
     if (item.miniAppId) {
       wx.vibrateShort({ type: 'light' })

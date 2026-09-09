@@ -535,6 +535,24 @@ function markErrandChatRead(orderId) {
   return request.post("/errand/chats/" + orderId + "/read", {}, true, { silent: true }).catch(() => {});
 }
 
+// ===== 社团&组织 =====
+function getClubCategories() {
+  return request.get("/club/categories", {}, false);
+}
+
+// ===== 广轻群聊 =====
+function getGroupChatList() {
+  return request.get("/group-chat/list", {}, false);
+}
+
+function submitGroupChatApply(data) {
+  return request.post("/group-chat/apply", data, true);
+}
+
+function getMyGroupChatApplies() {
+  return request.get("/group-chat/mine", {}, true);
+}
+
 module.exports = {
   SERVICE_ICON_MAP,
   getBlacklist,
@@ -548,6 +566,10 @@ module.exports = {
   getPostDetail,
   searchPosts,
   getServiceList,
+  getClubCategories,
+  getGroupChatList,
+  submitGroupChatApply,
+  getMyGroupChatApplies,
   getErrandList,
   getErrandChats,
   getErrandChatMessages,

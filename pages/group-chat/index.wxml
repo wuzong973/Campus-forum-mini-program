@@ -1,0 +1,65 @@
+<view class="page page-enter">
+  <view class="topbar" style="padding-top: {{statusBarHeight}}px;">
+    <view class="back-pill" hover-class="back-pill-hover" hover-stay-time="80" bindtap="goBack"><text class="back-pill-icon">‹</text><text>返回</text></view>
+  </view>
+
+  <view class="content">
+    <view class="page-title">群聊分类</view>
+    <view class="page-sub">按类型浏览，找到你感兴趣的圈子</view>
+
+    <view class="empty" wx:if="{{!groups.length}}">
+      <view class="empty-icon"><text class="empty-q">?</text></view>
+      <text class="empty-text">等待管理员添加</text>
+    </view>
+
+    <view class="group-list" wx:else>
+      <view class="group-card" wx:for="{{groups}}" wx:key="id"
+            hover-class="group-card--hover" hover-stay-time="80"
+            bindtap="onGroupTap" data-qrcode="{{item.qrcodeUrl}}">
+        <image class="group-avatar" src="{{item.avatarUrl}}" mode="aspectFill" lazy-load="{{true}}" />
+        <view class="group-info">
+          <view class="group-name-row">
+            <text class="group-name">{{item.name}}</text>
+            <text class="group-tag" wx:if="{{item.category}}">{{item.category}}</text>
+          </view>
+          <text class="group-intro">{{item.intro}}</text>
+          <view class="group-join"><text class="group-join-dot"></text><text>微信群 · 点击查看进群二维码</text></view>
+        </view>
+      </view>
+    </view>
+
+    <view class="my-applies" wx:if="{{myApplies.length}}">
+      <view class="section-title">我的申请</view>
+      <view class="apply-row" wx:for="{{myApplies}}" wx:key="id">
+        <view class="apply-main">
+          <text class="apply-name">{{item.name}}</text>
+          <text class="apply-status apply-status--{{item.status}}">{{item.statusText}}</text>
+        </view>
+        <text wx:if="{{item.reviewNote}}" class="apply-note">审核意见：{{item.reviewNote}}</text>
+      </view>
+    </view>
+  </view>
+</view>
+
+<view class="create-btn" hover-class="create-btn--hover" hover-stay-time="120" bindtap="onCreate">
+  <view class="create-pencil"></view>
+</view>
+
+<view wx:if="{{showModal}}" class="modal-mask anim-fade" bindtap="onCloseModal">
+  <view class="modal-dialog anim-slide-up" catchtap="noop">
+    <view class="modal-head">
+      <text class="modal-title">首次入驻广轻校园圈</text>
+      <text class="modal-close" catchtap="onCloseModal">关闭</text>
+    </view>
+    <view class="modal-body">
+      <text class="modal-intro">您是首次入驻广轻校园圈，最好加一下意见群：群内可以获取"合作"群标识（排序靠前），也可以提出功能需求和获取更新公告，帮助大家的群聊更好地发展。</text>
+      <view class="modal-label">微信意见群</view>
+      <view class="modal-tip">使用企业微信群插件，群码不会过期，需要授权一下</view>
+      <view class="modal-join-btn" hover-class="modal-join-btn--hover" hover-stay-time="100" bindtap="onJoinOpinionGroup">点击加入微信意见群</view>
+    </view>
+    <view class="modal-foot">
+      <view class="modal-btn modal-btn-plain" hover-class="modal-btn-plain--hover" hover-stay-time="100" catchtap="onCloseModal">稍后再说</view>
+      <view class="modal-btn modal-btn-dark" hover-class="modal-btn-dark--hover" hover-stay-time="100" catchtap="onGoApply">我已加入，去申请群聊</view>
+    </view>
+  </view>
+</view>

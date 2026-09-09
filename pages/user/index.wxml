@@ -12,12 +12,12 @@
           <text class="user-school">{{isLogin ? ((userInfo.school || '广轻工职业技术大学') + ' · ' + (userInfo.campus || '未设置校区')) : '点击登录后完善资料'}}</text>
         </view>
       </view>
-      <view class="settings-wrap" catchtap="goSettings"><image class="settings-icon" src="/assets/icons/settings.png" mode="aspectFit"></image></view>
+      <view class="settings-wrap" hover-class="fx-hover" hover-stay-time="120" catchtap="goSettings"><image class="settings-icon" src="/assets/icons/settings.png" mode="aspectFit"></image></view>
     </view>
   </view>
 
   <view class="shortcuts card">
-    <view class="shortcut-item" wx:for="{{shortcuts}}" wx:key="name" wx:if="{{!item.adminOnly || isAdmin}}" data-route="{{item.route}}" data-admin-only="{{item.adminOnly}}" bindtap="onShortcutTap">
+    <view class="shortcut-item" hover-class="fx-hover" hover-stay-time="120" wx:for="{{shortcuts}}" wx:key="name" wx:if="{{!item.adminOnly || isAdmin}}" data-route="{{item.route}}" data-admin-only="{{item.adminOnly}}" bindtap="onShortcutTap">
       <view class="shortcut-icon-wrap">
         <image class="shortcut-icon-img {{item.iconDark ? 'shortcut-icon-dark' : ''}}" src="{{item.icon}}" mode="aspectFit"></image>
         <view class="shortcut-badge" wx:if="{{item.badge === 'unread' && unreadCount > 0}}">{{unreadCount > 99 ? '99+' : unreadCount}}</view>
@@ -38,7 +38,7 @@
       <text class="section-title">{{section.title}}</text>
       <view class="feature-grid columns-{{section.columns}}">
         <block wx:for="{{section.items}}" wx:for-item="feature" wx:key="name">
-          <view wx:if="{{feature.type === 'contact'}}" class="feature-item">
+          <view wx:if="{{feature.type === 'contact'}}" class="feature-item" hover-class="fx-hover" hover-stay-time="120">
             <contact-admin class="feature-contact">
               <view slot="trigger" class="feature-trigger">
                 <view class="feature-icon-wrap">
@@ -49,7 +49,7 @@
               </view>
             </contact-admin>
           </view>
-          <view wx:elif="{{!feature.adminOnly || isAdmin}}" class="feature-item" data-route="{{feature.route}}" data-admin-only="{{feature.adminOnly}}" bindtap="onFeatureTap">
+          <view wx:elif="{{!feature.adminOnly || isAdmin}}" class="feature-item" hover-class="fx-hover" hover-stay-time="120" data-route="{{feature.route}}" data-admin-only="{{feature.adminOnly}}" bindtap="onFeatureTap">
             <view class="feature-icon-wrap">
               <text wx:if="{{feature.fontIcon}}" class="iconfont2 {{feature.fontIcon}} feature-font-icon" style="color: {{feature.fontColor}};"></text>
               <image wx:else class="feature-icon" src="{{feature.icon}}" mode="aspectFit"></image>
@@ -60,7 +60,7 @@
         </block>
       </view>
       <view class="feature-grid columns-2 stat-grid" wx:if="{{section.stats}}">
-        <view class="feature-item" wx:for="{{section.stats}}" wx:for-item="tag" wx:key="name" data-route="{{tag.route}}" bindtap="onFeatureTap">
+        <view class="feature-item" hover-class="fx-hover" hover-stay-time="120" wx:for="{{section.stats}}" wx:for-item="tag" wx:key="name" data-route="{{tag.route}}" bindtap="onFeatureTap">
           <view class="feature-icon-wrap">
             <image class="feature-icon" src="{{tag.icon}}" mode="aspectFit"></image>
           </view>

@@ -735,6 +735,86 @@ async function runMigrations() {
       INDEX idx_captcha_expiry (expires_at)
     ) ENGINE=InnoDB
   `)
+  // ===== 社团&组织 =====
+  // 分类：color 存主色 hex，前端由主色推导渐变/浅底/深色/阴影主题
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS club_category (
+      id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+      slug VARCHAR(32) NOT NULL UNIQUE,
+      name VARCHAR(64) NOT NULL,
+      icon_char VARCHAR(8) DEFAULT '',
+      slogan VARCHAR(128) DEFAULT '',
+      color VARCHAR(16) DEFAULT '#2E6BFF',
+      position TEXT,
+      scope_intro VARCHAR(512) DEFAULT '',
+      scope JSON,
+      features JSON,
+      contact VARCHAR(255) DEFAULT '',
+      sort_order INT NOT NULL DEFAULT 0,
+      status TINYINT(1) NOT NULL DEFAULT 1,
+      deleted TINYINT(1) NOT NULL DEFAULT 0,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    ) ENGINE=InnoDB
+  `)
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS club (
+      id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+      category_id INT UNSIGNED NOT NULL,
+      name VARCHAR(64) NOT NULL,
+      tags VARCHAR(128) DEFAULT '',
+      intro VARCHAR(1000) DEFAULT '',
+      recruit VARCHAR(255) DEFAULT '',
+      sort_order INT NOT NULL DEFAULT 0,
+      status TINYINT(1) NOT NULL DEFAULT 1,
+      deleted TINYINT(1) NOT NULL DEFAULT 0,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      INDEX idx_club_category (category_id, status, sort_order)
+    ) ENGINE=InnoDB
+  `)
+  // ===== 广轻群聊 =====
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS group_chat_apply (
+      id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+      user_id INT UNSIGNED NOT NULL,
+      group_type VARCHAR(16) NOT NULL DEFAULT '微信群',
+      category VARCHAR(32) NOT NULL DEFAULT '',
+      name VARCHAR(64) NOT NULL,
+      intro VARCHAR(1000) DEFAULT '',
+      avatar_url VARCHAR(512) DEFAULT '',
+      qrcode_url VARCHAR(512) DEFAULT '',
+      admin_qrcode_url VARCHAR(512) DEFAULT '',
+      gzh_qrcode_url VARCHAR(512) DEFAULT '',
+      images JSON,
+      status ENUM('pending','approved','rejected') NOT NULL DEFAULT 'pending',
+      review_note VARCHAR(255) DEFAULT '',
+      reviewed_by INT UNSIGNED DEFAULT NULL,
+      reviewed_at DATETIME DEFAULT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      INDEX idx_gca_user (user_id, created_at),
+      INDEX idx_gca_status (status, created_at)
+    ) ENGINE=InnoDB
+  `)
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS group_chat (
+      id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+      apply_id BIGINT UNSIGNED DEFAULT NULL,
+      name VARCHAR(64) NOT NULL,
+      category VARCHAR(32) NOT NULL DEFAULT '',
+      intro VARCHAR(1000) DEFAULT '',
+      avatar_url VARCHAR(512) DEFAULT '',
+      qrcode_url VARCHAR(512) DEFAULT '',
+      sort_order INT NOT NULL DEFAULT 0,
+      status TINYINT(1) NOT NULL DEFAULT 1,
+      deleted TINYINT(1) NOT NULL DEFAULT 0,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      INDEX idx_group_chat_feed (status, deleted, sort_order)
+    ) ENGINE=InnoDB
+  `)
+  // 六大社团分类 + 30 个代表社团（仅空表时写入，之后由后台维护）
+  await require('./clubSeed').seedClubData()
 }
 
 module.exports = {

@@ -32,6 +32,8 @@ async function request(method, target, payload) {
       method,
       url: `https://api.mch.weixin.qq.com${target}`,
       data: payload === undefined ? undefined : body,
+      // 强制 IPv4：服务器默认走 IPv6 出口，微信 IP 白名单只加了 IPv4 地址会报"此IP地址不允许调用接口"
+      family: 4,
       headers: { Authorization: authorization(method, target, body), Accept: 'application/json', 'Content-Type': 'application/json' },
       timeout: 10000,
     })
@@ -153,21 +155,48 @@ function isConfigured() {
   } catch (e) { return false }
 }
 
+// 各转账场景要求的报备信息字段（信息类型为场景固定值，信息内容为业务自定义）
+const TRANSFER_SCENE_PRESETS = {
+  '1000': [{ info_type: '活动名称', info_content: '校园跑腿奖励' }, { info_type: '奖励说明', info_content: '跑腿订单收益提现' }],
+  '1005': [{ info_type: '岗位类型', info_content: '跑腿接单员' }, { info_type: '报酬说明', info_content: '跑腿订单佣金提现' }],
+}
+
 // 新版「商家转账（用户确认收款）」发起转账：2025-01-15 之后开通的商户号只能用此接口，
 // 返回 state=WAIT_USER_CONFIRM + package_info，需用户在小程序内确认收款后微信才打款
-function createTransferBill({ outBillNo, amountFen, openid, remark, notifyUrl }) {
+async function createTransferBill({ outBillNo, amountFen, openid, remark, notifyUrl }) {
   if (!outBillNo || !openid || !Number.isInteger(amountFen) || amountFen < 1) throw new Error('Invalid transfer bill arguments')
   if (!payConfig.transferNotifyUrl) throw new Error('WX_TRANSFER_NOTIFY_URL is not configured')
-  return request('POST', '/v3/fund-app/mch-transfer/transfer-bills', {
-    appid: payConfig.appId,
-    out_bill_no: outBillNo,
-    transfer_scene_id: payConfig.transferSceneId || '1000',
-    openid,
-    transfer_amount: amountFen,
-    transfer_remark: String(remark || 'Wallet withdrawal').slice(0, 32),
-    notify_url: notifyUrl || payConfig.transferNotifyUrl,
-    transfer_scene_report_infos: payConfig.transferSceneReportInfos
-  })
+  // 依次尝试：环境变量配置的场景 → 常见已开通场景。报"尚未获取该转账场景"时换下一个
+  const configured = String(payConfig.transferSceneId || '1000')
+  const scenes = [configured]
+  for (const sceneId of Object.keys(TRANSFER_SCENE_PRESETS)) {
+    if (!scenes.includes(sceneId)) scenes.push(sceneId)
+  }
+  let lastError
+  for (const sceneId of scenes) {
+    const reportInfos = (sceneId === configured && payConfig.transferSceneReportInfos) || TRANSFER_SCENE_PRESETS[sceneId] || TRANSFER_SCENE_PRESETS[configured]
+    const payload = {
+      appid: payConfig.appId,
+      out_bill_no: outBillNo,
+      transfer_scene_id: sceneId,
+      openid,
+      transfer_amount: amountFen,
+      transfer_remark: String(remark || 'Wallet withdrawal').slice(0, 32),
+      notify_url: notifyUrl || payConfig.transferNotifyUrl,
+      transfer_scene_report_infos: reportInfos,
+    }
+    try {
+      return await request('POST', '/v3/fund-app/mch-transfer/transfer-bills', payload)
+    } catch (error) {
+      lastError = error
+      const msg = String(error.wxMessage || '')
+      // 场景未开通 / 场景报备信息不匹配 → 换下一个场景重试
+      if (error.wxCode === 'INVALID_REQUEST' && msg.includes('场景')) continue
+      if (error.wxCode === 'PARAM_ERROR' && (msg.includes('报备') || msg.includes('场景'))) continue
+      throw error
+    }
+  }
+  throw lastError
 }
 
 // 按商户单号查询新版转账单状态

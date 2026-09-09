@@ -1,0 +1,280 @@
+.page {
+  min-height: 100vh;
+  background: #f2f3f5;
+}
+
+.topbar {
+  padding-left: 24rpx;
+  padding-right: 24rpx;
+}
+
+.content {
+  padding: 24rpx 32rpx 80rpx;
+}
+
+.page-title {
+  margin-top: 20rpx;
+  font-size: 42rpx;
+  font-weight: 800;
+  color: #1f2a44;
+  line-height: 1.3;
+}
+
+.page-status {
+  margin-top: 8rpx;
+  font-size: 24rpx;
+  color: #9aa3b2;
+}
+
+/* ===== 卡片 ===== */
+.card {
+  margin-top: 22rpx;
+  background: #ffffff;
+  border-radius: 20rpx;
+  padding: 8rpx 28rpx;
+  box-shadow: 0 6rpx 20rpx rgba(31, 42, 68, 0.04);
+}
+
+.card:first-of-type {
+  margin-top: 30rpx;
+}
+
+.card-label {
+  padding: 24rpx 0 16rpx;
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #1f2a44;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+  padding: 26rpx 0;
+}
+
+.row-line {
+  border-bottom: 1rpx solid #f0f1f3;
+}
+
+.row-label {
+  flex-shrink: 0;
+  font-size: 28rpx;
+  color: #1f2a44;
+  font-weight: 500;
+}
+
+/* ===== 群类型分段 ===== */
+.row-seg {
+  padding: 24rpx 0 16rpx;
+}
+
+.seg {
+  flex: 1;
+  display: flex;
+  gap: 16rpx;
+}
+
+.seg-item {
+  flex: 1;
+  height: 76rpx;
+  border-radius: 14rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28rpx;
+  font-weight: 600;
+  background: #f2f3f5;
+  color: #9aa3b2;
+  transition: opacity 0.16s ease, transform 0.16s ease;
+}
+
+.seg-item--hover {
+  opacity: 0.85;
+  transform: scale(0.98);
+}
+
+.seg-active {
+  background: #1a1c20;
+  color: #ffffff;
+}
+
+.seg-tip {
+  padding: 0 0 18rpx;
+  font-size: 22rpx;
+  color: #b3bac4;
+}
+
+/* ===== 类别选择 ===== */
+.picker-value {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10rpx;
+  font-size: 28rpx;
+  color: #c2c8d1;
+}
+
+.picker-value .set {
+  color: #1f2a44;
+}
+
+.picker-value--hover {
+  opacity: 0.7;
+}
+
+.chev {
+  font-size: 30rpx;
+  color: #c2c8d1;
+  line-height: 1;
+}
+
+/* ===== 群名输入 ===== */
+.row-input {
+  flex: 1;
+  min-width: 0;
+  height: 64rpx;
+  font-size: 28rpx;
+  color: #1f2a44;
+}
+
+.ph {
+  color: #c2c8d1;
+}
+
+/* ===== 上传按钮与缩略图 ===== */
+.upload-btn {
+  flex-shrink: 0;
+  margin-left: auto;
+  background: #1a1c20;
+  color: #ffffff;
+  font-size: 24rpx;
+  font-weight: 600;
+  padding: 10rpx 28rpx;
+  border-radius: 12rpx;
+  transition: opacity 0.16s ease, transform 0.16s ease;
+}
+
+.upload-btn--hover {
+  opacity: 0.85;
+  transform: scale(0.96);
+}
+
+.thumb-wrap {
+  position: relative;
+  margin-left: auto;
+}
+
+.thumb {
+  width: 88rpx;
+  height: 88rpx;
+  border-radius: 12rpx;
+  background: #f2f3f5;
+}
+
+.thumb-x,
+.img-x {
+  position: absolute;
+  top: -14rpx;
+  right: -14rpx;
+  width: 36rpx;
+  height: 36rpx;
+  border-radius: 50%;
+  background: rgba(26, 28, 32, 0.82);
+  color: #ffffff;
+  font-size: 26rpx;
+  line-height: 34rpx;
+  text-align: center;
+}
+
+.thumb-wrap .upload-btn {
+  margin-left: 16rpx;
+}
+
+.thumb-wrap + .upload-btn {
+  margin-left: 16rpx;
+}
+
+/* ===== 文字介绍 ===== */
+.intro {
+  width: 100%;
+  min-height: 260rpx;
+  background: #f7f8fa;
+  border-radius: 14rpx;
+  padding: 22rpx;
+  font-size: 27rpx;
+  color: #1f2a44;
+  line-height: 1.6;
+  margin-bottom: 26rpx;
+  box-sizing: border-box;
+}
+
+/* ===== 图片介绍 ===== */
+.img-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16rpx;
+  padding-bottom: 26rpx;
+}
+
+.img-cell {
+  position: relative;
+  width: 100%;
+  padding-top: 100%;
+  border-radius: 14rpx;
+  overflow: visible;
+}
+
+.img-cell .img {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: 14rpx;
+  background: #f2f3f5;
+}
+
+.img-add {
+  border: 2rpx dashed #d3d7de;
+  border-radius: 14rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.16s ease;
+}
+
+.img-add--hover {
+  background: #f2f3f5;
+}
+
+.img-add-plus {
+  font-size: 52rpx;
+  color: #c2c8d1;
+  line-height: 1;
+}
+
+/* ===== 提交按钮 ===== */
+.submit {
+  margin-top: 36rpx;
+  width: 100%;
+  height: 96rpx;
+  line-height: 96rpx;
+  border-radius: 18rpx;
+  background: #1a1c20;
+  color: #ffffff;
+  font-size: 30rpx;
+  font-weight: 600;
+  border: none;
+  transition: opacity 0.16s ease, transform 0.16s ease;
+}
+
+.submit::after {
+  border: none;
+}
+
+.submit[disabled] {
+  opacity: 0.6;
+  color: #ffffff;
+}

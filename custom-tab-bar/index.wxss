@@ -17,11 +17,43 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
+  transition: transform .18s ease;
 }
 
-.tab-icon { width: 42rpx; height: 42rpx; }
+/* 白色圆角卡片底座：包裹 tab 图标，边框 + 靠近边框的柔和投影 */
+.tab-icon-wrap {
+  display: flex;
+  width: 60rpx;
+  height: 60rpx;
+  align-items: center;
+  justify-content: center;
+  border: 1rpx solid #e1e9ff;
+  border-radius: 16rpx;
+  background: linear-gradient(180deg, #ffffff 0%, #f5f8ff 100%);
+  box-shadow:
+    0 6rpx 14rpx rgba(49, 92, 255, .10),
+    inset 0 1rpx 0 rgba(255, 255, 255, .9);
+  box-sizing: border-box;
+}
+.tab-icon { width: 36rpx; height: 36rpx; }
 .tab-text, .publish-text { margin-top: 4rpx; font-size: 20rpx; line-height: 28rpx; }
 .publish-text { color: #646b78; }
+
+/* 悬浮交互状态：轻微上浮 + 投影加深 */
+.tab-item--hover {
+  transform: translateY(-6rpx);
+}
+.tab-item--hover .tab-icon-wrap {
+  border-color: #d6e2ff;
+  box-shadow:
+    0 14rpx 26rpx rgba(49, 92, 255, .24),
+    0 4rpx 10rpx rgba(49, 92, 255, .10),
+    inset 0 1rpx 0 rgba(255, 255, 255, .9);
+}
+.publish-slot--hover .publish-button {
+  transform: scale(1.08);
+  box-shadow: 0 12rpx 26rpx rgba(74, 122, 255, .45);
+}
 
 .publish-button {
   width: 76rpx;
@@ -36,4 +68,5 @@
   line-height: 62rpx;
   text-align: center;
   box-sizing: content-box;
+  transition: transform .18s ease, box-shadow .18s ease;
 }

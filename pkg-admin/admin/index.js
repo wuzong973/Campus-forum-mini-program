@@ -9,11 +9,27 @@ const TAB_PERMISSIONS = {
   posts: 'content.manage',
   content: 'config.manage',
   items: 'item.manage',
-  users: 'user.manage',
-  admins: 'admin.manage',
-  withdrawals: 'payment.manage',
-  riderVerifications: 'user.manage',
+  clubGroup: 'config.manage',
+  // 合并父级菜单：拥有任一子页权限即可见（数组=或关系）
+  userAdmin: ['user.manage', 'admin.manage'],
+  review: ['payment.manage', 'user.manage'],
   logs: 'admin.manage'
+}
+
+// ===== 合并父级菜单的子页定义：perm 为该子页自身的可见权限 =====
+const SUB_TABS = {
+  clubGroup: [
+    { key: 'groupChat', name: '群聊', perm: 'config.manage' },
+    { key: 'clubs', name: '社团', perm: 'config.manage' }
+  ],
+  userAdmin: [
+    { key: 'users', name: '用户', perm: 'user.manage' },
+    { key: 'admins', name: '管理员', perm: 'admin.manage' }
+  ],
+  review: [
+    { key: 'withdrawals', name: '提现审核', perm: 'payment.manage' },
+    { key: 'riderVerifications', name: '认证审核', perm: 'user.manage' }
+  ]
 }
 
 const ROLE_OPTIONS = ['user', 'content_admin', 'user_admin', 'operator', 'super_admin']
@@ -41,6 +57,10 @@ const BANNER_STYLE_VALUES = ['red', 'green', 'orange', 'blue', 'purple']
 const BANNER_STYLE_NAMES = ['红色', '绿色', '橙色', '蓝色', '紫色']
 const BANNER_STYLE_BG = { red: '#ffe2e2', green: '#e0f5e6', orange: '#fff1de', blue: '#e3edff', purple: '#f0e5ff' }
 const BANNER_STYLE_FG = { red: '#e34d4d', green: '#3aa356', orange: '#e8930c', blue: '#3a6fe3', purple: '#8a4de0' }
+
+// ===== 群聊管理：建群申请状态与可选群类别（与用户端 apply 页一致） =====
+const GC_APPLY_STATUS_TEXT = { pending: '待审核', approved: '已通过', rejected: '已驳回' }
+const GC_CATEGORIES = ['新生群', '班级/学院群', '社团/组织群', '学习交流群', '兴趣圈子', '二手/闲置群', '搭子/拼车群', '校园资讯', '其他']
 
 // 内容配置弹窗的标题与操作指引（与「页面横幅」编辑器风格统一）
 const CONTENT_FORM_META = {
@@ -70,7 +90,8 @@ const CONTENT_TYPE_NAMES = {
 }
 const TARGET_TYPE_NAMES = {
   post: '帖子', content: '内容配置', virtual_item: '虚拟物品', user: '用户', feature: '功能开关',
-  content_report: '举报', rider_verification: '骑手认证', wallet_withdrawal: '提现申请', admin: '管理员'
+  content_report: '举报', rider_verification: '骑手认证', wallet_withdrawal: '提现申请', admin: '管理员',
+  club_category: '社团分类', club: '社团', group_chat_apply: '建群申请', group_chat: '群聊'
 }
 const ACTION_TEXT_MAP = {
   'content.create': '新增内容配置',
@@ -102,7 +123,18 @@ const ACTION_TEXT_MAP = {
   'rider_verification.approve': '通过骑手认证',
   'rider_verification.reject': '驳回骑手认证',
   'wallet.withdrawal.approve': '通过提现申请',
-  'wallet.withdrawal.reject': '驳回提现申请'
+  'wallet.withdrawal.reject': '驳回提现申请',
+  'club.category.create': '新增社团分类',
+  'club.category.update': '更新社团分类',
+  'club.category.delete': '删除社团分类',
+  'club.club.create': '新增社团',
+  'club.club.update': '更新社团',
+  'club.club.delete': '删除社团',
+  'groupchat.apply.approve': '通过建群申请',
+  'groupchat.apply.reject': '驳回建群申请',
+  'groupchat.group.create': '新增群聊',
+  'groupchat.group.update': '更新群聊',
+  'groupchat.group.delete': '删除群聊'
 }
 
 // 把一条审计记录转换为详细的中文描述：{ actionText, targetText, timeText }
@@ -136,6 +168,11 @@ function describeAudit(row) {
   } else if (action === 'report.update' && detail.status) {
     const statusNames = { processing: '受理', resolved: '解决', rejected: '驳回' }
     if (statusNames[detail.status]) actionText += '（' + statusNames[detail.status] + '）'
+  } else if ((action.indexOf('club.category.') === 0 || action.indexOf('club.club.') === 0 || action.indexOf('groupchat.group.') === 0) && detail.name) {
+    actionText += '「' + detail.name + '」'
+  } else if (action.indexOf('groupchat.apply.') === 0) {
+    if (detail.name) actionText += '「' + detail.name + '」'
+    if (detail.note) actionText += ' 意见：' + detail.note
   }
   const targetName = TARGET_TYPE_NAMES[row.targetType] || row.targetType || ''
   const targetId = row.targetId ? ' #' + row.targetId : ''
@@ -207,6 +244,8 @@ Page({
     role: '',
     permissions: [],
     activeTab: 'overview',
+    activeSubTab: 'groupChat',
+    subTabs: {},
     tabs: [],
     stats: null,
     statsUpdatedAt: '',
@@ -247,6 +286,15 @@ Page({
     errandHasMore: false,
     errandLoading: false,
     errandDetail: null,
+    // 群聊管理 tab：建群申请审核 + 群聊上下架
+    groupChatApplies: [],
+    groupChatApplyStatus: 'pending',
+    groupChatGroups: [],
+    chatCategoryNames: GC_CATEGORIES,
+    // 社团管理 tab：分类（含各分类下社团明细）+ 展开状态
+    clubCategories: [],
+    clubCategoryNames: [],
+    expandedClubCategory: -1,
     form: null,
     saving: false,
     showCertModal: false,
@@ -272,14 +320,33 @@ Page({
         { key: 'posts', name: '帖子' },
         { key: 'content', name: '配置' },
         { key: 'items', name: '物品' },
-        { key: 'users', name: '用户' },
-        { key: 'admins', name: '管理员' },
-        { key: 'withdrawals', name: '提现审核' },
-        { key: 'riderVerifications', name: '认证审核' },
+        { key: 'clubGroup', name: '社团/群聊' },
+        { key: 'userAdmin', name: '用户管理' },
+        { key: 'review', name: '审核' },
         { key: 'logs', name: '日志' }
-      ].filter((tab) => this.can(access.permissions || [], TAB_PERMISSIONS[tab.key]))
+      ].filter((tab) => {
+        const required = TAB_PERMISSIONS[tab.key]
+        const perms = access.permissions || []
+        // 数组权限=任一满足即可见（用于合并后的父级菜单）
+        return Array.isArray(required) ? required.some((p) => this.can(perms, p)) : this.can(perms, required)
+      })
       if (!tabs.length) throw new Error('无可用管理权限')
-      this.setData({ ready: true, role: access.role, permissions: access.permissions || [], tabs, activeTab: tabs[0].key })
+      // 计算每个合并父级菜单下当前角色可见的子页（子页按各自权限过滤）
+      const perms = access.permissions || []
+      const subTabs = {}
+      Object.keys(SUB_TABS).forEach((parent) => {
+        subTabs[parent] = SUB_TABS[parent].filter((sub) => this.can(perms, sub.perm))
+      })
+      const firstSubs = subTabs[tabs[0].key] || []
+      this.setData({
+        ready: true,
+        role: access.role,
+        permissions: perms,
+        tabs,
+        subTabs,
+        activeTab: tabs[0].key,
+        activeSubTab: firstSubs.length ? firstSubs[0].key : this.data.activeSubTab
+      })
       this.loadCurrent()
       this.startStatsTimer()
     } catch (e) {
@@ -327,10 +394,12 @@ Page({
       if (tab === 'posts') await this.loadPosts()
       if (tab === 'content') await this.loadContent()
       if (tab === 'items') this.setData({ items: (await admin.items()).list || [] })
-      if (tab === 'users') await this.loadUsers()
-      if (tab === 'admins') await this.loadAdmins()
-      if (tab === 'withdrawals') await this.loadWithdrawals()
-      if (tab === 'riderVerifications') await this.loadRiderVerifications()
+      if (tab === 'clubGroup' && this.data.activeSubTab === 'groupChat') await this.loadGroupChatData()
+      if (tab === 'clubGroup' && this.data.activeSubTab === 'clubs') await this.loadClubCategories()
+      if (tab === 'userAdmin' && this.data.activeSubTab === 'users') await this.loadUsers()
+      if (tab === 'userAdmin' && this.data.activeSubTab === 'admins') await this.loadAdmins()
+      if (tab === 'review' && this.data.activeSubTab === 'withdrawals') await this.loadWithdrawals()
+      if (tab === 'review' && this.data.activeSubTab === 'riderVerifications') await this.loadRiderVerifications()
       if (tab === 'logs') await this.loadErrandOrders(1)
     } catch (e) {
       // 请求返回顺序可能与点击顺序不一致，过期请求失败不打扰用户
@@ -360,7 +429,19 @@ Page({
   switchTab(e) {
     const key = e.currentTarget.dataset.key
     if (key === this.data.activeTab) return
-    this.setData({ activeTab: key, selectedPostIds: [], form: null })
+    // 进入合并父级菜单时，重置为其可见子页中的第一个
+    const subs = this.data.subTabs[key] || []
+    const patch = { activeTab: key, selectedPostIds: [], form: null }
+    if (subs.length) patch.activeSubTab = subs[0].key
+    this.setData(patch)
+    this.loadCurrent()
+  },
+
+  // 合并父级菜单（社团/群聊、用户管理、审核）内的子页面切换：点击切换入口即可在子页面之间直接切换，无需返回上级菜单
+  switchSubTab(e) {
+    const key = e.currentTarget.dataset.key
+    if (key === this.data.activeSubTab) return
+    this.setData({ activeSubTab: key, form: null })
     this.loadCurrent()
   },
 
@@ -477,10 +558,11 @@ Page({
     const index = Number(e.detail.value) || 0
     this.setData({ 'form.meta.styleIndex': index, 'form.meta.style': BANNER_STYLE_VALUES[index] })
   },
-  // ===== 内容配置弹窗颜色选择：背景颜色 / 文字颜色 / 轮播主题色 =====
+  // ===== 内容配置弹窗颜色选择：背景颜色 / 文字颜色 / 轮播主题色 / 社团分类主题色 =====
   openContentColorPicker(e) {
-    const field = e.currentTarget.dataset.field === 'textColor' ? 'textColor' : (e.currentTarget.dataset.field === 'accent' ? 'accent' : 'bgColor')
-    const titles = { bgColor: '选择背景颜色', textColor: '选择文字颜色', accent: '选择主题色' }
+    const allowed = ['textColor', 'accent', 'bgColor', 'color']
+    const field = allowed.indexOf(e.currentTarget.dataset.field) >= 0 ? e.currentTarget.dataset.field : 'bgColor'
+    const titles = { bgColor: '选择背景颜色', textColor: '选择文字颜色', accent: '选择主题色', color: '选择主题色' }
     this.setData({
       colorPickerField: field,
       colorPickerValue: (this.data.form.meta || {})[field] || '',
@@ -697,6 +779,163 @@ Page({
   },
   closeErrandDetail() { this.setData({ errandDetail: null }) },
 
+  // ===== 群聊管理 tab =====
+  async loadGroupChatData() {
+    await Promise.all([this.loadGroupChatApplies(), this.loadGroupChatGroups()])
+  },
+
+  chooseGcApplyStatus(e) {
+    const value = e.currentTarget.dataset.status
+    this.setData({ groupChatApplyStatus: value === '' ? '' : String(value) })
+    this.loadGroupChatApplies()
+  },
+
+  async loadGroupChatApplies() {
+    const data = await admin.groupChatApplies({ page: 1, pageSize: 50, status: this.data.groupChatApplyStatus })
+    const list = (data.list || []).map((row) => Object.assign({}, row, {
+      statusText: GC_APPLY_STATUS_TEXT[row.status] || row.status,
+      images: Array.isArray(row.images) ? row.images : [],
+      createdAtText: fmtDateTime(row.createdAt)
+    }))
+    this.setData({ groupChatApplies: list })
+  },
+
+  async loadGroupChatGroups() {
+    const data = await admin.groupChatGroups({ page: 1, pageSize: 100 })
+    this.setData({ groupChatGroups: data.list || [] })
+  },
+
+  // 通过/驳回：先打开审核意见表单，确认后提交（驳回必填意见）
+  openChatReview(e) {
+    const id = Number(e.currentTarget.dataset.id)
+    const action = e.currentTarget.dataset.action === 'approve' ? 'approve' : 'reject'
+    const apply = this.data.groupChatApplies.find((row) => Number(row.id) === id)
+    if (!apply) return
+    this.setData({ form: { kind: 'chatReview', id, action, applyName: apply.name, reviewNote: '' } })
+  },
+
+  async toggleChatGroup(e) {
+    const group = this.data.groupChatGroups.find((row) => Number(row.id) === Number(e.currentTarget.dataset.id))
+    if (!group) return
+    const status = group.status ? 0 : 1
+    if (!await this.confirm(status ? '上架群聊' : '下架群聊', `确定${status ? '上架' : '下架'}「${group.name}」吗？下架后用户端立即不可见。`)) return
+    try { await admin.updateGroupChatGroup(group.id, { status }); wx.showToast({ title: status ? '已上架' : '已下架', icon: 'success' }); this.loadGroupChatGroups() } catch (err) {}
+  },
+
+  async deleteChatGroup(e) {
+    const group = this.data.groupChatGroups.find((row) => Number(row.id) === Number(e.currentTarget.dataset.id))
+    if (!group) return
+    if (!await this.confirm('删除群聊', `确定删除「${group.name}」吗？删除后用户端不再展示该群聊。`)) return
+    try { await admin.deleteGroupChatGroup(group.id); wx.showToast({ title: '已删除', icon: 'success' }); this.loadGroupChatGroups() } catch (err) {}
+  },
+
+  beginChatGroupCreate() {
+    this.setData({ form: { kind: 'chatGroup', id: 0, name: '', categoryIndex: 0, intro: '', meta: { avatarUrl: '', qrcodeUrl: '' }, sortOrder: 0, status: 1 } })
+  },
+
+  beginChatGroupEdit(e) {
+    const group = this.data.groupChatGroups.find((row) => Number(row.id) === Number(e.currentTarget.dataset.id))
+    if (!group) return
+    const categoryIndex = Math.max(0, GC_CATEGORIES.indexOf(group.category || ''))
+    this.setData({ form: { kind: 'chatGroup', id: group.id, name: group.name || '', categoryIndex, intro: group.intro || '', meta: { avatarUrl: group.avatarUrl || '', qrcodeUrl: group.qrcodeUrl || '' }, sortOrder: group.sortOrder || 0, status: group.status ? 1 : 0 } })
+  },
+
+  onChatCategoryChange(e) { this.setData({ 'form.categoryIndex': Number(e.detail.value) || 0 }) },
+
+  // ===== 社团管理 tab =====
+  async loadClubCategories() {
+    const data = await admin.clubCategories()
+    const list = (data.list || []).map((row) => Object.assign({}, row, {
+      scope: Array.isArray(row.scope) ? row.scope : [],
+      features: Array.isArray(row.features) ? row.features : [],
+      clubs: Array.isArray(row.clubs) ? row.clubs : []
+    }))
+    this.setData({ clubCategories: list, clubCategoryNames: list.map((row) => row.name) })
+  },
+
+  toggleExpandClubCategory(e) {
+    const id = Number(e.currentTarget.dataset.id)
+    this.setData({ expandedClubCategory: this.data.expandedClubCategory === id ? -1 : id })
+  },
+
+  async deleteClubCategory(e) {
+    const category = this.data.clubCategories.find((row) => Number(row.id) === Number(e.currentTarget.dataset.id))
+    if (!category) return
+    if (!await this.confirm('删除社团分类', `确定删除「${category.name}」吗？该分类及其中 ${category.clubTotal} 个社团将一并隐藏，用户端立即不再展示。`)) return
+    try { await admin.deleteClubCategory(category.id); wx.showToast({ title: '已删除', icon: 'success' }); this.loadClubCategories() } catch (err) {}
+  },
+
+  async toggleClub(e) {
+    const club = this.findClubById(Number(e.currentTarget.dataset.id))
+    if (!club) return
+    const status = club.status ? 0 : 1
+    if (!await this.confirm(status ? '上架社团' : '下架社团', `确定${status ? '上架' : '下架'}「${club.name}」吗？`)) return
+    try { await admin.updateClub(club.id, { status }); wx.showToast({ title: status ? '已上架' : '已下架', icon: 'success' }); this.loadClubCategories() } catch (err) {}
+  },
+
+  async deleteClub(e) {
+    const club = this.findClubById(Number(e.currentTarget.dataset.id))
+    if (!club) return
+    if (!await this.confirm('删除社团', `确定删除「${club.name}」吗？删除后无法恢复。`)) return
+    try { await admin.deleteClub(club.id); wx.showToast({ title: '已删除', icon: 'success' }); this.loadClubCategories() } catch (err) {}
+  },
+
+  findClubById(id) {
+    for (const category of this.data.clubCategories) {
+      const club = (category.clubs || []).find((row) => Number(row.id) === id)
+      if (club) return club
+    }
+    return null
+  },
+
+  beginClubCategoryCreate() {
+    this.setData({ form: { kind: 'clubCategory', id: 0, name: '', iconChar: '', slogan: '', meta: { color: '#2E6BFF' }, position: '', scopeIntro: '', scopeText: '', featuresText: '', contact: '', sortOrder: 0, status: 1 } })
+  },
+
+  beginClubCategoryEdit(e) {
+    const category = this.data.clubCategories.find((row) => Number(row.id) === Number(e.currentTarget.dataset.id))
+    if (!category) return
+    this.setData({
+      form: {
+        kind: 'clubCategory',
+        id: category.id,
+        name: category.name || '',
+        iconChar: category.iconChar || '',
+        slogan: category.slogan || '',
+        meta: { color: category.color || '#2E6BFF' },
+        position: category.position || '',
+        scopeIntro: category.scopeIntro || '',
+        scopeText: (category.scope || []).join('、'),
+        featuresText: (category.features || []).map((item) => item.title + '|' + item.desc).join('\n'),
+        contact: category.contact || '',
+        sortOrder: category.sortOrder || 0,
+        status: category.status ? 1 : 0
+      }
+    })
+  },
+
+  beginClubCreate(e) {
+    const categoryId = Number(e.currentTarget.dataset.id)
+    const categoryName = String(e.currentTarget.dataset.name || '')
+    const index = this.data.clubCategories.findIndex((row) => Number(row.id) === categoryId)
+    this.setData({ form: { kind: 'club', id: 0, categoryId, categoryIndex: Math.max(0, index), name: '', tags: '', intro: '', recruit: '', sortOrder: 0, status: 1 } })
+  },
+
+  beginClubEdit(e) {
+    const clubId = Number(e.currentTarget.dataset.id)
+    const club = this.findClubById(clubId)
+    if (!club) return
+    const category = this.data.clubCategories.find((row) => (row.clubs || []).some((row2) => Number(row2.id) === clubId))
+    const index = this.data.clubCategories.findIndex((row) => row.id === (category || {}).id)
+    this.setData({ form: { kind: 'club', id: club.id, categoryId: (category || {}).id || 0, categoryIndex: Math.max(0, index), name: club.name || '', tags: club.tags || '', intro: club.intro || '', recruit: club.recruit || '', sortOrder: club.sortOrder || 0, status: club.status ? 1 : 0 } })
+  },
+
+  onClubCategoryChange(e) {
+    const index = Number(e.detail.value) || 0
+    const category = this.data.clubCategories[index]
+    this.setData({ 'form.categoryIndex': index, 'form.categoryId': category ? category.id : 0 })
+  },
+
   formInput(e) { const key = e.currentTarget.dataset.key; this.setData({ ['form.' + key]: e.detail.value }) },
   formStatus(e) { this.setData({ 'form.status': e.detail.value ? 1 : 0 }) },
   closeForm() { this.setData({ form: null }) },
@@ -721,6 +960,42 @@ Page({
         form.id ? await admin.updateContent(form.id, payload) : await admin.createContent(payload)
       }
       if (form.kind === 'item') form.id ? await admin.updateItem(form.id, form) : await admin.createItem(form)
+      if (form.kind === 'chatReview') {
+        const isApprove = form.action === 'approve'
+        const note = String(form.reviewNote || '').trim()
+        if (!isApprove && !note) { wx.showToast({ title: '驳回时请填写审核意见', icon: 'none' }); return }
+        if (!await this.confirm(isApprove ? '确认通过建群申请' : '确认驳回建群申请', isApprove ? '通过后「' + form.applyName + '」将立即上架到用户端群聊列表。' : '驳回后用户将在「我的申请」中看到审核意见。')) return
+        await admin.reviewGroupChatApply(form.id, form.action, note)
+        wx.showToast({ title: isApprove ? '已通过并上架' : '已驳回', icon: 'success' })
+        this.setData({ form: null })
+        await this.loadGroupChatData()
+        return
+      }
+      if (form.kind === 'clubCategory') {
+        const scope = String(form.scopeText || '').split(/[，,、\s]+/).map((s) => s.trim()).filter(Boolean)
+        const features = String(form.featuresText || '').split('\n').map((line) => {
+          const idx = line.indexOf('|')
+          if (idx < 0) return null
+          const title = line.slice(0, idx).trim()
+          const desc = line.slice(idx + 1).trim()
+          return title && desc ? { title, desc } : null
+        }).filter(Boolean)
+        if (!String(form.name || '').trim()) { wx.showToast({ title: '请填写分类名称', icon: 'none' }); return }
+        if (!features.length && String(form.featuresText || '').trim()) { wx.showToast({ title: '特色说明格式应为：标题|描述', icon: 'none' }); return }
+        const payload = { name: String(form.name).trim(), iconChar: String(form.iconChar || '').trim(), slogan: String(form.slogan || '').trim(), color: form.meta.color || '#2E6BFF', position: String(form.position || '').trim(), scopeIntro: String(form.scopeIntro || '').trim(), scope, features, contact: String(form.contact || '').trim(), sortOrder: Number(form.sortOrder) || 0, status: form.status ? 1 : 0 }
+        form.id ? await admin.updateClubCategory(form.id, payload) : await admin.createClubCategory(payload)
+      }
+      if (form.kind === 'club') {
+        if (!form.categoryId) { wx.showToast({ title: '请选择所属分类', icon: 'none' }); return }
+        if (!String(form.name || '').trim()) { wx.showToast({ title: '请填写社团名称', icon: 'none' }); return }
+        const payload = { categoryId: form.categoryId, name: String(form.name).trim(), tags: String(form.tags || '').trim(), intro: String(form.intro || '').trim(), recruit: String(form.recruit || '').trim(), sortOrder: Number(form.sortOrder) || 0, status: form.status ? 1 : 0 }
+        form.id ? await admin.updateClub(form.id, payload) : await admin.createClub(payload)
+      }
+      if (form.kind === 'chatGroup') {
+        if (!String(form.name || '').trim()) { wx.showToast({ title: '请填写群聊名称', icon: 'none' }); return }
+        const payload = { name: String(form.name).trim(), category: GC_CATEGORIES[form.categoryIndex] || '', intro: String(form.intro || '').trim(), avatarUrl: form.meta.avatarUrl || '', qrcodeUrl: form.meta.qrcodeUrl || '', sortOrder: Number(form.sortOrder) || 0, status: form.status ? 1 : 0 }
+        form.id ? await admin.updateGroupChatGroup(form.id, payload) : await admin.createGroupChatGroup(payload)
+      }
       wx.showToast({ title: '已保存', icon: 'success' }); this.setData({ form: null }); this.loadCurrent()
     } catch (e) {} finally { this.setData({ saving: false }) }
   },

@@ -38,9 +38,10 @@
   background: #ffffff;
   box-shadow: 0 12rpx 30rpx rgba(30, 64, 175, .09);
 }
-.shortcut-item { display: flex; min-width: 0; flex: 1; flex-direction: column; align-items: center; }.shortcut-item:active { opacity: .74; transform: scale(.95); }
-.shortcut-icon-wrap { position: relative; display: flex; width: 80rpx; height: 80rpx; align-items: center; justify-content: center; border: 1rpx solid #e1e9ff; border-radius: 22rpx; background: #f5f8ff; box-shadow: 0 8rpx 18rpx rgba(49, 92, 255, .08); }
-.shortcut-icon-img { width: 48rpx; height: 48rpx; }.shortcut-icon-dark { filter: brightness(0.5) saturate(0.5); }.shortcut-name { display: block; margin-top: 12rpx; max-width: 100%; overflow: hidden; color: #434850; font-size: 25rpx; line-height: 1.3; text-overflow: ellipsis; white-space: nowrap; }.shortcut-badge { position: absolute; top: -8rpx; right: -14rpx; min-width: 30rpx; height: 30rpx; padding: 0 7rpx; border: 2rpx solid #ffffff; border-radius: 16rpx; background: #ff5a5f; color: #ffffff; font-size: 18rpx; line-height: 26rpx; text-align: center; }
+.shortcut-item { display: flex; min-width: 0; flex: 1; flex-direction: column; align-items: center; transition: transform .18s ease; }.shortcut-item:active { opacity: .74; transform: scale(.95); }
+/* 白色圆角卡片底座：边框包裹 + 靠近边框的柔和投影，与功能宫格图标统一 */
+.shortcut-icon-wrap { position: relative; display: flex; width: 76rpx; height: 76rpx; align-items: center; justify-content: center; border: 1rpx solid #e1e9ff; border-radius: 20rpx; background: linear-gradient(180deg, #ffffff 0%, #f5f8ff 100%); box-shadow: 0 8rpx 18rpx rgba(49, 92, 255, .10), inset 0 1rpx 0 rgba(255, 255, 255, .9); }
+.shortcut-icon-img { width: 44rpx; height: 44rpx; }.shortcut-icon-dark { filter: brightness(0.5) saturate(0.5); }.shortcut-name { display: block; margin-top: 12rpx; max-width: 100%; overflow: hidden; color: #434850; font-size: 25rpx; line-height: 1.3; text-overflow: ellipsis; white-space: nowrap; }.shortcut-badge { position: absolute; top: -8rpx; right: -14rpx; min-width: 30rpx; height: 30rpx; padding: 0 7rpx; border: 2rpx solid #ffffff; border-radius: 16rpx; background: #ff5a5f; color: #ffffff; font-size: 18rpx; line-height: 26rpx; text-align: center; }
 
 .feature-section { margin: 16rpx 24rpx 0; padding: 22rpx 16rpx 0; border-radius: 18rpx; background: #ffffff; box-shadow: 0 5rpx 16rpx rgba(33, 55, 88, .045); }
 /* 消息通知卡片顶部横幅：蓝色圆角条，样式对齐个人中心运营横幅 */
@@ -52,10 +53,11 @@
 .msg-banner-arrow { margin-left: 16rpx; color: var(--banner-fg, rgba(255, 255, 255, .92)); opacity: .92; font-size: 24rpx; flex-shrink: 0; }
 .section-title { display: block; margin: 0 8rpx 16rpx; color: #667085; font-size: 28rpx; font-weight: 400; line-height: 1.3; }
 .feature-grid { display: flex; flex-wrap: wrap; border-top: 1rpx solid #f0f1f4; }.columns-2 .feature-item { width: 50%; }.columns-3 .feature-item { width: 33.3333%; }.columns-4 .feature-item { width: 25%; }
-.feature-item { position: relative; display: flex; min-width: 0; min-height: 124rpx; padding: 18rpx 4rpx 20rpx; flex-direction: column; align-items: center; justify-content: flex-start; }.feature-item:active { opacity: .68; transform: scale(.95); }
-.feature-icon-wrap { position: relative; display: flex; width: 58rpx; height: 58rpx; align-items: center; justify-content: center; }.feature-icon { width: 54rpx; height: 54rpx; }
+.feature-item { position: relative; display: flex; min-width: 0; min-height: 124rpx; padding: 18rpx 4rpx 20rpx; flex-direction: column; align-items: center; justify-content: flex-start; transition: transform .18s ease; }.feature-item:active { opacity: .68; transform: scale(.95); }
+/* 白色圆角卡片底座：与顶部快捷入口完全统一（同尺寸/边框/投影） */
+.feature-icon-wrap { position: relative; display: flex; width: 76rpx; height: 76rpx; align-items: center; justify-content: center; border: 1rpx solid #e1e9ff; border-radius: 20rpx; background: linear-gradient(180deg, #ffffff 0%, #f5f8ff 100%); box-shadow: 0 8rpx 18rpx rgba(49, 92, 255, .10), inset 0 1rpx 0 rgba(255, 255, 255, .9); }.feature-icon { width: 44rpx; height: 44rpx; }
 /* 第二套 iconfont 功能图标：与原 PNG 图标同尺寸 */
-.feature-font-icon { font-size: 54rpx; line-height: 1; }
+.feature-font-icon { font-size: 44rpx; line-height: 1; }
 .feature-trigger { display: flex; width: 100%; min-width: 0; flex-direction: column; align-items: center; }.feature-name { display: block; width: 100%; margin-top: 9rpx; overflow: hidden; color: #34383f; font-size: 25rpx; line-height: 1.35; text-align: center; text-overflow: ellipsis; white-space: nowrap; }.columns-3 .feature-name { font-size: 26rpx; }
 .feature-badge { position: absolute; top: -6rpx; right: -12rpx; min-width: 30rpx; height: 30rpx; padding: 0 7rpx; border: 2rpx solid #ffffff; border-radius: 18rpx; background: #ff5a5f; color: #ffffff; font-size: 18rpx; line-height: 26rpx; text-align: center; }
 
@@ -65,3 +67,16 @@
 .stat-grid .feature-item { min-height: 0; padding: 12rpx 4rpx 10rpx; }
 .stat-grid .feature-name { margin-top: 6rpx; }
 contact-admin.feature-contact { display: block; width: 100%; min-width: 0; }
+
+/* ===== 悬浮交互状态：轻微上浮 + 卡片投影加深 ===== */
+.fx-hover { transform: translateY(-6rpx) !important; opacity: 1 !important; }
+.fx-hover .shortcut-icon-wrap,
+.fx-hover .feature-icon-wrap {
+  border-color: #d6e2ff;
+  box-shadow:
+    0 16rpx 30rpx rgba(49, 92, 255, .24),
+    0 4rpx 10rpx rgba(49, 92, 255, .10),
+    inset 0 1rpx 0 rgba(255, 255, 255, .9);
+}
+.fx-hover .feature-badge,
+.fx-hover .shortcut-badge { box-shadow: 0 4rpx 10rpx rgba(255, 90, 95, .35); }

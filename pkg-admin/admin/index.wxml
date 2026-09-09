@@ -69,9 +69,96 @@
 
   <view wx:if="{{activeTab === 'items'}}"><view class="section-head"><text class="section-title-inline">虚拟物品</text><button size="mini" class="primary-mini" bindtap="beginItemCreate">新增物品</button></view><view wx:for="{{items}}" wx:key="id" class="list-card compact-row"><view><text class="row-title">{{item.name}}</text><text class="row-sub">￥{{item.price}} · 库存 {{item.stock}} · 销量 {{item.salesCount}} · {{item.status ? '上架' : '下架'}}</text></view><view class="row-actions"><text data-id="{{item.id}}" bindtap="beginItemEdit">编辑</text><text data-id="{{item.id}}" bindtap="toggleItem">{{item.status ? '下架' : '上架'}}</text></view></view><view wx:if="{{!items.length}}" class="empty">暂无虚拟物品</view></view>
 
-  <view wx:if="{{activeTab === 'users'}}"><view class="toolbar"><input placeholder="搜索昵称、手机号或学号" value="{{userKeyword}}" bindinput="onUserKeyword" confirm-type="search" bindconfirm="searchUsers"/><text bindtap="searchUsers">搜索</text></view><view wx:for="{{users}}" wx:key="id" class="list-card compact-row"><view><text class="row-title">{{item.nickName || '未命名用户'}} #{{item.id}}</text><text class="row-sub">{{item.phone || '未绑定手机号'}} · {{item.role}} · {{item.status ? '正常' : '已禁用'}}</text><text class="cert-label-display" wx:if="{{item.certLabel}}">{{item.certLabel}}</text></view><view class="row-actions"><text data-id="{{item.id}}" bindtap="toggleUser">{{item.status ? '禁用' : '启用'}}</text><text data-id="{{item.id}}" bindtap="changeRole">角色</text><text data-id="{{item.id}}" data-certlabel="{{item.certLabel || ''}}" bindtap="editCertLabel">认证</text></view></view></view>
+  <view wx:if="{{activeTab === 'clubGroup' && subTabs.clubGroup.length > 1}}" class="sub-tabs">
+    <view wx:for="{{subTabs.clubGroup}}" wx:key="key" class="sub-tab {{activeSubTab === item.key ? 'active' : ''}}" data-key="{{item.key}}" bindtap="switchSubTab">{{item.name}}</view>
+  </view>
 
-  <view wx:if="{{activeTab === 'admins'}}">
+  <view wx:if="{{activeTab === 'clubGroup' && activeSubTab === 'groupChat'}}">
+    <view class="section-head"><text class="section-title-inline">建群申请审核</text></view>
+    <scroll-view class="filters" scroll-x="true"><view class="filters-inner">
+      <view class="filter {{groupChatApplyStatus === '' ? 'selected' : ''}}" data-status="" bindtap="chooseGcApplyStatus">全部</view>
+      <view class="filter {{groupChatApplyStatus === 'pending' ? 'selected' : ''}}" data-status="pending" bindtap="chooseGcApplyStatus">待审核</view>
+      <view class="filter {{groupChatApplyStatus === 'approved' ? 'selected' : ''}}" data-status="approved" bindtap="chooseGcApplyStatus">已通过</view>
+      <view class="filter {{groupChatApplyStatus === 'rejected' ? 'selected' : ''}}" data-status="rejected" bindtap="chooseGcApplyStatus">已驳回</view>
+    </view></scroll-view>
+    <view wx:for="{{groupChatApplies}}" wx:key="id" class="list-card compact-row chat-apply-row">
+      <view class="chat-apply-info">
+        <text class="row-title">{{item.name}}<text class="chat-apply-status cs-{{item.status}}">{{item.statusText}}</text></text>
+        <text class="row-sub">申请人：{{item.nickName || '用户'}} #{{item.userId}} · {{item.category}} · {{item.createdAtText}}</text>
+        <text class="row-sub chat-apply-intro">介绍：{{item.intro}}</text>
+        <view class="rider-verify-images" wx:if="{{item.avatarUrl || item.qrcodeUrl || item.adminQrcodeUrl}}">
+          <image wx:if="{{item.avatarUrl}}" class="verify-img" src="{{item.avatarUrl}}" mode="aspectFill" data-src="{{item.avatarUrl}}" bindtap="previewVerifyImg"/>
+          <image wx:if="{{item.qrcodeUrl}}" class="verify-img" src="{{item.qrcodeUrl}}" mode="aspectFill" data-src="{{item.qrcodeUrl}}" bindtap="previewVerifyImg" bindlongpress="onImageQrScan"/>
+          <image wx:if="{{item.adminQrcodeUrl}}" class="verify-img" src="{{item.adminQrcodeUrl}}" mode="aspectFill" data-src="{{item.adminQrcodeUrl}}" bindtap="previewVerifyImg" bindlongpress="onImageQrScan"/>
+        </view>
+        <text class="row-sub" wx:if="{{item.reviewNote}}">审核意见：{{item.reviewNote}}</text>
+      </view>
+      <view class="row-actions" wx:if="{{item.status === 'pending'}}">
+        <text data-id="{{item.id}}" data-action="approve" bindtap="openChatReview">通过</text>
+        <text class="danger" data-id="{{item.id}}" data-action="reject" bindtap="openChatReview">驳回</text>
+      </view>
+    </view>
+    <view wx:if="{{!groupChatApplies.length}}" class="empty">暂无申请记录</view>
+
+    <view class="section-head"><text class="section-title-inline">群聊列表（{{groupChatGroups.length}}）</text><button size="mini" class="primary-mini" bindtap="beginChatGroupCreate">手动添加</button></view>
+    <view class="config-hint">审核通过的申请会自动上架到用户端「广轻群聊」；此处也可手动添加群聊、调整排序或上下架。下架后用户端立即不可见。</view>
+    <view wx:for="{{groupChatGroups}}" wx:key="id" class="list-card compact-row">
+      <view>
+        <text class="row-title">{{item.name}}</text>
+        <text class="row-sub">{{item.category || '未分类'}} · 排序 {{item.sortOrder}} · {{item.status ? '上架中' : '已下架'}}</text>
+      </view>
+      <view class="row-actions">
+        <text data-id="{{item.id}}" bindtap="beginChatGroupEdit">编辑</text>
+        <text data-id="{{item.id}}" bindtap="toggleChatGroup">{{item.status ? '下架' : '上架'}}</text>
+        <text class="danger" data-id="{{item.id}}" bindtap="deleteChatGroup">删除</text>
+      </view>
+    </view>
+    <view wx:if="{{!groupChatGroups.length}}" class="empty">暂无群聊</view>
+  </view>
+
+  <view wx:if="{{activeTab === 'clubGroup' && activeSubTab === 'clubs'}}">
+    <view class="section-head"><text class="section-title-inline">社团分类管理</text><button size="mini" class="primary-mini" bindtap="beginClubCategoryCreate">新增分类</button></view>
+    <view class="config-hint">分类与社团保存后，用户端「社团&组织」页实时生效（下拉刷新即可看到）。删除分类会将其中社团一并隐藏。</view>
+    <view wx:for="{{clubCategories}}" wx:key="id" class="list-card club-admin-card">
+      <view class="club-admin-head" data-id="{{item.id}}" bindtap="toggleExpandClubCategory">
+        <view class="club-admin-char" style="background: {{item.color}};">{{item.iconChar}}</view>
+        <view class="club-admin-main">
+          <text class="row-title">{{item.name}}<text wx:if="{{!item.status}}" class="chat-apply-status cs-rejected">已停用</text></text>
+          <text class="row-sub">社团 {{item.clubTotal}} 个（启用 {{item.clubEnabled}}） · 排序 {{item.sortOrder}}</text>
+        </view>
+        <text class="club-admin-arrow">{{expandedClubCategory === item.id ? '收起 ▲' : '展开 ▼'}}</text>
+      </view>
+      <view wx:if="{{expandedClubCategory === item.id}}" class="club-admin-body">
+        <text class="row-sub club-admin-slogan">{{item.slogan}}</text>
+        <view class="row-actions club-admin-actions">
+          <text data-id="{{item.id}}" bindtap="beginClubCategoryEdit">编辑分类</text>
+          <text data-id="{{item.id}}" data-name="{{item.name}}" bindtap="beginClubCreate">+ 添加社团</text>
+          <text class="danger" data-id="{{item.id}}" bindtap="deleteClubCategory">删除分类</text>
+        </view>
+        <view wx:for="{{item.clubs}}" wx:for-item="club" wx:key="id" class="club-admin-club">
+          <view class="club-admin-club-main">
+            <text class="club-admin-club-name">{{club.name}}<text wx:if="{{!club.status}}" class="club-admin-off">（已下架）</text></text>
+            <text class="row-sub" wx:if="{{club.tags}}">{{club.tags}}</text>
+          </view>
+          <view class="row-actions">
+            <text data-id="{{club.id}}" bindtap="beginClubEdit">编辑</text>
+            <text data-id="{{club.id}}" bindtap="toggleClub">{{club.status ? '下架' : '上架'}}</text>
+            <text class="danger" data-id="{{club.id}}" bindtap="deleteClub">删除</text>
+          </view>
+        </view>
+        <view wx:if="{{!item.clubs.length}}" class="empty">该分类下暂无社团</view>
+      </view>
+    </view>
+    <view wx:if="{{!clubCategories.length}}" class="empty">暂无社团分类</view>
+  </view>
+
+  <view wx:if="{{activeTab === 'userAdmin' && subTabs.userAdmin.length > 1}}" class="sub-tabs">
+    <view wx:for="{{subTabs.userAdmin}}" wx:key="key" class="sub-tab {{activeSubTab === item.key ? 'active' : ''}}" data-key="{{item.key}}" bindtap="switchSubTab">{{item.name}}</view>
+  </view>
+
+  <view wx:if="{{activeTab === 'userAdmin' && activeSubTab === 'users'}}"><view class="toolbar"><input placeholder="搜索昵称、手机号或学号" value="{{userKeyword}}" bindinput="onUserKeyword" confirm-type="search" bindconfirm="searchUsers"/><text bindtap="searchUsers">搜索</text></view><view wx:for="{{users}}" wx:key="id" class="list-card compact-row"><view><text class="row-title">{{item.nickName || '未命名用户'}} #{{item.id}}</text><text class="row-sub">{{item.phone || '未绑定手机号'}} · {{item.role}} · {{item.status ? '正常' : '已禁用'}}</text><text class="cert-label-display" wx:if="{{item.certLabel}}">{{item.certLabel}}</text></view><view class="row-actions"><text data-id="{{item.id}}" bindtap="toggleUser">{{item.status ? '禁用' : '启用'}}</text><text data-id="{{item.id}}" bindtap="changeRole">角色</text><text data-id="{{item.id}}" data-certlabel="{{item.certLabel || ''}}" bindtap="editCertLabel">认证</text></view></view></view>
+
+  <view wx:if="{{activeTab === 'userAdmin' && activeSubTab === 'admins'}}">
     <view class="section-head">
       <view class="section-title-inline">管理员账号（{{admins.length}}）</view>
       <button size="mini" class="primary-mini" bindtap="openAdminModal">新增管理员</button>
@@ -158,9 +245,13 @@
     </view>
   </view>
 
-  <view wx:if="{{activeTab === 'withdrawals'}}"><view wx:for="{{withdrawals}}" wx:key="id" class="list-card compact-row"><view><text class="row-title">{{item.nickName || '用户'}} #{{item.userId}}</text><text class="row-sub">申请 ¥{{item.amount}} · 手机：{{item.phone || '未绑定'}} · {{item.createdAt}}</text></view><view class="row-actions"><text data-id="{{item.id}}" data-action="approve" bindtap="reviewWithdrawal">通过</text><text class="danger" data-id="{{item.id}}" data-action="reject" bindtap="reviewWithdrawal">驳回</text></view></view><view wx:if="{{!withdrawals.length}}" class="empty">暂无待审核提现</view></view>
+  <view wx:if="{{activeTab === 'review' && subTabs.review.length > 1}}" class="sub-tabs">
+    <view wx:for="{{subTabs.review}}" wx:key="key" class="sub-tab {{activeSubTab === item.key ? 'active' : ''}}" data-key="{{item.key}}" bindtap="switchSubTab">{{item.name}}</view>
+  </view>
 
-  <view wx:if="{{activeTab === 'riderVerifications'}}">
+  <view wx:if="{{activeTab === 'review' && activeSubTab === 'withdrawals'}}"><view wx:for="{{withdrawals}}" wx:key="id" class="list-card compact-row"><view><text class="row-title">{{item.nickName || '用户'}} #{{item.userId}}</text><text class="row-sub">申请 ¥{{item.amount}} · 手机：{{item.phone || '未绑定'}} · {{item.createdAt}}</text></view><view class="row-actions"><text data-id="{{item.id}}" data-action="approve" bindtap="reviewWithdrawal">通过</text><text class="danger" data-id="{{item.id}}" data-action="reject" bindtap="reviewWithdrawal">驳回</text></view></view><view wx:if="{{!withdrawals.length}}" class="empty">暂无待审核提现</view></view>
+
+  <view wx:if="{{activeTab === 'review' && activeSubTab === 'riderVerifications'}}">
     <view wx:for="{{riderVerifications}}" wx:key="id" class="list-card compact-row rider-verify-row">
       <view class="rider-verify-info">
         <text class="row-title">{{item.nickName || '用户'}} #{{item.userId}}</text>
@@ -184,7 +275,7 @@
 
   <view wx:if="{{form}}" class="form-mask">
     <view class="form-card">
-      <view class="form-title">{{form.kind === 'post' ? '编辑帖子' : form.kind === 'content' ? (form.id ? '编辑' : '新增') + contentFormTitle : '虚拟物品'}}</view>
+      <view class="form-title">{{form.kind === 'post' ? '编辑帖子' : form.kind === 'content' ? (form.id ? '编辑' : '新增') + contentFormTitle : form.kind === 'chatReview' ? (form.action === 'approve' ? '通过建群申请' : '驳回建群申请') : form.kind === 'clubCategory' ? (form.id ? '编辑社团分类' : '新增社团分类') : form.kind === 'club' ? (form.id ? '编辑社团' : '添加社团') : form.kind === 'chatGroup' ? (form.id ? '编辑群聊' : '添加群聊') : '虚拟物品'}}</view>
 
       <block wx:if="{{form.kind === 'content'}}">
         <view class="form-guide">{{contentFormGuide}}</view>
@@ -368,6 +459,125 @@
         </view>
       </block>
 
+      <block wx:elif="{{form.kind === 'chatReview'}}">
+        <view class="form-guide">申请群名：{{form.applyName}}（仅支持微信群）</view>
+        <view class="form-item">
+          <view class="form-label">审核意见{{form.action === 'reject' ? '（驳回必填，用户端可见）' : '（选填）'}}</view>
+          <textarea data-key="reviewNote" value="{{form.reviewNote}}" maxlength="200" placeholder="例如：群二维码已过期，请补充有效二维码后再提交" bindinput="formInput"/>
+        </view>
+      </block>
+
+      <block wx:elif="{{form.kind === 'clubCategory'}}">
+        <view class="form-item">
+          <view class="form-label">分类名称 <text class="form-req">*</text>（展示在社团&组织页卡片）</view>
+          <input data-key="name" value="{{form.name}}" maxlength="20" placeholder="例如：艺术类" bindinput="formInput"/>
+        </view>
+        <view class="form-item">
+          <view class="form-label">图标字符（单字，展示在分类卡片的彩色图标上）</view>
+          <input data-key="iconChar" value="{{form.iconChar}}" maxlength="2" placeholder="例如：艺" bindinput="formInput"/>
+        </view>
+        <view class="form-item">
+          <view class="form-label">副标语（卡片第二行文字）</view>
+          <input data-key="slogan" value="{{form.slogan}}" maxlength="30" placeholder="例如：捕捉灵感，创造无限之美" bindinput="formInput"/>
+        </view>
+        <view class="form-item">
+          <view class="form-label">主题色（前端按此颜色自动生成渐变、浅色底与阴影）</view>
+          <view class="color-field" bindtap="openContentColorPicker" data-field="color">
+            <view class="color-swatch" style="background: {{form.meta.color || '#2E6BFF'}};"></view>
+            <text class="color-value">{{form.meta.color || '选择主题色'}}</text>
+            <text class="color-action">选择 ›</text>
+          </view>
+        </view>
+        <view class="form-item">
+          <view class="form-label">分类定位介绍（详情页第一板块）</view>
+          <textarea data-key="position" value="{{form.position}}" maxlength="1000" placeholder="介绍该分类的定位与整体情况…" bindinput="formInput"/>
+        </view>
+        <view class="form-item">
+          <view class="form-label">涵盖范围介绍</view>
+          <input data-key="scopeIntro" value="{{form.scopeIntro}}" maxlength="200" placeholder="对涵盖范围的整体说明" bindinput="formInput"/>
+        </view>
+        <view class="form-item">
+          <view class="form-label">涵盖范围（用顿号或逗号分隔）</view>
+          <textarea data-key="scopeText" value="{{form.scopeText}}" maxlength="500" placeholder="例如：街舞社、民乐团、吉他社、合唱团" bindinput="formInput"/>
+        </view>
+        <view class="form-item">
+          <view class="form-label">特色说明（每行一条，格式：标题|描述）</view>
+          <textarea data-key="featuresText" value="{{form.featuresText}}" maxlength="2000" placeholder="例如：舞台实践|每年承办迎新晚会、校园十佳歌手大赛等大型演出" bindinput="formInput"/>
+        </view>
+        <view class="form-item">
+          <view class="form-label">加入咨询文案（详情页底部展示，可复制）</view>
+          <input data-key="contact" value="{{form.contact}}" maxlength="100" placeholder="例如：艺术类招新咨询：大学生社团联合会" bindinput="formInput"/>
+        </view>
+        <view class="form-item">
+          <view class="form-label">排序（数字越小越靠前）</view>
+          <input data-key="sortOrder" value="{{form.sortOrder}}" type="number" placeholder="0" bindinput="formInput"/>
+        </view>
+      </block>
+
+      <block wx:elif="{{form.kind === 'club'}}">
+        <view class="form-item">
+          <view class="form-label">所属分类</view>
+          <picker mode="selector" range="{{clubCategoryNames}}" value="{{form.categoryIndex}}" bindchange="onClubCategoryChange">
+            <view class="picker-row"><text>分类</text><text class="picker-value">{{clubCategoryNames[form.categoryIndex] || '请选择'}} ›</text></view>
+          </picker>
+        </view>
+        <view class="form-item">
+          <view class="form-label">社团名称 <text class="form-req">*</text></view>
+          <input data-key="name" value="{{form.name}}" maxlength="30" placeholder="例如：街舞社" bindinput="formInput"/>
+        </view>
+        <view class="form-item">
+          <view class="form-label">标签（用 · 分隔）</view>
+          <input data-key="tags" value="{{form.tags}}" maxlength="60" placeholder="例如：舞蹈 · 演出 · 斗舞赛" bindinput="formInput"/>
+        </view>
+        <view class="form-item">
+          <view class="form-label">社团简介</view>
+          <textarea data-key="intro" value="{{form.intro}}" maxlength="500" placeholder="社团详细介绍…" bindinput="formInput"/>
+        </view>
+        <view class="form-item">
+          <view class="form-label">招新说明</view>
+          <input data-key="recruit" value="{{form.recruit}}" maxlength="120" placeholder="例如：每年 9 月招新，零基础可加入训练营" bindinput="formInput"/>
+        </view>
+        <view class="form-item">
+          <view class="form-label">排序（数字越小越靠前）</view>
+          <input data-key="sortOrder" value="{{form.sortOrder}}" type="number" placeholder="0" bindinput="formInput"/>
+        </view>
+      </block>
+
+      <block wx:elif="{{form.kind === 'chatGroup'}}">
+        <view class="form-item">
+          <view class="form-label">群聊名称 <text class="form-req">*</text></view>
+          <input data-key="name" value="{{form.name}}" maxlength="30" placeholder="例如：2026 级新生交流群" bindinput="formInput"/>
+        </view>
+        <view class="form-item">
+          <view class="form-label">群类别</view>
+          <picker mode="selector" range="{{chatCategoryNames}}" value="{{form.categoryIndex}}" bindchange="onChatCategoryChange">
+            <view class="picker-row"><text>类别</text><text class="picker-value">{{chatCategoryNames[form.categoryIndex]}} ›</text></view>
+          </picker>
+        </view>
+        <view class="form-item">
+          <view class="form-label">群介绍（展示在用户端群聊列表）</view>
+          <textarea data-key="intro" value="{{form.intro}}" maxlength="300" placeholder="群简介…" bindinput="formInput"/>
+        </view>
+        <view class="form-item">
+          <view class="form-label">群头像</view>
+          <view class="upload-row" bindtap="chooseFormImage" data-key="avatarUrl">
+            <image class="upload-thumb" wx:if="{{form.meta.avatarUrl}}" src="{{form.meta.avatarUrl}}" mode="aspectFill"></image>
+            <view wx:else class="upload-add">＋ 上传群头像</view>
+          </view>
+        </view>
+        <view class="form-item">
+          <view class="form-label">群二维码（用户端点击群聊卡片后弹出展示）</view>
+          <view class="upload-row" bindtap="chooseFormImage" data-key="qrcodeUrl">
+            <image class="upload-thumb" wx:if="{{form.meta.qrcodeUrl}}" src="{{form.meta.qrcodeUrl}}" mode="aspectFill"></image>
+            <view wx:else class="upload-add">＋ 上传群二维码</view>
+          </view>
+        </view>
+        <view class="form-item">
+          <view class="form-label">排序（数字越小越靠前）</view>
+          <input data-key="sortOrder" value="{{form.sortOrder}}" type="number" placeholder="0" bindinput="formInput"/>
+        </view>
+      </block>
+
       <block wx:elif="{{form.kind === 'post'}}">
         <view class="form-item">
           <view class="form-label">帖子标题</view>
@@ -406,8 +616,9 @@
         </view>
       </block>
 
-      <label class="switch-row"><text>启用状态（关闭即对用户下线）</text><switch checked="{{form.status}}" color="#315CFF" bindchange="formStatus"/></label>
-      <view class="form-buttons"><button class="cancel-btn" bindtap="closeForm">取消</button><button class="save-btn" loading="{{saving}}" bindtap="saveForm">保存并发布</button></view>
+      <label class="switch-row" wx:if="{{form.kind !== 'chatReview'}}"><text>启用状态（关闭即对用户下线）</text><switch checked="{{form.status}}" color="#315CFF" bindchange="formStatus"/></label>
+      <view class="form-buttons" wx:if="{{form.kind !== 'chatReview'}}"><button class="cancel-btn" bindtap="closeForm">取消</button><button class="save-btn" loading="{{saving}}" bindtap="saveForm">保存并发布</button></view>
+      <view class="form-buttons" wx:else><button class="cancel-btn" bindtap="closeForm">取消</button><button class="save-btn" loading="{{saving}}" bindtap="saveForm">{{form.action === 'approve' ? '确认通过' : '确认驳回'}}</button></view>
     </view>
   </view>
 
