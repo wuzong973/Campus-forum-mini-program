@@ -141,3 +141,28 @@
   white-space: nowrap;
   text-overflow: ellipsis;
 }
+
+/* ===== 悬浮交互状态：轻微上浮 + 阴影加深 ===== */
+.service-item {
+  transition: transform 0.18s ease, opacity 0.18s ease;
+  will-change: transform;
+}
+
+.service-item--hover {
+  transform: translateY(-6rpx) scale(1.03);
+}
+
+.service-item--hover .icon-wrap {
+  box-shadow:
+    0 18rpx 32rpx rgba(49, 92, 255, 0.24),
+    0 4rpx 10rpx rgba(49, 92, 255, 0.12);
+}
+
+.service-strip .service-item--hover .icon-wrap {
+  box-shadow: none;
+}
+
+.service-item--hover .service-icon-img,
+.service-strip .service-item--hover .service-icon-img {
+  filter: drop-shadow(0 10rpx 14rpx rgba(49, 92, 255, 0.28));
+}

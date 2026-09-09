@@ -1,6 +1,6 @@
 <scroll-view wx:if="{{layout === 'scroll'}}" class="service-scroll" scroll-x enable-flex show-scrollbar="{{false}}" bindscroll="onScroll">
   <view class="service-strip">
-    <view class="service-item service-strip-item" wx:for="{{services}}" wx:key="id" data-item="{{item}}" bindtap="onTap">
+    <view class="service-item service-strip-item" hover-class="service-item--hover" hover-stay-time="120" wx:for="{{services}}" wx:key="id" data-item="{{item}}" bindtap="onTap">
       <view class="icon-wrap">
         <image class="service-icon-img" src="{{item.iconPath}}" mode="aspectFit" wx:if="{{item.iconPath}}"></image>
         <text class="icon" wx:else>{{item.icon}}</text>
@@ -11,7 +11,7 @@
 </scroll-view>
 
 <view wx:else class="service-grid" style="grid-template-columns: repeat({{columns}}, 1fr);">
-  <view class="service-item" wx:for="{{services}}" wx:key="id" data-item="{{item}}" bindtap="onTap">
+  <view class="service-item" hover-class="service-item--hover" hover-stay-time="120" wx:for="{{services}}" wx:key="id" data-item="{{item}}" bindtap="onTap">
     <view class="icon-wrap">
       <image class="service-icon-img" src="{{item.iconPath}}" mode="aspectFit" wx:if="{{item.iconPath}}"></image>
       <text class="icon" wx:else>{{item.icon}}</text>
