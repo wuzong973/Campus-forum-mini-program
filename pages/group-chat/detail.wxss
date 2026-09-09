@@ -1,0 +1,236 @@
+.page {
+  min-height: 100vh;
+  background: #f2f3f5;
+}
+
+.topbar {
+  padding-left: 24rpx;
+  padding-right: 24rpx;
+}
+
+.content {
+  padding: 24rpx 32rpx 60rpx;
+}
+
+/* ===== 头部卡片 ===== */
+.head-card {
+  display: flex;
+  align-items: center;
+  gap: 24rpx;
+  background: #ffffff;
+  border: 1rpx solid #f0f1f4;
+  border-radius: 24rpx;
+  padding: 30rpx 28rpx;
+  box-shadow: 0 10rpx 28rpx rgba(31, 42, 68, 0.05);
+}
+
+.head-avatar {
+  width: 110rpx;
+  height: 110rpx;
+  border-radius: 50%;
+  background: #eef1f5;
+  flex-shrink: 0;
+}
+
+.head-avatar-fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #5ba8ff 0%, #2e6bff 100%);
+}
+
+.head-avatar-fallback text {
+  color: #ffffff;
+  font-size: 44rpx;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.head-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.head-name {
+  font-size: 34rpx;
+  font-weight: 800;
+  color: #1f2a44;
+  line-height: 1.35;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.head-badges {
+  margin-top: 12rpx;
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+}
+
+.type-badge {
+  font-size: 20rpx;
+  font-weight: 600;
+  color: #ffffff;
+  background: linear-gradient(135deg, #5ba8ff 0%, #2e6bff 100%);
+  border-radius: 8rpx;
+  padding: 4rpx 12rpx;
+  line-height: 1.3;
+}
+
+.official-badge {
+  font-size: 20rpx;
+  font-weight: 600;
+  color: #ffffff;
+  background: #1a1c20;
+  border-radius: 8rpx;
+  padding: 4rpx 12rpx;
+  line-height: 1.3;
+}
+
+.custom-badge {
+  font-size: 20rpx;
+  font-weight: 600;
+  color: #2e6bff;
+  background: rgba(46, 107, 255, 0.10);
+  border-radius: 8rpx;
+  padding: 4rpx 12rpx;
+  line-height: 1.3;
+}
+
+/* ===== 通用区块卡片 ===== */
+.sec-card {
+  margin-top: 24rpx;
+  background: #ffffff;
+  border: 1rpx solid #f0f1f4;
+  border-radius: 24rpx;
+  padding: 28rpx;
+  box-shadow: 0 10rpx 28rpx rgba(31, 42, 68, 0.05);
+}
+
+.sec-title {
+  font-size: 28rpx;
+  font-weight: 700;
+  color: #1f2a44;
+}
+
+/* ===== 群管理 ===== */
+.admin-row {
+  margin-top: 22rpx;
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+  padding: 20rpx;
+  border-radius: 16rpx;
+  background: #f7f8fa;
+  transition: background 0.15s ease;
+}
+
+.admin-row--hover {
+  background: #eef1f5;
+}
+
+.admin-qr {
+  width: 96rpx;
+  height: 96rpx;
+  border-radius: 16rpx;
+  background: #ffffff;
+  flex-shrink: 0;
+}
+
+.admin-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6rpx;
+}
+
+.admin-name {
+  font-size: 27rpx;
+  font-weight: 600;
+  color: #2a3247;
+}
+
+.admin-tip {
+  font-size: 22rpx;
+  color: #9aa3b2;
+}
+
+.row-arrow {
+  flex-shrink: 0;
+  font-size: 34rpx;
+  color: #c0c7d2;
+  line-height: 1;
+  margin-top: -4rpx;
+}
+
+/* ===== 加入方式：群二维码大图 ===== */
+.qr-wrap {
+  margin-top: 22rpx;
+  border-radius: 20rpx;
+  overflow: hidden;
+  background: #f7f8fa;
+  border: 1rpx solid #eef0f4;
+  transition: opacity 0.15s ease;
+}
+
+.qr-wrap--hover {
+  opacity: 0.88;
+}
+
+.qr-img {
+  display: block;
+  width: 100%;
+}
+
+.qr-tip {
+  margin-top: 18rpx;
+  text-align: center;
+  font-size: 23rpx;
+  color: #9aa3b2;
+}
+
+/* ===== 群介绍 ===== */
+.intro-text {
+  display: block;
+  margin-top: 18rpx;
+  font-size: 26rpx;
+  color: #3a4356;
+  line-height: 1.75;
+  text-align: justify;
+}
+
+.img-grid {
+  margin-top: 20rpx;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12rpx;
+}
+
+.img-item {
+  width: 100%;
+  height: 200rpx;
+  border-radius: 14rpx;
+  background: #eef1f5;
+}
+
+/* 超过 3 张：单行左右滑动浏览 */
+.img-scroll {
+  margin-top: 20rpx;
+  white-space: nowrap;
+  width: 100%;
+}
+
+.img-scroll-item {
+  display: inline-block;
+  width: 220rpx;
+  height: 200rpx;
+  border-radius: 14rpx;
+  background: #eef1f5;
+  margin-right: 12rpx;
+}
+
+.img-scroll-item:last-child {
+  margin-right: 0;
+}

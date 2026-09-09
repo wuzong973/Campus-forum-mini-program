@@ -104,8 +104,8 @@
     <view class="config-hint">审核通过的申请会自动上架到用户端「广轻群聊」；此处也可手动添加群聊、调整排序或上下架。下架后用户端立即不可见。</view>
     <view wx:for="{{groupChatGroups}}" wx:key="id" class="list-card compact-row">
       <view>
-        <text class="row-title">{{item.name}}</text>
-        <text class="row-sub">{{item.category || '未分类'}} · 排序 {{item.sortOrder}} · {{item.status ? '上架中' : '已下架'}}</text>
+        <text class="row-title">{{item.name}}<text wx:if="{{item.isOfficial}}" class="official-tag">官方</text><text wx:if="{{item.customTag}}" class="custom-tag">{{item.customTag}}</text></text>
+        <text class="row-sub">{{item.category || '未分类'}} · {{item.campus || '全部校区'}} · 排序 {{item.sortOrder}} · {{item.status ? '上架中' : '已下架'}}</text>
       </view>
       <view class="row-actions">
         <text data-id="{{item.id}}" bindtap="beginChatGroupEdit">编辑</text>
@@ -138,7 +138,7 @@
         <view wx:for="{{item.clubs}}" wx:for-item="club" wx:key="id" class="club-admin-club">
           <view class="club-admin-club-main">
             <text class="club-admin-club-name">{{club.name}}<text wx:if="{{!club.status}}" class="club-admin-off">（已下架）</text></text>
-            <text class="row-sub" wx:if="{{club.tags}}">{{club.tags}}</text>
+            <text class="row-sub">{{club.campus || '全部校区'}}<text wx:if="{{club.tags}}"> · {{club.tags}}</text></text>
           </view>
           <view class="row-actions">
             <text data-id="{{club.id}}" bindtap="beginClubEdit">编辑</text>
@@ -522,6 +522,12 @@
           </picker>
         </view>
         <view class="form-item">
+          <view class="form-label">所属校区（用户端按校区筛选展示；「全部校区」在所有校区可见）</view>
+          <view class="campus-grid">
+            <view wx:for="{{campusOptions}}" wx:key="value" class="campus-option {{form.campus === item.value ? 'campus-option--active' : ''}}" data-value="{{item.value}}" bindtap="onFormCampus">{{item.label}}</view>
+          </view>
+        </view>
+        <view class="form-item">
           <view class="form-label">社团名称 <text class="form-req">*</text></view>
           <input data-key="name" value="{{form.name}}" maxlength="30" placeholder="例如：街舞社" bindinput="formInput"/>
         </view>
@@ -555,6 +561,12 @@
           </picker>
         </view>
         <view class="form-item">
+          <view class="form-label">所属校区（用户端按校区筛选展示；「全部校区」在所有校区可见）</view>
+          <view class="campus-grid">
+            <view wx:for="{{campusOptions}}" wx:key="value" class="campus-option {{form.campus === item.value ? 'campus-option--active' : ''}}" data-value="{{item.value}}" bindtap="onFormCampus">{{item.label}}</view>
+          </view>
+        </view>
+        <view class="form-item">
           <view class="form-label">群介绍（展示在用户端群聊列表）</view>
           <textarea data-key="intro" value="{{form.intro}}" maxlength="300" placeholder="群简介…" bindinput="formInput"/>
         </view>
@@ -575,6 +587,14 @@
         <view class="form-item">
           <view class="form-label">排序（数字越小越靠前）</view>
           <input data-key="sortOrder" value="{{form.sortOrder}}" type="number" placeholder="0" bindinput="formInput"/>
+        </view>
+        <label class="switch-row"><text>官方群标记（用户端群名右侧展示黑色「官方」徽标）</text><switch checked="{{form.isOfficial}}" color="#315CFF" bindchange="formOfficial"/></label>
+        <view class="form-item">
+          <view class="form-label">自定义标签（除「官方」外可手动输入并添加，展示在群名右侧，如：合作、福利）</view>
+          <view class="tag-input-row">
+            <input class="tag-input" data-key="customTag" value="{{form.customTag}}" maxlength="8" placeholder="输入自定义标签，可留空" bindinput="formInput"/>
+            <view wx:if="{{form.customTag}}" class="custom-tag">{{form.customTag}}</view>
+          </view>
         </view>
       </block>
 

@@ -372,10 +372,10 @@ function mapServerCategory(row) {
   }
 }
 
-// 拉取服务端社团分类；接口异常或为空时回退到本地内置数据
-function fetchCategories() {
+// 拉取服务端社团分类（可按校区筛选）；接口异常或为空时回退到本地内置数据
+function fetchCategories(campus) {
   const api = require('./api')
-  return api.getClubCategories().then((res) => {
+  return api.getClubCategories(campus).then((res) => {
     const list = (res && res.list) || []
     if (!list.length) return CLUB_CATEGORIES
     return list.map(mapServerCategory)

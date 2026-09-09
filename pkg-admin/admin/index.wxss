@@ -143,3 +143,16 @@
 .sub-tabs { display: flex; align-items: stretch; margin-bottom: 20rpx; background: #fff; border: 1rpx solid var(--border); border-radius: 12rpx; overflow: hidden; }
 .sub-tab { flex: 1; padding: 20rpx 0 16rpx; color: var(--text-secondary); font-size: 28rpx; text-align: center; border-bottom: 4rpx solid transparent; transition: background-color .15s ease; }
 .sub-tab.active { color: var(--primary); font-weight: 600; border-color: var(--primary); background: #f5f8ff; }
+
+/* 官方群标记 */
+.official-tag { margin-left: 12rpx; font-size: 20rpx; font-weight: 600; color: #ffffff; background: #1a1c20; border-radius: 8rpx; padding: 3rpx 10rpx; vertical-align: middle; }
+
+/* 自定义群标签（管理员配置 + 列表展示） */
+.custom-tag { margin-left: 12rpx; font-size: 20rpx; font-weight: 600; color: #2e6bff; background: rgba(46, 107, 255, 0.10); border-radius: 8rpx; padding: 3rpx 10rpx; vertical-align: middle; }
+.tag-input-row { display: flex; align-items: center; gap: 16rpx; }
+.tag-input-row .tag-input { flex: 1; }
+
+/* 校区选择网格（表单内，参照设计稿 2×2 高亮样式） */
+.campus-grid { margin-top: 14rpx; display: grid; grid-template-columns: repeat(2, 1fr); gap: 18rpx; }
+.campus-option { height: 80rpx; border-radius: 12rpx; background: #f2f3f5; border: 3rpx solid transparent; color: var(--text-secondary, #4a5468); font-size: 26rpx; font-weight: 600; display: flex; align-items: center; justify-content: center; transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease; }
+.campus-option--active { background: #eef4ff; border-color: #315cff; color: #315cff; }

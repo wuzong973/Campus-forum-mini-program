@@ -16,6 +16,12 @@
       </view>
       <view class="seg-tip">当前仅支持申请创建微信群</view>
 
+      <view class="campus-bar" hover-class="campus-bar--hover" hover-stay-time="80" bindtap="onToggleCampus">
+        <text class="campus-bar-label">校区</text>
+        <text class="campus-bar-value">{{campus}}</text>
+        <text class="campus-bar-arrow">{{showCampusPanel ? '▴' : '▾'}}</text>
+      </view>
+
       <view class="row row-line">
         <text class="row-label">类别</text>
         <picker range="{{categories}}" value="{{categoryIndex}}" bindchange="onPickCategory">
@@ -87,5 +93,22 @@
     </view>
 
     <button class="submit" loading="{{submitting}}" disabled="{{submitting}}" bindtap="onSubmit">提交申请</button>
+  </view>
+</view>
+
+<!-- 校区选择弹层（fixed 元素放在带动画容器外） -->
+<view wx:if="{{showCampusPanel}}" class="campus-mask" bindtap="onCloseCampus">
+  <view class="campus-panel" catchtap="noop">
+    <view class="campus-panel-title">校区选择</view>
+    <view class="campus-grid">
+      <view
+        wx:for="{{campusOptions}}"
+        wx:key="*this"
+        class="campus-option {{campus === item ? 'campus-option--active' : ''}}"
+        data-value="{{item}}"
+        bindtap="onSelectCampus"
+      >{{item}}</view>
+    </view>
+    <view class="campus-panel-tip">提交后群聊将归属到所选校区</view>
   </view>
 </view>

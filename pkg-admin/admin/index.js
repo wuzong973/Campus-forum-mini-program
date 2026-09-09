@@ -58,9 +58,18 @@ const BANNER_STYLE_NAMES = ['红色', '绿色', '橙色', '蓝色', '紫色']
 const BANNER_STYLE_BG = { red: '#ffe2e2', green: '#e0f5e6', orange: '#fff1de', blue: '#e3edff', purple: '#f0e5ff' }
 const BANNER_STYLE_FG = { red: '#e34d4d', green: '#3aa356', orange: '#e8930c', blue: '#3a6fe3', purple: '#8a4de0' }
 
-// ===== 群聊管理：建群申请状态与可选群类别（与用户端 apply 页一致） =====
+// ===== 群聊管理：建群申请状态与可选群类别（与设计稿九大分类一致，顺序即展示顺序） =====
 const GC_APPLY_STATUS_TEXT = { pending: '待审核', approved: '已通过', rejected: '已驳回' }
-const GC_CATEGORIES = ['新生群', '班级/学院群', '社团/组织群', '学习交流群', '兴趣圈子', '二手/闲置群', '搭子/拼车群', '校园资讯', '其他']
+const GC_CATEGORIES = ['学院群', '线下桌游群', '飞梦', '体育运动群', '老乡群', '学习竞赛', '交易群', '游戏群', '新生群']
+
+// ===== 校区维度（与用户端 utils/campus.js 一致；'' = 全部校区，所有校区可见） =====
+const CAMPUS_SELECT_OPTIONS = [
+  { label: '全部校区', value: '' },
+  { label: '广州校区', value: '广州校区' },
+  { label: '佛山校区', value: '佛山校区' },
+  { label: '南海南校区', value: '南海南校区' },
+  { label: '南海北校区', value: '南海北校区' }
+]
 
 // 内容配置弹窗的标题与操作指引（与「页面横幅」编辑器风格统一）
 const CONTENT_FORM_META = {
@@ -291,6 +300,7 @@ Page({
     groupChatApplyStatus: 'pending',
     groupChatGroups: [],
     chatCategoryNames: GC_CATEGORIES,
+    campusOptions: CAMPUS_SELECT_OPTIONS,
     // 社团管理 tab：分类（含各分类下社团明细）+ 展开状态
     clubCategories: [],
     clubCategoryNames: [],
@@ -830,17 +840,18 @@ Page({
   },
 
   beginChatGroupCreate() {
-    this.setData({ form: { kind: 'chatGroup', id: 0, name: '', categoryIndex: 0, intro: '', meta: { avatarUrl: '', qrcodeUrl: '' }, sortOrder: 0, status: 1 } })
+    this.setData({ form: { kind: 'chatGroup', id: 0, name: '', categoryIndex: 0, intro: '', meta: { avatarUrl: '', qrcodeUrl: '' }, isOfficial: 0, customTag: '', campus: '', sortOrder: 0, status: 1 } })
   },
 
   beginChatGroupEdit(e) {
     const group = this.data.groupChatGroups.find((row) => Number(row.id) === Number(e.currentTarget.dataset.id))
     if (!group) return
     const categoryIndex = Math.max(0, GC_CATEGORIES.indexOf(group.category || ''))
-    this.setData({ form: { kind: 'chatGroup', id: group.id, name: group.name || '', categoryIndex, intro: group.intro || '', meta: { avatarUrl: group.avatarUrl || '', qrcodeUrl: group.qrcodeUrl || '' }, sortOrder: group.sortOrder || 0, status: group.status ? 1 : 0 } })
+    this.setData({ form: { kind: 'chatGroup', id: group.id, name: group.name || '', categoryIndex, intro: group.intro || '', meta: { avatarUrl: group.avatarUrl || '', qrcodeUrl: group.qrcodeUrl || '' }, isOfficial: group.isOfficial ? 1 : 0, customTag: group.customTag || '', campus: group.campus || '', sortOrder: group.sortOrder || 0, status: group.status ? 1 : 0 } })
   },
 
   onChatCategoryChange(e) { this.setData({ 'form.categoryIndex': Number(e.detail.value) || 0 }) },
+  formOfficial(e) { this.setData({ 'form.isOfficial': e.detail.value ? 1 : 0 }) },
 
   // ===== 社团管理 tab =====
   async loadClubCategories() {
@@ -918,7 +929,7 @@ Page({
     const categoryId = Number(e.currentTarget.dataset.id)
     const categoryName = String(e.currentTarget.dataset.name || '')
     const index = this.data.clubCategories.findIndex((row) => Number(row.id) === categoryId)
-    this.setData({ form: { kind: 'club', id: 0, categoryId, categoryIndex: Math.max(0, index), name: '', tags: '', intro: '', recruit: '', sortOrder: 0, status: 1 } })
+    this.setData({ form: { kind: 'club', id: 0, categoryId, categoryIndex: Math.max(0, index), name: '', tags: '', intro: '', recruit: '', campus: '', sortOrder: 0, status: 1 } })
   },
 
   beginClubEdit(e) {
@@ -927,13 +938,18 @@ Page({
     if (!club) return
     const category = this.data.clubCategories.find((row) => (row.clubs || []).some((row2) => Number(row2.id) === clubId))
     const index = this.data.clubCategories.findIndex((row) => row.id === (category || {}).id)
-    this.setData({ form: { kind: 'club', id: club.id, categoryId: (category || {}).id || 0, categoryIndex: Math.max(0, index), name: club.name || '', tags: club.tags || '', intro: club.intro || '', recruit: club.recruit || '', sortOrder: club.sortOrder || 0, status: club.status ? 1 : 0 } })
+    this.setData({ form: { kind: 'club', id: club.id, categoryId: (category || {}).id || 0, categoryIndex: Math.max(0, index), name: club.name || '', tags: club.tags || '', intro: club.intro || '', recruit: club.recruit || '', campus: club.campus || '', sortOrder: club.sortOrder || 0, status: club.status ? 1 : 0 } })
   },
 
   onClubCategoryChange(e) {
     const index = Number(e.detail.value) || 0
     const category = this.data.clubCategories[index]
     this.setData({ 'form.categoryIndex': index, 'form.categoryId': category ? category.id : 0 })
+  },
+
+  // 表单内校区选择（全部校区 + 四个校区）
+  onFormCampus(e) {
+    this.setData({ 'form.campus': e.currentTarget.dataset.value || '' })
   },
 
   formInput(e) { const key = e.currentTarget.dataset.key; this.setData({ ['form.' + key]: e.detail.value }) },
@@ -988,12 +1004,12 @@ Page({
       if (form.kind === 'club') {
         if (!form.categoryId) { wx.showToast({ title: '请选择所属分类', icon: 'none' }); return }
         if (!String(form.name || '').trim()) { wx.showToast({ title: '请填写社团名称', icon: 'none' }); return }
-        const payload = { categoryId: form.categoryId, name: String(form.name).trim(), tags: String(form.tags || '').trim(), intro: String(form.intro || '').trim(), recruit: String(form.recruit || '').trim(), sortOrder: Number(form.sortOrder) || 0, status: form.status ? 1 : 0 }
+        const payload = { categoryId: form.categoryId, name: String(form.name).trim(), tags: String(form.tags || '').trim(), intro: String(form.intro || '').trim(), recruit: String(form.recruit || '').trim(), campus: form.campus || '', sortOrder: Number(form.sortOrder) || 0, status: form.status ? 1 : 0 }
         form.id ? await admin.updateClub(form.id, payload) : await admin.createClub(payload)
       }
       if (form.kind === 'chatGroup') {
         if (!String(form.name || '').trim()) { wx.showToast({ title: '请填写群聊名称', icon: 'none' }); return }
-        const payload = { name: String(form.name).trim(), category: GC_CATEGORIES[form.categoryIndex] || '', intro: String(form.intro || '').trim(), avatarUrl: form.meta.avatarUrl || '', qrcodeUrl: form.meta.qrcodeUrl || '', sortOrder: Number(form.sortOrder) || 0, status: form.status ? 1 : 0 }
+        const payload = { name: String(form.name).trim(), category: GC_CATEGORIES[form.categoryIndex] || '', intro: String(form.intro || '').trim(), avatarUrl: form.meta.avatarUrl || '', qrcodeUrl: form.meta.qrcodeUrl || '', isOfficial: form.isOfficial ? 1 : 0, customTag: String(form.customTag || '').trim(), campus: form.campus || '', sortOrder: Number(form.sortOrder) || 0, status: form.status ? 1 : 0 }
         form.id ? await admin.updateGroupChatGroup(form.id, payload) : await admin.createGroupChatGroup(payload)
       }
       wx.showToast({ title: '已保存', icon: 'success' }); this.setData({ form: null }); this.loadCurrent()

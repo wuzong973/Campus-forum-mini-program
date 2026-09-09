@@ -773,6 +773,8 @@ async function runMigrations() {
       INDEX idx_club_category (category_id, status, sort_order)
     ) ENGINE=InnoDB
   `)
+  // 社团校区维度：'' = 全部校区（所有校区可见）
+  await ensureColumn('club', 'campus', "VARCHAR(16) DEFAULT '' AFTER recruit")
   // ===== 广轻群聊 =====
   await pool.query(`
     CREATE TABLE IF NOT EXISTS group_chat_apply (
@@ -796,6 +798,8 @@ async function runMigrations() {
       INDEX idx_gca_status (status, created_at)
     ) ENGINE=InnoDB
   `)
+  // 建群申请校区：用户提交时选择，审核通过后随群聊落库
+  await ensureColumn('group_chat_apply', 'campus', "VARCHAR(16) DEFAULT '' AFTER category")
   await pool.query(`
     CREATE TABLE IF NOT EXISTS group_chat (
       id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -813,6 +817,12 @@ async function runMigrations() {
       INDEX idx_group_chat_feed (status, deleted, sort_order)
     ) ENGINE=InnoDB
   `)
+  // 官方群标记：分类群列表名称右侧展示黑色「官方」徽标
+  await ensureColumn('group_chat', 'is_official', 'TINYINT(1) NOT NULL DEFAULT 0 AFTER qrcode_url')
+  // 自定义群标签：管理员手动填写（如「合作」），与官方徽标并列展示
+  await ensureColumn('group_chat', 'custom_tag', "VARCHAR(16) DEFAULT '' AFTER is_official")
+  // 校区维度：'' = 全部校区（所有校区可见），否则按所选校区筛选
+  await ensureColumn('group_chat', 'campus', "VARCHAR(16) DEFAULT '' AFTER custom_tag")
   // 六大社团分类 + 30 个代表社团（仅空表时写入，之后由后台维护）
   await require('./clubSeed').seedClubData()
 }

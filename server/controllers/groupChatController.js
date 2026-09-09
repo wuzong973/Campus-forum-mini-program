@@ -5,6 +5,8 @@ const { writeAdminAudit } = require('../utils/adminAudit')
 
 const HTTPS_URL = /^https:\/\/\S{1,500}$/i
 const MAX_IMAGES = 4
+// 校区取值（与用户端 utils/campus.js 保持一致）；'' = 全部校区
+const CAMPUS_VALUES = ['广州校区', '佛山校区', '南海南校区', '南海北校区']
 
 async function audit(req, action, targetType, targetId, detail) {
   try {
@@ -60,6 +62,7 @@ function mapApplyRow(row) {
     avatar: row.avatar_url || '',
     groupType: row.group_type || '微信群',
     category: row.category || '',
+    campus: row.campus || '',
     name: row.name || '',
     intro: row.intro || '',
     avatarUrl: row.avatar_url || '',
@@ -83,6 +86,9 @@ function mapGroupRow(row) {
     intro: row.intro || '',
     avatarUrl: row.avatar_url || '',
     qrcodeUrl: row.qrcode_url || '',
+    isOfficial: Number(row.is_official) ? 1 : 0,
+    customTag: row.custom_tag || '',
+    campus: row.campus || '',
     sortOrder: row.sort_order || 0,
     status: Number(row.status),
     createdAt: row.created_at
@@ -95,6 +101,7 @@ function mapGroupRow(row) {
 exports.submitApply = async (req, res) => {
   const body = req.body || {}
   const category = optionalText(body.category, 32)
+  const campus = optionalText(body.campus, 16) || ''
   const name = optionalText(body.name, 64)
   const intro = optionalText(body.intro, 1000)
   const avatarUrl = optionalUrl(body.avatarUrl)
@@ -102,6 +109,7 @@ exports.submitApply = async (req, res) => {
   const adminQrcodeUrl = optionalUrl(body.adminQrcodeUrl)
   const gzhQrcodeUrl = optionalUrl(body.gzhQrcodeUrl)
   if (!category) return fail(res, '请选择群类别')
+  if (campus && CAMPUS_VALUES.indexOf(campus) < 0) return fail(res, '校区取值不正确')
   if (!name) return fail(res, '请填写群名')
   if (avatarUrl === null || qrcodeUrl === null || adminQrcodeUrl === null || gzhQrcodeUrl === null) {
     return fail(res, '图片地址不合法')
@@ -119,9 +127,9 @@ exports.submitApply = async (req, res) => {
   }
   try {
     const [result] = await pool.query(
-      `INSERT INTO group_chat_apply (user_id, group_type, category, name, intro, avatar_url, qrcode_url, admin_qrcode_url, gzh_qrcode_url, images)
-       VALUES (?, '微信群', ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [req.userId, category, name, intro, avatarUrl, qrcodeUrl, adminQrcodeUrl, gzhQrcodeUrl,
+      `INSERT INTO group_chat_apply (user_id, group_type, category, campus, name, intro, avatar_url, qrcode_url, admin_qrcode_url, gzh_qrcode_url, images)
+       VALUES (?, '微信群', ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [req.userId, category, campus, name, intro, avatarUrl, qrcodeUrl, adminQrcodeUrl, gzhQrcodeUrl,
        images.length ? JSON.stringify(images) : null]
     )
     success(res, { id: result.insertId, status: 'pending' })
@@ -139,15 +147,44 @@ exports.myApplies = async (req, res) => {
   } catch (e) { fail(res, safeMessage(e), 500) }
 }
 
-// 公开接口：已上架群聊列表（前台群聊分类页数据源）
+// 公开接口：已上架群聊列表（前台群聊分类页数据源，支持按校区筛选，'' = 全部校区）
 exports.listGroups = async (req, res) => {
   try {
+    let where = 'WHERE deleted = 0 AND status = 1'
+    const params = []
+    const campus = String(req.query.campus || '').trim()
+    if (campus && CAMPUS_VALUES.indexOf(campus) >= 0) {
+      where += ' AND (campus = ? OR campus = \'\')'
+      params.push(campus)
+    }
     const [rows] = await pool.query(
-      `SELECT id, apply_id, name, category, intro, avatar_url, qrcode_url, sort_order, status, created_at
-       FROM group_chat WHERE deleted = 0 AND status = 1
-       ORDER BY sort_order ASC, id ASC`
+      `SELECT id, apply_id, name, category, intro, avatar_url, qrcode_url, is_official, custom_tag, campus, sort_order, status, created_at
+       FROM group_chat ${where}
+       ORDER BY sort_order ASC, id ASC`,
+      params
     )
     success(res, { list: rows.map(mapGroupRow) })
+  } catch (e) { fail(res, safeMessage(e), 500) }
+}
+
+// 公开接口：群聊详情（含申请单里的管理员二维码与介绍图片）
+exports.detail = async (req, res) => {
+  const id = intId(req.params.id)
+  if (!id) return fail(res, 'Invalid group id')
+  try {
+    const [rows] = await pool.query(
+      `SELECT g.*, a.admin_qrcode_url apply_admin_qrcode, a.images apply_images
+       FROM group_chat g LEFT JOIN group_chat_apply a ON a.id = g.apply_id
+       WHERE g.id = ? AND g.deleted = 0 AND g.status = 1 LIMIT 1`,
+      [id]
+    )
+    if (!rows.length) return fail(res, '群聊不存在或已下架', 404)
+    const row = rows[0]
+    success(res, {
+      group: mapGroupRow(row),
+      adminQrcodeUrl: row.apply_admin_qrcode || '',
+      images: parseMaybeJson(row.apply_images, [])
+    })
   } catch (e) { fail(res, safeMessage(e), 500) }
 }
 
@@ -200,14 +237,14 @@ exports.reviewApply = async (req, res) => {
       const [existing] = await pool.query('SELECT id FROM group_chat WHERE apply_id = ? AND deleted = 0 LIMIT 1', [id])
       if (existing.length) {
         await pool.query(
-          `UPDATE group_chat SET name = ?, category = ?, intro = ?, avatar_url = ?, qrcode_url = ?, status = 1 WHERE id = ?`,
-          [apply.name, apply.category, apply.intro || '', apply.avatar_url || '', apply.qrcode_url || '', existing[0].id]
+          `UPDATE group_chat SET name = ?, category = ?, campus = ?, intro = ?, avatar_url = ?, qrcode_url = ?, status = 1 WHERE id = ?`,
+          [apply.name, apply.category, apply.campus || '', apply.intro || '', apply.avatar_url || '', apply.qrcode_url || '', existing[0].id]
         )
       } else {
         await pool.query(
-          `INSERT INTO group_chat (apply_id, name, category, intro, avatar_url, qrcode_url, sort_order, status)
-           VALUES (?, ?, ?, ?, ?, ?, 0, 1)`,
-          [id, apply.name, apply.category, apply.intro || '', apply.avatar_url || '', apply.qrcode_url || '']
+          `INSERT INTO group_chat (apply_id, name, category, campus, intro, avatar_url, qrcode_url, sort_order, status)
+           VALUES (?, ?, ?, ?, ?, ?, ?, 0, 1)`,
+          [id, apply.name, apply.category, apply.campus || '', apply.intro || '', apply.avatar_url || '', apply.qrcode_url || '']
         )
       }
     } else {
@@ -228,7 +265,7 @@ exports.adminListGroups = async (req, res) => {
     const [[count], [list]] = await Promise.all([
       pool.query(`SELECT COUNT(*) total FROM group_chat ${where}`, params),
       pool.query(
-        `SELECT id, apply_id, name, category, intro, avatar_url, qrcode_url, sort_order, status, created_at
+        `SELECT id, apply_id, name, category, intro, avatar_url, qrcode_url, is_official, custom_tag, campus, sort_order, status, created_at
          FROM group_chat ${where} ORDER BY sort_order ASC, id DESC LIMIT ? OFFSET ?`,
         params.concat([pageSize, offset])
       )
@@ -267,6 +304,17 @@ function validateGroupPayload(body, { partial } = {}) {
     if (!Number.isInteger(sortOrder)) return { error: '排序值需为整数' }
     data.sort_order = sortOrder
   }
+  if (body.isOfficial !== undefined) data.is_official = Number(body.isOfficial) ? 1 : 0
+  if (body.customTag !== undefined) {
+    const customTag = optionalText(body.customTag, 16)
+    if (customTag === null) return { error: '自定义标签需在 16 字以内' }
+    data.custom_tag = customTag
+  }
+  if (body.campus !== undefined) {
+    const campus = optionalText(body.campus, 16) || ''
+    if (campus && CAMPUS_VALUES.indexOf(campus) < 0) return { error: '校区取值不正确' }
+    data.campus = campus
+  }
   if (body.status !== undefined) data.status = Number(body.status) ? 1 : 0
   return { data }
 }
@@ -276,10 +324,10 @@ exports.createGroup = async (req, res) => {
   if (error) return fail(res, error)
   try {
     const [result] = await pool.query(
-      `INSERT INTO group_chat (apply_id, name, category, intro, avatar_url, qrcode_url, sort_order, status)
-       VALUES (NULL, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO group_chat (apply_id, name, category, intro, avatar_url, qrcode_url, is_official, custom_tag, campus, sort_order, status)
+       VALUES (NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [data.name, data.category || '', data.intro || '', data.avatar_url || '', data.qrcode_url || '',
-       data.sort_order || 0, data.status === undefined ? 1 : data.status]
+       data.is_official || 0, data.custom_tag || '', data.campus || '', data.sort_order || 0, data.status === undefined ? 1 : data.status]
     )
     await audit(req, 'groupchat.group.create', 'group_chat', result.insertId, { name: data.name })
     success(res, { id: result.insertId })

@@ -278,3 +278,96 @@
   opacity: 0.6;
   color: #ffffff;
 }
+
+/* ===== 校区选择器（与群聊分类页 campus-bar 同款） ===== */
+.campus-bar {
+  display: inline-flex;
+  align-items: center;
+  gap: 12rpx;
+  background: #ffffff;
+  border: 1rpx solid #eef0f4;
+  border-radius: 40rpx;
+  padding: 14rpx 24rpx;
+  box-shadow: 0 6rpx 16rpx rgba(31, 42, 68, 0.05);
+}
+
+.campus-bar--hover {
+  background: #f7f9fc;
+}
+
+.campus-bar-label {
+  font-size: 24rpx;
+  color: #9aa3b2;
+}
+
+.campus-bar-value {
+  font-size: 26rpx;
+  font-weight: 700;
+  color: #1f2a44;
+}
+
+.campus-bar-arrow {
+  font-size: 22rpx;
+  color: #9aa3b2;
+}
+
+.campus-mask {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 90;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 56rpx;
+}
+
+.campus-panel {
+  width: 100%;
+  background: #ffffff;
+  border-radius: 24rpx;
+  padding: 30rpx 30rpx 26rpx;
+}
+
+.campus-panel-title {
+  font-size: 32rpx;
+  font-weight: 800;
+  color: #1f2a44;
+}
+
+.campus-grid {
+  margin-top: 24rpx;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20rpx;
+}
+
+.campus-option {
+  height: 88rpx;
+  border-radius: 14rpx;
+  background: #f2f3f5;
+  border: 3rpx solid transparent;
+  color: #4a5468;
+  font-size: 27rpx;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.campus-option--active {
+  background: #eef4ff;
+  border-color: #2e6bff;
+  color: #2e6bff;
+}
+
+.campus-panel-tip {
+  margin-top: 22rpx;
+  font-size: 23rpx;
+  color: #9aa3b2;
+  text-align: center;
+}

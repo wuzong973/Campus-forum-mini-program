@@ -1,0 +1,75 @@
+<view class="page page-enter">
+  <view class="topbar" style="padding-top: {{statusBarHeight}}px;">
+    <view class="back-pill" hover-class="back-pill-hover" hover-stay-time="80" bindtap="goBack"><text class="back-pill-icon">‹</text><text>返回</text></view>
+  </view>
+
+  <view class="content" wx:if="{{group}}">
+    <!-- 头部：头像 + 群名 + 类型/官方徽标 -->
+    <view class="head-card">
+      <image wx:if="{{group.avatarUrl}}" class="head-avatar" src="{{group.avatarUrl}}" mode="aspectFill" />
+      <view wx:else class="head-avatar head-avatar-fallback">
+        <text>{{group.name[0]}}</text>
+      </view>
+      <view class="head-info">
+        <view class="head-name">{{group.name}}</view>
+        <view class="head-badges">
+          <text class="type-badge">微信群</text>
+          <text wx:if="{{group.isOfficial}}" class="official-badge">官方</text>
+          <text wx:if="{{group.customTag}}" class="custom-badge">{{group.customTag}}</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 群管理：管理员微信二维码 -->
+    <view class="sec-card" wx:if="{{adminQrcodeUrl}}">
+      <view class="sec-title">群管理</view>
+      <view class="admin-row" hover-class="admin-row--hover" bindtap="onPreviewAdmin">
+        <image class="admin-qr" src="{{adminQrcodeUrl}}" mode="aspectFill" />
+        <view class="admin-info">
+          <text class="admin-name">管理员微信</text>
+          <text class="admin-tip">点击放大，添加管理员咨询进群</text>
+        </view>
+        <text class="row-arrow">›</text>
+      </view>
+    </view>
+
+    <!-- 加入方式：群二维码大图 -->
+    <view class="sec-card" wx:if="{{group.qrcodeUrl}}">
+      <view class="sec-title">加入方式</view>
+      <view class="qr-wrap" hover-class="qr-wrap--hover" bindtap="onPreviewQr">
+        <image class="qr-img" src="{{group.qrcodeUrl}}" mode="widthFix" />
+      </view>
+      <view class="qr-tip">点击二维码可放大保存 · 微信扫码进群</view>
+    </view>
+
+    <!-- 群介绍 -->
+    <view class="sec-card" wx:if="{{group.intro || images.length}}">
+      <view class="sec-title">群介绍</view>
+      <text wx:if="{{group.intro}}" class="intro-text">{{group.intro}}</text>
+      <scroll-view class="img-scroll" scroll-x="{{true}}" enhanced="{{true}}" show-scrollbar="{{false}}" wx:if="{{images.length > 3}}">
+        <image
+          wx:for="{{images}}"
+          wx:key="index"
+          class="img-scroll-item"
+          src="{{item}}"
+          mode="aspectFill"
+          lazy-load="{{true}}"
+          data-url="{{item}}"
+          bindtap="onPreviewImage"
+        />
+      </scroll-view>
+      <view class="img-grid" wx:if="{{images.length && images.length <= 3}}">
+        <image
+          wx:for="{{images}}"
+          wx:key="index"
+          class="img-item"
+          src="{{item}}"
+          mode="aspectFill"
+          lazy-load="{{true}}"
+          data-url="{{item}}"
+          bindtap="onPreviewImage"
+        />
+      </view>
+    </view>
+  </view>
+</view>

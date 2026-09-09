@@ -536,13 +536,17 @@ function markErrandChatRead(orderId) {
 }
 
 // ===== 社团&组织 =====
-function getClubCategories() {
-  return request.get("/club/categories", {}, false);
+function getClubCategories(campus) {
+  return request.get("/club/categories", campus ? { campus: campus } : {}, false);
 }
 
 // ===== 广轻群聊 =====
-function getGroupChatList() {
-  return request.get("/group-chat/list", {}, false);
+function getGroupChatList(campus) {
+  return request.get("/group-chat/list", campus ? { campus: campus } : {}, false);
+}
+
+function getGroupChatDetail(id) {
+  return request.get("/group-chat/detail/" + id, {}, false);
 }
 
 function submitGroupChatApply(data) {
@@ -568,6 +572,7 @@ module.exports = {
   getServiceList,
   getClubCategories,
   getGroupChatList,
+  getGroupChatDetail,
   submitGroupChatApply,
   getMyGroupChatApplies,
   getErrandList,

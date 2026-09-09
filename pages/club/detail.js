@@ -1,4 +1,5 @@
 const { getCategoryById, fetchCategories } = require('../../utils/club-data')
+const { CAMPUS_OPTIONS, getDefaultCampus } = require('../../utils/campus')
 
 Page({
   data: {
@@ -8,9 +9,12 @@ Page({
 
   onLoad(options) {
     this.categoryId = (options && options.id) || ''
+    // 校区：优先取上级页面带入，缺省回退用户设置中的校区
+    const fromQuery = decodeURIComponent((options && options.campus) || '')
+    this.campus = CAMPUS_OPTIONS.indexOf(fromQuery) >= 0 ? fromQuery : getDefaultCampus()
     // 先用本地数据秒开，再拉服务端数据覆盖（后台编辑后实时生效）
     this.applyCategory(getCategoryById(this.categoryId))
-    fetchCategories().then((categories) => {
+    fetchCategories(this.campus).then((categories) => {
       const matched = (categories || []).find((item) => item.id === this.categoryId)
       if (matched) {
         this.applyCategory(matched)

@@ -1,5 +1,7 @@
 const api = require('../../utils/api')
-const { isLoggedIn } = require('../../utils/auth')
+const auth = require('../../utils/auth')
+const { buildCategories } = require('../../utils/group-chat')
+const { CAMPUS_OPTIONS, getDefaultCampus } = require('../../utils/campus')
 
 const STATUS_TEXT = {
   pending: '待审核',
@@ -11,7 +13,10 @@ Page({
   data: {
     statusBarHeight: 20,
     showModal: false,
-    groups: [],
+    campus: '',
+    campusOptions: CAMPUS_OPTIONS,
+    showCampusPanel: false,
+    categories: [],
     myApplies: []
   },
 
@@ -19,7 +24,8 @@ Page({
     const info = typeof wx.getWindowInfo === 'function'
       ? wx.getWindowInfo()
       : wx.getSystemInfoSync()
-    this.setData({ statusBarHeight: info.statusBarHeight || 20 })
+    // 默认选中用户在「设置」中选择的校区
+    this.setData({ statusBarHeight: info.statusBarHeight || 20, campus: getDefaultCampus() })
   },
 
   onShow() {
@@ -31,16 +37,37 @@ Page({
     Promise.all([this.loadGroups(), this.loadMyApplies()]).catch(() => {}).then(() => wx.stopPullDownRefresh())
   },
 
-  // 已上架群聊：后台审核通过后自动出现在这里
+  // 已上架群聊 → 按分类聚合为宫格卡片（按当前校区筛选；空校区=全部校区）
   loadGroups() {
-    return api.getGroupChatList().then((res) => {
-      this.setData({ groups: (res && res.list) || [] })
+    return api.getGroupChatList(this.data.campus).then((res) => {
+      const groups = (res && res.list) || []
+      this.setData({ categories: buildCategories(groups) })
     }).catch(() => {})
+  },
+
+  // ===== 校区选择器 =====
+  onToggleCampus() {
+    this.setData({ showCampusPanel: !this.data.showCampusPanel })
+  },
+
+  onCloseCampus() {
+    this.setData({ showCampusPanel: false })
+  },
+
+  onSelectCampus(e) {
+    const campus = e.currentTarget.dataset.value
+    if (!campus || campus === this.data.campus) {
+      this.setData({ showCampusPanel: false })
+      return
+    }
+    wx.vibrateShort({ type: 'light' })
+    this.setData({ campus, showCampusPanel: false })
+    this.loadGroups()
   },
 
   // 我的申请：登录状态下展示审核进度与审核意见
   loadMyApplies() {
-    if (!isLoggedIn()) {
+    if (!auth.isLoggedIn()) {
       this.setData({ myApplies: [] })
       return Promise.resolve()
     }
@@ -58,14 +85,14 @@ Page({
     })
   },
 
-  // 点击群聊卡片 → 预览进群二维码
-  onGroupTap(e) {
-    const qrcode = e.currentTarget.dataset.qrcode
-    if (!qrcode) {
-      wx.showToast({ title: '该群暂未配置二维码', icon: 'none' })
-      return
-    }
-    wx.previewImage({ urls: [qrcode] })
+  // 点击分类卡片 → 该类别下的群聊列表
+  onCategoryTap(e) {
+    const name = e.currentTarget.dataset.name
+    if (!name) return
+    wx.vibrateShort({ type: 'light' })
+    wx.navigateTo({
+      url: '/pages/group-chat/list?name=' + encodeURIComponent(name)
+    })
   },
 
   // 右下角「创建」按钮 → 弹出首次入驻弹窗

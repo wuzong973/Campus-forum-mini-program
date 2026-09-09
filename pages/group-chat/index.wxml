@@ -7,24 +7,28 @@
     <view class="page-title">群聊分类</view>
     <view class="page-sub">按类型浏览，找到你感兴趣的圈子</view>
 
-    <view class="empty" wx:if="{{!groups.length}}">
-      <view class="empty-icon"><text class="empty-q">?</text></view>
-      <text class="empty-text">等待管理员添加</text>
+    <view class="campus-bar" hover-class="campus-bar--hover" hover-stay-time="80" bindtap="onToggleCampus">
+      <text class="campus-bar-label">校区</text>
+      <text class="campus-bar-value">{{campus}}</text>
+      <text class="campus-bar-arrow">{{showCampusPanel ? '▴' : '▾'}}</text>
     </view>
 
-    <view class="group-list" wx:else>
-      <view class="group-card" wx:for="{{groups}}" wx:key="id"
-            hover-class="group-card--hover" hover-stay-time="80"
-            bindtap="onGroupTap" data-qrcode="{{item.qrcodeUrl}}">
-        <image class="group-avatar" src="{{item.avatarUrl}}" mode="aspectFill" lazy-load="{{true}}" />
-        <view class="group-info">
-          <view class="group-name-row">
-            <text class="group-name">{{item.name}}</text>
-            <text class="group-tag" wx:if="{{item.category}}">{{item.category}}</text>
-          </view>
-          <text class="group-intro">{{item.intro}}</text>
-          <view class="group-join"><text class="group-join-dot"></text><text>微信群 · 点击查看进群二维码</text></view>
+    <view class="gc-grid">
+      <view
+        class="gc-card anim-stagger"
+        style="--i:{{index}}"
+        wx:for="{{categories}}"
+        wx:key="id"
+        data-name="{{item.name}}"
+        bindtap="onCategoryTap"
+        hover-class="gc-card--hover"
+        hover-stay-time="120"
+      >
+        <view class="gc-icon" style="background:{{item.theme.gradient}};box-shadow:0 12rpx 24rpx {{item.theme.shadow}};">
+          <text class="gc-icon-char">{{item.char}}</text>
         </view>
+        <view class="gc-name">{{item.name}}</view>
+        <view class="gc-desc">{{item.intro}}</view>
       </view>
     </view>
 
@@ -43,6 +47,23 @@
 
 <view class="create-btn" hover-class="create-btn--hover" hover-stay-time="120" bindtap="onCreate">
   <view class="create-pencil"></view>
+</view>
+
+<!-- 校区选择弹层（fixed 元素放在带动画容器外） -->
+<view wx:if="{{showCampusPanel}}" class="campus-mask" bindtap="onCloseCampus">
+  <view class="campus-panel" catchtap="noop">
+    <view class="campus-panel-title">校区选择</view>
+    <view class="campus-grid">
+      <view
+        wx:for="{{campusOptions}}"
+        wx:key="*this"
+        class="campus-option {{campus === item ? 'campus-option--active' : ''}}"
+        data-value="{{item}}"
+        bindtap="onSelectCampus"
+      >{{item}}</view>
+    </view>
+    <view class="campus-panel-tip">切换后将展示该校区下的群聊</view>
+  </view>
 </view>
 
 <view wx:if="{{showModal}}" class="modal-mask anim-fade" bindtap="onCloseModal">

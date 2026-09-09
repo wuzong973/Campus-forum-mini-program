@@ -18,6 +18,8 @@
     "pages/club/detail",
     "pages/group-chat/index",
     "pages/group-chat/apply",
+    "pages/group-chat/list",
+    "pages/group-chat/detail",
     "pages/post-publish/index",
     "pages/post-detail/index",
     "pages/hot-rank/index",

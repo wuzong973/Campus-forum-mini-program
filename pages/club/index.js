@@ -1,8 +1,12 @@
 const { CLUB_CATEGORIES, fetchCategories } = require('../../utils/club-data')
+const { CAMPUS_OPTIONS, getDefaultCampus } = require('../../utils/campus')
 
 Page({
   data: {
     pageTitle: '社团&组织',
+    campus: '',
+    campusOptions: CAMPUS_OPTIONS,
+    showCampusPanel: false,
     categories: [],
     stats: { categoryCount: 0, clubCount: 0, scopeCount: 0 }
   },
@@ -16,6 +20,8 @@ Page({
   },
 
   onLoad() {
+    // 默认选中用户在「设置」中选择的校区
+    this.setData({ campus: getDefaultCampus() })
     // 先用本地数据秒开，再拉服务端数据覆盖（后台编辑后实时生效）
     this.setData({
       categories: CLUB_CATEGORIES,
@@ -29,7 +35,7 @@ Page({
   },
 
   loadServerData(done) {
-    fetchCategories().then((categories) => {
+    fetchCategories(this.data.campus).then((categories) => {
       if (!categories || !categories.length) {
         if (typeof done === 'function') done()
         return
@@ -44,13 +50,35 @@ Page({
     })
   },
 
+  // ===== 校区选择器 =====
+  onToggleCampus() {
+    this.setData({ showCampusPanel: !this.data.showCampusPanel })
+  },
+
+  onCloseCampus() {
+    this.setData({ showCampusPanel: false })
+  },
+
+  onSelectCampus(e) {
+    const campus = e.currentTarget.dataset.value
+    if (!campus || campus === this.data.campus) {
+      this.setData({ showCampusPanel: false })
+      return
+    }
+    wx.vibrateShort({ type: 'light' })
+    this.setData({ campus, showCampusPanel: false })
+    this.loadServerData()
+  },
+
   onCategoryTap(e) {
     const id = e.currentTarget.dataset.id
     const category = this.data.categories.find((item) => item.id === id)
     if (!category) return
     wx.vibrateShort({ type: 'light' })
     wx.navigateTo({
-      url: '/pages/club/detail?id=' + category.id
+      url: '/pages/club/detail?id=' + category.id + '&campus=' + encodeURIComponent(this.data.campus)
     })
-  }
+  },
+
+  noop() {}
 })

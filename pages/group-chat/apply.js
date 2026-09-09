@@ -1,17 +1,18 @@
 const api = require('../../utils/api')
 const wechat = require('../../utils/wechat')
 const auth = require('../../utils/auth')
+const { CAMPUS_OPTIONS, getDefaultCampus } = require('../../utils/campus')
 
 const CATEGORIES = [
-  '新生群',
-  '班级/学院群',
-  '社团/组织群',
-  '学习交流群',
-  '兴趣圈子',
-  '二手/闲置群',
-  '搭子/拼车群',
-  '校园资讯',
-  '其他'
+  '学院群',
+  '线下桌游群',
+  '飞梦',
+  '体育运动群',
+  '老乡群',
+  '学习竞赛',
+  '交易群',
+  '游戏群',
+  '新生群'
 ]
 
 // 申请记录本地暂存 key（等待管理员审核接入后改为提交服务端）
@@ -22,6 +23,9 @@ Page({
     statusBarHeight: 20,
     categories: CATEGORIES,
     categoryIndex: -1,
+    campus: '',
+    campusOptions: CAMPUS_OPTIONS,
+    showCampusPanel: false,
     name: '',
     adminQr: '',
     avatar: '',
@@ -36,7 +40,23 @@ Page({
     const info = typeof wx.getWindowInfo === 'function'
       ? wx.getWindowInfo()
       : wx.getSystemInfoSync()
-    this.setData({ statusBarHeight: info.statusBarHeight || 20 })
+    this.setData({ statusBarHeight: info.statusBarHeight || 20, campus: getDefaultCampus() })
+  },
+
+  noop() {},
+
+  onToggleCampus() {
+    this.setData({ showCampusPanel: !this.data.showCampusPanel })
+  },
+
+  onCloseCampus() {
+    this.setData({ showCampusPanel: false })
+  },
+
+  onSelectCampus(e) {
+    const campus = e.currentTarget.dataset.value
+    if (!campus) return
+    this.setData({ campus, showCampusPanel: false })
   },
 
   goBack() {
@@ -177,6 +197,7 @@ Page({
       return api.submitGroupChatApply({
         groupType: '微信群',
         category: CATEGORIES[d.categoryIndex],
+        campus: d.campus,
         name: d.name.trim(),
         intro: d.intro.trim(),
         avatarUrl: urlMap.avatarUrl || '',
@@ -207,6 +228,7 @@ Page({
       id: 'gc' + Date.now(),
       type: '微信群',
       category: CATEGORIES[d.categoryIndex],
+      campus: d.campus,
       name: d.name.trim(),
       avatar: d.avatar,
       qrcode: d.qrcode,

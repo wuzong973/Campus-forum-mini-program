@@ -4,6 +4,8 @@ const { safeMessage } = require('../utils/helpers')
 const { writeAdminAudit } = require('../utils/adminAudit')
 
 const HEX_COLOR = /^#[0-9a-fA-F]{6}$/
+// 校区取值（与用户端 utils/campus.js 保持一致）；'' = 全部校区
+const CAMPUS_VALUES = ['广州校区', '佛山校区', '南海南校区', '南海北校区']
 
 async function audit(req, action, targetType, targetId, detail) {
   try {
@@ -56,15 +58,18 @@ function mapCategoryRow(row, clubs) {
   }
 }
 
-async function loadClubsByCategory(categoryIds, onlyEnabled) {
+async function loadClubsByCategory(categoryIds, onlyEnabled, campus) {
   if (!categoryIds.length) return {}
   const placeholders = categoryIds.map(() => '?').join(',')
   const extra = onlyEnabled ? ' AND status = 1' : ''
+  const campusClause = campus && CAMPUS_VALUES.indexOf(campus) >= 0 ? ' AND (campus = ? OR campus = \'\')' : ''
+  const params = categoryIds.slice()
+  if (campusClause) params.push(campus)
   const [rows] = await pool.query(
-    `SELECT id, category_id, name, tags, intro, recruit, sort_order, status
-     FROM club WHERE deleted = 0 AND category_id IN (${placeholders})${extra}
+    `SELECT id, category_id, name, tags, intro, recruit, campus, sort_order, status
+     FROM club WHERE deleted = 0 AND category_id IN (${placeholders})${extra}${campusClause}
      ORDER BY sort_order ASC, id ASC`,
-    categoryIds
+    params
   )
   const grouped = {}
   for (const row of rows) {
@@ -75,6 +80,7 @@ async function loadClubsByCategory(categoryIds, onlyEnabled) {
       tags: row.tags || '',
       intro: row.intro || '',
       recruit: row.recruit || '',
+      campus: row.campus || '',
       sortOrder: row.sort_order || 0,
       status: Number(row.status)
     })
@@ -82,13 +88,14 @@ async function loadClubsByCategory(categoryIds, onlyEnabled) {
   return grouped
 }
 
-// 公开接口：前台社团&组织页数据源（含各分类下的社团列表）
+// 公开接口：前台社团&组织页数据源（含各分类下的社团列表，支持按校区筛选，'' = 全部校区）
 exports.listCategories = async (req, res) => {
   try {
+    const campus = String(req.query.campus || '').trim()
     const [rows] = await pool.query(
       'SELECT * FROM club_category WHERE deleted = 0 AND status = 1 ORDER BY sort_order ASC, id ASC'
     )
-    const grouped = await loadClubsByCategory(rows.map((r) => r.id), true)
+    const grouped = await loadClubsByCategory(rows.map((r) => r.id), true, campus)
     success(res, { list: rows.map((row) => mapCategoryRow(row, grouped[row.id] || [])) })
   } catch (e) { fail(res, safeMessage(e), 500) }
 }
@@ -246,6 +253,11 @@ function validateClubPayload(body, { partial } = {}) {
     if (recruit === null) return { error: '招新说明需在 255 字以内' }
     data.recruit = recruit
   }
+  if (body.campus !== undefined) {
+    const campus = optionalText(body.campus, 16) || ''
+    if (campus && CAMPUS_VALUES.indexOf(campus) < 0) return { error: '校区取值不正确' }
+    data.campus = campus
+  }
   if (body.sortOrder !== undefined) {
     const sortOrder = Number(body.sortOrder)
     if (!Number.isInteger(sortOrder)) return { error: '排序值需为整数' }
@@ -264,10 +276,10 @@ exports.createClub = async (req, res) => {
     const [categories] = await pool.query('SELECT id FROM club_category WHERE id = ? AND deleted = 0 LIMIT 1', [categoryId])
     if (!categories.length) return fail(res, '所属分类不存在', 404)
     const [result] = await pool.query(
-      `INSERT INTO club (category_id, name, tags, intro, recruit, sort_order, status)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO club (category_id, name, tags, intro, recruit, campus, sort_order, status)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       [categoryId, data.name, data.tags || '', data.intro || '', data.recruit || '',
-       data.sort_order || 0, data.status === undefined ? 1 : data.status]
+       data.campus || '', data.sort_order || 0, data.status === undefined ? 1 : data.status]
     )
     await audit(req, 'club.club.create', 'club', result.insertId, { categoryId, name: data.name })
     success(res, { id: result.insertId })
