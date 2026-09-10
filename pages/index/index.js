@@ -629,6 +629,12 @@ Page({
       wx.navigateTo({ url: '/pages/campus-map/index' })
       return
     }
+    // 校园活动：进入活动列表页面
+    if (item.name === '校园活动') {
+      wx.vibrateShort({ type: 'light' })
+      wx.navigateTo({ url: '/pages/activity/index' })
+      return
+    }
     // 广轻群聊：进入群聊分类页面
     if (item.name === '广轻群聊') {
       wx.vibrateShort({ type: 'light' })

@@ -50,5 +50,9 @@ module.exports = {
   groupChatGroups: (data) => get('/group-chat/groups', data),
   createGroupChatGroup: (data) => post('/group-chat/groups', data),
   updateGroupChatGroup: (id, data) => put('/group-chat/groups/' + id, data),
-  deleteGroupChatGroup: (id) => del('/group-chat/groups/' + id)
+  deleteGroupChatGroup: (id) => del('/group-chat/groups/' + id),
+  // 校园活动管理
+  activities: (data) => get('/activities', data),
+  updateActivity: (id, data) => put('/activities/' + id, data),
+  deleteActivity: (id) => del('/activities/' + id)
 }

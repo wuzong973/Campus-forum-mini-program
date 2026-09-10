@@ -1,11 +1,10 @@
 const { CLUB_CATEGORIES, fetchCategories } = require('../../utils/club-data')
-const { CAMPUS_OPTIONS, getDefaultCampus } = require('../../utils/campus')
+const { getDefaultCampus } = require('../../utils/campus')
 
 Page({
   data: {
     pageTitle: '社团&组织',
     campus: '',
-    campusOptions: CAMPUS_OPTIONS,
     showCampusPanel: false,
     categories: [],
     stats: { categoryCount: 0, clubCount: 0, scopeCount: 0 }
@@ -59,9 +58,10 @@ Page({
     this.setData({ showCampusPanel: false })
   },
 
-  onSelectCampus(e) {
-    const campus = e.currentTarget.dataset.value
-    if (!campus || campus === this.data.campus) {
+  // 校区选择器组件回调（含主校区/分校区两级）
+  onCampusChange(e) {
+    const campus = e.detail.value
+    if (campus === this.data.campus) {
       this.setData({ showCampusPanel: false })
       return
     }

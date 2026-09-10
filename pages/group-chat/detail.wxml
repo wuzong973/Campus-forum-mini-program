@@ -21,13 +21,21 @@
     </view>
 
     <!-- 群管理：管理员微信二维码 -->
-    <view class="sec-card" wx:if="{{adminQrcodeUrl}}">
+    <view class="sec-card" wx:if="{{adminQrcodeUrl || gzhQrcodeUrl}}">
       <view class="sec-title">群管理</view>
       <view class="admin-row" hover-class="admin-row--hover" bindtap="onPreviewAdmin">
         <image class="admin-qr" src="{{adminQrcodeUrl}}" mode="aspectFill" />
         <view class="admin-info">
           <text class="admin-name">管理员微信</text>
           <text class="admin-tip">点击放大，添加管理员咨询进群</text>
+        </view>
+        <text class="row-arrow">›</text>
+      </view>
+      <view class="admin-row" hover-class="admin-row--hover" bindtap="onPreviewGzh" wx:if="{{gzhQrcodeUrl}}">
+        <image class="admin-qr" src="{{gzhQrcodeUrl}}" mode="aspectFill" />
+        <view class="admin-info">
+          <text class="admin-name">公众号二维码</text>
+          <text class="admin-tip">点击放大，扫码关注公众号</text>
         </view>
         <text class="row-arrow">›</text>
       </view>

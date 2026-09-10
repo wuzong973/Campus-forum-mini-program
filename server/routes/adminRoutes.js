@@ -4,6 +4,7 @@ const controller = require('../controllers/adminController')
 const walletController = require('../controllers/walletController')
 const clubController = require('../controllers/clubController')
 const groupChatController = require('../controllers/groupChatController')
+const activityController = require('../controllers/activityController')
 const { auth, requireAdmin } = require('../middleware/auth')
 
 router.use(auth)
@@ -58,5 +59,10 @@ router.get('/group-chat/groups', requireAdmin('config.manage'), groupChatControl
 router.post('/group-chat/groups', requireAdmin('config.manage'), groupChatController.createGroup)
 router.put('/group-chat/groups/:id', requireAdmin('config.manage'), groupChatController.updateGroup)
 router.delete('/group-chat/groups/:id', requireAdmin('config.manage'), groupChatController.deleteGroup)
+
+// 校园活动管理（content.manage 权限）
+router.get('/activities', requireAdmin('content.manage'), activityController.adminList)
+router.put('/activities/:id', requireAdmin('content.manage'), activityController.adminUpdate)
+router.delete('/activities/:id', requireAdmin('content.manage'), activityController.adminDelete)
 
 module.exports = router

@@ -1,0 +1,34 @@
+<view wx:if="{{visible}}" class="cp-mask" bindtap="onClose">
+  <view class="cp-panel" catchtap="noop">
+    <view class="cp-head">
+      <text wx:if="{{level === 2}}" class="cp-back" catchtap="onBack">‹ 返回</text>
+      <text class="cp-title">{{level === 1 ? '校区选择' : activeMain + ' · 分校区'}}</text>
+    </view>
+
+    <!-- 一级：全部校区 + 主校区 -->
+    <view class="cp-grid" wx:if="{{level === 1}}">
+      <view class="cp-option {{value === '' ? 'cp-option--active' : ''}}" data-value="__all__" bindtap="onPickAll">全部校区</view>
+      <view
+        wx:for="{{groups}}"
+        wx:key="name"
+        class="cp-option {{value === item.name ? 'cp-option--active' : ''}}"
+        data-value="{{item.name}}"
+        bindtap="onPickMain"
+      >{{item.name}}</view>
+    </view>
+
+    <!-- 二级：主校区（全部）+ 分校区 -->
+    <view class="cp-grid" wx:else>
+      <view class="cp-option {{value === activeMain ? 'cp-option--active' : ''}}" data-value="{{activeMain}}" bindtap="onPickSub">全部（{{activeMain}}）</view>
+      <view
+        wx:for="{{subList}}"
+        wx:key="*this"
+        class="cp-option {{value === item ? 'cp-option--active' : ''}}"
+        data-value="{{item}}"
+        bindtap="onPickSub"
+      >{{item}}</view>
+    </view>
+
+    <view class="cp-tip">{{level === 1 ? (simple ? '选择活动/群聊归属的主校区' : '选择主校区后可继续细化到分校区') : '选择具体分校区，或选择主校区查看全部'}}</view>
+  </view>
+</view>

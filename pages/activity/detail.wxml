@@ -1,0 +1,59 @@
+<view class="page" wx:if="{{activity}}">
+  <!-- 封面 -->
+  <view class="cover-wrap">
+    <image wx:if="{{activity.coverUrl}}" class="cover-img" src="{{activity.coverUrl}}" mode="aspectFill" bindtap="onPreviewCover"/>
+    <view wx:if="{{badgeText}}" class="badge badge-{{activity.badge}}">{{badgeText}}</view>
+  </view>
+
+  <view class="content">
+    <!-- 标题与信息 -->
+    <view class="card">
+      <view class="act-title">{{activity.title}}</view>
+      <view class="quota-line">{{quotaText}}</view>
+      <view class="info-rows">
+        <view class="info-row"><text class="info-icon">📅</text><text class="info-label">报名时间</text><text class="info-value">{{signupStartText}} ~ {{signupEndText}}</text></view>
+        <view class="info-row"><text class="info-icon">🕐</text><text class="info-label">活动时间</text><text class="info-value">{{activityStartText}} ~ {{activityEndText}}</text></view>
+        <view class="info-row"><text class="info-icon">📍</text><text class="info-label">活动位置</text><text class="info-value">{{activity.location || '待定'}}</text></view>
+        <view class="info-row" wx:if="{{activity.address}}"><text class="info-icon">🗺️</text><text class="info-label">详细地址</text><text class="info-value">{{activity.address}}</text></view>
+      </view>
+    </view>
+
+    <!-- 详细介绍 -->
+    <view class="card" wx:if="{{activity.detailTitle || activity.detailContent || activity.images.length}}">
+      <view class="card-title">活动介绍</view>
+      <view class="detail-title" wx:if="{{activity.detailTitle}}">{{activity.detailTitle}}</view>
+      <text class="detail-content" wx:if="{{activity.detailContent}}">{{activity.detailContent}}</text>
+      <view class="img-grid" wx:if="{{activity.images.length}}">
+        <image
+          wx:for="{{activity.images}}"
+          wx:key="index"
+          class="img-item"
+          src="{{item}}"
+          mode="aspectFill"
+          lazy-load="{{true}}"
+          data-url="{{item}}"
+          bindtap="onPreviewImage"
+        />
+      </view>
+    </view>
+
+    <!-- 报名卡（图四：标题 + 内容 + 图片） -->
+    <view class="card signup-card" wx:if="{{activity.signupContent || activity.signupImage}}">
+      <view class="card-title">{{activity.signupTitle || '立即报名'}}</view>
+      <text class="signup-content" wx:if="{{activity.signupContent}}">{{activity.signupContent}}</text>
+      <view class="signup-img-wrap" wx:if="{{activity.signupImage}}" bindtap="onPreviewSignupImage">
+        <image class="signup-img" src="{{activity.signupImage}}" mode="widthFix"/>
+      </view>
+    </view>
+
+    <!-- 报名按钮 -->
+    <view
+      class="signup-btn {{signupDisabled ? 'signup-btn--disabled' : ''}}"
+      hover-class="{{signupDisabled ? '' : 'signup-btn--hover'}}"
+      hover-stay-time="100"
+      bindtap="onSignup"
+    >
+      {{signupBtnText}}
+    </view>
+  </view>
+</view>

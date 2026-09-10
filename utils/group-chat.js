@@ -5,11 +5,10 @@ const { themeFromColor } = require('./club-data')
 const CATEGORY_META = [
   { name: '学院群', char: '学', color: '#2E6BFF', intro: '各学院群聊' },
   { name: '线下桌游群', char: '线', color: '#8B5CF6', intro: '狼人杀、三国杀等' },
-  { name: '飞梦', char: '飞', color: '#38BDF8', intro: '飞扬与梦' },
   { name: '体育运动群', char: '体', color: '#F97B2F', intro: '羽毛球、乒乓球等运动群' },
   { name: '老乡群', char: '老', color: '#A78BFA', intro: '跨越山海，共叙乡情' },
   { name: '学习竞赛', char: '学', color: '#F5A70A', intro: '学科学习和竞赛交流群' },
-  { name: '交易群', char: '交', color: '#16B364', intro: '二手书、物品交易群' },
+  { name: '互助群', char: '互', color: '#16B364', intro: '二手书、物品交易群' },
   { name: '游戏群', char: '游', color: '#EAB308', intro: '组队开黑，快乐翻倍' },
   { name: '新生群', char: '新', color: '#F04438', intro: '各届广轻工学生新生群' }
 ]

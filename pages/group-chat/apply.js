@@ -1,16 +1,15 @@
 const api = require('../../utils/api')
 const wechat = require('../../utils/wechat')
 const auth = require('../../utils/auth')
-const { CAMPUS_OPTIONS, getDefaultCampus } = require('../../utils/campus')
+const { getDefaultCampus } = require('../../utils/campus')
 
 const CATEGORIES = [
   '学院群',
   '线下桌游群',
-  '飞梦',
   '体育运动群',
   '老乡群',
   '学习竞赛',
-  '交易群',
+  '互助群',
   '游戏群',
   '新生群'
 ]
@@ -24,7 +23,6 @@ Page({
     categories: CATEGORIES,
     categoryIndex: -1,
     campus: '',
-    campusOptions: CAMPUS_OPTIONS,
     showCampusPanel: false,
     name: '',
     adminQr: '',
@@ -53,9 +51,9 @@ Page({
     this.setData({ showCampusPanel: false })
   },
 
-  onSelectCampus(e) {
-    const campus = e.currentTarget.dataset.value
-    if (!campus) return
+  // 校区选择器组件回调（仅主校区层级：全部校区/广州校区/佛山校区）
+  onCampusChange(e) {
+    const campus = e.detail.value
     this.setData({ campus, showCampusPanel: false })
   },
 

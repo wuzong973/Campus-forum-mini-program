@@ -10,6 +10,7 @@ const TAB_PERMISSIONS = {
   content: 'config.manage',
   items: 'item.manage',
   clubGroup: 'config.manage',
+  activities: 'content.manage',
   // 合并父级菜单：拥有任一子页权限即可见（数组=或关系）
   userAdmin: ['user.manage', 'admin.manage'],
   review: ['payment.manage', 'user.manage'],
@@ -60,7 +61,7 @@ const BANNER_STYLE_FG = { red: '#e34d4d', green: '#3aa356', orange: '#e8930c', b
 
 // ===== 群聊管理：建群申请状态与可选群类别（与设计稿九大分类一致，顺序即展示顺序） =====
 const GC_APPLY_STATUS_TEXT = { pending: '待审核', approved: '已通过', rejected: '已驳回' }
-const GC_CATEGORIES = ['学院群', '线下桌游群', '飞梦', '体育运动群', '老乡群', '学习竞赛', '交易群', '游戏群', '新生群']
+const GC_CATEGORIES = ['学院群', '线下桌游群', '体育运动群', '老乡群', '学习竞赛', '交易群', '游戏群', '新生群']
 
 // ===== 校区维度（与用户端 utils/campus.js 一致；'' = 全部校区，所有校区可见） =====
 const CAMPUS_SELECT_OPTIONS = [
@@ -100,7 +101,8 @@ const CONTENT_TYPE_NAMES = {
 const TARGET_TYPE_NAMES = {
   post: '帖子', content: '内容配置', virtual_item: '虚拟物品', user: '用户', feature: '功能开关',
   content_report: '举报', rider_verification: '骑手认证', wallet_withdrawal: '提现申请', admin: '管理员',
-  club_category: '社团分类', club: '社团', group_chat_apply: '建群申请', group_chat: '群聊'
+  club_category: '社团分类', club: '社团', group_chat_apply: '建群申请', group_chat: '群聊',
+  campus_activity: '校园活动'
 }
 const ACTION_TEXT_MAP = {
   'content.create': '新增内容配置',
@@ -143,8 +145,13 @@ const ACTION_TEXT_MAP = {
   'groupchat.apply.reject': '驳回建群申请',
   'groupchat.group.create': '新增群聊',
   'groupchat.group.update': '更新群聊',
-  'groupchat.group.delete': '删除群聊'
+  'groupchat.group.delete': '删除群聊',
+  'activity.update': '更新校园活动',
+  'activity.delete': '删除校园活动'
 }
+
+// 活动状态徽标文案（与用户端一致）
+const ACTIVITY_BADGE_TEXT = { signing: '报名中', notStarted: '报名未开始', ended: '已结束' }
 
 // 把一条审计记录转换为详细的中文描述：{ actionText, targetText, timeText }
 function describeAudit(row) {
@@ -301,6 +308,9 @@ Page({
     groupChatGroups: [],
     chatCategoryNames: GC_CATEGORIES,
     campusOptions: CAMPUS_SELECT_OPTIONS,
+    // 活动管理 tab：活动列表 + 关键词搜索
+    activities: [],
+    activityKeyword: '',
     // 社团管理 tab：分类（含各分类下社团明细）+ 展开状态
     clubCategories: [],
     clubCategoryNames: [],
@@ -331,6 +341,7 @@ Page({
         { key: 'content', name: '配置' },
         { key: 'items', name: '物品' },
         { key: 'clubGroup', name: '社团/群聊' },
+        { key: 'activities', name: '活动' },
         { key: 'userAdmin', name: '用户管理' },
         { key: 'review', name: '审核' },
         { key: 'logs', name: '日志' }
@@ -406,6 +417,7 @@ Page({
       if (tab === 'items') this.setData({ items: (await admin.items()).list || [] })
       if (tab === 'clubGroup' && this.data.activeSubTab === 'groupChat') await this.loadGroupChatData()
       if (tab === 'clubGroup' && this.data.activeSubTab === 'clubs') await this.loadClubCategories()
+      if (tab === 'activities') await this.loadActivities()
       if (tab === 'userAdmin' && this.data.activeSubTab === 'users') await this.loadUsers()
       if (tab === 'userAdmin' && this.data.activeSubTab === 'admins') await this.loadAdmins()
       if (tab === 'review' && this.data.activeSubTab === 'withdrawals') await this.loadWithdrawals()
@@ -840,18 +852,71 @@ Page({
   },
 
   beginChatGroupCreate() {
-    this.setData({ form: { kind: 'chatGroup', id: 0, name: '', categoryIndex: 0, intro: '', meta: { avatarUrl: '', qrcodeUrl: '' }, isOfficial: 0, customTag: '', campus: '', sortOrder: 0, status: 1 } })
+    this.setData({ form: { kind: 'chatGroup', id: 0, name: '', categoryIndex: 0, intro: '', meta: { avatarUrl: '', qrcodeUrl: '', gzhQrcodeUrl: '' }, isOfficial: 0, customTag: '', campus: '', sortOrder: 0, status: 1 } })
   },
 
   beginChatGroupEdit(e) {
     const group = this.data.groupChatGroups.find((row) => Number(row.id) === Number(e.currentTarget.dataset.id))
     if (!group) return
     const categoryIndex = Math.max(0, GC_CATEGORIES.indexOf(group.category || ''))
-    this.setData({ form: { kind: 'chatGroup', id: group.id, name: group.name || '', categoryIndex, intro: group.intro || '', meta: { avatarUrl: group.avatarUrl || '', qrcodeUrl: group.qrcodeUrl || '' }, isOfficial: group.isOfficial ? 1 : 0, customTag: group.customTag || '', campus: group.campus || '', sortOrder: group.sortOrder || 0, status: group.status ? 1 : 0 } })
+    this.setData({ form: { kind: 'chatGroup', id: group.id, name: group.name || '', categoryIndex, intro: group.intro || '', meta: { avatarUrl: group.avatarUrl || '', qrcodeUrl: group.qrcodeUrl || '', gzhQrcodeUrl: group.gzhQrcodeUrl || '' }, isOfficial: group.isOfficial ? 1 : 0, customTag: group.customTag || '', campus: group.campus || '', sortOrder: group.sortOrder || 0, status: group.status ? 1 : 0 } })
   },
 
   onChatCategoryChange(e) { this.setData({ 'form.categoryIndex': Number(e.detail.value) || 0 }) },
   formOfficial(e) { this.setData({ 'form.isOfficial': e.detail.value ? 1 : 0 }) },
+
+  // ===== 活动管理 tab =====
+  onActivityKeywordInput(e) { this.setData({ activityKeyword: e.detail.value }) },
+  searchActivities() { this.loadActivities() },
+  async loadActivities() {
+    const data = await admin.activities({ page: 1, pageSize: 50, keyword: this.data.activityKeyword })
+    const list = (data.list || []).map((row) => Object.assign({}, row, {
+      badgeText: ACTIVITY_BADGE_TEXT[row.badge] || '',
+      createdAtText: fmtDateTime(row.createdAt)
+    }))
+    this.setData({ activities: list })
+  },
+
+  beginActivityEdit(e) {
+    const activity = this.data.activities.find((row) => Number(row.id) === Number(e.currentTarget.dataset.id))
+    if (!activity) return
+    this.setData({
+      form: {
+        kind: 'activity',
+        id: activity.id,
+        title: activity.title || '',
+        signupStart: fmtDateTime(activity.signupStart).slice(0, 16),
+        signupEnd: fmtDateTime(activity.signupEnd).slice(0, 16),
+        activityStart: fmtDateTime(activity.activityStart).slice(0, 16),
+        activityEnd: fmtDateTime(activity.activityEnd).slice(0, 16),
+        location: activity.location || '',
+        address: activity.address || '',
+        campus: activity.campus || '',
+        capacity: activity.capacity || 0,
+        meta: { coverUrl: activity.coverUrl || '' },
+        detailTitle: activity.detailTitle || '',
+        detailContent: activity.detailContent || '',
+        signupTitle: activity.signupTitle || '',
+        signupContent: activity.signupContent || '',
+        status: activity.status ? 1 : 0
+      }
+    })
+  },
+
+  async toggleActivity(e) {
+    const activity = this.data.activities.find((row) => Number(row.id) === Number(e.currentTarget.dataset.id))
+    if (!activity) return
+    const status = activity.status ? 0 : 1
+    if (!await this.confirm(status ? '上架活动' : '下架活动', `确定${status ? '上架' : '下架'}「${activity.title}」吗？下架后用户端立即不可见。`)) return
+    try { await admin.updateActivity(activity.id, { status }); wx.showToast({ title: status ? '已上架' : '已下架', icon: 'success' }); this.loadActivities() } catch (err) {}
+  },
+
+  async deleteActivity(e) {
+    const activity = this.data.activities.find((row) => Number(row.id) === Number(e.currentTarget.dataset.id))
+    if (!activity) return
+    if (!await this.confirm('删除活动', `确定删除「${activity.title}」吗？删除后用户端不再展示该活动。`)) return
+    try { await admin.deleteActivity(activity.id); wx.showToast({ title: '已删除', icon: 'success' }); this.loadActivities() } catch (err) {}
+  },
 
   // ===== 社团管理 tab =====
   async loadClubCategories() {
@@ -1009,8 +1074,30 @@ Page({
       }
       if (form.kind === 'chatGroup') {
         if (!String(form.name || '').trim()) { wx.showToast({ title: '请填写群聊名称', icon: 'none' }); return }
-        const payload = { name: String(form.name).trim(), category: GC_CATEGORIES[form.categoryIndex] || '', intro: String(form.intro || '').trim(), avatarUrl: form.meta.avatarUrl || '', qrcodeUrl: form.meta.qrcodeUrl || '', isOfficial: form.isOfficial ? 1 : 0, customTag: String(form.customTag || '').trim(), campus: form.campus || '', sortOrder: Number(form.sortOrder) || 0, status: form.status ? 1 : 0 }
+        const payload = { name: String(form.name).trim(), category: GC_CATEGORIES[form.categoryIndex] || '', intro: String(form.intro || '').trim(), avatarUrl: form.meta.avatarUrl || '', qrcodeUrl: form.meta.qrcodeUrl || '', gzhQrcodeUrl: form.meta.gzhQrcodeUrl || '', isOfficial: form.isOfficial ? 1 : 0, customTag: String(form.customTag || '').trim(), campus: form.campus || '', sortOrder: Number(form.sortOrder) || 0, status: form.status ? 1 : 0 }
         form.id ? await admin.updateGroupChatGroup(form.id, payload) : await admin.createGroupChatGroup(payload)
+      }
+      if (form.kind === 'activity') {
+        const DT_RE = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/
+        if (!String(form.title || '').trim()) { wx.showToast({ title: '请填写活动标题', icon: 'none' }); return }
+        const timeFields = [['signupStart', '报名时间'], ['signupEnd', '报名截止'], ['activityStart', '活动开始'], ['activityEnd', '活动结束']]
+        const payload = { title: String(form.title).trim() }
+        for (const [key, label] of timeFields) {
+          const value = String(form[key] || '').trim()
+          if (value && !DT_RE.test(value)) { wx.showToast({ title: label + '格式需为 YYYY-MM-DD HH:mm', icon: 'none' }); return }
+          payload[key] = value
+        }
+        payload.location = String(form.location || '').trim()
+        payload.address = String(form.address || '').trim()
+        payload.campus = form.campus || ''
+        payload.detailTitle = String(form.detailTitle || '').trim()
+        payload.detailContent = String(form.detailContent || '').trim()
+        payload.signupTitle = String(form.signupTitle || '').trim()
+        payload.signupContent = String(form.signupContent || '').trim()
+        payload.coverUrl = form.meta.coverUrl || ''
+        const capacity = parseInt(form.capacity, 10)
+        payload.capacity = Number.isInteger(capacity) && capacity > 0 ? capacity : 0
+        await admin.updateActivity(form.id, payload)
       }
       wx.showToast({ title: '已保存', icon: 'success' }); this.setData({ form: null }); this.loadCurrent()
     } catch (e) {} finally { this.setData({ saving: false }) }

@@ -1,13 +1,12 @@
 const api = require('../../utils/api')
 const { categoryTheme } = require('../../utils/group-chat')
-const { CAMPUS_OPTIONS, getDefaultCampus } = require('../../utils/campus')
+const { getDefaultCampus } = require('../../utils/campus')
 
 Page({
   data: {
     statusBarHeight: 20,
     categoryName: '',
     campus: '',
-    campusOptions: CAMPUS_OPTIONS,
     showCampusPanel: false,
     groups: [],
     loaded: false
@@ -56,9 +55,10 @@ Page({
     this.setData({ showCampusPanel: false })
   },
 
-  onSelectCampus(e) {
-    const campus = e.currentTarget.dataset.value
-    if (!campus || campus === this.data.campus) {
+  // 校区选择器组件回调（含主校区/分校区两级）
+  onCampusChange(e) {
+    const campus = e.detail.value
+    if (campus === this.data.campus) {
       this.setData({ showCampusPanel: false })
       return
     }

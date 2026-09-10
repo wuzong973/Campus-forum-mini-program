@@ -1,0 +1,73 @@
+.cp-mask {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 90;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 56rpx;
+}
+
+.cp-panel {
+  width: 100%;
+  background: #ffffff;
+  border-radius: 24rpx;
+  padding: 30rpx 30rpx 26rpx;
+}
+
+.cp-head {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+}
+
+.cp-back {
+  font-size: 26rpx;
+  color: #2e6bff;
+  font-weight: 600;
+  padding: 4rpx 8rpx;
+}
+
+.cp-title {
+  font-size: 32rpx;
+  font-weight: 800;
+  color: #1f2a44;
+}
+
+.cp-grid {
+  margin-top: 24rpx;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20rpx;
+}
+
+.cp-option {
+  height: 88rpx;
+  border-radius: 14rpx;
+  background: #f2f3f5;
+  border: 3rpx solid transparent;
+  color: #4a5468;
+  font-size: 27rpx;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.cp-option--active {
+  background: #eef4ff;
+  border-color: #2e6bff;
+  color: #2e6bff;
+}
+
+.cp-tip {
+  margin-top: 22rpx;
+  font-size: 23rpx;
+  color: #9aa3b2;
+  text-align: center;
+}

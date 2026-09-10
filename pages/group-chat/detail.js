@@ -6,6 +6,7 @@ Page({
     loading: true,
     group: null,
     adminQrcodeUrl: '',
+    gzhQrcodeUrl: '',
     images: []
   },
 
@@ -26,6 +27,7 @@ Page({
       this.setData({
         group,
         adminQrcodeUrl: (res && res.adminQrcodeUrl) || '',
+        gzhQrcodeUrl: (res && res.gzhQrcodeUrl) || '',
         images: (res && res.images) || [],
         loading: false
       })
@@ -54,6 +56,12 @@ Page({
 
   onPreviewAdmin() {
     const url = this.data.adminQrcodeUrl
+    if (!url) return
+    wx.previewImage({ urls: [url], current: url })
+  },
+
+  onPreviewGzh() {
+    const url = this.data.gzhQrcodeUrl
     if (!url) return
     wx.previewImage({ urls: [url], current: url })
   },

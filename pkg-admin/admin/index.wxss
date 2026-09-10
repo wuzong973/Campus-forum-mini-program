@@ -156,3 +156,18 @@
 .campus-grid { margin-top: 14rpx; display: grid; grid-template-columns: repeat(2, 1fr); gap: 18rpx; }
 .campus-option { height: 80rpx; border-radius: 12rpx; background: #f2f3f5; border: 3rpx solid transparent; color: var(--text-secondary, #4a5468); font-size: 26rpx; font-weight: 600; display: flex; align-items: center; justify-content: center; transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease; }
 .campus-option--active { background: #eef4ff; border-color: #315cff; color: #315cff; }
+
+/* ===== 活动管理 ===== */
+.act-admin-row { flex-direction: row; align-items: stretch; gap: 18rpx; }
+.act-admin-cover { width: 120rpx; height: 120rpx; border-radius: 14rpx; background: #eef1f5; flex-shrink: 0; }
+.act-admin-cover--fallback { display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #5ba8ff 0%, #315cff 100%); }
+.act-admin-cover--fallback text { color: #ffffff; font-size: 24rpx; font-weight: 600; }
+.act-admin-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6rpx; }
+.act-admin-actions { flex-direction: column; justify-content: center; align-items: flex-end; gap: 10rpx; }
+
+/* 活动发起人信息（头像/昵称/手机号） */
+.act-initiator { margin-top: 10rpx; display: flex; align-items: center; gap: 14rpx; padding: 12rpx 16rpx; background: #f7f9fc; border-radius: 12rpx; }
+.act-initiator-avatar { width: 64rpx; height: 64rpx; border-radius: 50%; background: #e3ecff; color: #315cff; font-size: 26rpx; font-weight: 600; display: flex; align-items: center; justify-content: center; flex-shrink: 0; overflow: hidden; }
+.act-initiator-avatar--fallback { background: linear-gradient(135deg, #5ba8ff 0%, #315cff 100%); color: #ffffff; }
+.act-initiator-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2rpx; }
+.act-initiator-name { color: var(--text-primary, #1a1a1a); font-size: 24rpx; font-weight: 600; }

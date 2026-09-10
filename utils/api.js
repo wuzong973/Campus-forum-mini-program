@@ -557,6 +557,25 @@ function getMyGroupChatApplies() {
   return request.get("/group-chat/mine", {}, true);
 }
 
+// ===== 校园活动 =====
+function getActivities(tab, campus) {
+  const query = { tab: tab || "all" };
+  if (campus) query.campus = campus;
+  return request.get("/activity/list", query, tab === "mine", { silent: true });
+}
+
+function getActivityDetail(id) {
+  return request.get("/activity/detail/" + id, {}, false);
+}
+
+function createActivity(data) {
+  return request.post("/activity/create", data, true);
+}
+
+function signupActivity(id) {
+  return request.post("/activity/signup/" + id, {}, true);
+}
+
 module.exports = {
   SERVICE_ICON_MAP,
   getBlacklist,
@@ -575,6 +594,10 @@ module.exports = {
   getGroupChatDetail,
   submitGroupChatApply,
   getMyGroupChatApplies,
+  getActivities,
+  getActivityDetail,
+  createActivity,
+  signupActivity,
   getErrandList,
   getErrandChats,
   getErrandChatMessages,

@@ -3,5 +3,8 @@
   "navigationBarBackgroundColor": "#D7EFFF",
   "navigationBarTextStyle": "black",
   "enablePullDownRefresh": true,
-  "backgroundTextStyle": "dark"
+  "backgroundTextStyle": "dark",
+  "usingComponents": {
+    "campus-picker": "/components/campus-picker/campus-picker"
+  }
 }

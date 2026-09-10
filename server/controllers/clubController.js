@@ -5,7 +5,22 @@ const { writeAdminAudit } = require('../utils/adminAudit')
 
 const HEX_COLOR = /^#[0-9a-fA-F]{6}$/
 // 校区取值（与用户端 utils/campus.js 保持一致）；'' = 全部校区
-const CAMPUS_VALUES = ['广州校区', '佛山校区', '南海南校区', '南海北校区']
+// 校区两级结构（与用户端 utils/campus.js 保持一致）；'' = 全部校区
+const CAMPUS_MAIN_MAP = {
+  '广州校区': ['新港校区', '琶洲校区'],
+  '佛山校区': ['南海南校区', '南海北校区']
+}
+const CAMPUS_VALUES = Object.keys(CAMPUS_MAIN_MAP).concat(
+  Object.keys(CAMPUS_MAIN_MAP).reduce((arr, key) => arr.concat(CAMPUS_MAIN_MAP[key]), [])
+)
+
+// 校区筛选匹配集：主校区 → 主校区+其分校区；分校区 → 仅自身；未知/空 → null（不过滤）
+function campusMatchValues(campus) {
+  if (!campus) return null
+  if (CAMPUS_MAIN_MAP[campus]) return [campus].concat(CAMPUS_MAIN_MAP[campus])
+  if (CAMPUS_VALUES.indexOf(campus) >= 0) return [campus]
+  return null
+}
 
 async function audit(req, action, targetType, targetId, detail) {
   try {
@@ -62,9 +77,10 @@ async function loadClubsByCategory(categoryIds, onlyEnabled, campus) {
   if (!categoryIds.length) return {}
   const placeholders = categoryIds.map(() => '?').join(',')
   const extra = onlyEnabled ? ' AND status = 1' : ''
-  const campusClause = campus && CAMPUS_VALUES.indexOf(campus) >= 0 ? ' AND (campus = ? OR campus = \'\')' : ''
+  const matchValues = campusMatchValues(campus)
+  const campusClause = matchValues ? ' AND (campus IN (' + matchValues.map(() => '?').join(',') + ') OR campus = \'\')' : ''
   const params = categoryIds.slice()
-  if (campusClause) params.push(campus)
+  if (campusClause) params.push.apply(params, matchValues)
   const [rows] = await pool.query(
     `SELECT id, category_id, name, tags, intro, recruit, campus, sort_order, status
      FROM club WHERE deleted = 0 AND category_id IN (${placeholders})${extra}${campusClause}

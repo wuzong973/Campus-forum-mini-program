@@ -55,6 +55,7 @@ const feedbackRoutes = require("./routes/feedbackRoutes");
 const walletRoutes = require("./routes/walletRoutes");
 const clubRoutes = require("./routes/clubRoutes");
 const groupChatRoutes = require("./routes/groupChatRoutes");
+const activityRoutes = require("./routes/activityRoutes");
 const wsServer = require("./ws/wsServer");
 const { runMigrations } = require("./utils/migrations");
 
@@ -122,6 +123,7 @@ app.use("/api/v1/feedback", feedbackRoutes);
 app.use("/api/v1/wallet", walletRoutes);
 app.use("/api/v1/club", clubRoutes);
 app.use("/api/v1/group-chat", groupChatRoutes);
+app.use("/api/v1/activity", activityRoutes);
 
 app.use("/api/v1/*", (req, res) => fail(res, "接口不存在", 404));
 

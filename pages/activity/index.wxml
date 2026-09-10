@@ -1,0 +1,55 @@
+<view class="page">
+  <!-- 筛选 tab（图三：灰色圆角轨道 + 选中白卡） -->
+  <view class="tab-track">
+    <view
+      wx:for="{{tabs}}"
+      wx:key="key"
+      class="tab-item {{activeTab === item.key ? 'tab-item--active' : ''}}"
+      data-key="{{item.key}}"
+      bindtap="chooseTab"
+    >{{item.name}}</view>
+  </view>
+
+  <!-- 活动列表（图二：封面左图 + 状态徽标 + 标题/时间/地点/名额 + 查看） -->
+  <view class="act-list" wx:if="{{list.length}}">
+    <view
+      class="act-card"
+      wx:for="{{list}}"
+      wx:key="id"
+      hover-class="act-card--hover"
+      hover-stay-time="80"
+      data-id="{{item.id}}"
+      bindtap="onActivityTap"
+    >
+      <view wx:if="{{item.campus}}" class="act-campus-chip">{{item.campus}}</view>
+      <view class="act-cover-wrap">
+        <image wx:if="{{item.coverUrl}}" class="act-cover" src="{{item.coverUrl}}" mode="aspectFill" lazy-load="{{true}}" />
+        <view wx:else class="act-cover act-cover--fallback"><text>活动</text></view>
+        <view wx:if="{{item.badgeText}}" class="act-badge badge-{{item.badge}}">{{item.badgeText}}</view>
+      </view>
+      <view class="act-body">
+        <view class="act-title">{{item.title}}</view>
+        <view class="act-meta"><text class="meta-icon">📅</text><text class="meta-text">{{item.dateText}}</text></view>
+        <view class="act-meta"><text class="meta-icon">📍</text><text class="meta-text">{{item.placeText}}</text></view>
+        <view class="act-foot">
+          <text class="act-quota">{{item.quotaText}}</text>
+          <view class="act-view-btn" hover-class="act-view-btn--hover" hover-stay-time="80">查看</view>
+        </view>
+      </view>
+    </view>
+    <view wx:if="{{hasMore}}" class="list-more"><text>上拉加载更多</text></view>
+  </view>
+
+  <!-- 空状态（图三：虚线框占位） -->
+  <view class="empty-box" wx:if="{{loaded && !list.length}}">
+    <text class="empty-text">{{activeTab === 'mine' ? '你还没有参与的活动，快去报名吧' : '暂无活动，点击右下角发起第一个活动'}}</text>
+  </view>
+
+  <!-- 右下角：发起活动 -->
+  <view class="create-fab" hover-class="create-fab--hover" hover-stay-time="120" bindtap="onCreate">
+    <text class="create-fab-plus">＋</text>
+    <text class="create-fab-text">发起活动</text>
+  </view>
+</view>
+
+<!-- 校区选择弹层（fixed 元素放在带动画容器外） -->

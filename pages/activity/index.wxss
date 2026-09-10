@@ -1,0 +1,256 @@
+.page {
+  min-height: 100vh;
+  background: #f7f7f7;
+  padding: 24rpx 24rpx 160rpx;
+  box-sizing: border-box;
+}
+
+/* ===== 筛选 tab（图三样式） ===== */
+.tab-track {
+  display: flex;
+  align-items: center;
+  background: #ebebeb;
+  border-radius: 18rpx;
+  padding: 8rpx;
+}
+
+.tab-item {
+  flex: 1;
+  height: 76rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28rpx;
+  color: #7a7a7a;
+  border-radius: 14rpx;
+  transition: background 0.16s ease, color 0.16s ease;
+}
+
+.tab-item--active {
+  background: #ffffff;
+  color: #1a1a1a;
+  font-weight: 700;
+  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.06);
+}
+
+/* ===== 活动卡片（图二样式） ===== */
+.act-list {
+  margin-top: 24rpx;
+  display: flex;
+  flex-direction: column;
+  gap: 22rpx;
+}
+
+.act-card {
+  position: relative;
+  display: flex;
+  gap: 20rpx;
+  background: #ffffff;
+  border-radius: 20rpx;
+  padding: 18rpx;
+  box-shadow: 0 8rpx 24rpx rgba(0, 0, 0, 0.04);
+  transition: transform 0.16s ease;
+}
+
+.act-card--hover {
+  transform: scale(0.985);
+}
+
+.act-cover-wrap {
+  position: relative;
+  width: 224rpx;
+  height: 200rpx;
+  flex-shrink: 0;
+}
+
+.act-cover {
+  width: 100%;
+  height: 100%;
+  border-radius: 14rpx;
+  background: #eef1f5;
+}
+
+.act-cover--fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #5ba8ff 0%, #2e6bff 100%);
+}
+
+.act-cover--fallback text {
+  color: #ffffff;
+  font-size: 30rpx;
+  font-weight: 700;
+}
+
+.act-badge {
+  position: absolute;
+  top: 12rpx;
+  left: 12rpx;
+  font-size: 20rpx;
+  font-weight: 600;
+  color: #ffffff;
+  border-radius: 8rpx;
+  padding: 5rpx 12rpx;
+  line-height: 1.3;
+}
+
+.badge-signing {
+  background: rgba(46, 107, 255, 0.92);
+}
+
+.badge-notStarted {
+  background: rgba(22, 182, 100, 0.92);
+}
+
+.badge-ended {
+  background: rgba(0, 0, 0, 0.45);
+}
+
+.act-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.act-title {
+  font-size: 30rpx;
+  font-weight: 700;
+  color: #1a1a1a;
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.act-meta {
+  margin-top: 10rpx;
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+  min-width: 0;
+}
+
+.meta-icon {
+  font-size: 24rpx;
+  flex-shrink: 0;
+}
+
+.meta-text {
+  font-size: 25rpx;
+  color: #555;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.act-foot {
+  margin-top: auto;
+  padding-top: 12rpx;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16rpx;
+}
+
+.act-quota {
+  font-size: 23rpx;
+  color: #8a8a8a;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.act-view-btn {
+  flex-shrink: 0;
+  font-size: 25rpx;
+  font-weight: 600;
+  color: #1a1a1a;
+  background: #f2f2f2;
+  border-radius: 28rpx;
+  padding: 10rpx 34rpx;
+  transition: background 0.15s ease;
+}
+
+.act-view-btn--hover {
+  background: #e6e6e6;
+}
+
+/* ===== 空状态（图三虚线框） ===== */
+.empty-box {
+  margin-top: 24rpx;
+  border: 3rpx dashed #d9d9d9;
+  border-radius: 20rpx;
+  padding: 100rpx 40rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.empty-text {
+  font-size: 26rpx;
+  color: #9a9a9a;
+  text-align: center;
+  line-height: 1.6;
+}
+
+.list-more {
+  padding: 24rpx 0 8rpx;
+  text-align: center;
+  font-size: 23rpx;
+  color: #b0b0b0;
+}
+
+/* ===== 右下角发起活动按钮 ===== */
+.create-fab {
+  position: fixed;
+  right: 32rpx;
+  bottom: calc(48rpx + env(safe-area-inset-bottom));
+  height: 88rpx;
+  padding: 0 36rpx;
+  border-radius: 44rpx;
+  background: linear-gradient(135deg, #5ba8ff 0%, #2e6bff 100%);
+  box-shadow: 0 14rpx 30rpx rgba(46, 107, 255, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8rpx;
+  z-index: 50;
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.create-fab--hover {
+  transform: scale(0.95);
+  box-shadow: 0 8rpx 20rpx rgba(46, 107, 255, 0.32);
+}
+
+.create-fab-plus {
+  color: #ffffff;
+  font-size: 32rpx;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.create-fab-text {
+  color: #ffffff;
+  font-size: 28rpx;
+  font-weight: 700;
+}
+
+/* 卡片右上角校区标签 */
+.act-campus-chip {
+  position: absolute;
+  top: 14rpx;
+  right: 14rpx;
+  z-index: 2;
+  font-size: 20rpx;
+  font-weight: 600;
+  color: #ffffff;
+  background: rgba(46, 107, 255, 0.88);
+  border-radius: 8rpx;
+  padding: 5rpx 14rpx;
+  line-height: 1.3;
+}

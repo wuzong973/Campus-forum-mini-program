@@ -50,21 +50,7 @@
 </view>
 
 <!-- 校区选择弹层（fixed 元素放在带动画容器外） -->
-<view wx:if="{{showCampusPanel}}" class="campus-mask" bindtap="onCloseCampus">
-  <view class="campus-panel" catchtap="noop">
-    <view class="campus-panel-title">校区选择</view>
-    <view class="campus-grid">
-      <view
-        wx:for="{{campusOptions}}"
-        wx:key="*this"
-        class="campus-option {{campus === item ? 'campus-option--active' : ''}}"
-        data-value="{{item}}"
-        bindtap="onSelectCampus"
-      >{{item}}</view>
-    </view>
-    <view class="campus-panel-tip">切换后将展示该校区下的群聊</view>
-  </view>
-</view>
+<campus-picker visible="{{showCampusPanel}}" value="{{campus}}" bind:change="onCampusChange" bind:close="onCloseCampus" />
 
 <view wx:if="{{showModal}}" class="modal-mask anim-fade" bindtap="onCloseModal">
   <view class="modal-dialog anim-slide-up" catchtap="noop">

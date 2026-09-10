@@ -1,0 +1,143 @@
+<view class="page page-enter">
+  <view class="topbar" style="padding-top: {{statusBarHeight}}px;">
+    <view class="back-pill" hover-class="back-pill-hover" hover-stay-time="80" bindtap="goBack"><text class="back-pill-icon">‹</text><text>返回</text></view>
+  </view>
+
+  <view class="content">
+    <view class="page-title">发起活动</view>
+    <view class="page-sub">填写活动信息，发布后全校可见</view>
+
+    <!-- 校区选择（发布后活动归属所选校区） -->
+    <view class="campus-bar" hover-class="campus-bar--hover" hover-stay-time="80" bindtap="onToggleCampus">
+      <text class="campus-bar-label">校区</text>
+      <text class="campus-bar-value">{{campus}}</text>
+      <text class="campus-bar-arrow">{{showCampusPanel ? '▴' : '▾'}}</text>
+    </view>
+
+    <!-- 活动基本信息（图四） -->
+    <view class="sec-title">校园活动基本信息</view>
+    <view class="form-card">
+      <view class="form-row">
+        <text class="form-label">活动标题 <text class="req">*</text></text>
+        <input class="form-input" value="{{title}}" maxlength="40" placeholder="一句话介绍你的活动" bindinput="onTitleInput"/>
+      </view>
+
+      <view class="form-row">
+        <text class="form-label">报名时间</text>
+        <view class="time-pair">
+          <picker mode="date" value="{{signupStart.date}}" data-field="signupStart" bindchange="onDateChange">
+            <view class="time-picker"><text>{{signupStart.date || '开始日期'}}</text></view>
+          </picker>
+          <picker mode="time" value="{{signupStart.time}}" data-field="signupStart" bindchange="onTimeChange">
+            <view class="time-picker"><text>{{signupStart.time || '时间'}}</text></view>
+          </picker>
+        </view>
+      </view>
+      <view class="form-row">
+        <text class="form-label">报名截止</text>
+        <view class="time-pair">
+          <picker mode="date" value="{{signupEnd.date}}" data-field="signupEnd" bindchange="onDateChange">
+            <view class="time-picker"><text>{{signupEnd.date || '截止日期'}}</text></view>
+          </picker>
+          <picker mode="time" value="{{signupEnd.time}}" data-field="signupEnd" bindchange="onTimeChange">
+            <view class="time-picker"><text>{{signupEnd.time || '时间'}}</text></view>
+          </picker>
+        </view>
+      </view>
+
+      <view class="form-row">
+        <text class="form-label">活动时间</text>
+        <view class="time-pair">
+          <picker mode="date" value="{{activityStart.date}}" data-field="activityStart" bindchange="onDateChange">
+            <view class="time-picker"><text>{{activityStart.date || '开始日期'}}</text></view>
+          </picker>
+          <picker mode="time" value="{{activityStart.time}}" data-field="activityStart" bindchange="onTimeChange">
+            <view class="time-picker"><text>{{activityStart.time || '时间'}}</text></view>
+          </picker>
+        </view>
+      </view>
+      <view class="form-row">
+        <text class="form-label">活动结束</text>
+        <view class="time-pair">
+          <picker mode="date" value="{{activityEnd.date}}" data-field="activityEnd" bindchange="onDateChange">
+            <view class="time-picker"><text>{{activityEnd.date || '结束日期'}}</text></view>
+          </picker>
+          <picker mode="time" value="{{activityEnd.time}}" data-field="activityEnd" bindchange="onTimeChange">
+            <view class="time-picker"><text>{{activityEnd.time || '时间'}}</text></view>
+          </picker>
+        </view>
+      </view>
+
+      <view class="form-row">
+        <text class="form-label">活动位置</text>
+        <input class="form-input" value="{{location}}" maxlength="30" placeholder="例如：体育馆 / 校本部" bindinput="onLocationInput"/>
+      </view>
+      <view class="form-row">
+        <text class="form-label">详细地址</text>
+        <input class="form-input" value="{{address}}" maxlength="60" placeholder="详细地址（选填）" bindinput="onAddressInput"/>
+      </view>
+      <view class="form-row">
+        <text class="form-label">报名名额</text>
+        <input class="form-input" value="{{capacity}}" type="number" placeholder="人数上限，留空或 0 为不限" bindinput="onCapacityInput"/>
+      </view>
+    </view>
+
+    <!-- 活动图片 -->
+    <view class="sec-title">活动图片</view>
+    <view class="form-card">
+      <view class="form-label-block">封面图片 <text class="req">*</text>（列表页展示）</view>
+      <view class="upload-row" bindtap="onUploadCover">
+        <image wx:if="{{cover}}" class="upload-thumb" src="{{cover}}" mode="aspectFill" catchtap="onPreviewCover"/>
+        <view wx:else class="upload-add">＋ 上传封面图片</view>
+        <text wx:if="{{cover}}" class="upload-clear" catchtap="onClearCover">×</text>
+      </view>
+      <view class="form-label-block">详细图片（选填，最多 9 张）</view>
+      <view class="img-grid">
+        <view class="img-item" wx:for="{{images}}" wx:key="index">
+          <image class="img-thumb" src="{{item}}" mode="aspectFill" data-url="{{item}}" bindtap="onPreviewImage"/>
+          <text class="img-remove" data-index="{{index}}" catchtap="onRemoveImage">×</text>
+        </view>
+        <view wx:if="{{images.length < 9}}" class="upload-add upload-add--grid" bindtap="onAddImage">＋</view>
+      </view>
+    </view>
+
+    <!-- 详细介绍 -->
+    <view class="sec-title">详细介绍</view>
+    <view class="form-card">
+      <view class="form-row">
+        <text class="form-label">介绍标题</text>
+        <input class="form-input" value="{{detailTitle}}" maxlength="30" placeholder="例如：活动亮点（选填）" bindinput="onDetailTitleInput"/>
+      </view>
+      <view class="form-row form-row--column">
+        <text class="form-label">介绍内容</text>
+        <textarea class="form-textarea" value="{{detailContent}}" maxlength="2000" placeholder="活动流程、注意事项等详细介绍…" bindinput="onDetailContentInput"/>
+      </view>
+    </view>
+
+    <!-- 立即报名设置（图四：可编辑标题和内容，还有加图片） -->
+    <view class="sec-title">立即报名设置</view>
+    <view class="form-card">
+      <view class="form-row">
+        <text class="form-label">按钮标题</text>
+        <input class="form-input" value="{{signupTitle}}" maxlength="8" placeholder="默认「立即报名」" bindinput="onSignupTitleInput"/>
+      </view>
+      <view class="form-row form-row--column">
+        <text class="form-label">报名提示内容</text>
+        <textarea class="form-textarea form-textarea--short" value="{{signupContent}}" maxlength="200" placeholder="报名成功后向参与者展示的提示（选填）" bindinput="onSignupContentInput"/>
+      </view>
+      <view class="form-label-block">报名图片（选填，如群二维码）</view>
+      <view class="upload-row" bindtap="onUploadSignupImage">
+        <image wx:if="{{signupImage}}" class="upload-thumb" src="{{signupImage}}" mode="aspectFill"/>
+        <view wx:else class="upload-add">＋ 上传图片</view>
+        <text wx:if="{{signupImage}}" class="upload-clear" catchtap="onClearSignupImage">×</text>
+      </view>
+    </view>
+
+    <view class="submit-btn" hover-class="submit-btn--hover" hover-stay-time="100" bindtap="onSubmit">
+      {{submitting ? '发布中...' : '发布活动'}}
+    </view>
+  </view>
+</view>
+
+<!-- 校区选择弹层（fixed 元素放在带动画容器外） -->
+<campus-picker visible="{{showCampusPanel}}" value="{{campus}}" bind:change="onCampusChange" bind:close="onCloseCampus" />

@@ -819,10 +819,51 @@ async function runMigrations() {
   `)
   // 官方群标记：分类群列表名称右侧展示黑色「官方」徽标
   await ensureColumn('group_chat', 'is_official', 'TINYINT(1) NOT NULL DEFAULT 0 AFTER qrcode_url')
+  // 公众号二维码：审核通过时从申请单同步，后台与用户端群详情可展示
+  await ensureColumn('group_chat', 'gzh_qrcode_url', "VARCHAR(512) DEFAULT '' AFTER is_official")
   // 自定义群标签：管理员手动填写（如「合作」），与官方徽标并列展示
   await ensureColumn('group_chat', 'custom_tag', "VARCHAR(16) DEFAULT '' AFTER is_official")
   // 校区维度：'' = 全部校区（所有校区可见），否则按所选校区筛选
   await ensureColumn('group_chat', 'campus', "VARCHAR(16) DEFAULT '' AFTER custom_tag")
+  // ===== 校园活动 =====
+  // 活动校区：发起时选择，'' = 全部校区（所有校区可见）
+  await ensureColumn('campus_activity', 'campus', "VARCHAR(16) DEFAULT '' AFTER address")
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS campus_activity (
+      id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+      user_id INT UNSIGNED NOT NULL,
+      title VARCHAR(64) NOT NULL,
+      signup_start DATETIME DEFAULT NULL,
+      signup_end DATETIME DEFAULT NULL,
+      activity_start DATETIME DEFAULT NULL,
+      activity_end DATETIME DEFAULT NULL,
+      location VARCHAR(64) DEFAULT '',
+      address VARCHAR(255) DEFAULT '',
+      cover_url VARCHAR(512) DEFAULT '',
+      images JSON,
+      detail_title VARCHAR(64) DEFAULT '',
+      detail_content TEXT,
+      signup_title VARCHAR(16) DEFAULT '立即报名',
+      signup_content VARCHAR(255) DEFAULT '',
+      signup_image VARCHAR(512) DEFAULT '',
+      capacity INT NOT NULL DEFAULT 0,
+      status TINYINT(1) NOT NULL DEFAULT 1,
+      deleted TINYINT(1) NOT NULL DEFAULT 0,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      INDEX idx_activity_feed (status, deleted, created_at)
+    ) ENGINE=InnoDB
+  `)
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS activity_signup (
+      id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+      activity_id INT UNSIGNED NOT NULL,
+      user_id INT UNSIGNED NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE KEY uk_activity_signup (activity_id, user_id),
+      INDEX idx_activity_signup_user (user_id, created_at)
+    ) ENGINE=InnoDB
+  `)
   // 六大社团分类 + 30 个代表社团（仅空表时写入，之后由后台维护）
   await require('./clubSeed').seedClubData()
 }

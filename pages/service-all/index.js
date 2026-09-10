@@ -94,11 +94,12 @@ Page({
       '广轻义修': '/pages/repair/index',
       '校园地图': '/pages/campus-map/index',
       '社团&组织': '/pages/club/index',
-      '广轻群聊': '/pages/group-chat/index'
+      '广轻群聊': '/pages/group-chat/index',
+      '校园活动': '/pages/activity/index'
     }
     const url = routes[item.name]
     if (url) {
-      if (url === '/pages/repair/index' || url === '/pages/campus-map/index' || url === '/pages/club/index' || url === '/pages/group-chat/index') wx.navigateTo({ url })
+      if (url === '/pages/repair/index' || url === '/pages/campus-map/index' || url === '/pages/club/index' || url === '/pages/group-chat/index' || url === '/pages/activity/index') wx.navigateTo({ url })
       else wx.switchTab({ url })
     } else {
       wx.showToast({ title: item.name + ' 即将上线', icon: 'none' })
