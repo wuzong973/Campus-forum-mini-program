@@ -2,8 +2,19 @@
   min-height: 100vh;
   /* 与首页 .page 完全一致的渐变背景（180deg，#d7efff → #f4f6fa，叠加淡蓝径向高光） */
   background:
-    radial-gradient(ellipse at 14% -6%, rgba(137, 202, 255, 0.28) 0%, rgba(137, 202, 255, 0) 48%),
-    linear-gradient(180deg, #d7efff 0%, #eaf6ff 18%, #f5f9fd 46%, #f7f8fb 72%, #f4f6fa 100%);
+    radial-gradient(
+      ellipse at 14% -6%,
+      rgba(137, 202, 255, 0.28) 0%,
+      rgba(137, 202, 255, 0) 48%
+    ),
+    linear-gradient(
+      180deg,
+      #d7efff 0%,
+      #eaf6ff 18%,
+      #f5f9fd 46%,
+      #f7f8fb 72%,
+      #f4f6fa 100%
+    );
   padding-bottom: calc(200rpx + env(safe-area-inset-bottom));
   box-sizing: border-box;
 }
@@ -28,7 +39,9 @@
   min-width: 0;
 }
 
-.quick-item:active { opacity: 0.72; }
+.quick-item:active {
+  opacity: 0.72;
+}
 
 .quick-icon {
   width: 76rpx;
@@ -110,16 +123,24 @@
   box-sizing: border-box;
 }
 
-.notice-yellow { background: #fff8e6; }
-.notice-red { background: #ffece8; }
+.notice-yellow {
+  background: #fff8e6;
+}
+.notice-red {
+  background: #ffece8;
+}
 
 .notice-icon {
   flex-shrink: 0;
   font-size: 26rpx;
 }
 
-.notice-yellow .notice-icon { color: #faad14; }
-.notice-red .notice-icon { color: #f5484d; }
+.notice-yellow .notice-icon {
+  color: #faad14;
+}
+.notice-red .notice-icon {
+  color: #f5484d;
+}
 
 .notice-text {
   flex: 1;
@@ -128,8 +149,12 @@
   line-height: 1.45;
 }
 
-.notice-yellow .notice-text { color: #b25e00; }
-.notice-red .notice-text { color: #d83931; }
+.notice-yellow .notice-text {
+  color: #b25e00;
+}
+.notice-red .notice-text {
+  color: #d83931;
+}
 
 /* 公告栏内可点击的"管理员"：蓝色加粗下划线，点击弹出管理员微信二维码（与首页公告栏一致） */
 .notice-admin {
@@ -138,7 +163,9 @@
   text-decoration: underline;
 }
 
-.notice-admin:active { opacity: 0.6; }
+.notice-admin:active {
+  opacity: 0.6;
+}
 
 .notice-close {
   flex-shrink: 0;
@@ -171,6 +198,22 @@
   line-height: 1.4;
 }
 
+/* 标签文本包裹层：作为未读小红点的定位基准 */
+.list-tab-text-wrap {
+  position: relative;
+}
+
+/* 顶部标签右上角未读小红点：与状态筛选数字角标同源联动，配色一致 */
+.tab-dot {
+  position: absolute;
+  top: -2rpx;
+  right: -14rpx;
+  width: 14rpx;
+  height: 14rpx;
+  border-radius: 50%;
+  background: #f5484d;
+}
+
 .tab-line {
   width: 48rpx;
   height: 6rpx;
@@ -179,8 +222,12 @@
   background: transparent;
 }
 
-.list-tab.active .list-tab-text { color: var(--primary); }
-.list-tab.active .tab-line { background: var(--primary); }
+.list-tab.active .list-tab-text {
+  color: var(--primary);
+}
+.list-tab.active .tab-line {
+  background: var(--primary);
+}
 
 /* ===== 区域筛选（保留原有功能，仅全部订单下显示） ===== */
 .filter-section {
@@ -213,13 +260,81 @@
   transition: var(--transition-fast);
 }
 
-.filter-btn:active { transform: scale(0.96); }
+.filter-btn:active {
+  transform: scale(0.96);
+}
 
 .filter-btn.active {
   background: #ffffff;
   border-color: var(--primary);
   color: var(--primary);
   font-weight: 500;
+}
+
+/* ===== 状态筛选标签栏（我接的单/我发布的）：图一胶囊规范 + 图四右上角数字角标 ===== */
+.status-chips {
+  margin: 12rpx 24rpx 0;
+  white-space: nowrap;
+}
+
+/* 上/右留出内边距：scroll-view 会裁切溢出内容，角标用负偏移压在胶囊右上角，
+   若不预留空间会被容器边缘挡住 */
+.status-chips-inner {
+  display: inline-flex;
+  align-items: center;
+  gap: 16rpx;
+  padding: 18rpx 22rpx 8rpx 6rpx;
+}
+
+.status-chip {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  padding: 10rpx 28rpx;
+  background: #ffffff;
+  border-radius: 999rpx;
+  border: 2rpx solid #e7ebf2;
+  transition: var(--transition-fast), transform 0.35s cubic-bezier(0.34, 1.42, 0.6, 1), box-shadow 0.35s cubic-bezier(0.34, 1.42, 0.6, 1);
+}
+
+.status-chip--hover {
+  opacity: 0.85;
+ transform: scale(0.96); box-shadow: inset 0 2rpx 6rpx rgba(16, 32, 64, 0.16), inset 0 -1rpx 2rpx rgba(255, 255, 255, 0.08); }
+
+.status-chip-text {
+  font-size: 24rpx;
+  color: #5a6472;
+  line-height: 1.4;
+}
+
+/* 选中态：浅蓝底 + 蓝描边 + 蓝字（与图一「待支付」选中样式一致） */
+.status-chip--active {
+  background: #e9f0ff;
+  border-color: var(--primary);
+}
+
+.status-chip--active .status-chip-text {
+  color: var(--primary);
+  font-weight: 600;
+}
+
+/* 状态数量角标：右上角红色圆形白字，有订单才显示 */
+.status-chip-badge {
+  position: absolute;
+  top: -12rpx;
+  right: -10rpx;
+  min-width: 32rpx;
+  height: 32rpx;
+  padding: 0 8rpx;
+  border-radius: 16rpx;
+  background: #f5484d;
+  color: #ffffff;
+  font-size: 20rpx;
+  line-height: 32rpx;
+  text-align: center;
+  box-sizing: border-box;
+  box-shadow: 0 4rpx 8rpx rgba(245, 72, 77, 0.35);
 }
 
 /* ===== 订单卡片（图一版式） ===== */
@@ -301,9 +416,18 @@
 }
 
 /* 性别限制标签：浅色填充，按限制值区分颜色 */
-.tag-gender-male { background: #e8f1ff; color: #3478f6; }
-.tag-gender-female { background: #ffeef4; color: #f0479c; }
-.tag-gender-any { background: #f1f3f6; color: #8a94a6; }
+.tag-gender-male {
+  background: #e8f1ff;
+  color: #3478f6;
+}
+.tag-gender-female {
+  background: #ffeef4;
+  color: #f0479c;
+}
+.tag-gender-any {
+  background: #f1f3f6;
+  color: #8a94a6;
+}
 
 .card-time {
   font-size: 22rpx;
@@ -342,12 +466,30 @@
   font-weight: 500;
 }
 
-.status-pill.pending { color: #ff9f40; }
-.status-pill.accepted { color: var(--primary); }
-.status-pill.done { color: var(--success); }
-.status-pill.unpaid { color: #e64340; }
-.status-pill.cancelled { color: #9aa3b2; }
-.status-pill.refunding { color: #faad14; }
+.status-pill.pending {
+  color: #ff9f40;
+}
+.status-pill.accepted {
+  color: var(--primary);
+}
+.status-pill.done {
+  color: var(--success);
+}
+.status-pill.unpaid {
+  color: #e64340;
+}
+.status-pill.cancelled {
+  color: #9aa3b2;
+}
+.status-pill.refunding {
+  color: #faad14;
+}
+.status-pill.finishing {
+  color: #fa8c16;
+}
+.status-pill.disputed {
+  color: #f2635f;
+}
 
 /* 卡片内容 */
 .card-body {
@@ -394,7 +536,9 @@
   line-height: 1.4;
 }
 
-.card-btn:active { opacity: 0.75; }
+.card-btn:active {
+  opacity: 0.75;
+}
 
 .card-btn.btn-pay {
   background: #ffece8;
@@ -474,12 +618,12 @@
   padding: 8rpx 0;
   color: #fff;
   border-radius: 28rpx;
-  transition: opacity 0.2s ease;
+  transition: opacity 0.2s ease, transform 0.35s cubic-bezier(0.34, 1.42, 0.6, 1), box-shadow 0.35s cubic-bezier(0.34, 1.42, 0.6, 1);
 }
 
 .float-item-hover {
   opacity: 0.65;
-}
+ transform: scale(0.96); box-shadow: inset 0 2rpx 6rpx rgba(16, 32, 64, 0.16), inset 0 -1rpx 2rpx rgba(255, 255, 255, 0.08); }
 
 .float-icon {
   font-size: 32rpx;
@@ -492,4 +636,4 @@
 }
 
 /* ===== 底部 Tabbar（已移除，由全局自定义 tabbar 承担导航） ===== */
-
+.load-more{text-align:center;padding:20rpx 0 30rpx;font-size:24rpx;color:#9aa4b2}

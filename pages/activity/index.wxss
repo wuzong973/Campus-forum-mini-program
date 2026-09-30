@@ -1,3 +1,6 @@
+/* 卡片视觉共享层（静态旋转描边）。@import 必须在其他规则之前。 */
+@import "../../styles/card-fx.wxss";
+
 .page {
   min-height: 100vh;
   background: #f7f7f7;
@@ -42,19 +45,35 @@
 }
 
 .act-card {
+  /* 共享层 token：圆角按本卡实际值覆盖；主色复用本页品牌色（徽标/角标/FAB 同款 #2E6BFF） */
+  --fx-r: 20rpx;
+  --fx-accent: #2E6BFF;
   position: relative;
+  /* 原来是行向 flex：现在卡内唯一在流的子元素是 .fx-body，
+     行排版（封面 + 文字 + 20rpx 间距）连同 18rpx padding 一起交给 .fx-body。
+     卡自身必须零 padding——描边环是绝对定位的，包含块是 padding box，
+     padding 留在卡上会把整圈描边推进 18rpx、不贴卡边 */
   display: flex;
-  gap: 20rpx;
+  flex-direction: column;
+  padding: 0;
   background: #ffffff;
   border-radius: 20rpx;
-  padding: 18rpx;
   box-shadow: 0 8rpx 24rpx rgba(0, 0, 0, 0.04);
-  transition: transform 0.16s ease;
+  transition: transform 0.35s cubic-bezier(0.34, 1.42, 0.6, 1), box-shadow 0.35s cubic-bezier(0.34, 1.42, 0.6, 1);
+}
+
+/* 内容层样式。position/inset/居中位移均由共享层默认值给出，此处只填本页内容样式 */
+.act-card .fx-body {
+  flex: 1 1 auto;
+  display: flex;
+  gap: 20rpx;
+  padding: 18rpx;
+  background: #ffffff;
 }
 
 .act-card--hover {
-  transform: scale(0.985);
-}
+  transform: scale(0.96);
+ box-shadow: inset 0 2rpx 6rpx rgba(16, 32, 64, 0.16), inset 0 -1rpx 2rpx rgba(255, 255, 255, 0.08); }
 
 .act-cover-wrap {
   position: relative;
@@ -123,6 +142,8 @@
   text-overflow: ellipsis;
   display: -webkit-box;
   -webkit-box-orient: vertical;
+  /* 右上角校区角标悬于首行右侧，预留空间避免遮挡标题 */
+  padding-right: 120rpx;
   -webkit-line-clamp: 2;
 }
 
@@ -172,12 +193,12 @@
   background: #f2f2f2;
   border-radius: 28rpx;
   padding: 10rpx 34rpx;
-  transition: background 0.15s ease;
+  transition: background 0.15s ease, transform 0.35s cubic-bezier(0.34, 1.42, 0.6, 1), box-shadow 0.35s cubic-bezier(0.34, 1.42, 0.6, 1);
 }
 
 .act-view-btn--hover {
   background: #e6e6e6;
-}
+ transform: scale(0.96); box-shadow: inset 0 2rpx 6rpx rgba(16, 32, 64, 0.16), inset 0 -1rpx 2rpx rgba(255, 255, 255, 0.08); }
 
 /* ===== 空状态（图三虚线框） ===== */
 .empty-box {
@@ -219,13 +240,13 @@
   justify-content: center;
   gap: 8rpx;
   z-index: 50;
-  transition: transform 0.18s ease, box-shadow 0.18s ease;
+  transition: transform 0.35s cubic-bezier(0.34, 1.42, 0.6, 1), box-shadow 0.35s cubic-bezier(0.34, 1.42, 0.6, 1);
 }
 
 .create-fab--hover {
-  transform: scale(0.95);
+  transform: scale(0.96);
   box-shadow: 0 8rpx 20rpx rgba(46, 107, 255, 0.32);
-}
+ box-shadow: inset 0 2rpx 6rpx rgba(16, 32, 64, 0.16), inset 0 -1rpx 2rpx rgba(255, 255, 255, 0.08); }
 
 .create-fab-plus {
   color: #ffffff;
@@ -254,3 +275,139 @@
   padding: 5rpx 14rpx;
   line-height: 1.3;
 }
+
+/* ===== 首次入驻引导弹窗（与群聊分类页图五弹窗同款样式） ===== */
+.modal-mask {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 56rpx;
+}
+
+.modal-dialog {
+  width: 100%;
+  background: #ffffff;
+  border-radius: 24rpx;
+  overflow: hidden;
+}
+
+.modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 30rpx 30rpx 24rpx;
+  border-bottom: 1rpx solid #f0f1f3;
+}
+
+.modal-title {
+  font-size: 32rpx;
+  font-weight: 800;
+  color: #1f2a44;
+}
+
+.modal-close {
+  font-size: 28rpx;
+  color: #9aa3b2;
+  padding: 4rpx 8rpx;
+}
+
+.modal-body {
+  padding: 28rpx 30rpx 30rpx;
+}
+
+.modal-intro {
+  display: block;
+  font-size: 27rpx;
+  color: #3a4356;
+  line-height: 1.75;
+  text-align: justify;
+}
+
+.modal-label {
+  margin-top: 24rpx;
+  font-size: 26rpx;
+  color: #9aa3b2;
+}
+
+.modal-tip {
+  margin-top: 8rpx;
+  font-size: 26rpx;
+  color: #c2c8d1;
+  line-height: 1.6;
+}
+
+.modal-join-btn {
+  margin-top: 22rpx;
+  height: 88rpx;
+  border-radius: 14rpx;
+  background: #f2f3f5;
+  color: #4a5468;
+  font-size: 28rpx;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.16s ease, transform 0.35s cubic-bezier(0.34, 1.42, 0.6, 1), box-shadow 0.35s cubic-bezier(0.34, 1.42, 0.6, 1);
+}
+
+.modal-join-btn--hover {
+  background: #e8eaee;
+ transform: scale(0.96); box-shadow: inset 0 2rpx 6rpx rgba(16, 32, 64, 0.16), inset 0 -1rpx 2rpx rgba(255, 255, 255, 0.08); }
+
+.modal-foot {
+  display: flex;
+  gap: 20rpx;
+  padding: 10rpx 30rpx 32rpx;
+}
+
+.modal-btn {
+  height: 88rpx;
+  border-radius: 14rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28rpx;
+  font-weight: 600;
+  transition: opacity 0.16s ease, transform 0.35s cubic-bezier(0.34, 1.42, 0.6, 1), box-shadow 0.35s cubic-bezier(0.34, 1.42, 0.6, 1);
+}
+
+.modal-btn-plain {
+  flex: 1;
+  background: #f2f3f5;
+  color: #1f2a44;
+}
+
+.modal-btn-plain--hover {
+  background: #e8eaee;
+ transform: scale(0.96); box-shadow: inset 0 2rpx 6rpx rgba(16, 32, 64, 0.16), inset 0 -1rpx 2rpx rgba(255, 255, 255, 0.08); }
+
+.modal-btn-dark {
+  flex: 1.5;
+  background: #1a1c20;
+  color: #ffffff;
+}
+
+.modal-btn-dark--hover {
+  opacity: 0.86;
+  transform: scale(0.96);
+ box-shadow: inset 0 2rpx 6rpx rgba(16, 32, 64, 0.16), inset 0 -1rpx 2rpx rgba(255, 255, 255, 0.08); }
+
+/* ===== 订阅消息提醒弹窗（进入校园活动页） ===== */
+.sub-mask { position: fixed; z-index: 100; inset: 0; background: rgba(0, 0, 0, .58); }
+.sub-dialog { position: fixed; z-index: 101; top: 50%; left: 50%; width: 600rpx; transform: translate(-50%, -50%); padding: 40rpx 32rpx 32rpx; border-radius: 28rpx; background: #ffffff; box-sizing: border-box; }
+.sub-title { display: block; color: #15233a; font-size: 36rpx; font-weight: 700; text-align: center; }
+.sub-desc { display: block; margin: 14rpx 0 6rpx; color: #8a94a6; font-size: 25rpx; text-align: center; }
+.sub-row { display: flex; align-items: center; justify-content: space-between; min-height: 104rpx; border-bottom: 1rpx solid #f0f2f5; }
+.sub-row-label { display: block; color: #10213a; font-size: 30rpx; }
+.sub-row-hint { display: block; margin-top: 4rpx; color: #8a94a6; font-size: 22rpx; }
+.sub-actions { display: flex; margin-top: 32rpx; }
+.sub-btn-skip, .sub-btn-confirm { display: flex; align-items: center; justify-content: center; height: 88rpx; border-radius: 44rpx; font-size: 30rpx; }
+.sub-btn-skip { flex: 1; margin-right: 20rpx; background: #f6f7f9; color: #5a6572; }
+.sub-btn-confirm { flex: 1.6; background: #3478f6; color: #ffffff; font-weight: 600; }

@@ -1,0 +1,33 @@
+<view class="page page-enter">
+  <view class="content">
+    <view class="page-title">评价分类</view>
+    <view class="page-sub">请选择自己的校区哦，不同校区的评分不同</view>
+
+    <!-- 校区选择触发条（二级结构面板：广州校区→新港/琶洲，佛山校区→南海南/南海北） -->
+    <view class="campus-bar spring-btn" hover-class="campus-bar--hover press-spring" hover-stay-time="80" bindtap="onToggleCampus">
+      <text class="campus-bar-label">校区</text>
+      <text class="campus-bar-value">{{campus}}</text>
+      <text class="campus-bar-arrow">{{showCampusPanel ? '▴' : '▾'}}</text>
+    </view>
+
+    <view class="cate-grid">
+      <view
+        wx:for="{{categories}}"
+        wx:key="key"
+        class="cate-card anim-stagger spring-btn"
+        style="--i: {{index < 6 ? index : 0}}"
+        data-key="{{item.key}}"
+        bindtap="onCategoryTap"
+        hover-class="cate-card--hover press-spring"
+        hover-stay-time="120"
+      >
+        <view class="cate-icon cate-icon--{{item.key}}"><text>{{item.icon}}</text></view>
+        <view class="cate-name">{{item.name}}</view>
+        <view class="cate-desc">{{item.desc}}</view>
+      </view>
+    </view>
+  </view>
+</view>
+
+<!-- 校区选择弹层：仅广州/佛山两个主校区（fixed 元素放在带动画容器外，避免 transform 裁剪） -->
+<campus-picker mainOnly visible="{{showCampusPanel}}" value="{{campus}}" bind:change="onCampusChange" bind:close="onCloseCampus" />

@@ -1,57 +1,80 @@
 <view class="page page-enter">
-  <view class="hero">
-    <view class="campus-bar" hover-class="campus-bar--hover" hover-stay-time="80" bindtap="onToggleCampus">
+  <view class="topbar" style="padding-top: {{statusBarHeight}}px;">
+    <view class="back-pill spring-btn" hover-class="back-pill-hover press-spring" hover-stay-time="80" bindtap="goBack"><text class="back-pill-icon">‹</text><text>返回</text></view>
+  </view>
+
+  <view class="content">
+    <view class="page-title">社团&组织</view>
+    <view class="page-sub">按分类浏览，找到你感兴趣的社团</view>
+
+    <view class="campus-bar spring-btn" hover-class="campus-bar--hover press-spring" hover-stay-time="80" bindtap="onToggleCampus">
       <text class="campus-bar-label">校区</text>
-      <text class="campus-bar-value">{{campus}}</text>
+      <text class="campus-bar-value">{{campus || '全部校区'}}</text>
       <text class="campus-bar-arrow">{{showCampusPanel ? '▴' : '▾'}}</text>
     </view>
-    <view class="hero-copy">
-      <view class="hero-title">{{pageTitle}}</view>
-      <view class="hero-sub">六大类别 · 总有一群人和你有一样的热爱</view>
+
+    <view class="club-grid">
+      <view
+        class="club-card fx-card anim-stagger {{index < 6 ? 'is-entry' : ''}} {{fxOff ? 'fx-off' : ''}} spring-btn"
+        style="--i: {{index < 6 ? index : 0}}; --fx-accent: {{item.theme.deep}};"
+        wx:for="{{categories}}"
+        wx:key="id"
+        data-id="{{item.id}}"
+        bindtap="onCategoryTap"
+        hover-class="club-card--hover press-spring"
+        hover-stay-time="120"
+      >
+        <!-- 静态旋转描边（styles/card-fx.wxss）：宫格是列表项，不开自转（设计文档 §2.7），
+             描边不自动转。主色跟随该分类的主题色 theme.deep。
+             内容整体搬进内容层，四周让出 --fx-w 给描边，卡高由内容层长出来（§2.6） -->
+        <view class="fx-ring"><view class="fx-ring-spin"></view></view>
+        <view class="fx-body">
+          <view class="club-icon" style="background:{{item.theme.gradient}};box-shadow:0 12rpx 24rpx {{item.theme.shadow}};">
+            <text class="club-icon-char">{{item.char}}</text>
+          </view>
+          <view class="club-name">{{item.name}}</view>
+          <view class="club-desc">{{item.slogan}}</view>
+        </view>
+      </view>
     </view>
-    <view class="hero-stats glass-panel">
-      <view class="stat">
-        <text class="stat-num">{{stats.categoryCount}}</text>
-        <text class="stat-label">大分类</text>
-      </view>
-      <view class="stat-divider"></view>
-      <view class="stat">
-        <text class="stat-num">{{stats.clubCount}}+</text>
-        <text class="stat-label">重点社团</text>
-      </view>
-      <view class="stat-divider"></view>
-      <view class="stat">
-        <text class="stat-num">{{stats.scopeCount}}+</text>
-        <text class="stat-label">兴趣方向</text>
+
+    <view class="my-applies" wx:if="{{myApplies.length}}">
+      <view class="section-title">我的社团申请</view>
+      <view class="apply-row" wx:for="{{myApplies}}" wx:key="id">
+        <view class="apply-main">
+          <text class="apply-name">{{item.name}}</text>
+          <text class="apply-status apply-status--{{item.status}}">{{item.statusText}}</text>
+        </view>
+        <text wx:if="{{item.reviewNote}}" class="apply-note">审核意见：{{item.reviewNote}}</text>
       </view>
     </view>
   </view>
+</view>
 
-  <view class="club-grid">
-    <view
-      class="club-card anim-stagger"
-      style="--i:{{index}}"
-      wx:for="{{categories}}"
-      wx:key="id"
-      data-id="{{item.id}}"
-      bindtap="onCategoryTap"
-      hover-class="club-card--hover"
-      hover-stay-time="120"
-    >
-      <view class="club-icon" style="background:{{item.theme.gradient}};box-shadow:0 12rpx 24rpx {{item.theme.shadow}};">
-        <text class="club-icon-char">{{item.char}}</text>
-      </view>
-      <view class="club-name">{{item.name}}</view>
-      <view class="club-desc ellipsis">{{item.slogan}}</view>
-      <view class="club-foot">
-        <text class="club-count" style="color:{{item.theme.deep}}">{{item.clubs.length}} 个重点社团</text>
-        <text class="club-arrow">›</text>
-      </view>
-    </view>
-  </view>
-
-  <view class="page-foot">社团信息持续更新 · 招新季请留意最新动态</view>
+<!-- 右下角申请入口（与群聊分类页同款；fixed 元素放在带动画容器外，避免 transform 影响） -->
+<view class="create-btn spring-btn" hover-class="create-btn--hover press-spring" hover-stay-time="120" bindtap="onCreate">
+  <view class="create-pencil"></view>
 </view>
 
 <!-- 校区选择弹层（fixed 元素放在带动画容器外） -->
 <campus-picker visible="{{showCampusPanel}}" value="{{campus}}" bind:change="onCampusChange" bind:close="onCloseCampus" />
+
+<!-- 首次入驻弹窗：点击右下角入口时弹出 -->
+<view wx:if="{{showModal}}" class="modal-mask anim-fade" bindtap="onCloseModal">
+  <view class="modal-dialog anim-slide-up" catchtap="noop">
+    <view class="modal-head">
+      <text class="modal-title">首次入驻广轻校园圈</text>
+      <text class="modal-close" catchtap="onCloseModal">关闭</text>
+    </view>
+    <view class="modal-body">
+      <text class="modal-intro">欢迎首次入驻广轻校园圈，建议加入意见群。在群内可以互相交流，提交功能建议，接收版本更新通知，助力你的社团和群聊更好曝光。</text>
+      <view class="modal-label">微信意见群</view>
+      <view class="modal-tip">使用企业微信群插件，群码不会过期，需要授权一下</view>
+      <view class="modal-join-btn spring-btn" hover-class="modal-join-btn--hover press-spring" hover-stay-time="100" bindtap="onJoinOpinionGroup">点击加入微信意见群</view>
+    </view>
+    <view class="modal-foot">
+      <view class="modal-btn modal-btn-plain spring-btn" hover-class="modal-btn-plain--hover press-spring" hover-stay-time="100" catchtap="onCloseModal">稍后再说</view>
+      <view class="modal-btn modal-btn-dark spring-btn" hover-class="modal-btn-dark--hover press-spring" hover-stay-time="100" catchtap="onGoApply">我已知晓，去申请社团</view>
+    </view>
+  </view>
+</view>

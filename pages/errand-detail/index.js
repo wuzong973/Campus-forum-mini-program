@@ -2,6 +2,7 @@ const auth = require('../../utils/auth')
 const request = require('../../utils/request')
 const qr = require('../../utils/qr')
 const { runPullDownRefresh } = require('../../utils/refresh')
+const errandStatus = require('../../utils/errand-status')
 
 // 订单信息统一使用 YYYY-MM-DD HH:mm:ss 展示（与订单编号的紧凑时间规则一致）
 function toDashText(value) {
@@ -35,9 +36,14 @@ const LOG_LABELS = {
 const STATUS_TEXT = {
   pending: '待接单 ···',
   accepted: '进行中 ···',
+  finishing: '待确认 ···',
+  disputed: '有异议 ···',
   finished: '已完成',
   cancelled: '已取消'
 }
+
+// 接单方提交完成后，发单人需在 2 小时内确认；逾期既未确认也未提出异议时由系统自动确认完成
+const AUTO_CONFIRM_HOURS = 2
 
 const PUBLISHER_AVATARS = ['👨🏻', '👩🏻', '🧑🏻', '👨🏼', '👩🏼', '🧑🏼']
 
@@ -63,7 +69,21 @@ Page({
     reviewContent: '',
     reviewing: false,
     showContactSheet: false,
-    contactPhoneText: ''
+    contactPhoneText: '',
+    // 进行中的订单（非发单人非接单人）打开时提示「已被接走」并引导返回接单大厅
+    showTakenPopup: false,
+    takenAcceptorName: '',
+    takenAcceptorAvatar: '',
+    // 发单人查看接单方提交完成的详情弹窗（含确认完成 / 拒绝并提异议入口）
+    showSubmitSheet: false,
+    // 异议填写弹窗
+    showDisputeSheet: false,
+    disputeContent: '',
+    disputing: false,
+    confirming: false,
+    // 待确认状态下的等待时长（HH:mm:ss，每秒刷新）
+    waitText: '00:00:00',
+    autoConfirmHours: AUTO_CONFIRM_HOURS
   },
 
   onLoad(options) {
@@ -90,6 +110,11 @@ Page({
     runPullDownRefresh(this, () => this.loadOrder())
   },
 
+  onUnload() {
+    // 待确认等待计时器：页面销毁时清理，避免后台持续 setData
+    this.stopWaitTimer()
+  },
+
   goBack() {
     wx.navigateBack()
   },
@@ -108,9 +133,21 @@ Page({
     const requestPending = !!(cancelRequest && cancelRequest.status === 'pending' && status === 'accepted')
     let bottomMode = ''
     if (status === 'accepted') bottomMode = role === 'acceptor' ? 'acceptor' : (role === 'publisher' ? 'publisher' : '')
-    else if (status === 'pending') bottomMode = role === 'publisher' ? 'ownerPending' : (role === 'viewer' ? 'pending' : '')
-    else if (status === 'finished') bottomMode = 'finished'
-    const guideStep = status === 'pending' ? 1 : (status === 'accepted' ? 3 : (status === 'finished' ? 4 : 0))
+    else if (status === 'finishing') {
+      // 接单方已提交完成：发单人看到「提出异议 / 确认完成」，接单方等待发单人确认
+      bottomMode = role === 'publisher' ? 'publisherConfirm' : (role === 'acceptor' ? 'acceptorFinishing' : '')
+    } else if (status === 'disputed') {
+      bottomMode = role === 'publisher' ? 'disputedPublisher' : (role === 'acceptor' ? 'disputedAcceptor' : '')
+    }     else if (status === 'pending') bottomMode = role === 'publisher' ? 'ownerPending' : (role === 'viewer' ? 'pending' : '')
+    // 已完成：只有接单人能去评价（此前未判角色，浏览者也会看到「到手佣金 / 去评价」）
+    else if (status === 'finished') bottomMode = role === 'viewer' ? '' : 'finished'
+    const guideStep = status === 'pending' ? 1
+      : (status === 'accepted' || status === 'finishing' || status === 'disputed' ? 3 : (status === 'finished' ? 4 : 0))
+    // 浏览者点开已被他人接走的订单：仅首次进入时弹窗引导返回大厅，避免刷新反复打扰。
+    // 待确认/有异议同属「已被接走」，一并引导 —— 否则第三方会停在别人的交接阶段页面上
+    const showTaken = (status === 'accepted' || status === 'finishing' || status === 'disputed')
+      && role === 'viewer' && !this._takenPrompted
+    if (showTaken) this._takenPrompted = true
     this.setData({
       order,
       cancelRequest,
@@ -121,8 +158,38 @@ Page({
       guideStep,
       requestPending,
       canHandleRequest: requestPending && role === 'publisher',
-      contactPhoneText: this.buildContactPhoneText(order)
+      contactPhoneText: this.buildContactPhoneText(order),
+      showTakenPopup: showTaken,
+      takenAcceptorName: (order && order.acceptorName) || '其他同学',
+      takenAcceptorAvatar: (order && order.acceptorAvatar) || ''
     })
+    this.startWaitTimer(order)
+  },
+
+  // 待确认状态下的「已等待」计时：以接单方提交完成时间为起点，每秒刷新一次
+  startWaitTimer(order) {
+    this.stopWaitTimer()
+    if (!order || order.status !== 'finishing' || !order.finishSubmittedAt) return
+    const base = new Date(String(order.finishSubmittedAt).replace(' ', 'T')).getTime()
+    if (Number.isNaN(base)) return
+    const tick = () => {
+      const elapsed = Math.max(0, Math.floor((Date.now() - base) / 1000))
+      this.setData({ waitText: this.formatDuration(elapsed) })
+    }
+    tick()
+    this._waitTimer = setInterval(tick, 1000)
+  },
+
+  stopWaitTimer() {
+    if (this._waitTimer) {
+      clearInterval(this._waitTimer)
+      this._waitTimer = null
+    }
+  },
+
+  formatDuration(seconds) {
+    const p = (n) => String(n).padStart(2, '0')
+    return p(Math.floor(seconds / 3600)) + ':' + p(Math.floor((seconds % 3600) / 60)) + ':' + p(seconds % 60)
   },
 
   // 电话联系文案：接单方优先拨"发单方发布订单时填写的手机号"（receiver_phone），
@@ -144,6 +211,7 @@ Page({
     const finishedRaw = order.finishedAt || order.finished_at
     const contactPhone = order.contact_phone || ''
     const finishImages = order.finishImages || order.finish_images || []
+    const orderImages = order.images || []
     // 订单编号：按图四版式 “e + 下单时间 + 订单id” 展示
     const orderNo = 'e' + String(createdText).replace(/\D/g, '') + order.id
     const reward = Number(order.reward || order.totalAmount || 0)
@@ -176,6 +244,19 @@ Page({
       orderNoText: orderNo,
       contactPhone,
       finishImages: Array.isArray(finishImages) ? finishImages : [],
+      orderImages: Array.isArray(orderImages) ? orderImages : [],
+      finishDescription: order.finish_description || order.finishDescription || '',
+      finishSubmittedAt: order.finish_submitted_at || order.finishSubmittedAt || '',
+      finishSubmittedText: toDashText(order.finish_submitted_at || order.finishSubmittedAt),
+      // 接单方身份（发单人视角的「接单人」卡片与「已被接走」弹窗都需要）
+      acceptorName: order.acceptor_name || order.acceptorName || '',
+      acceptorAvatar: order.acceptor_avatar || order.acceptorAvatar || '',
+      // 异议信息
+      disputeReason: order.dispute_reason || order.disputeReason || '',
+      disputedText: toDashText(order.disputed_at || order.disputedAt),
+      disputeResult: order.dispute_result || order.disputeResult || '',
+      disputeNote: order.dispute_note || order.disputeNote || '',
+      disputeHandledText: toDashText(order.dispute_handled_at || order.disputeHandledAt),
       isOwner: order.role === 'publisher'
     })
   },
@@ -190,6 +271,7 @@ Page({
         if (!result.confirm) return
         this.setData({ accepting: true })
         request.post('/errand/' + order.id + '/accept', {}, true).then(() => {
+          errandStatus.publish(order.id, 'accepted')
           wx.showToast({ title: '接单成功', icon: 'success' })
           this.loadOrder()
         }).finally(() => this.setData({ accepting: false }))
@@ -207,6 +289,99 @@ Page({
 
   openCancel() {
     if (this.data.order && this.data.order.id) wx.navigateTo({ url: '/pages/errand-cancel/index?id=' + this.data.order.id })
+  },
+
+  // ===== 待确认状态：查看提交详情 / 确认完成 / 提出异议 =====
+  openSubmitSheet() {
+    const order = this.data.order
+    if (!order) return
+    // 该弹窗是发给发单人核对提交结果的（内含「确认已完成」），第三方不得打开
+    if (order.role !== 'publisher') return
+    this.setData({ showSubmitSheet: true })
+  },
+
+  closeSubmitSheet() {
+    if (this.data.confirming) return
+    this.setData({ showSubmitSheet: false })
+  },
+
+  // 发单人确认完成：订单正式完成，赏金自动转入接单方钱包
+  onConfirmComplete() {
+    const order = this.data.order
+    if (!order || this.data.confirming) return
+    // 与服务端 confirm 的「仅发单人可确认完成」保持同一条口径：
+    // 不在前端先把确认弹窗放出来，避免第三方点了弹窗、后端 403、界面却毫无反馈
+    if (order.role !== 'publisher') return
+    wx.showModal({
+      title: '确认完成',
+      content: '确认后订单正式完成，赏金将转入接单方钱包，且不可撤销。',
+      cancelText: '再想想',
+      confirmText: '确认完成',
+      confirmColor: '#347ff2',
+      success: (r) => {
+        if (!r.confirm) return
+        this.setData({ confirming: true })
+        request.post('/errand/' + order.id + '/confirm', {}, true).then(() => {
+          errandStatus.publish(order.id, 'done')
+          wx.showToast({ title: '订单已完成', icon: 'success' })
+          this.setData({ showSubmitSheet: false })
+          this.loadOrder()
+        }).catch((error) => {
+          // 不静默吞错：此前这里是空 catch，确认失败时用户看到的是「点了没反应」。
+          // 401 已由 utils/request 统一弹过「登录已失效」，这里不重复提示。
+          if (!(error && error.requiresLogin)) {
+            wx.showToast({ title: (error && error.message) || '确认失败，请重试', icon: 'none' })
+          }
+        }).finally(() => this.setData({ confirming: false }))
+      }
+    })
+  },
+
+  // 拒绝提交结果并提出异议：填写异议内容后订单转「有异议」，由客服介入并推送管理后台
+  openDisputeSheet() {
+    if (!this.data.order) return
+    this.setData({ showSubmitSheet: false, showDisputeSheet: true })
+  },
+
+  closeDisputeSheet() {
+    if (this.data.disputing) return
+    this.setData({ showDisputeSheet: false })
+  },
+
+  onDisputeInput(e) {
+    this.setData({ disputeContent: e.detail.value })
+  },
+
+  submitDispute() {
+    const order = this.data.order
+    if (!order || this.data.disputing) return
+    const reason = this.data.disputeContent.trim()
+    if (!reason) {
+      wx.showToast({ title: '请填写异议内容', icon: 'none' })
+      return
+    }
+    this.setData({ disputing: true })
+    request.post('/errand/' + order.id + '/dispute', { reason }, true).then(() => {
+      wx.showToast({ title: '异议已提交', icon: 'success' })
+      this.setData({ showDisputeSheet: false, disputeContent: '' })
+      this.loadOrder()
+    }).catch(() => {}).finally(() => this.setData({ disputing: false }))
+  },
+
+  // 联系客服：复用页面内 contact-admin 组件（在线联系微信客服 / 添加管理员微信）
+  contactService() {
+    const comp = this.selectComponent('#serviceAdmin')
+    if (comp) comp.openMenu()
+  },
+
+  // 「来晚啦！该订单已被其他同学接走」弹窗
+  closeTakenPopup() {
+    this.setData({ showTakenPopup: false })
+  },
+
+  backToHall() {
+    this.setData({ showTakenPopup: false })
+    wx.switchTab({ url: '/pages/errand/index' })
   },
 
   openCancelPublisher() {
@@ -268,6 +443,12 @@ Page({
     const current = e.currentTarget.dataset.src
     if (!current) return
     wx.previewImage({ current, urls: this.data.order.finishImages })
+  },
+
+  previewOrderImage(e) {
+    const current = e.currentTarget.dataset.src
+    if (!current) return
+    wx.previewImage({ current, urls: this.data.order.orderImages || [] })
   },
 
   // 长按图片：统一二维码识别菜单（识别 / 预览），完成凭证图与取消凭证图共用

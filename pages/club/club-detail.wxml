@@ -1,0 +1,234 @@
+<!-- 社团详情：按社团唯一标识（id）匹配；不存在/已下线走 empty 空态
+     展示字段与「申请创建社团」页保持一致：
+     社团类型 / 校区 / 所属分类 / 社团名称 / 负责人微信 / 社团头像 / 社团二维码 /
+     公众号二维码(选填) / 文字介绍 / 图片介绍(选填) -->
+<view class="page page-enter">
+
+  <!-- 加载骨架 -->
+  <block wx:if="{{loading}}">
+    <view class="hero">
+      <view class="hero-card">
+        <view class="sk sk-badge"></view>
+        <view class="hero-info">
+          <view class="sk sk-line sk-line-lg"></view>
+          <view class="sk sk-line sk-line-sm"></view>
+        </view>
+      </view>
+    </view>
+    <view class="section" wx:for="{{[1,2,3]}}" wx:key="*this">
+      <view class="sk sk-line sk-line-title"></view>
+      <view class="sk sk-line"></view>
+      <view class="sk sk-line sk-line-sm"></view>
+    </view>
+  </block>
+
+  <!-- 社团不存在 / 已下线 / 已删除 -->
+  <view class="empty" wx:elif="{{notFound}}">
+    <view class="empty-icon">?</view>
+    <text class="empty-title">社团不存在或已下线</text>
+    <text class="empty-desc">它可能已被删除或暂停展示，去社团列表看看其他社团吧</text>
+    <button hover-class="press-spring" class="empty-btn spring-btn" bindtap="onBack" hover-stay-time="120">返回社团列表</button>
+  </view>
+
+  <!-- 网络 / 服务异常：可重试 -->
+  <view class="empty" wx:elif="{{loadError}}">
+    <view class="empty-icon">!</view>
+    <text class="empty-title">加载失败</text>
+    <text class="empty-desc">网络似乎不太稳定，请稍后重试</text>
+    <button hover-class="press-spring" class="empty-btn spring-btn" bindtap="onRetry" hover-stay-time="120">重新加载</button>
+  </view>
+
+  <block wx:else>
+    <!-- ===== 顶部：社团头像 / 名称 / 标签 / 所属分类 / 校区 ===== -->
+    <view class="hero" style="background:linear-gradient(180deg, {{theme.soft}} 0%, rgba(244,246,250,0) 100%);">
+      <view class="hero-card">
+        <image class="hero-avatar" wx:if="{{media.avatarUrl}}" src="{{media.avatarUrl}}" mode="aspectFill" data-url="{{media.avatarUrl}}" bindtap="onPreview"></image>
+        <view class="hero-icon" wx:else style="background:{{theme.gradient}};box-shadow:0 14rpx 30rpx {{theme.shadow}};">
+          <text class="hero-icon-char">{{club.char}}</text>
+        </view>
+        <view class="hero-info">
+          <view class="hero-name">{{club.name}}</view>
+          <view class="hero-meta">
+            <text class="hero-cat" style="background:{{theme.soft}};color:{{theme.deep}};">{{club.categoryName || '未分类'}}</text>
+            <text class="hero-campus">{{campusText}}</text>
+          </view>
+        </view>
+      </view>
+      <view class="chip-wrap" wx:if="{{club.tagList.length}}">
+        <view class="chip" wx:for="{{club.tagList}}" wx:key="*this" style="background:{{theme.soft}};color:{{theme.deep}};">{{item}}</view>
+      </view>
+    </view>
+
+    <!-- ===== 负责人微信（申请页填写的负责人二维码）===== -->
+    <view class="section anim-slide-up" wx:if="{{media.adminQrcodeUrl}}">
+      <view class="section-head">
+        <view class="section-bar" style="background:{{theme.gradient}};"></view>
+        <text class="section-title">负责人微信</text>
+        <text class="section-hint" wx:if="{{creation.creator}}">{{creation.creator.nickName}}</text>
+      </view>
+      <view class="qr-row">
+        <image
+          class="qr-img"
+          src="{{media.adminQrcodeUrl}}"
+          mode="widthFix"
+          data-url="{{media.adminQrcodeUrl}}"
+          bindtap="onPreview"
+          hover-class="qr-img--hover"
+          hover-stay-time="100"
+        ></image>
+        <text class="qr-tip">点击可放大二维码，添加负责人咨询入社</text>
+      </view>
+    </view>
+
+    <!-- ===== 文字介绍（申请页「文字介绍」）===== -->
+    <view class="section anim-slide-up">
+      <view class="section-head">
+        <view class="section-bar" style="background:{{theme.gradient}};"></view>
+        <text class="section-title">文字介绍</text>
+        <text class="section-hint" bindtap="onCopyIntro">复制</text>
+      </view>
+      <text class="section-text">{{club.intro || '该社团暂未填写介绍。'}}</text>
+    </view>
+
+    <!-- ===== 图片介绍（申请页「图片介绍(选填)」）===== -->
+    <view class="section anim-slide-up" wx:if="{{media.images.length}}">
+      <view class="section-head">
+        <view class="section-bar" style="background:{{theme.gradient}};"></view>
+        <text class="section-title">图片介绍</text>
+        <text class="section-hint">{{media.images.length}} 张</text>
+      </view>
+      <view class="gallery">
+        <image
+          class="gallery-item"
+          wx:for="{{media.images}}"
+          wx:key="*this"
+          src="{{item}}"
+          mode="aspectFill"
+          data-url="{{item}}"
+          data-urls="{{media.images}}"
+          bindtap="onPreview"
+        ></image>
+      </view>
+    </view>
+
+    <!-- ===== 招新信息（后台额外维护的字段，申请页没有）===== -->
+    <view class="section anim-slide-up" wx:if="{{club.recruit}}">
+      <view class="section-head">
+        <view class="section-bar" style="background:{{theme.gradient}};"></view>
+        <text class="section-title">招新信息</text>
+      </view>
+      <view class="recruit" style="background:{{theme.soft}};">
+        <text class="recruit-label" style="color:{{theme.deep}};">招新</text>
+        <text class="recruit-text">{{club.recruit}}</text>
+      </view>
+    </view>
+
+    <!-- ===== 社团二维码 / 公众号二维码（与申请页同字段）===== -->
+    <view class="section anim-slide-up" wx:if="{{media.qrcodeUrl || media.gzhQrcodeUrl}}">
+      <view class="section-head">
+        <view class="section-bar" style="background:{{theme.gradient}};"></view>
+        <text class="section-title">社团二维码</text>
+      </view>
+      <view class="qr-grid">
+        <view class="qr-cell" wx:if="{{media.qrcodeUrl}}">
+          <image class="qr-img qr-img--cell" src="{{media.qrcodeUrl}}" mode="widthFix" data-url="{{media.qrcodeUrl}}" bindtap="onPreview"></image>
+          <text class="qr-cell-label">社团二维码</text>
+        </view>
+        <view class="qr-cell" wx:if="{{media.gzhQrcodeUrl}}">
+          <image class="qr-img qr-img--cell" src="{{media.gzhQrcodeUrl}}" mode="widthFix" data-url="{{media.gzhQrcodeUrl}}" bindtap="onPreview"></image>
+          <text class="qr-cell-label">公众号二维码</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- ===== 创建信息 ===== -->
+    <view class="section anim-slide-up" style="--i:1">
+      <view class="section-head">
+        <view class="section-bar" style="background:{{theme.gradient}};"></view>
+        <text class="section-title">创建信息</text>
+      </view>
+      <view class="info-row">
+        <text class="info-label">社团类型</text>
+        <text class="info-value">{{club.clubType}}</text>
+      </view>
+      <view class="info-row">
+        <text class="info-label">所属分类</text>
+        <text class="info-value">{{club.categoryName || '未分类'}}</text>
+      </view>
+      <view class="info-row">
+        <text class="info-label">适用校区</text>
+        <text class="info-value">{{campusText}}</text>
+      </view>
+      <view class="info-row" wx:if="{{creation.creator}}">
+        <text class="info-label">负责人</text>
+        <text class="info-value">{{creation.creator.nickName}}</text>
+      </view>
+      <view class="info-row" wx:if="{{creation.appliedText}}">
+        <text class="info-label">提交申请</text>
+        <text class="info-value">{{creation.appliedText}}</text>
+      </view>
+      <view class="info-row" wx:if="{{creation.approvedText}}">
+        <text class="info-label">审核通过</text>
+        <text class="info-value">{{creation.approvedText}}</text>
+      </view>
+      <view class="info-row" wx:if="{{!creation.appliedText && createdText}}">
+        <text class="info-label">上架时间</text>
+        <text class="info-value">{{createdText}}</text>
+      </view>
+    </view>
+
+    <!-- ===== 成员列表 ===== -->
+    <view class="section anim-slide-up" style="--i:2">
+      <view class="section-head">
+        <view class="section-bar" style="background:{{theme.gradient}};"></view>
+        <text class="section-title">成员列表</text>
+        <text class="section-hint">{{members.length}} 人</text>
+      </view>
+      <block wx:if="{{members.length}}">
+        <view class="member anim-stagger" style="--i: {{index < 6 ? index : 0}};" wx:for="{{members}}" wx:key="userId">
+          <image class="member-avatar" wx:if="{{item.avatarUrl}}" src="{{item.avatarUrl}}" mode="aspectFill"></image>
+          <view class="member-avatar member-avatar--text" wx:else style="background:{{theme.soft}};color:{{theme.deep}};">{{item.char}}</view>
+          <view class="member-info">
+            <text class="member-name">{{item.nickName}}</text>
+            <text class="member-role" style="color:{{theme.deep}};">{{item.role}}</text>
+          </view>
+        </view>
+      </block>
+      <view class="tip" wx:else>该社团暂未登记成员信息</view>
+    </view>
+
+    <!-- ===== 近期活动 ===== -->
+    <view class="section anim-slide-up" style="--i:3">
+      <view class="section-head">
+        <view class="section-bar" style="background:{{theme.gradient}};"></view>
+        <text class="section-title">近期活动</text>
+        <text class="section-hint" wx:if="{{activities.length}}">{{activities.length}} 场</text>
+      </view>
+      <block wx:if="{{activities.length}}">
+        <view
+          class="act anim-stagger spring-btn"
+          style="--i: {{index < 6 ? index : 0}};"
+          wx:for="{{activities}}"
+          wx:key="id"
+          data-id="{{item.id}}"
+          bindtap="onActivityTap"
+          hover-class="act--hover press-spring"
+          hover-stay-time="100"
+        >
+          <image class="act-cover" wx:if="{{item.coverUrl}}" src="{{item.coverUrl}}" mode="aspectFill"></image>
+          <view class="act-cover act-cover--text" wx:else style="background:{{theme.soft}};color:{{theme.deep}};">活</view>
+          <view class="act-info">
+            <text class="act-title ellipsis">{{item.title}}</text>
+            <text class="act-meta ellipsis">{{item.timeText}}{{item.location ? ' · ' + item.location : ''}}</text>
+            <text class="act-signup">{{item.signupText}}</text>
+          </view>
+          <text class="act-arrow">›</text>
+        </view>
+      </block>
+      <view class="tip" wx:else>该社团近期还没有发布活动</view>
+    </view>
+
+    <view class="foot-note">社团信息由负责人提交、管理员审核后展示</view>
+  </block>
+
+</view>

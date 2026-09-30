@@ -1,0 +1,218 @@
+/* ============================================================
+   卡片视觉共享层：旋转描边 + 呼吸弥散背光
+   设计文档：docs/2026-09-30_卡片动效共享层与全站铺开设计.md
+
+   用法（结构固定，token 可选覆盖）：
+     <view class="fx-stage {{fxOff ? 'fx-off' : ''}}">
+       <view class="fx-glow-layer">
+         <view class="fx-glow is-on"><view class="fx-glow-pulse"></view></view>
+       </view>
+       <view class="fx-card is-live" style="--fx-accent: #4A7AFF">
+         <view class="fx-ring"><view class="fx-ring-spin"></view></view>
+         <view class="fx-body"> 原内容 </view>
+       </view>
+     </view>
+
+   页面 wxss 顶部：@import "../../styles/card-fx.wxss";
+   不需要背光时可以只写 .fx-card / .fx-ring / .fx-body 三层。
+   ============================================================ */
+
+/* token 默认值写在这里，靠自定义属性继承下发给子层。
+   不用 var(--x, 4rpx) 的回退语法：项目里回退值只验证过颜色与 ms/px，长度单位没先例。 */
+.fx-stage,
+.fx-card {
+  --fx-accent: #4A7AFF;
+  --fx-w: 4rpx;
+  --fx-r: 24rpx;
+  --fx-glow-offset: -56rpx;
+  --fx-glow-height: 140rpx;
+}
+
+.fx-stage {
+  position: relative;
+}
+
+/* ---------- 呼吸弥散背光 ---------- */
+
+/* 背光必须在卡片外面：卡容器要 overflow:hidden 才裁得住旋转方块，
+   放进去会被整层切掉，"漫出来"就没有了。
+   offset 用负值字面量而不是 calc(0 - var(--x))，少一处不必要的推导。 */
+.fx-glow-layer {
+  position: absolute;
+  left: 4%;
+  right: 4%;
+  bottom: var(--fx-glow-offset);
+  height: var(--fx-glow-height);
+  z-index: 0;
+  pointer-events: none;
+}
+
+/* 外层只管淡入淡出（transition），内层只管脉动（animation），
+   两者叠在同一个元素上会互相覆盖，这是首页第一版踩过的坑 */
+.fx-glow {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  opacity: 0;
+  transition: opacity 0.5s var(--ease-standard, cubic-bezier(0.2, 0, 0, 1));
+}
+
+.fx-glow.is-on {
+  opacity: 1;
+}
+
+/* 弥散感用多档 radial-gradient。禁止 filter: blur() —— 首页是长列表 + 九宫格图
+   + video 的主滚动面，常驻逐帧模糊掉帧明显，视觉却等价。护栏测试会扫这一条。
+   形状交给渐变本身定义，不叠 border-radius（那是二次裁切，会把软边切硬）。
+   亮芯锚在 60% 高度：图层一半藏在卡片后面，露出来的正好是下半个椭圆。 */
+.fx-glow-pulse {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  background: radial-gradient(ellipse at 50% 60%,
+    var(--fx-accent) 0%, var(--fx-accent) 18%, rgba(255, 255, 255, 0) 72%);
+}
+
+.fx-glow.is-on .fx-glow-pulse {
+  animation: fx-breathe 3.6s ease-in-out infinite;
+}
+
+@keyframes fx-breathe {
+  0%, 100% { opacity: 0.46; transform: scale(0.92); }
+  50%      { opacity: 0.88; transform: scale(1.08); }
+}
+
+/* ---------- 旋转描边 ---------- */
+
+.fx-card {
+  position: relative;
+  border-radius: var(--fx-r);
+  /* 默认走「流式」：描边由卡自身的 padding 让出来，内容层留在文档流里。
+     这样卡高等于内容高 + 2×--fx-w，永远不会被压成 0。
+     全站 10 个面里只有首页轮播是定高的，它显式挂 .fx-card--fill。
+     默认值选流式而不是绝对定位，是因为两者错配的失败模式不对称：
+     绝对定位用在内容撑高的卡上会把卡压成 0 高（整块消失且不报错），
+     流式用在必定高的卡上只是多出一圈内边距（看得见、可立刻发现）。 */
+  padding: var(--fx-w);
+}
+
+/* 定高卡专用：内缩改回绝对定位，卡高由容器给（首页轮播 swiper 有固定高度） */
+.fx-card--fill {
+  padding: 0;
+}
+
+.fx-card--fill .fx-body {
+  position: absolute;
+  left: var(--fx-w);
+  right: var(--fx-w);
+  top: var(--fx-w);
+  bottom: var(--fx-w);
+}
+
+/* 裁切层自带 overflow:hidden。不能指望 .fx-card 去裁：它带 3D 变换时是新的
+   合成上下文，部分安卓内核不按 border-radius 裁切它的动画后代，会露出方形残影。 */
+.fx-ring {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  border-radius: var(--fx-r);
+  overflow: hidden;
+  z-index: 0;
+  pointer-events: none;
+}
+
+/* conic 的角度无法直接补间（小程序 WebView 不支持 @property / Houdini），
+   所以转的是铺了静态 conic 的方块本身。
+
+   方块边长用 width:170% + padding-bottom:170% 强制成正方形：
+   百分比 padding 相对包含块的「宽度」解析，所以边长恒为卡宽 ×1.7，与卡高无关，
+   每页不必知道自己的对角线长度（首页第一版写死 820rpx，换个比例不同的面就会露缺口）。
+
+   成立条件：卡高 ≤ 卡宽 × 1.63。超出时改用 --fx-side 显式给边长。 */
+.fx-ring-spin {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 170%;
+  height: 0;
+  padding-bottom: 170%;
+  /* 这个 translate 必须同时存在于基样式和关键帧里。
+     只在关键帧里写的话，不挂 animation 的实例（列表项的静态描边、降级后的卡）
+     会把方块左上角停在卡片中心，只画得出右下两条边。 */
+  transform: translate(-50%, -50%);
+  /* 兜底写在前面：不支持 conic-gradient 的内核退化为静态渐变边，而不是整圈无边框 */
+  background: linear-gradient(120deg,
+    var(--fx-accent) 0%, #ffffff 50%, #12B8A6 100%);
+  /* 亮头只占一小段弧且饱和，转起来才读得出"有一束光在扫边"；
+     全用低对比淡色时静态看就是一条细边 */
+  background: conic-gradient(from 0deg,
+    var(--fx-accent) 0deg,
+    #7A5AF8 70deg,
+    #ffffff 120deg,
+    #ffffff 150deg,
+    var(--fx-accent) 210deg,
+    #12B8A6 290deg,
+    var(--fx-accent) 360deg);
+}
+
+/* from 显式写出：省略时按 none 起算，个别内核不会把 none 补间成 rotate(0deg) */
+@keyframes fx-spin {
+  from { transform: translate(-50%, -50%) rotate(0deg); }
+  to   { transform: translate(-50%, -50%) rotate(360deg); }
+}
+
+/* 自转只给单实例主卡（挂 .is-live）。列表项一律不挂无限自转：
+   N 个无限自转合成层同时滚动，比首页单卡严重一个量级。见设计文档 §2.7。
+   周期慢于 6s 时任一时刻近似纯色，读不出"在转"。 */
+.fx-card.is-live .fx-ring-spin {
+  will-change: transform;
+  animation: fx-spin 4.5s linear infinite;
+}
+
+/* 列表卡的「进场转一圈」，用来治一个几何问题而不是加装饰：
+   conic 的颜色只随角度变化，而列表卡普遍扁宽（如 702×244）——上边缘相对方块中心
+   只张约 ±10°，下边缘同理，于是两条长边各自几乎是同一个纯色，静态整圈读起来
+   就是一条普通边框，看不出渐变扫光。加厚加亮都救不了，必须给一次运动。
+   iteration-count: 1 → 播完即停，不留常驻合成开销。
+   ⚠️ 页面侧必须用 {{index < 6 ? 'is-entry' : ''}} 限量：一屏十几张同时起转，
+   瞬时开销会反超首页单卡。 */
+.fx-card.is-entry .fx-ring-spin {
+  animation: fx-spin 1.4s cubic-bezier(0.22, 0.68, 0.32, 1) 1;
+}
+
+/* 内容层：默认留在文档流里，卡高由它撑出来。
+   ⚠️ 这里绝不能默认用绝对定位：内容撑高的卡片会因唯一的子元素脱离文档流而塌成 0 高，
+   整块内容消失且不报任何错。定高卡请显式挂 .fx-card--fill。 */
+.fx-body {
+  position: relative;
+  border-radius: calc(var(--fx-r) - var(--fx-w));
+  overflow: hidden;
+  z-index: 1;
+  background: #dfe6f5;
+}
+
+/* ---------- 降级：低端机 / 用户关闭动效 / 系统减弱动效 ---------- */
+
+/* 降级只停动画，不撤效果：静态描边和静态背光保留，
+   不能把"关掉动效"做成"什么都没有"。 */
+.fx-off .fx-ring-spin,
+.fx-off .fx-glow-pulse {
+  animation: none;
+}
+
+.fx-off .fx-glow-pulse {
+  opacity: 0.6;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fx-ring-spin,
+  .fx-glow-pulse {
+    animation: none;
+  }
+}

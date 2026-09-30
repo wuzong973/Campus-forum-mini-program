@@ -3,6 +3,7 @@ const wechat = require('../../utils/wechat')
 const messageStore = require('../../utils/messageStore')
 const image = require('../../utils/image')
 const qr = require('../../utils/qr')
+const auth = require('../../utils/auth')
 
 // 跑腿订单专属聊天页：接单人与发单人的独立会话（双方真实身份，与私信完全分开）
 function formatTime(value) {
@@ -40,6 +41,24 @@ Page({
   },
 
   onLoad(options) {
+    this._enterOptions = options || {}
+    // 未登录：弹窗引导去登录（取消则退回），登录后回到本页在 onShow 补初始化
+    if (!auth.guardPage('订单沟通需要先登录')) return
+    this._initialized = true
+    this.initChat(this._enterOptions)
+  },
+
+  onShow() {
+    // 从登录页返回时补执行初始化（首次进入已在 onLoad 完成）
+    if (!this._initialized && auth.isLoggedIn()) {
+      this._initialized = true
+      this.initChat(this._enterOptions || {})
+    }
+    // 前台期间每 5 秒轮询一次，兜底 WS 未连接的场景
+    this.startPolling()
+  },
+
+  initChat(options) {
     const app = getApp()
     this.setData({
       orderId: parseInt(options.orderId || options.id, 10) || 0,
@@ -59,11 +78,6 @@ Page({
       }
     })
     this.loadMessages()
-  },
-
-  onShow() {
-    // 前台期间每 5 秒轮询一次，兜底 WS 未连接的场景
-    this.startPolling()
   },
 
   onHide() {

@@ -5,10 +5,12 @@ const format = require("../../utils/format");
 const hotRank = require("../../utils/hot-rank");
 const wechat = require("../../utils/wechat");
 const image = require("../../utils/image");
+const avatar = require("../../utils/avatar");
 const anonymousIdentity = require('../../utils/anonymousIdentity');
 const qr = require("../../utils/qr");
 const messageStore = require("../../utils/messageStore");
 const { runPullDownRefresh } = require("../../utils/refresh");
+const subscribe = require("../../utils/subscribe");
 
 const POST_VIEW_SYNC_KEY = 'post_view_sync';
 const POST_STATE_SYNC_KEY = 'post_state_sync';
@@ -31,8 +33,12 @@ Page({
     likeAnim: "",
     favoriteAnim: "",
     followAnim: "",
+    // 蹲贴请求进行中标记：避免连点造成同一帖子的请求交叉，出现最终状态与服务端不一致
+    followSaving: false,
     likeHeartFly: false,
     commentTotal: 0,
+    commentHasMore: false,
+    commentsLoadingMore: false,
     expandedReplyIds: {},
     commentSort: "hot",
     commentText: "",
@@ -66,6 +72,8 @@ Page({
     hotPosts: [],
     hotRankGroups: [],
     hotLoading: false,
+    // 「显示每日热榜」用户偏好：关闭时隐藏热榜预览卡
+    dailyHotVisible: true,
     // 「每日热榜」上方横幅（与消息通知横幅相互独立，详情页内管理员可编辑）
     postBanner: { text: '', icon: '', images: [] },
     pollSelections: [],
@@ -109,8 +117,8 @@ Page({
       canManageNote: this.canManagePostContent(),
       pageHeight: sysInfo.windowHeight - bottomBarHeight / 2,
       bottomBarHeight,
-      commentAnonymous: !!((wx.getStorageSync('system_settings') || {}).commentAnonymous),
     });
+    // 「评论默认开启分身」设置开关已移除：评论默认公开，可在输入区手动切换匿名
     this.loadPost(id);
     this.loadComments(id, this.data.commentSort).catch(() => wx.showToast({ title: '评论加载失败，请重试', icon: 'none' }));
     // 管理员保存横幅后服务端 WS 广播，停留在本页时立即刷新
@@ -152,6 +160,9 @@ Page({
     if (this._hasShownOnce && this.data.post && this.data.post.id) {
       this.loadPost(this.data.post.id)
     }
+    // 每次可见时同步「显示每日热榜」用户偏好（设置页修改后返回立即生效）
+    const dailyHotVisible = hotRank.isDailyHotVisible()
+    if (dailyHotVisible !== this.data.dailyHotVisible) this.setData({ dailyHotVisible })
     this.loadHotPosts()
     this.loadPostBanner()
     this._hasShownOnce = true
@@ -175,6 +186,7 @@ Page({
     this.setData({ hotLoading: true })
     // 与首页完全一致：同一接口（getHotPostRank）+ 同一份构建逻辑（utils/hot-rank.js），
     // 保证两处每日热榜的数据、排序与展示文案统一
+    // （buildHotPosts 内部已统一过滤「本地标记为已删除」的帖子）
     api.getHotPostRank().then((res) => {
       const hotPosts = hotRank.buildHotPosts(res.list || [])
       this.setData({
@@ -182,7 +194,15 @@ Page({
         hotRankGroups: hotRank.groupHotPosts(hotPosts),
         hotLoading: false
       })
-    }).catch(() => this.setData({ hotLoading: false }))
+    }).catch(() => {
+      // 拉取失败时不能原样保留旧列表：其中可能含刚被删除的帖子
+      const kept = hotRank.filterRemovedPosts(this.data.hotPosts)
+      this.setData({
+        hotPosts: kept,
+        hotRankGroups: hotRank.groupHotPosts(kept),
+        hotLoading: false
+      })
+    })
   },
 
   onTodayHotTap() {
@@ -241,6 +261,8 @@ Page({
     if (!await this.confirmAction('删除帖子', '删除后无法恢复，确认删除这条帖子吗？')) return;
     try {
       await api.deletePost(post.id);
+      // 广播删除结果：返回后各热榜/列表页据此就地剔除本条目
+      hotRank.markPostRemoved(post.id);
       wx.showToast({ title: '帖子已删除', icon: 'success' });
       setTimeout(() => wx.navigateBack(), 350);
     } catch (err) {
@@ -341,8 +363,14 @@ Page({
       if (post) {
         const followedPostIds = wx.getStorageSync("followed_post_ids") || [];
         post = this.normalizePostCounts(post);
-        post.isFollowed = followedPostIds.some((item) => Number(item) === Number(post.id));
-        post.followCount = post.followCount > 0 ? post.followCount : (post.isFollowed ? 1 : 0);
+        // 蹲贴态以服务端 forum_post_follow 为准（详情接口已下发 isFollowed/followCount）。
+        // 本地缓存只在接口未下发该字段时兜底，并在此回写纠正，避免两处状态长期不一致。
+        const hasServerFollow = post.isFollowed !== undefined && post.isFollowed !== null;
+        post.isFollowed = hasServerFollow
+          ? !!post.isFollowed
+          : followedPostIds.some((item) => Number(item) === Number(post.id));
+        post.followCount = Number(post.followCount) || 0;
+        this.syncLocalFollowCache(post.id, post.isFollowed);
         const pollSelections = (post.components || []).map((item) => (item.type === 'poll' && Array.isArray(item.selectedOptionIndexes)) ? item.selectedOptionIndexes.slice() : []);
         this.setData({
           post,
@@ -359,10 +387,27 @@ Page({
         wx.setStorageSync(POST_VIEW_SYNC_KEY, { id: post.id, viewCount: post.viewCount || 0 });
         this.refreshCommentThreads();
       } else {
-        wx.showToast({ title: "帖子不存在", icon: "none" });
-        setTimeout(() => wx.navigateBack(), 1500);
+        this.handlePostMissing(id);
       }
+    }).catch(() => {
+      // 接口失败（含帖子已被删除返回 404）：必须在此兜底，
+      // 否则返回的 rejected Promise 无人接管，会以「未捕获异常」打红到 Console，
+      // 同时页面停留在空白骨架，用户看不到任何反馈
+      this.handlePostMissing(id);
     });
+  },
+
+  // 帖子不存在或已被删除：给出提示并退出本页，避免停留在空白页面
+  handlePostMissing(postId) {
+    if (this._postMissingHandled) return;
+    this._postMissingHandled = true;
+    // 广播「该帖已不存在」：返回时各热榜/列表页据此就地剔除，
+    // 避免已删除的帖子在「删除成功 → 下一次拉取热榜」的窗口期内继续留在榜单上
+    if (postId) hotRank.markPostRemoved(postId);
+    wx.showToast({ title: "帖子不存在或已被删除", icon: "none" });
+    setTimeout(() => wx.navigateBack({
+      fail: () => wx.switchTab({ url: "/pages/index/index" })
+    }), 1500);
   },
 
   normalizePostCounts(post) {
@@ -464,7 +509,6 @@ Page({
     const detailImages = this.data.detailImages.map((item) =>
       item.url === url ? Object.assign({}, item, { failed: true }) : item,
     )
-    console.warn('[post-detail] image load failed', url, e.detail || {})
     this.setData({ detailImages })
   },
 
@@ -477,17 +521,48 @@ Page({
   },
 
   loadComments(postId, sort = this.data.commentSort) {
-    return api.getCommentList(postId, sort).then((res) => {
+    this._commentPage = 1
+    this._hiddenCommentCount = 0
+    return api.getCommentList(postId, sort, 1).then((res) => {
       const list = (res.list || []).map((comment) => this.normalizeComment(comment));
       const hiddenCommentIds = (wx.getStorageSync('hidden_comment_ids') || []).map(Number);
       const blockedUserIds = (wx.getStorageSync('blocked_user_ids') || []).map(Number);
       const rawComments = this.filterVisibleComments(list, hiddenCommentIds, blockedUserIds);
+      this._hiddenCommentCount = list.length - rawComments.length;
       this.setData({
         rawComments,
-        commentTotal: Math.max(0, (Number(res.total) || list.length) - (list.length - rawComments.length)),
+        commentHasMore: !!res.hasMore,
+        commentTotal: Math.max(0, (Number(res.total) || list.length) - this._hiddenCommentCount),
         comments: this.buildCommentThreads(rawComments, sort),
       });
     });
+  },
+
+  // 上滑加载下一页评论（scroll-view scrolltolower 触发）
+  loadMoreComments() {
+    if (!this.data.commentHasMore || this._commentsLoadingMore || !this.data.post) return
+    this._commentsLoadingMore = true
+    this.setData({ commentsLoadingMore: true })
+    api.getCommentList(this.data.post.id, this.data.commentSort, (this._commentPage || 1) + 1).then((res) => {
+      this._commentPage = (this._commentPage || 1) + 1
+      const list = (res.list || []).map((comment) => this.normalizeComment(comment));
+      const hiddenCommentIds = (wx.getStorageSync('hidden_comment_ids') || []).map(Number);
+      const blockedUserIds = (wx.getStorageSync('blocked_user_ids') || []).map(Number);
+      const incoming = this.filterVisibleComments(list, hiddenCommentIds, blockedUserIds);
+      this._hiddenCommentCount += list.length - incoming.length;
+      const rawComments = this.data.rawComments.concat(incoming);
+      this.setData({
+        rawComments,
+        commentHasMore: !!res.hasMore,
+        commentTotal: Math.max(0, (Number(res.total) || rawComments.length) - this._hiddenCommentCount),
+        comments: this.buildCommentThreads(rawComments, this.data.commentSort),
+      });
+    }).catch(() => {
+      wx.showToast({ title: '评论加载失败，请重试', icon: 'none' })
+    }).then(() => {
+      this._commentsLoadingMore = false
+      this.setData({ commentsLoadingMore: false })
+    })
   },
 
   normalizeComment(comment) {
@@ -499,11 +574,15 @@ Page({
     const images = media.filter((url) => !isVideoUrl(url));
     const videos = media.filter(isVideoUrl);
     const rawAllowPm = comment.allow_anonymous_pm !== undefined ? comment.allow_anonymous_pm : comment.allowAnonymousPm;
+    // 头像归一化：历史数据里存在 `/assets/avatar2/1 (39).jpg` 这类旧路径，
+    // 文件已重命名为 avatar_39.jpg，旧路径真机无法渲染（表现为灰色空圆）。
+    // 帖子流经 api.mapPost 已修正，评论区此前漏掉，这里补上最后一道防线。
+    const rawAvatar = isAnonymous ? anonymous.avatarUrl : (comment.avatar_url || comment.avatarUrl || "");
     return {
       id: comment.id,
       userId: comment.user_id || comment.userId,
       nickName: isAnonymous ? anonymous.nickName : (comment.nick_name || comment.nickName || "用户"),
-      avatarUrl: isAnonymous ? anonymous.avatarUrl : (comment.avatar_url || comment.avatarUrl || ""),
+      avatarUrl: avatar.normalizeLegacyAvatar(rawAvatar) || "/assets/icons/avatar.png",
       isAnonymous,
       // 有图/视频时去掉「[图片]/[视频]」占位文字，直接展示媒体本身
       content: media.length ? format.stripMediaPlaceholder(comment.content) : String(comment.content || ""),
@@ -591,21 +670,20 @@ Page({
       }
     });
 
-    // pin: 乐观更新后临时置顶（rootId 顶层评论置顶 / replyId 回复置顶），
-    // 仅在插入成功后的那次重建生效；后续刷新/排序走服务端真实排序
+    // pin: 顶层新评论乐观插入后置顶到评论区顶部；回复不传 pin——
+    // 回复按时间正序排在所属评论的回复列表末尾（被评论者下方），不重排任何已有评论。
+    // 仅在插入后的那次重建生效；后续刷新/排序走服务端真实排序
     let sortedRoots = this.sortComments(roots, sort);
     if (pin && pin.rootId) sortedRoots = this.moveToTopById(sortedRoots, pin.rootId);
 
     return sortedRoots.map((thread) => {
-      // 子评论按点赞数从高到低展示，同赞数按时间先后；收起态展示赞数最高的前 3 条
-      let replies = thread.replies.slice().sort((a, b) => {
+      // 子评论按时间先后展示（同刻按 id 兜底），新回复自然落在最下方 = 被评论者之下；
+      // 收起态展示最早的 3 条，展开后按会话顺序完整阅读
+      const replies = thread.replies.slice().sort((a, b) => {
         const timeA = new Date(a.createdAt || 0).getTime() || 0;
         const timeB = new Date(b.createdAt || 0).getTime() || 0;
-        return (b.likeCount || 0) - (a.likeCount || 0) || timeA - timeB;
+        return timeA - timeB || Number(a.id || 0) - Number(b.id || 0);
       });
-      if (pin && pin.replyId && Number(thread.id) === Number(pin.rootId)) {
-        replies = this.moveToTopById(replies, pin.replyId);
-      }
       const expanded = !!expandedReplyIds[thread.id];
       return Object.assign({}, thread, {
         replies,
@@ -666,7 +744,7 @@ Page({
     }
     // 普通用户评论头像：弹出「个人主页 / 私信」功能菜单，功能入口迁移至弹窗内
     if (this.isSelfUser(userId)) {
-      wx.navigateTo({ url: "/pages/profile/index?id=" + userId });
+      wx.navigateTo({ url: this.profileUrl(userId) });
       return;
     }
     this.showAvatarSheet({
@@ -713,11 +791,18 @@ Page({
     return Number(userInfo.id) === Number(userId);
   },
 
+  // 跳转用户个人主页：携带来源帖子 id，
+  // 个人主页再进入私信时原样透传给聊天页，保证「帖子详情→个人主页→聊天」也能「回到帖子」
+  profileUrl(userId) {
+    const postId = (this.data.post || {}).id || 0;
+    return "/pages/profile/index?id=" + userId + (postId ? "&postId=" + postId : "");
+  },
+
   onAvatarSheetProfile() {
     const popup = this.data.avatarSheet;
     if (!popup || !popup.userId) return;
     this.setData({ avatarSheet: null });
-    wx.navigateTo({ url: "/pages/profile/index?id=" + popup.userId });
+    wx.navigateTo({ url: this.profileUrl(popup.userId) });
   },
 
   onAvatarSheetMessage() {
@@ -728,7 +813,7 @@ Page({
     // 匿名（分身）用户私信：对方明确关闭时拦截
     if (popup.mode === 'anon' && popup.allowAnonymousPm === false) {
       this.setData({ avatarSheet: null });
-      wx.showToast({ title: "对方不允许匿名私信", icon: "none" });
+      wx.showToast({ title: "对方不允许分身私信", icon: "none" });
       return;
     }
     // 普通用户且对方关闭了分身私信 → 走普通私信渠道
@@ -747,8 +832,8 @@ Page({
     }
     // 匿名（分身）私信
     wx.showModal({
-      title: popup.mode === 'anon' ? "匿名私信" : "分身私信",
-      content: popup.mode === 'anon' ? "与匿名用户对话时，你也自动变为匿名用户" : "开启对话后，你将以匿名身份与对方交流",
+      title: "分身私信",
+      content: popup.mode === 'anon' ? "与分身用户对话时，你也自动变为分身用户" : "开启对话后，你将以分身身份与对方交流",
       confirmText: "确认",
       cancelText: "取消",
       success: (res) => {
@@ -769,7 +854,7 @@ Page({
         }
         wx.navigateTo({
           url: "/pages/chat/index?peerId=" + popup.userId +
-            "&nick=" + encodeURIComponent(popup.nick || (popup.mode === 'anon' ? "匿名用户" : "校园同学")) +
+            "&nick=" + encodeURIComponent(popup.nick || (popup.mode === 'anon' ? "分身用户" : "校园同学")) +
             "&avatar=" + encodeURIComponent(popup.avatar || "/assets/icons/avatar.png") +
             extra +
             // 记录来源帖子，聊天页「回到帖子」在消息通知入口也能返回本帖
@@ -866,17 +951,44 @@ Page({
 
   onFollowPost() {
     if (!auth.requireLogin("蹲帖需要先登录")) return;
+    if (this.data.followSaving) return;
     const post = Object.assign({}, this.data.post);
     post.isFollowed = !post.isFollowed;
     post.followCount = Math.max(0, (Number(post.followCount) || 0) + (post.isFollowed ? 1 : -1));
-    const followedPostIds = wx.getStorageSync("followed_post_ids") || [];
-    const index = followedPostIds.indexOf(post.id);
-    if (post.isFollowed && index === -1) followedPostIds.push(post.id);
-    if (!post.isFollowed && index > -1) followedPostIds.splice(index, 1);
-    wx.setStorageSync("followed_post_ids", followedPostIds);
-    this.setData({ post });
+    this.setData({ post, followSaving: true });
     this.playActionAnim("followAnim", post.isFollowed ? "anim-pop" : "anim-unpop");
-    wx.showToast({ title: post.isFollowed ? "已蹲帖" : "已取消蹲帖", icon: "none" });
+    this.syncLocalFollowCache(post.id, post.isFollowed);
+    api.followPost(post.id)
+      .then((data) => {
+        // 服务端返回真实落库结果与计数，以此为最终状态（避免并发下乐观值与库内不一致）
+        const res = data || {};
+        const isFollowed = res.followed !== undefined ? !!res.followed : post.isFollowed;
+        const followCount = res.followCount !== undefined ? Number(res.followCount) : post.followCount;
+        this.setData({ post: Object.assign({}, this.data.post, { isFollowed, followCount }), followSaving: false });
+        this.syncLocalFollowCache(post.id, isFollowed);
+        wx.showToast({ title: isFollowed ? "已蹲帖" : "已取消蹲帖", icon: "none" });
+      })
+      .catch(() => {
+        // 失败回滚乐观更新，避免界面与服务端状态不一致
+        const rollback = Object.assign({}, this.data.post);
+        rollback.isFollowed = !rollback.isFollowed;
+        rollback.followCount = Math.max(0, (Number(rollback.followCount) || 0) + (rollback.isFollowed ? 1 : -1));
+        this.setData({ post: rollback, followSaving: false });
+        this.syncLocalFollowCache(rollback.id, rollback.isFollowed);
+        wx.showToast({ title: "操作失败，请稍后重试", icon: "none" });
+      });
+  },
+
+  // 本地蹲贴 id 缓存：仅作接口未下发/离线时的兜底，与服务端 forum_post_follow 保持一致
+  syncLocalFollowCache(postId, followed) {
+    try {
+      const list = wx.getStorageSync("followed_post_ids") || [];
+      const id = Number(postId);
+      const index = list.findIndex((item) => Number(item) === id);
+      if (followed && index === -1) list.push(id);
+      if (!followed && index > -1) list.splice(index, 1);
+      wx.setStorageSync("followed_post_ids", list);
+    } catch (e) {}
   },
 
   onSharePost() {
@@ -969,22 +1081,25 @@ Page({
     });
   },
 
-  // ===== 评论右上角「···」菜单：隐藏 / 举报 / 拉黑 =====
+  // ===== 评论右上角「···」菜单：隐藏 / 举报 / 拉黑；有管理权时额外有「删除」 =====
 
   onCommentMore(e) {
     const ds = e.currentTarget.dataset;
     const commentId = ds.id;
     const userId = Number(ds.userid) || 0;
     const nick = ds.nick || "该用户";
-    // 自己的评论不提供举报/拉黑（已有编辑/删除入口）
-    const itemList = Number(userId) === Number(this.data.currentUserId)
-      ? ["隐藏"]
-      : ["隐藏", "举报", "拉黑"];
+    // 自己的评论不提供举报/拉黑（评论区下方已有编辑/删除入口）
+    const isOwner = Number(userId) === Number(this.data.currentUserId);
+    const base = isOwner ? ["隐藏"] : ["隐藏", "举报", "拉黑"];
+    // 「删除」针对的是「他人的评论」：管理员可删任意帖子下的，帖子作者可删自己评论区里的
+    const itemList = this.canDeleteOtherComment(isOwner) ? ["删除"].concat(base) : base;
     wx.showActionSheet({
       itemList,
       success: (res) => {
         const selected = itemList[res.tapIndex];
-        if (selected === "隐藏") {
+        if (selected === "删除") {
+          this.deleteCommentAsModerator(commentId);
+        } else if (selected === "隐藏") {
           this.hideComment(commentId);
         } else if (selected === "举报") {
           this.reportComment(commentId);
@@ -993,6 +1108,39 @@ Page({
         }
       },
     });
+  },
+
+  // 是否有权删除「他人的评论」：
+  //   · 管理员（content.manage）—— 任意帖子下的任意评论；
+  //   · 帖子作者 —— 自己评论区里的任意评论（含他人发的）。
+  // 自己的评论不在菜单里给删除：评论区下方本就有编辑/删除入口，两个入口语义重叠会让人困惑。
+  canDeleteOtherComment(isOwner) {
+    if (isOwner) return false;
+    if (this.canManagePostContent()) return true;
+    const postAuthorId = Number((this.data.post || {}).userId) || 0;
+    return !!postAuthorId && postAuthorId === Number(this.data.currentUserId);
+  },
+
+  // 删除他人的评论（管理员 / 帖子作者）。与「隐藏」的区别：隐藏只影响本机展示，
+  // 删除是落库，所有用户都看不到 —— 确认文案必须写明影响范围。
+  async deleteCommentAsModerator(commentId) {
+    const target = this.data.rawComments.find((item) => Number(item.id) === Number(commentId));
+    if (!target) return;
+    const isOwner = Number(target.userId) === Number(this.data.currentUserId);
+    if (!this.canDeleteOtherComment(isOwner)) return;
+    const removed = this.collectRemovableComments(this.data.rawComments, [commentId]);
+    const replyCount = Math.max(0, Object.keys(removed).length - 1);
+    const tip = replyCount > 0
+      ? "删除后该评论及其 " + replyCount + " 条回复将对所有用户不再展示，确认删除吗？"
+      : "删除后该评论将对所有用户不再展示，确认删除吗？";
+    if (!await this.confirmAction("删除评论", tip)) return;
+    try {
+      await api.deleteComment(commentId);
+      this.applyCommentRemoval(removed);
+      wx.showToast({ title: "已删除该评论", icon: "success" });
+    } catch (err) {
+      wx.showToast({ title: err.message || "删除失败", icon: "none" });
+    }
   },
 
   // 计算要移除的评论 id 集合：seedIds 本身加上它们的所有下级回复，
@@ -1101,7 +1249,6 @@ Page({
     this.blurCommentInput();
     const commentAnonymous = !this.data.commentAnonymous;
     this.setData({ commentAnonymous });
-    wx.showToast({ title: commentAnonymous ? '本条评论将匿名发布' : '已切换为公开评论', icon: 'none' });
   },
 
   // ===== 评论区匿名身份一致性 =====
@@ -1147,6 +1294,10 @@ Page({
     const text = this.data.commentText.trim();
     const media = this.data.commentMedia.slice();
     if (!text && !media.length) return;
+    // 新增触发点：提交评论时同步申请「评论通知」订阅授权（与「发帖成功」共用 postPublish 触发组）。
+    // 位置刻意放在各项校验之后、任何 await 之前 —— 既不会对空评论弹窗，
+    // 又保证仍在 tap 的同步调用链内（微信硬性要求）。
+    if (typeof subscribe.requestTriggerByTap === "function") subscribe.requestTriggerByTap("postPublish");
     const postId = this.data.post.id;
     const parentId = this.data.replyTo || 0;
     const savedReplyTo = this.data.replyTo;
@@ -1161,7 +1312,7 @@ Page({
     const tempId = -Date.now();
 
     // ===== 乐观更新：先上屏，再等服务端 =====
-    // 顶层评论插入后置顶展示；回复插入到对应评论的回复列表顶部（与参考交互一致）
+    // 顶层评论插入后置顶展示；回复按时间正序排在所属评论回复列表末尾（被评论者下方）
     const optimisticComment = this.normalizeComment({
       id: tempId,
       user_id: this.data.currentUserId,
@@ -1176,9 +1327,15 @@ Page({
       created_at: nowIso,
     });
     const rawWithOptimistic = this.data.rawComments.concat([optimisticComment]);
+    // 回复时自动展开所属评论的回复列表：新回复按时间排在末尾，展开后立即可见；
+    // 乐观阶段就按最终规则定位（回复不置顶、顶层评论置顶），与服务端确认后一致，避免二次跳动
+    const replyRootId = parentId ? this.findCommentRootId(parentId) : null;
+    const optimisticExpanded = Object.assign({}, this.data.expandedReplyIds);
+    if (replyRootId) optimisticExpanded[replyRootId] = true;
     this.setData({
       rawComments: rawWithOptimistic,
-      comments: this.buildCommentThreads(rawWithOptimistic),
+      comments: this.buildCommentThreads(rawWithOptimistic, this.data.commentSort, optimisticExpanded, parentId ? null : { rootId: tempId }),
+      expandedReplyIds: optimisticExpanded,
       commentTotal: (Number(this.data.commentTotal) || 0) + 1,
       submittingComment: true,
       // 输入区立即复位（失败回退时恢复草稿）
@@ -1204,15 +1361,14 @@ Page({
       });
     };
 
-    // 用服务端返回的真实 id 替换临时评论，并保持在对应列表顶部（pin 只对本次重建生效）
+    // 用服务端返回的真实 id 替换临时评论；回复按时间正序保持在回复列表末尾（被评论者下方），
+    // 不置顶、不重排已有评论；仅顶层新评论置顶到评论区顶部
     const applySuccess = (finalComment) => {
       let rawComments = this.data.rawComments.slice();
       const index = rawComments.findIndex((c) => Number(c.id) === tempId);
       if (index > -1) rawComments[index] = finalComment;
       else rawComments = rawComments.concat([finalComment]); // 极端时序：期间列表被整体刷新过，直接补插，避免丢失
-      const pin = parentId
-        ? { rootId: this.findCommentRootId(parentId), replyId: finalComment.id }
-        : { rootId: finalComment.id };
+      const pin = parentId ? null : { rootId: finalComment.id };
       this.setData({
         rawComments,
         comments: this.buildCommentThreads(rawComments, this.data.commentSort, this.data.expandedReplyIds, pin),
@@ -1392,28 +1548,24 @@ Page({
 
   onDeleteComment(e) {
     const id = e.currentTarget.dataset.id;
+    // 服务端删除会连带删掉下级回复，本地也要一并移除，否则会残留「已被删除的回复」
+    const removed = this.collectRemovableComments(this.data.rawComments, [id]);
+    const replyCount = Math.max(0, Object.keys(removed).length - 1);
     wx.showModal({
       title: "确认删除",
-      content: "确定要删除这条评论吗？",
+      content: replyCount > 0
+        ? "确定要删除这条评论吗？其下的 " + replyCount + " 条回复会一并删除。"
+        : "确定要删除这条评论吗？",
       success: (res) => {
-        if (res.confirm) {
-          request
-            .delete("/comment/" + id, {}, true)
-            .then(() => {
-              const rawComments = this.data.rawComments.filter((comment) => Number(comment.id) !== Number(id));
-              const post = Object.assign({}, this.data.post, {
-                commentCount: Math.max(
-                  0,
-                  (Number(this.data.post.commentCount) || 0) - 1,
-                ),
-              });
-              this.setData({ rawComments, comments: this.buildCommentThreads(rawComments), commentTotal: rawComments.length, post });
-              wx.showToast({ title: "删除成功", icon: "success" });
-            })
-            .catch((err) => {
-              wx.showToast({ title: err.message || "删除失败", icon: "none" });
-            });
-        }
+        if (!res.confirm) return;
+        api.deleteComment(id)
+          .then(() => {
+            this.applyCommentRemoval(removed);
+            wx.showToast({ title: "删除成功", icon: "success" });
+          })
+          .catch((err) => {
+            wx.showToast({ title: err.message || "删除失败", icon: "none" });
+          });
       },
     });
   },
@@ -1449,7 +1601,7 @@ Page({
     }
     // 查看自己的帖子时保持直接进入主页
     if (this.isSelfUser(userId)) {
-      wx.navigateTo({ url: "/pages/profile/index?id=" + userId });
+      wx.navigateTo({ url: this.profileUrl(userId) });
       return;
     }
     // 普通帖帖主头像：弹出「个人主页 / 分身私信(或私信)」功能菜单

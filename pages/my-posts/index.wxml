@@ -1,7 +1,7 @@
 <view class="page">
   <view class="custom-nav" style="padding-top: {{statusBarHeight}}px;">
     <view class="nav-inner">
-      <view class="back-pill" hover-class="back-pill-hover" hover-stay-time="80" bindtap="goBack"><text class="back-pill-icon">‹</text><text>返回</text></view>
+      <view class="back-pill spring-btn" hover-class="back-pill-hover press-spring" hover-stay-time="80" bindtap="goBack"><text class="back-pill-icon">‹</text><text>返回</text></view>
       <text class="nav-title">我的帖子</text>
       <view class="nav-more">•••</view>
     </view>
@@ -25,21 +25,25 @@
 
   <view class="post-list" wx:if="{{activeTopic === 0 && activeSubTab === 0}}">
     <block wx:for="{{posts}}" wx:key="id">
-      <post-card post="{{item}}" bind:remove="onPostRemove" />
+      <view class="feed-item anim-stagger" style="--i: {{index < 6 ? index : 0}};">
+        <post-card post="{{item}}" bind:remove="onPostRemove" />
+      </view>
     </block>
     <empty-state wx:if="{{!loading && posts.length === 0}}" text="还没有发布帖子" icon="📝" />
   </view>
 
   <view class="post-list" wx:if="{{activeTopic === 0 && activeSubTab === 1}}">
     <block wx:for="{{squattedPosts}}" wx:key="id">
-      <post-card post="{{item}}" bind:remove="onSquattedRemove" />
+      <view class="feed-item anim-stagger" style="--i: {{index < 6 ? index : 0}};">
+        <post-card post="{{item}}" bind:remove="onSquattedRemove" />
+      </view>
     </block>
     <empty-state wx:if="{{!loading && squattedPosts.length === 0}}" text="还没有蹲的帖子" icon="👀" />
   </view>
 
   <view class="post-list" wx:if="{{activeTopic === 1 && activeDeletedTab === 0}}">
     <block wx:for="{{hiddenPosts}}" wx:key="id">
-      <view class="hidden-item">
+      <view class="hidden-item anim-stagger" style="--i: {{index < 6 ? index : 0}};">
         <post-card post="{{item}}" showFooter="{{false}}" />
         <view class="unhide-btn" data-id="{{item.id}}" catchtap="onUnhidePost">取消隐藏</view>
       </view>
@@ -49,7 +53,9 @@
 
   <view class="post-list" wx:if="{{activeTopic === 1 && activeDeletedTab === 1}}">
     <block wx:for="{{deletedPosts}}" wx:key="id">
-      <post-card post="{{item}}" readonly="{{true}}" showFooter="{{false}}" />
+      <view class="feed-item anim-stagger" style="--i: {{index < 6 ? index : 0}};">
+        <post-card post="{{item}}" readonly="{{true}}" showFooter="{{false}}" />
+      </view>
     </block>
     <empty-state wx:if="{{!loading && deletedPosts.length === 0}}" text="暂无已删除帖子" icon="🗑️" />
   </view>

@@ -51,10 +51,33 @@
       data-index="{{index}}"
       bindtap="onListTab"
     >
-      <text class="list-tab-text">{{item}}</text>
+      <view class="list-tab-text-wrap">
+        <text class="list-tab-text">{{item}}</text>
+        <!-- 未读小红点：我接的单/我发布的/已完成的 存在未读订单时亮起（与状态筛选数字角标联动） -->
+        <view class="tab-dot" wx:if="{{(index === 1 && tabDots.accepted) || (index === 2 && tabDots.published) || (index === 3 && tabDots.done)}}"></view>
+      </view>
       <view class="tab-line"></view>
     </view>
   </view>
+
+  <!-- 状态筛选标签栏（仅我接的单/我发布的下显示）：待支付/待接单/待完成/已完成/已取消 -->
+  <scroll-view class="status-chips" scroll-x enhanced show-scrollbar="{{false}}" wx:if="{{activeListTab === 1 || activeListTab === 2}}">
+    <view class="status-chips-inner">
+      <view
+        class="status-chip {{activeStatus === item.key ? 'status-chip--active' : ''}} spring-btn"
+        wx:for="{{statusChips}}"
+        wx:key="key"
+        data-key="{{item.key}}"
+        bindtap="onStatusChip"
+        hover-class="status-chip--hover press-spring"
+        hover-stay-time="80"
+      >
+        <text class="status-chip-text">{{item.label}}</text>
+        <!-- 状态角标：该状态下有订单时显示数量（样式对齐互助大厅参考图） -->
+        <view class="status-chip-badge" wx:if="{{statusCounts[item.key] > 0}}">{{statusCounts[item.key]}}</view>
+      </view>
+    </view>
+  </scroll-view>
 
   <!-- 区域筛选（仅全部订单标签下显示） -->
   <view class="filter-section" wx:if="{{activeListTab === 0}}">
@@ -83,7 +106,7 @@
   <!-- 订单列表（图二版式：头像+昵称+时间 / 公开描述+红色金额 / 状态胶囊） -->
   <view class="order-list">
     <block wx:for="{{orders}}" wx:key="id">
-      <view class="order-card" data-order="{{item}}" bindtap="onOpenDetail">
+      <view class="order-card anim-stagger" style="--i: {{index < 6 ? index : 0}};" data-order="{{item}}" bindtap="onOpenDetail">
         <view class="card-head">
           <image class="card-avatar" src="{{item.avatarUrl}}" mode="aspectFill"></image>
           <view class="card-user">
@@ -101,33 +124,40 @@
             <text class="card-title">{{item.descText}}</text>
             <text class="amount-price">¥{{item.price}}</text>
           </view>
-          <text class="card-expect">期望完成时间：{{item.expectText}}</text>
+          <text class="card-expect">期望时间：{{item.expectText}}</text>
+          <text class="card-expect" wx:if="{{item.deadlineText}}">截止时间：{{item.deadlineText}}</text>
         </view>
         <view class="card-foot" wx:if="{{item.action}}">
           <view class="foot-actions">
             <view class="card-btn" wx:if="{{item.action === 'grab'}}" catchtap="onAccept" data-order="{{item}}">立即抢单</view>
             <view class="card-btn btn-pay" wx:elif="{{item.action === 'pay'}}" catchtap="onPay" data-order="{{item}}">去支付</view>
             <view class="card-btn btn-finish" wx:elif="{{item.action === 'finish'}}" catchtap="onFinish" data-order="{{item}}">立即完成</view>
+            <view class="card-btn btn-finish" wx:elif="{{item.action === 'confirm'}}" catchtap="onOpenDetail" data-order="{{item}}">去确认</view>
             <view class="card-btn btn-ghost" wx:elif="{{item.action === 'cancel'}}" catchtap="onCancelOrder" data-order="{{item}}">取消订单</view>
             <view class="card-btn btn-ghost" wx:elif="{{item.action === 'contact'}}" catchtap="onContact" data-order="{{item}}">联系对方</view>
           </view>
         </view>
       </view>
     </block>
+    <view class="load-more" wx:if="{{activeListTab === 0 && orders.length}}">
+      <text wx:if="{{loadingMore}}">加载中…</text>
+      <text wx:elif="{{!loading && !hallHasMore}}">没有更多了</text>
+    </view>
   </view>
 
   <!-- 空状态 -->
   <view class="empty-state" wx:if="{{!loading && orders.length === 0}}">
-    <text class="empty-title">{{emptyText}}</text>
-    <text class="empty-desc">你可以调整筛选条件，或稍后下拉刷新再看看。</text>
-    <view class="empty-btn" bindtap="goPublish" wx:if="{{activeListTab !== 1}}">去发布需求</view>
+    <text class="empty-title">{{loadError === 'login' ? '登录后即可查看订单' : (loadError === 'retry' ? '订单加载失败' : emptyText)}}</text>
+    <text class="empty-desc">{{loadError === 'login' ? '登录后可查看你接取和发布的订单。' : (loadError === 'retry' ? '网络暂时不可用，请下拉刷新后重试。' : '你可以调整筛选条件，或稍后下拉刷新再看看。')}}</text>
+    <view class="empty-btn" bindtap="goUserCenter" wx:if="{{loadError === 'login'}}">去登录</view>
+    <view class="empty-btn" bindtap="goPublish" wx:elif="{{activeListTab !== 1}}">去发布需求</view>
   </view>
 
   <!-- 右侧浮动导航（发布/消息/首页，保持在右下角） -->
   <view class="float-nav">
-    <view class="float-item" hover-class="float-item-hover" hover-stay-time="80" bindtap="goPublish"><text class="float-icon">✚</text><text class="float-label">发布</text></view>
-    <view class="float-item" hover-class="float-item-hover" hover-stay-time="80" bindtap="goMessages"><text class="float-icon">✉</text><text class="float-label">消息</text></view>
-    <view class="float-item" hover-class="float-item-hover" hover-stay-time="80" bindtap="goHome"><text class="float-icon">⌂</text><text class="float-label">首页</text></view>
+    <view class="float-item spring-btn" hover-class="float-item-hover press-spring" hover-stay-time="80" bindtap="goPublish"><text class="float-icon">✚</text><text class="float-label">发布</text></view>
+    <view class="float-item spring-btn" hover-class="float-item-hover press-spring" hover-stay-time="80" bindtap="goMessages"><text class="float-icon">✉</text><text class="float-label">消息</text></view>
+    <view class="float-item spring-btn" hover-class="float-item-hover press-spring" hover-stay-time="80" bindtap="goHome"><text class="float-icon">⌂</text><text class="float-label">首页</text></view>
   </view>
 
   <!-- 管理员微信二维码弹窗（公告栏"管理员"点击唤起，隐藏于页面底部） -->

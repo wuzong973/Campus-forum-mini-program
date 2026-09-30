@@ -1,0 +1,584 @@
+/* 卡片视觉共享层（静态旋转描边）。@import 必须在其他规则之前。 */
+@import "../../styles/card-fx.wxss";
+
+.page {
+  min-height: 100vh;
+  padding: 24rpx 24rpx 60rpx;
+  box-sizing: border-box;
+  background: #f4f6fa;
+}
+
+/* ============ 头部 ============ */
+.hero {
+  display: flex;
+  align-items: center;
+  padding: 32rpx 28rpx;
+  border-radius: 24rpx;
+  background:
+    radial-gradient(circle at 88% 12%, rgba(49, 92, 255, 0.12) 0, rgba(49, 92, 255, 0) 260rpx),
+    linear-gradient(135deg, #ffffff 0%, #f3f7ff 100%);
+  border: 1rpx solid #eef1f6;
+  box-shadow: 0 10rpx 26rpx rgba(31, 42, 68, 0.05);
+}
+
+.hero-icon-wrap {
+  flex: none;
+  width: 108rpx;
+  height: 108rpx;
+  border-radius: 28rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(180deg, #ffffff 0%, #eef3ff 100%);
+  border: 1rpx solid rgba(214, 226, 255, 0.95);
+  box-shadow: 0 10rpx 22rpx rgba(49, 92, 255, 0.14);
+}
+
+.hero-icon {
+  width: 66rpx;
+  height: 66rpx;
+}
+
+.hero-copy {
+  flex: 1;
+  min-width: 0;
+  margin-left: 24rpx;
+  display: flex;
+  flex-direction: column;
+}
+
+.hero-title {
+  font-size: 38rpx;
+  font-weight: 800;
+  color: #1f2a44;
+  letter-spacing: 1rpx;
+}
+
+.hero-sub {
+  margin-top: 10rpx;
+  font-size: 25rpx;
+  color: #6b7891;
+  line-height: 1.55;
+}
+
+/* ============ 通用卡片 ============ */
+.card {
+  margin-top: 24rpx;
+  padding: 28rpx 26rpx;
+  border-radius: 24rpx;
+  background: #ffffff;
+  border: 1rpx solid #eef1f6;
+  box-shadow: 0 10rpx 26rpx rgba(31, 42, 68, 0.05);
+}
+
+.card--tight {
+  padding: 10rpx 26rpx;
+}
+
+.sec-title {
+  display: block;
+  font-size: 30rpx;
+  font-weight: 700;
+  color: #1f2a44;
+  padding-left: 18rpx;
+  border-left: 8rpx solid #315cff;
+  line-height: 1.3;
+}
+
+.para {
+  display: block;
+  margin-top: 20rpx;
+  font-size: 26rpx;
+  color: #3a4356;
+  line-height: 1.75;
+  text-align: justify;
+}
+
+/* ============ 适用场景 ============ */
+.scene-list {
+  margin-top: 18rpx;
+  display: flex;
+  flex-direction: column;
+}
+
+.scene {
+  display: flex;
+  align-items: flex-start;
+  padding: 12rpx 0;
+}
+
+.scene-dot {
+  flex: none;
+  width: 12rpx;
+  height: 12rpx;
+  margin: 14rpx 16rpx 0 4rpx;
+  border-radius: 50%;
+  background: #6a8bff;
+}
+
+.scene-text {
+  flex: 1;
+  min-width: 0;
+  font-size: 25rpx;
+  color: #3a4356;
+  line-height: 1.65;
+}
+
+/* ============ 关键信息 ============ */
+.info-note {
+  display: block;
+  margin-top: 18rpx;
+  font-size: 22rpx;
+  color: #98a2b3;
+  line-height: 1.6;
+}
+
+.info-item {
+  margin-top: 20rpx;
+  padding: 22rpx;
+  border-radius: 18rpx;
+  background: #f7f9fd;
+}
+
+.info-item-title {
+  display: block;
+  font-size: 27rpx;
+  font-weight: 700;
+  color: #1f2a44;
+  line-height: 1.4;
+}
+
+.info-line {
+  display: flex;
+  align-items: flex-start;
+  margin-top: 12rpx;
+}
+
+.info-label {
+  flex: none;
+  width: 150rpx;
+  font-size: 24rpx;
+  color: #8b93a3;
+  line-height: 1.6;
+}
+
+.info-value {
+  flex: 1;
+  min-width: 0;
+  font-size: 24rpx;
+  color: #3a4356;
+  line-height: 1.6;
+  word-break: break-all;
+}
+
+/* 发车时间胶囊：/ 分隔的时刻行自动转成时间标签（对齐校历卡片风格） */
+.time-pills {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12rpx;
+}
+
+.time-pill {
+  padding: 6rpx 18rpx;
+  border-radius: 999rpx;
+  background: #eef4ff;
+  color: #315cff;
+  font-size: 24rpx;
+  font-weight: 600;
+  line-height: 1.6;
+}
+
+/* 线路站点流程时间轴：- 分隔的站点名逐节点展示 */
+.flow-line {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  row-gap: 8rpx;
+}
+
+.flow-node {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+}
+
+.flow-dot {
+  width: 12rpx;
+  height: 12rpx;
+  border-radius: 50%;
+  background: #315cff;
+  flex: none;
+}
+
+.flow-stop {
+  font-size: 24rpx;
+  color: #3a4356;
+  line-height: 1.6;
+}
+
+.flow-arrow {
+  margin-left: 8rpx;
+  color: #b3bac7;
+  font-size: 26rpx;
+}
+
+/* 关键信息未填写时的降级展示：给出说明 + 咨询入口，不留空白 */
+.info-empty {
+  margin-top: 20rpx;
+  padding: 28rpx 24rpx;
+  border-radius: 18rpx;
+  background: #f7f9fd;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.info-empty-text {
+  font-size: 25rpx;
+  color: #6b7891;
+  line-height: 1.7;
+  text-align: center;
+}
+
+.info-empty-btn {
+  margin-top: 24rpx;
+  padding: 0 44rpx;
+  height: 78rpx;
+  border-radius: 999rpx;
+  background: #315cff;
+  color: #ffffff;
+  font-size: 27rpx;
+  font-weight: 600;
+  line-height: 78rpx;
+  box-shadow: 0 10rpx 24rpx rgba(49, 92, 255, 0.22);
+}
+
+.info-empty-btn:active {
+  opacity: 0.9;
+}
+
+/* ============ 使用流程 ============ */
+.step-list {
+  margin-top: 20rpx;
+  display: flex;
+  flex-direction: column;
+}
+
+.step {
+  display: flex;
+  align-items: flex-start;
+  padding: 12rpx 0;
+}
+
+.step-no {
+  flex: none;
+  width: 44rpx;
+  height: 44rpx;
+  margin-right: 18rpx;
+  border-radius: 50%;
+  background: #eef4ff;
+  color: #315cff;
+  font-size: 24rpx;
+  font-weight: 700;
+  line-height: 44rpx;
+  text-align: center;
+}
+
+.step-text {
+  flex: 1;
+  min-width: 0;
+  font-size: 25rpx;
+  color: #3a4356;
+  line-height: 1.65;
+  padding-top: 4rpx;
+}
+
+/* ============ 温馨提示 ============ */
+.tip-list {
+  margin-top: 18rpx;
+  display: flex;
+  flex-direction: column;
+}
+
+.tip {
+  display: flex;
+  align-items: flex-start;
+  padding: 12rpx 0;
+}
+
+.tip-icon {
+  flex: none;
+  width: 34rpx;
+  height: 34rpx;
+  margin: 4rpx 16rpx 0 0;
+  border-radius: 50%;
+  background: #fff4ec;
+  color: #f97b2f;
+  font-size: 22rpx;
+  font-weight: 700;
+  line-height: 34rpx;
+  text-align: center;
+}
+
+.tip-text {
+  flex: 1;
+  min-width: 0;
+  font-size: 25rpx;
+  color: #3a4356;
+  line-height: 1.65;
+}
+
+/* ============ 常见问题 ============ */
+.faq-list {
+  margin-top: 20rpx;
+  display: flex;
+  flex-direction: column;
+}
+
+.faq-item {
+  border-radius: 18rpx;
+  background: #f7f9fd;
+  overflow: hidden;
+}
+
+.faq-item + .faq-item {
+  margin-top: 14rpx;
+}
+
+.faq-q {
+  display: flex;
+  align-items: center;
+  padding: 22rpx 24rpx;
+}
+
+.faq-q-text {
+  flex: 1;
+  min-width: 0;
+  font-size: 26rpx;
+  font-weight: 600;
+  color: #1f2a44;
+  line-height: 1.5;
+}
+
+.faq-arrow {
+  flex: none;
+  margin-left: 16rpx;
+  font-size: 30rpx;
+  color: #98a2b3;
+  transition: transform 0.22s ease;
+}
+
+.faq-arrow.expanded {
+  transform: rotate(180deg);
+}
+
+.faq-a {
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  transition: max-height 0.26s ease, opacity 0.26s ease;
+}
+
+.faq-a.show {
+  max-height: 640rpx;
+  opacity: 1;
+}
+
+.faq-a-text {
+  display: block;
+  padding: 0 24rpx 24rpx;
+  font-size: 24rpx;
+  color: #6b7891;
+  line-height: 1.7;
+}
+
+/* ============ 相关入口 ============ */
+.link-row {
+  display: flex;
+  align-items: center;
+  padding: 24rpx 0;
+}
+
+.link-row + .link-row {
+  border-top: 1rpx solid #f2f4f8;
+}
+
+.link-row--hover {
+  opacity: 0.7;
+ transform: scale(0.96); box-shadow: inset 0 2rpx 6rpx rgba(16, 32, 64, 0.16), inset 0 -1rpx 2rpx rgba(255, 255, 255, 0.08); }
+
+.link-text {
+  flex: 1;
+  min-width: 0;
+  font-size: 26rpx;
+  color: #3a4356;
+}
+
+.link-arrow {
+  flex: none;
+  margin-left: 16rpx;
+  font-size: 32rpx;
+  color: #c0c7d2;
+  line-height: 1;
+}
+
+/* ============ 底部咨询 ============ */
+.foot-card {
+  margin-top: 24rpx;
+  padding: 32rpx 28rpx;
+  border-radius: 24rpx;
+  background:
+    radial-gradient(circle at 50% 0%, rgba(49, 92, 255, 0.1) 0, rgba(49, 92, 255, 0) 300rpx),
+    #ffffff;
+  border: 1rpx solid #eef1f6;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.foot-title {
+  font-size: 29rpx;
+  font-weight: 700;
+  color: #1f2a44;
+}
+
+.foot-sub {
+  margin-top: 12rpx;
+  font-size: 24rpx;
+  color: #6b7891;
+  line-height: 1.6;
+}
+
+.foot-btn {
+  margin-top: 24rpx;
+  padding: 0 56rpx;
+  height: 84rpx;
+  border-radius: 999rpx;
+  background: #315cff;
+  color: #ffffff;
+  font-size: 28rpx;
+  font-weight: 600;
+  line-height: 84rpx;
+  box-shadow: 0 12rpx 26rpx rgba(49, 92, 255, 0.24);
+}
+
+.foot-btn:active {
+  opacity: 0.9;
+}
+
+.foot-note {
+  margin-top: 20rpx;
+  font-size: 21rpx;
+  color: #b3bac7;
+  line-height: 1.6;
+}
+
+/* ===== 校园卡自定义页面（后台可编辑内容） ===== */
+.card-para {
+  margin-top: 16rpx;
+}
+
+.card-image-list {
+  margin-top: 24rpx;
+}
+
+.card-image {
+  display: block;
+  width: 100%;
+  margin-top: 16rpx;
+  border-radius: 16rpx;
+  background: #f2f4f8;
+}
+
+.card-updated {
+  display: block;
+  margin-top: 24rpx;
+  font-size: 21rpx;
+  color: #b3bac7;
+}
+
+/* 多张校园卡页面时的目录行 */
+.card-entry {
+  /* 共享层 token：圆角按本条目实际值覆盖；主色复用本页品牌色（.sec-title 竖条同款 #315CFF） */
+  --fx-r: 18rpx;
+  --fx-accent: #315CFF;
+  /* 行排版（正文 + 箭头 + 16rpx 间距）连同 22/24rpx padding 一起移到 .fx-body；
+     卡自身必须零 padding——描边环按 padding box 定位，padding 留在卡上会把描边整圈推进去 */
+  display: flex;
+  flex-direction: column;
+  margin-top: 20rpx;
+  padding: 0;
+  border-radius: 18rpx;
+  background: #f5f7fb;
+}
+
+.card-entry:active {
+  background: #eaeef6;
+}
+
+/* 内容层样式。position/inset/居中位移均由共享层默认值给出，此处只填本页内容样式 */
+.card-entry .fx-body {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  padding: 22rpx 24rpx;
+  background: #f5f7fb;
+}
+
+/* 按压反馈原本改的是卡自身背景，现在那层被 .fx-body 盖住，改到 body 上才看得见 */
+.card-entry:active .fx-body {
+  background: #eaeef6;
+}
+
+.card-entry-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.card-entry-title {
+  display: block;
+  font-size: 27rpx;
+  font-weight: 600;
+  color: #1f2a44;
+}
+
+.card-entry-summary {
+  display: block;
+  margin-top: 8rpx;
+  font-size: 22rpx;
+  color: #3a4356;
+  line-height: 1.5;
+}
+
+.card-entry .card-updated {
+  margin-top: 10rpx;
+}
+
+.card-entry-arrow {
+  flex: 0 0 auto;
+  font-size: 36rpx;
+  color: #b3bac7;
+}
+
+.card-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 48rpx 8rpx 40rpx;
+}
+.card-empty-text {
+  font-size: 26rpx;
+  color: #6b7891;
+  line-height: 1.7;
+  text-align: center;
+}
+
+.card-empty .info-empty-btn {
+  margin-top: 28rpx;
+}

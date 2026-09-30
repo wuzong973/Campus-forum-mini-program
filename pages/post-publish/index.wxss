@@ -11,6 +11,7 @@
 .publish-banner-text { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .publish-banner-close { flex-shrink: 0; padding: 4rpx 8rpx; opacity: 0.55; }
 .publish-scroll { flex: 1; min-height: 0; box-sizing: border-box; padding: 24rpx 22rpx 164rpx; }
+/* 顶部订阅入口 .sub-notice-* 的样式定义在 app.wxss（8 个页面共用，避免各页各写一份） */
 .editor-card, .settings-card, .forum-tips { background: #ffffff; border-radius: 20rpx; }
 .editor-card { padding: 26rpx; min-height: 610rpx; }
 .notice-tip { display: flex; align-items: center; min-height: 60rpx; padding: 0 16rpx; border-radius: 30rpx; background: #fff7ec; color: #f08220; font-size: 26rpx; line-height: 1.4; }
@@ -39,7 +40,7 @@
 .contact-admin-hover { color: #2461cc; }
 contact-admin.inline-contact { display: inline; }
 .submit-wrap { position: fixed; z-index: 20; right: 0; bottom: 0; left: 0; padding: 18rpx 24rpx calc(18rpx + env(safe-area-inset-bottom)); background: rgba(246,247,249,.96); }
-.submit-btn, .sheet-confirm { width: 100%; height: 92rpx; line-height: 92rpx; border: 0; border-radius: 46rpx; background: #dfe5ec; color: #a7b0bb; font-size: 32rpx; font-weight: 700; }
+.submit-btn, .sheet-confirm { width: 100%; height: 92rpx; line-height: 1; border: 0; border-radius: 46rpx; background: #dfe5ec; color: #a7b0bb; font-size: 32rpx; font-weight: 700; padding: 0; display: flex; align-items: center; justify-content: center; }
 .submit-btn.active, .sheet-confirm { background: #3478f6; color: #ffffff; }
 .submit-btn::after, .sheet-confirm::after { border: none; }
 .tag-mask { position: fixed; z-index: 100; inset: 0; background: rgba(0, 0, 0, .58); }
@@ -49,9 +50,11 @@ contact-admin.inline-contact { display: inline; }
 .sheet-title { color: #15233a; font-size: 38rpx; font-weight: 700; }
 .sheet-close { height: 64rpx; line-height: 58rpx; border-radius: 50%; background: #f6f7f9; color: #10213a; text-align: center; font-size: 50rpx; }
 .sheet-subtitle { display: block; margin: 30rpx 0 22rpx; color: #10213a; font-size: 30rpx; font-weight: 700; }
-.category-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20rpx 22rpx; margin-bottom: 42rpx; }
+.category-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20rpx 22rpx; margin-bottom: 20rpx; }
 .category-option { height: 74rpx; line-height: 74rpx; border-radius: 38rpx; background: #f6f7f9; color: #243448; text-align: center; font-size: 28rpx; }
 .category-option.active { background: #eaf1ff; color: #3478f6; font-weight: 700; }
+/* 分类说明：二手闲置不进「最新」列表，发布前先告知，避免作者发完找不到自己的帖子 */
+.category-note { display: flex; align-items: center; min-height: 56rpx; margin-bottom: 34rpx; padding: 0 16rpx; border-radius: 28rpx; background: #fff7ec; color: #f08220; font-size: 24rpx; line-height: 1.4; }
 .contact-popup { min-height: 570rpx; }
 .contact-card { margin-top: 28rpx; padding: 24rpx; border-radius: 18rpx; background: #ffffff; box-shadow: 0 8rpx 30rpx rgba(31, 55, 90, .06); }
 .contact-label { display: block; color: #10213a; font-size: 30rpx; font-weight: 700; }
@@ -90,3 +93,16 @@ contact-admin.inline-contact { display: inline; }
 .option-remove { position: absolute; right: 24rpx; top: 37rpx; color: #a7b0bb; font-size: 36rpx; }
 .add-option { margin: 26rpx 0; color: #3478f6; font-size: 27rpx; text-align: center; }
 .component-editor .sheet-confirm { margin-top: 26rpx; }
+
+/* ===== 订阅消息提醒弹窗（发布成功后） ===== */
+.sub-mask { position: fixed; z-index: 100; inset: 0; background: rgba(0, 0, 0, .58); }
+.sub-dialog { position: fixed; z-index: 101; top: 50%; left: 50%; width: 600rpx; transform: translate(-50%, -50%); padding: 40rpx 32rpx 32rpx; border-radius: 28rpx; background: #ffffff; box-sizing: border-box; }
+.sub-title { display: block; color: #15233a; font-size: 36rpx; font-weight: 700; text-align: center; }
+.sub-desc { display: block; margin: 14rpx 0 6rpx; color: #8a94a6; font-size: 25rpx; text-align: center; }
+.sub-row { display: flex; align-items: center; justify-content: space-between; min-height: 104rpx; border-bottom: 1rpx solid #f0f2f5; }
+.sub-row-label { display: block; color: #10213a; font-size: 30rpx; }
+.sub-row-hint { display: block; margin-top: 4rpx; color: #8a94a6; font-size: 22rpx; }
+.sub-actions { display: flex; margin-top: 32rpx; }
+.sub-btn-skip, .sub-btn-confirm { display: flex; align-items: center; justify-content: center; height: 88rpx; border-radius: 44rpx; font-size: 30rpx; }
+.sub-btn-skip { flex: 1; margin-right: 20rpx; background: #f6f7f9; color: #5a6572; }
+.sub-btn-confirm { flex: 1.6; background: #3478f6; color: #ffffff; font-weight: 600; }

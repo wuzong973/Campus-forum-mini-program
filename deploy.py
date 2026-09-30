@@ -19,6 +19,7 @@ LOCAL_BASE = r"d:\校园论坛小程序"
 files = [
     ("server/app.js", "app.js"),
     ("server/controllers/adminController.js", "controllers/adminController.js"),
+    ("server/controllers/serviceController.js", "controllers/serviceController.js"),
     ("server/controllers/userController.js", "controllers/userController.js"),
     ("server/controllers/uploadController.js", "controllers/uploadController.js"),
     ("server/controllers/errandController.js", "controllers/errandController.js"),
@@ -29,23 +30,50 @@ files = [
     ("server/routes/scheduleRoutes.js", "routes/scheduleRoutes.js"),
     ("server/services/jwScheduleSyncService.js", "services/jwScheduleSyncService.js"),
     ("server/routes/configRoutes.js", "routes/configRoutes.js"),
+    ("server/routes/powerProxyRoutes.js", "routes/powerProxyRoutes.js"),
     ("server/controllers/postController.js", "controllers/postController.js"),
     ("server/routes/adminRoutes.js", "routes/adminRoutes.js"),
+    # 维修预约：用户端 repairRoutes + 管理端「日志 → 维修信息」的 adminListOrders 都在 repairController，
+    # 两者必须同批上传（只传路由会 MODULE_NOT_FOUND）
+    ("server/controllers/repairController.js", "controllers/repairController.js"),
+    ("server/routes/repairRoutes.js", "routes/repairRoutes.js"),
     ("server/routes/userRoutes.js", "routes/userRoutes.js"),
     ("server/routes/postRoutes.js", "routes/postRoutes.js"),
     ("server/routes/feedbackRoutes.js", "routes/feedbackRoutes.js"),
     ("server/routes/errandRoutes.js", "routes/errandRoutes.js"),
     ("server/controllers/feedbackController.js", "controllers/feedbackController.js"),
     ("server/services/errandExpiryService.js", "services/errandExpiryService.js"),
+    ("server/services/subscribeService.js", "services/subscribeService.js"),
+    # 订阅消息路由与控制器：本轮新增了 POST /subscribe/throttled（上报「命中弹窗节流」），
+    # 缺这两个文件会出现「客户端上报 404、后台「命中节流」永远为空」。
+    ("server/controllers/subscribeController.js", "controllers/subscribeController.js"),
+    ("server/routes/subscribeRoutes.js", "routes/subscribeRoutes.js"),
+    # 订阅消息待发补发任务（app.js 启动时 require，漏传会导致服务 MODULE_NOT_FOUND 崩溃）
+    ("server/services/subscribeRetryService.js", "services/subscribeRetryService.js"),
+    ("server/services/accountDeletionService.js", "services/accountDeletionService.js"),
     ("server/services/wechatPayV3Service.js", "services/wechatPayV3Service.js"),
+    # 内容安全与上传链路（P02/P09/P14）：文本检测中间件、限流、COS 删除能力、私信路由
+    ("server/routes/messageRoutes.js", "routes/messageRoutes.js"),
+    ("server/middleware/contentSecurity.js", "middleware/contentSecurity.js"),
+    ("server/middleware/rateLimit.js", "middleware/rateLimit.js"),
+    ("server/config/cos.js", "config/cos.js"),
+    # 通知快照与活动提醒占位修正（P20/P21/P13）
+    ("server/services/notificationService.js", "services/notificationService.js"),
+    ("server/services/activityReminderService.js", "services/activityReminderService.js"),
+    # 媒体异步检测与计数器对账：app.js 启动即 require，漏传会 MODULE_NOT_FOUND 崩溃
+    ("server/services/mediaCheckService.js", "services/mediaCheckService.js"),
+    ("server/services/counterReconcileService.js", "services/counterReconcileService.js"),
+    ("server/routes/wechatPushRoutes.js", "routes/wechatPushRoutes.js"),
     ("server/config/wechatPay.js", "config/wechatPay.js"),
     ("server/utils/migrations.js", "utils/migrations.js"),
+    ("server/sql/init.sql", "sql/init.sql"),
 ]
 
 static_files = [
     ("web-static/wechat-qr.html", "wechat-qr.html"),
     ("web-static/assets/admin-wechat-qr.png", "assets/admin-wechat-qr.png"),
     ("web-static/services/index.html", "services/index.html"),
+    ("web-static/embed.html", "embed.html"),
 ]
 
 # 非 server 目录的远端文件（绝对远端路径）：教务爬虫被 jwScheduleSyncService 引用，
@@ -66,6 +94,8 @@ sftp = ssh.open_sftp()
 if not args.static_only:
     for local_rel, remote_rel in files:
         local = os.path.join(LOCAL_BASE, local_rel)
+        # 新增文件可能落在还没建立的目录里（如 middleware/、config/）
+        ssh.exec_command(f"mkdir -p '{REMOTE_BASE}/{os.path.dirname(remote_rel).replace(chr(92), '/')}'")
         remote = f"{REMOTE_BASE}/{remote_rel.replace(chr(92), '/')}"
         print(f"Uploading: {local_rel}")
         sftp.put(local, remote)

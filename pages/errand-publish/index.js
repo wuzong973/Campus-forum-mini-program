@@ -2,6 +2,7 @@ const auth = require('../../utils/auth')
 const request = require('../../utils/request')
 const api = require('../../utils/api')
 const wechat = require('../../utils/wechat')
+const subscribe = require('../../utils/subscribe')
 const { runPullDownRefresh } = require('../../utils/refresh')
 const LAST_FORM_KEY = 'errand_last_form'
 
@@ -23,8 +24,6 @@ Page({
     activeSubCampus: '',
     receiverName: '',
     receiverPhone: '',
-    orderTypes: ['外卖', '快递', '帮买物品', '文件资料', '其他'],
-    activeOrderType: 1,
     genderRestrictions: ['限男生', '限女生', '不限性别'],
     activeGenderRestriction: -1,
     // 地址与时间
@@ -36,8 +35,6 @@ Page({
     // 金额
     baseAmount: '',
     totalAmount: '',
-    isLargeItem: false,
-    isUrgent: false,
     // 期望完成时间（手动填写）
     appointmentValue: '',
     // 截止接单时间（可选）：到期无人接单自动取消并退款
@@ -50,10 +47,17 @@ Page({
     deadlinePickerValue: [0, 0, 0],
     agreed: false,
     submitting: false,
-    publishBanners: []
+    publishBanners: [],
+    // 顶部「订阅跑腿订单提醒」入口：订阅生效（偏好开 + 微信侧已授权）后隐藏，
+    // 在设置页关闭「代拿/跑腿通知」后重新出现（见 refreshErrandPublishSubscribeEntry）
+    showErrandPublishSubscribeEntry: false,
+    errandPublishSubscribeChecked: false
   },
 
   onLoad() {
+    // 未支付订单复用记录：{ id, formKey, images }，支付成功/订单关闭后清除
+    this._pendingOrder = null
+    this._createKey = ''
     const app = getApp()
     this.setData({ statusBarHeight: app.globalData.statusBarHeight || 20, navBarHeight: app.globalData.navBarHeight || 44 })
     if (!auth.requireLogin('发布跑腿需要先登录')) {
@@ -67,7 +71,41 @@ Page({
   onShow() {
     // 管理员后台更新发布横幅样式后，再次进入发布页即可同步（onLoad 只走一次）
     this.loadPublishBanners()
+    // 订阅状态可能在设置页被改动（开启/关闭「代拿/跑腿通知」），每次进入都重算入口显隐
+    this.refreshErrandPublishSubscribeEntry()
   },
+
+  // ===== 顶部「订阅跑腿订单提醒」入口 =====
+  // 与原「支付发布」按钮走同一个 errandPublish 触发组（errandAccepted + errandFinished +
+  // errandCancelled），逻辑复用 utils/subscribe.js 的统一封装，原有逻辑一概不动。
+  // 显隐口径 entryVisible('errandPublish')：偏好已开且微信侧已授权才隐藏，
+  // 因此在设置页关闭「代拿/跑腿通知」后入口会自动重新出现。
+  refreshErrandPublishSubscribeEntry() {
+    // 本地判定为「需要引导」时直接显示（不发额外请求）；
+    // 本地认为「已订阅」时再复核一次服务端额度 —— 额度是「点一次允许发一条」，
+    // 高频场景（评论/私信）极易用尽；用尽后必须让入口重新出现，否则用户无从重新订阅。
+    if (typeof subscribe.entryVisibleAsync === 'function') {
+      subscribe.entryVisibleAsync('errandPublish')
+        .then((need) => this.setData({ showErrandPublishSubscribeEntry: !!need, errandPublishSubscribeChecked: false }))
+        .catch(() => {})
+      return
+    }
+    const visible = typeof subscribe.entryVisible === 'function' ? subscribe.entryVisible('errandPublish') : false
+    this.setData({ showErrandPublishSubscribeEntry: !!visible, errandPublishSubscribeChecked: false })
+  },
+  // 点击整行（左半区）与拨动开关走同一条路径
+  onErrandPublishSubscribeTap(e) {
+    // 开关被拨到「关」时不申请授权，只回正视觉状态（入口在订阅生效后本就会整体隐藏）
+    if (e && e.detail && e.detail.value === false) { this.setData({ errandPublishSubscribeChecked: false }); return }
+    this.setData({ errandPublishSubscribeChecked: true })
+    if (typeof subscribe.requestEntryByTap !== 'function') { this.refreshErrandPublishSubscribeEntry(); return }
+    // 必须在 tap 同步链内进入原生 API；requestEntryByTap = requestTriggerByTap + 允许后写偏好
+    subscribe.requestEntryByTap('errandPublish')
+      .then(() => this.refreshErrandPublishSubscribeEntry())
+      .catch(() => this.refreshErrandPublishSubscribeEntry())
+  },
+
+  // 「支付发布」按钮点击是跑腿订阅授权的真实用户手势入口（见提交处理函数）
 
   // ===== 顶部轮播横幅 =====
   loadPublishBanners() {
@@ -178,11 +216,6 @@ Page({
     this._recalcTotal()
   },
 
-  // 下单类型选择
-  onOrderTypeSelect(e) {
-    this.setData({ activeOrderType: Number(e.currentTarget.dataset.index) })
-  },
-
   // 校区选择
   onCampusSelect(e) {
     const activeCampus = Number(e.currentTarget.dataset.index)
@@ -204,18 +237,6 @@ Page({
   },
 
 
-  // 大件物品开关
-  onToggleLargeItem() {
-    this.setData({ isLargeItem: !this.data.isLargeItem })
-    this._recalcTotal()
-  },
-
-  // 加急服务开关
-  onToggleUrgent() {
-    this.setData({ isUrgent: !this.data.isUrgent })
-    this._recalcTotal()
-  },
-
   // ===== 自动填充选项：点击将标签模板追加到对应输入框，已存在则不重复添加 =====
   onQuickTagTap(e) {
     const { field, tag } = e.currentTarget.dataset
@@ -235,9 +256,7 @@ Page({
       this.setData({ totalAmount: '' })
       return
     }
-    const largeFee = this.data.isLargeItem ? 1 : 0
-    const urgentFee = this.data.isUrgent ? 1 : 0
-    this.setData({ totalAmount: String(base + largeFee + urgentFee) })
+    this.setData({ totalAmount: String(base) })
   },
 
   // 上传图片
@@ -278,9 +297,7 @@ Page({
   // 计算费用
   getFeeDetail() {
     const base = parseInt(this.data.baseAmount) || 2
-    const largeFee = this.data.isLargeItem ? 1 : 0
-    const urgentFee = this.data.isUrgent ? 1 : 0
-    const total = base + largeFee + urgentFee
+    const total = base
     return {
       baseAmount: base.toFixed(2),
       total: total.toFixed(2)
@@ -437,10 +454,7 @@ Page({
       wx.showToast({ title: '请填写公开描述', icon: 'none' })
       return
     }
-    if (!this.data.appointmentValue.trim()) {
-      wx.showToast({ title: '请填写期望完成时间', icon: 'none' })
-      return
-    }
+    // 期望完成时间改为选填：未填写时服务端存 NULL，展示端兜底「越快越好」
     const baseNum = parseInt(baseAmount) || 0
     if (baseNum < 2 || baseNum > 500) {
       wx.showToast({ title: '金额需为2-500元', icon: 'none' })
@@ -467,12 +481,14 @@ Page({
       return
     }
     if (this.data.submitting) return
+    // 必须在「支付发布」点击同步链内发起，不能等建单/支付接口完成后再申请。
+    if (typeof subscribe.requestTriggerByTap === 'function') subscribe.requestTriggerByTap('errandPublish')
     this.setData({ submitting: true })
 
     const fee = this.getFeeDetail()
     const payload = {
       title: title.trim(),
-      type: this.data.orderTypes[this.data.activeOrderType],
+      type: '其他',
       campus: this.data.activeSubCampus || this.data.campusGroups[this.data.activeCampus].name,
       genderRequirement: this.data.genderRestrictions[this.data.activeGenderRestriction],
       receiverName: this.data.receiverName.trim() || '待联系',
@@ -490,37 +506,88 @@ Page({
       images: this.data.images,
       baseAmount: parseFloat(fee.baseAmount),
       totalAmount: parseFloat(fee.total),
-      isLargeItem: this.data.isLargeItem,
-      isUrgent: this.data.isUrgent
     }
 
-    // 真实模式：先将本地临时图片上传到服务器，再携带图片 URL 创建订单
-    const uploadImages = this.data.images.length
-      ? wechat.uploadImages(this.data.images)
-      : Promise.resolve([])
+    // 表单指纹（取上传前的本地输入）：内容相同则复用已创建的未支付订单，避免重试时重复建单
+    const formKey = JSON.stringify([
+      payload.title, payload.type, payload.campus, payload.genderRequirement,
+      payload.receiverName, payload.receiverPhone, payload.appointmentTime,
+      payload.acceptDeadline, payload.remark, payload.privateInfo, payload.wechatId,
+      this.data.images, payload.baseAmount, payload.totalAmount
+    ])
+    const pending = this._pendingOrder
+    const reuse = pending && pending.formKey === formKey ? pending : null
+    // 新一轮发布才生成创建幂等键：同一订单创建请求若因网络重试，服务端可凭此键去重
+    if (!reuse) this._createKey = 'errand_create_' + Date.now() + '_' + Math.random().toString(36).slice(2, 10)
 
-    uploadImages.then((images) => {
+    // 复用订单时跳过重新上传，直接使用上次上传得到的图片 URL
+    const prepareImages = reuse
+      ? Promise.resolve(reuse.images || [])
+      : (this.data.images.length ? wechat.uploadImages(this.data.images) : Promise.resolve([]))
+
+    prepareImages.then((images) => {
+      if (reuse) return reuse.id
       payload.images = images
-      return request.post('/errand', payload, true, { silent: true })
-    }).then((order) => {
-      return request.post('/errand/' + order.id + '/pay', {}, true, {
-        silent: true,
-        idempotencyKey: 'errand_pay_' + order.id
-      }).then((payment) => new Promise((resolve, reject) => wx.requestPayment({
-        ...payment,
-        success: resolve,
-        fail: reject
-      }))).then(() => this.waitForPaymentStatus(order.id))
-    }).then(() => {
+      return request.post('/errand', payload, true, { silent: true, idempotencyKey: this._createKey }).then((order) => {
+        this._pendingOrder = { id: order.id, formKey, images }
+        return order.id
+      })
+    }).then((orderId) => this._payFlow(orderId)).then(() => {
+      this._pendingOrder = null
       this._saveLastForm()
       wx.showToast({ title: '发布成功', icon: 'success' })
       setTimeout(() => wx.navigateBack(), 1200)
-    }).catch((error) => {
-      const message = String((error && (error.errMsg || error.message)) || '')
-      wx.showToast({ title: /cancel/.test(message) ? '已取消支付' : '支付未完成', icon: 'none' })
-    }).finally(() => {
-      this.setData({ submitting: false })
-    })
+    }).catch((error) => this._handlePayError(error))
+      .finally(() => this.setData({ submitting: false }))
+  },
+
+  // 支付流程：先同步一次支付状态（重试场景下订单可能已实际支付），未支付才重新拉起微信支付
+  _payFlow(orderId) {
+    return request.get('/errand/' + orderId + '/payment-status', {}, true, { silent: true, retries: 0 })
+      .catch(() => null)
+      .then((state) => {
+        if (state && state.status === 'SUCCESS') return state
+        // 订单已被服务端关闭（超时 30 分钟自动取消）：清除本地复用记录，让下次提交走新建
+        if (state && state.status === 'CLOSED') {
+          this._pendingOrder = null
+          throw new Error('order closed')
+        }
+        return request.post('/errand/' + orderId + '/pay', {}, true, {
+          silent: true,
+          idempotencyKey: 'errand_pay_' + orderId
+        }).then((payment) => new Promise((resolve, reject) => wx.requestPayment({
+          ...payment,
+          success: resolve,
+          fail: reject
+        }))).then(() => this.waitForPaymentStatus(orderId))
+      })
+  },
+
+  // 支付/发布失败分流：按真实原因提示，避免"超时未确认"被误报为"支付未完成"导致用户重复支付
+  _handlePayError(error) {
+    const message = String((error && (error.errMsg || error.message)) || '')
+    if (/closed/.test(message)) {
+      wx.showToast({ title: '订单已超时关闭，请重新提交', icon: 'none' })
+      return
+    }
+    if (message === 'payment pending') {
+      // 轮询超时 ≠ 支付失败：微信侧可能已扣款、服务端结算稍慢
+      wx.showModal({
+        title: '支付确认中',
+        content: '暂时未查到支付结果。若已扣款，订单将在几分钟内自动生效，请勿重复支付。也可前往「我的订单」查看状态。',
+        confirmText: '查看订单',
+        cancelText: '知道了',
+        success: (res) => {
+          if (res.confirm) wx.navigateTo({ url: '/pages/errand-order/index' })
+        }
+      })
+      return
+    }
+    if (message.indexOf('幂等键') > -1 || message.indexOf('重复提交') > -1) {
+      wx.showToast({ title: '请求处理中，请稍后重试', icon: 'none' })
+      return
+    }
+    wx.showToast({ title: /cancel/.test(message) ? '已取消支付' : (message || '支付未完成'), icon: 'none' })
   },
 
   async waitForPaymentStatus(orderId) {

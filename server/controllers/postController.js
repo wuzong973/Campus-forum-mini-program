@@ -3,6 +3,10 @@ const { success, fail, hasPermission } = require("../middleware/auth");
 const { parseImages, clampPageSize, safeMessage } = require("../utils/helpers");
 const { createNotification } = require('../services/notificationService');
 const { writeAdminAudit } = require('../utils/adminAudit');
+// 异步内容安全检测判违规的图片地址，在所有读取出口统一过滤（P02/P14）
+const mediaCheck = require('../services/mediaCheckService');
+// 兼容重命名前的旧头像路径，避免真机渲染空白（详见 utils/defaultProfile.js）
+const { normalizeLegacyAvatarUrl, normalizeAnonymousAvatarUrl, isAnonymousAvatarUrl, pickAnonymousAvatar } = require('../utils/defaultProfile');
 
 const FORUM_CATEGORY_MAP = {
   '推荐': '日常话题',
@@ -69,10 +73,15 @@ function parseJson(value, fallback) {
 function parseAnonymousIdentity(identity) {
   const value = parseJson(identity, null);
   if (!value || !value.nickName || !value.avatarUrl) return null;
-  const avatarUrl = String(value.avatarUrl).trim();
+  const nickName = String(value.nickName).trim().slice(0, 32);
+  const raw = String(value.avatarUrl).trim();
   // Anonymous artwork is bundled in the mini program and must not be an arbitrary remote URL.
-  if (!avatarUrl.startsWith('/assets/avatar1/')) return null;
-  return { nickName: String(value.nickName).trim().slice(0, 32), avatarUrl };
+  if (raw.indexOf('/assets/avatar1/') !== 0) return null;
+  // 旧文件名（含空格与半角括号，真机解析失败）先纠正；纠正后仍不在素材池内的
+  // 历史脏数据稳定映射到池内形象，避免渲染层持续报「Failed to load image」
+  const normalized = normalizeAnonymousAvatarUrl(raw);
+  const avatarUrl = isAnonymousAvatarUrl(normalized) ? normalized : pickAnonymousAvatar(nickName || raw);
+  return { nickName, avatarUrl };
 }
 
 function parseComponents(components) {
@@ -115,15 +124,18 @@ function mapPost(r, userId, includeContact = false) {
     id: r.id,
     userId: r.user_id,
     nickName: anonymousIdentity ? anonymousIdentity.nickName : (r.nick_name || '校园同学'),
-    avatarUrl: anonymousIdentity ? anonymousIdentity.avatarUrl : r.avatar_url,
-    campus: anonymousIdentity ? '' : (r.campus || ""),
+    avatarUrl: anonymousIdentity ? anonymousIdentity.avatarUrl : normalizeLegacyAvatarUrl(r.avatar_url),
+    // 校区与普通帖一致：直接取用户设置的校区（匿名不隐藏校区，与列表/详情/热榜渲染口径统一）。
+    // 未设置校区时与普通帖一样返回空串，由客户端统一显示「未设置校区」。
+    campus: r.campus || "",
     title: r.title || "",
     category: normalizeForumCategory(r.category),
     content: r.content,
-    images: parseImages(r.images),
+    images: mediaCheck.filterStoredImages(parseImages(r.images)),
     likeCount: r.like_count,
     commentCount: r.comment_count,
     favoriteCount: r.favorite_count,
+    followCount: r.follow_count || 0,
     shareCount: r.share_count || 0,
     viewCount: r.view_count || 0,
     verified: !!r.is_verified,
@@ -133,6 +145,7 @@ function mapPost(r, userId, includeContact = false) {
     postCount: r.post_count || 0,
     isLiked: !!r.isLiked,
     isFavorited: !!r.isFavorited,
+    isFollowed: !!r.isFollowed,
     pinned: !!r.pinned,
     reviewNote: r.review_note || '',
     createdAt: r.created_at,
@@ -172,9 +185,13 @@ exports.list = async (req, res) => {
       `SELECT p.*, u.nick_name, u.avatar_url, u.campus, u.is_verified, u.cert_label, u.allow_anonymous_pm,
         IFNULL((SELECT COUNT(*) FROM forum_post fp2 WHERE fp2.user_id = p.user_id AND fp2.status = 1), 0) AS post_count,
         IFNULL((SELECT 1 FROM forum_like l WHERE l.post_id = p.id AND l.user_id = ?), 0) AS isLiked,
-        IFNULL((SELECT 1 FROM forum_favorite f WHERE f.post_id = p.id AND f.user_id = ?), 0) AS isFavorited
+        IFNULL((SELECT 1 FROM forum_favorite f WHERE f.post_id = p.id AND f.user_id = ?), 0) AS isFavorited,
+        IFNULL((SELECT 1 FROM forum_post_follow pf WHERE pf.post_id = p.id AND pf.user_id = ?), 0) AS isFollowed
        FROM forum_post p LEFT JOIN sys_user u ON p.user_id = u.id ${where} ORDER BY p.pinned DESC, p.created_at DESC LIMIT ? OFFSET ?`,
-      [userId, userId].concat(params, [pageSize, offset]),
+      // SELECT 里有 3 个 ?（isLiked / isFavorited / isFollowed），必须补够 3 个 userId，
+      // 否则后续参数整体错位：把 WHERE 的占位符当成 isFollowed，LIMIT/OFFSET 也一起挪位
+      // → 未登录时报 ER_WRONG_VALUE_COUNT，接口 500。
+      [userId, userId, userId].concat(params, [pageSize, offset]),
     );
     const total = countRows[0].total;
     success(res, {
@@ -195,9 +212,10 @@ exports.detail = async (req, res) => {
       `SELECT p.*, u.nick_name, u.avatar_url, u.campus, u.is_verified, u.cert_label, u.allow_anonymous_pm,
         IFNULL((SELECT COUNT(*) FROM forum_post fp2 WHERE fp2.user_id = p.user_id AND fp2.status = 1), 0) AS post_count,
         IFNULL((SELECT 1 FROM forum_like l WHERE l.post_id = p.id AND l.user_id = ?), 0) AS isLiked,
-        IFNULL((SELECT 1 FROM forum_favorite f WHERE f.post_id = p.id AND f.user_id = ?), 0) AS isFavorited
+        IFNULL((SELECT 1 FROM forum_favorite f WHERE f.post_id = p.id AND f.user_id = ?), 0) AS isFavorited,
+        IFNULL((SELECT 1 FROM forum_post_follow pf WHERE pf.post_id = p.id AND pf.user_id = ?), 0) AS isFollowed
        FROM forum_post p LEFT JOIN sys_user u ON p.user_id = u.id WHERE p.id = ? AND p.status = 1${hidden.clause}`,
-      [userId, userId, req.params.id].concat(hidden.params),
+      [userId, userId, userId, req.params.id].concat(hidden.params),
     );
     if (!rows.length) return fail(res, "帖子不存在", 404);
     // 浏览量：每次打开详情都 +1（含作者与游客），post_view 仅记录独立访客
@@ -229,10 +247,11 @@ exports.search = async (req, res) => {
       `SELECT p.*, u.nick_name, u.avatar_url, u.campus, u.is_verified, u.cert_label, u.allow_anonymous_pm,
         IFNULL((SELECT COUNT(*) FROM forum_post fp2 WHERE fp2.user_id = p.user_id AND fp2.status = 1), 0) AS post_count,
         IFNULL((SELECT 1 FROM forum_like l WHERE l.post_id = p.id AND l.user_id = ?), 0) AS isLiked,
-        IFNULL((SELECT 1 FROM forum_favorite f WHERE f.post_id = p.id AND f.user_id = ?), 0) AS isFavorited
+        IFNULL((SELECT 1 FROM forum_favorite f WHERE f.post_id = p.id AND f.user_id = ?), 0) AS isFavorited,
+        IFNULL((SELECT 1 FROM forum_post_follow pf WHERE pf.post_id = p.id AND pf.user_id = ?), 0) AS isFollowed
        FROM forum_post p LEFT JOIN sys_user u ON p.user_id = u.id ${where}
        ORDER BY p.created_at DESC LIMIT ? OFFSET ?`,
-      [userId, userId].concat(queryParams, [pageSize, offset]),
+      [userId, userId, userId].concat(queryParams, [pageSize, offset]),
     );
     success(res, { list: rows.map((row) => mapPost(row, userId)), total: count.total, hasMore: offset + pageSize < count.total });
   } catch (e) {
@@ -254,7 +273,7 @@ exports.create = async (req, res) => {
   if (normalizedContact && !['手机号码', '微信账号', 'QQ账号'].includes(normalizedContact.type)) return fail(res, '不支持的联系方式类型');
   try {
     const normalizedAnonymousIdentity = parseAnonymousIdentity(anonymousIdentity);
-    if (anonymousIdentity && !normalizedAnonymousIdentity) return fail(res, '匿名身份格式不正确');
+    if (anonymousIdentity && !normalizedAnonymousIdentity) return fail(res, '分身身份格式不正确');
     const normalizedComponents = normalizeComponents(components);
     const media = (images || []).concat(
       (videos || []).map((url) => ({ type: "video", url })),
@@ -298,12 +317,24 @@ exports.vote = async (req, res) => {
     if (!validIndexes.length || (poll.mode === 'single' && validIndexes.length !== 1)) throw new Error('投票选项不正确');
     poll.voterIds = Array.isArray(poll.voterIds) ? poll.voterIds : [];
     if (poll.voterIds.some((record) => Number(record.userId) === Number(req.userId))) throw new Error('你已经投过票了');
+    // P19：投票明细落表，靠 uk_poll_vote(post_id, poll_index, user_id) 提供数据库级唯一约束。
+    // 同一事务内先插明细再改 JSON，并发重复投票（双击、多端同时提交）会被唯一键挡下；
+    // JSON 里的 voterIds 继续作为展示与历史数据兜底，读路径不变。
+    await conn.query(
+      'INSERT INTO forum_poll_vote (post_id, poll_index, option_indexes, user_id) VALUES (?, ?, ?, ?)',
+      [postId, pollIndex, validIndexes.join(','), req.userId],
+    );
     validIndexes.forEach((index) => { poll.options[index].votes = (Number(poll.options[index].votes) || 0) + 1; });
     poll.voterIds.push({ userId: req.userId, optionIndexes: validIndexes });
     await conn.query('UPDATE forum_post SET components = ? WHERE id = ?', [JSON.stringify(components), postId]);
     await conn.commit();
     success(res, { components: presentComponents(components, req.userId) });
-  } catch (e) { await conn.rollback(); fail(res, safeMessage(e), e.message === '帖子不存在' ? 404 : 400); } finally { conn.release(); }
+  } catch (e) {
+    await conn.rollback();
+    // 唯一键冲突就是重复投票，给前端明确的文案而不是「数据库操作失败」
+    if (e && e.code === 'ER_DUP_ENTRY') return fail(res, '你已经投过票了', 400);
+    fail(res, safeMessage(e), e.message === '帖子不存在' ? 404 : 400);
+  } finally { conn.release(); }
 };
 
 exports.remove = async (req, res) => {
@@ -444,25 +475,31 @@ exports.like = async (req, res) => {
       [req.params.id, req.userId],
     );
     if (exist.length) {
-      await conn.query(
+      const [removed] = await conn.query(
         "DELETE FROM forum_like WHERE post_id = ? AND user_id = ?",
         [req.params.id, req.userId],
       );
-      await conn.query(
-        "UPDATE forum_post SET like_count = GREATEST(like_count - 1, 0) WHERE id = ?",
-        [req.params.id],
-      );
+      // affectedRows === 0：明细已被并发请求删掉，计数器不能再减（P22）
+      if (!removed || removed.affectedRows !== 0) {
+        await conn.query(
+          "UPDATE forum_post SET like_count = GREATEST(like_count - 1, 0) WHERE id = ?",
+          [req.params.id],
+        );
+      }
       await conn.commit();
       success(res, { liked: false });
     } else {
-      await conn.query(
-        "INSERT INTO forum_like (post_id, user_id) VALUES (?, ?)",
+      // INSERT IGNORE + 唯一键 uk_post_user：并发双击只有一次真正插入成功（P22）
+      const [added] = await conn.query(
+        "INSERT IGNORE INTO forum_like (post_id, user_id) VALUES (?, ?)",
         [req.params.id, req.userId],
       );
-      await conn.query(
-        "UPDATE forum_post SET like_count = like_count + 1 WHERE id = ?",
-        [req.params.id],
-      );
+      if (!added || added.affectedRows !== 0) {
+        await conn.query(
+          "UPDATE forum_post SET like_count = like_count + 1 WHERE id = ?",
+          [req.params.id],
+        );
+      }
       await conn.commit();
       const [posts] = await pool.query('SELECT user_id, title FROM forum_post WHERE id = ?', [req.params.id]);
       if (posts.length && Number(posts[0].user_id) !== Number(req.userId)) {
@@ -499,25 +536,30 @@ exports.favorite = async (req, res) => {
       [req.params.id, req.userId],
     );
     if (exist.length) {
-      await conn.query(
+      const [removed] = await conn.query(
         "DELETE FROM forum_favorite WHERE post_id = ? AND user_id = ?",
         [req.params.id, req.userId],
       );
-      await conn.query(
-        "UPDATE forum_post SET favorite_count = GREATEST(favorite_count - 1, 0) WHERE id = ?",
-        [req.params.id],
-      );
+      // 同上：只有明细真被删除才扣计数（P22）
+      if (!removed || removed.affectedRows !== 0) {
+        await conn.query(
+          "UPDATE forum_post SET favorite_count = GREATEST(favorite_count - 1, 0) WHERE id = ?",
+          [req.params.id],
+        );
+      }
       await conn.commit();
       success(res, { favorited: false });
     } else {
-      await conn.query(
-        "INSERT INTO forum_favorite (post_id, user_id) VALUES (?, ?)",
+      const [added] = await conn.query(
+        "INSERT IGNORE INTO forum_favorite (post_id, user_id) VALUES (?, ?)",
         [req.params.id, req.userId],
       );
-      await conn.query(
-        "UPDATE forum_post SET favorite_count = favorite_count + 1 WHERE id = ?",
-        [req.params.id],
-      );
+      if (!added || added.affectedRows !== 0) {
+        await conn.query(
+          "UPDATE forum_post SET favorite_count = favorite_count + 1 WHERE id = ?",
+          [req.params.id],
+        );
+      }
       await conn.commit();
       success(res, { favorited: true });
     }
@@ -526,6 +568,146 @@ exports.favorite = async (req, res) => {
     fail(res, safeMessage(e), 500);
   } finally {
     conn.release();
+  }
+};
+
+// 蹲贴：切换「蹲」一篇帖子。与点赞/收藏同一套约定——明细表 forum_post_follow
+// 与 forum_post.follow_count 计数器在同一事务内双写，返回真实落库后的数值供前端纠偏。
+exports.follow = async (req, res) => {
+  const postId = parseInt(req.params.id, 10);
+  if (!postId) return fail(res, '帖子不存在', 404);
+  const conn = await pool.getConnection();
+  try {
+    await conn.beginTransaction();
+    const [posts] = await conn.query('SELECT id FROM forum_post WHERE id = ? AND status = 1', [postId]);
+    if (!posts.length) {
+      await conn.rollback();
+      return fail(res, '帖子不存在', 404);
+    }
+    const [exist] = await conn.query(
+      'SELECT id FROM forum_post_follow WHERE post_id = ? AND user_id = ?',
+      [postId, req.userId],
+    );
+    let followed;
+    if (exist.length) {
+      const [removed] = await conn.query('DELETE FROM forum_post_follow WHERE post_id = ? AND user_id = ?', [postId, req.userId]);
+      // 明细真被删掉才扣计数（P22）
+      if (!removed || removed.affectedRows !== 0) {
+        await conn.query('UPDATE forum_post SET follow_count = GREATEST(follow_count - 1, 0) WHERE id = ?', [postId]);
+      }
+      followed = false;
+    } else {
+      const [added] = await conn.query('INSERT IGNORE INTO forum_post_follow (post_id, user_id) VALUES (?, ?)', [postId, req.userId]);
+      if (!added || added.affectedRows !== 0) {
+        await conn.query('UPDATE forum_post SET follow_count = follow_count + 1 WHERE id = ?', [postId]);
+      }
+      followed = true;
+    }
+    const [countRows] = await conn.query('SELECT follow_count FROM forum_post WHERE id = ?', [postId]);
+    await conn.commit();
+    success(res, {
+      followed,
+      followCount: countRows.length ? (Number(countRows[0].follow_count) || 0) : 0,
+    });
+  } catch (e) {
+    await conn.rollback();
+    fail(res, safeMessage(e), 500);
+  } finally {
+    conn.release();
+  }
+};
+
+// 蹲贴列表（消息页「蹲贴」标签页）
+//   type=mine   我蹲过的帖子（按蹲贴时间倒序）
+//   type=theirs 其他用户蹲过的我的帖子（按最近被蹲时间倒序，附蹲贴者昵称预览）
+// 两个列表都不做 GROUP BY：theirs 用相关子查询取「最近被蹲时间」，避免 p.* 与
+// ONLY_FULL_GROUP_BY 冲突（同库里其它聚合查询踩过这个坑）。
+exports.followedList = async (req, res) => {
+  const userId = req.userId;
+  if (!userId) return fail(res, '未登录', 401);
+  const type = req.query.type === 'theirs' ? 'theirs' : 'mine';
+  const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+  const pageSize = clampPageSize(req.query.pageSize, 20);
+  const offset = (page - 1) * pageSize;
+  const baseSelect = `SELECT p.*, u.nick_name, u.avatar_url, u.campus, u.is_verified, u.cert_label, u.allow_anonymous_pm,
+      IFNULL((SELECT COUNT(*) FROM forum_post fp2 WHERE fp2.user_id = p.user_id AND fp2.status = 1), 0) AS post_count,
+      IFNULL((SELECT 1 FROM forum_like l WHERE l.post_id = p.id AND l.user_id = ?), 0) AS isLiked`;
+  try {
+    if (type === 'mine') {
+      const [[count]] = await pool.query(
+        `SELECT COUNT(*) AS total FROM forum_post_follow f
+         JOIN forum_post p ON p.id = f.post_id AND p.status = 1
+         WHERE f.user_id = ?`,
+        [userId],
+      );
+      const [rows] = await pool.query(
+        `${baseSelect}, 1 AS isFollowed, f.created_at AS followed_at
+         FROM forum_post_follow f
+         JOIN forum_post p ON p.id = f.post_id AND p.status = 1
+         LEFT JOIN sys_user u ON p.user_id = u.id
+         WHERE f.user_id = ?
+         ORDER BY f.created_at DESC LIMIT ? OFFSET ?`,
+        // baseSelect 里的 isLiked 子查询占 1 个 userId，必须补在最前，
+        // 否则后面的 f.user_id / LIMIT / OFFSET 整体错位
+        [userId, userId, pageSize, offset],
+      );
+      return success(res, {
+        list: rows.map((r) => Object.assign(mapPost(r, userId), { followedAt: r.followed_at, squatUsers: [] })),
+        total: count.total,
+        hasMore: offset + pageSize < count.total,
+      });
+    }
+
+    // 其他用户蹲过的我的帖子：只要有人（非我自己）蹲过就展示
+    const [[count]] = await pool.query(
+      `SELECT COUNT(*) AS total FROM forum_post p
+       WHERE p.user_id = ? AND p.status = 1
+         AND EXISTS (SELECT 1 FROM forum_post_follow f WHERE f.post_id = p.id AND f.user_id <> ?)`,
+      [userId, userId],
+    );
+    const [rows] = await pool.query(
+      `${baseSelect},
+        IFNULL((SELECT 1 FROM forum_post_follow pf WHERE pf.post_id = p.id AND pf.user_id = ?), 0) AS isFollowed,
+        (SELECT MAX(f3.created_at) FROM forum_post_follow f3 WHERE f3.post_id = p.id AND f3.user_id <> ?) AS last_followed_at
+       FROM forum_post p LEFT JOIN sys_user u ON p.user_id = u.id
+       WHERE p.user_id = ? AND p.status = 1
+         AND EXISTS (SELECT 1 FROM forum_post_follow f WHERE f.post_id = p.id AND f.user_id <> ?)
+       ORDER BY last_followed_at DESC LIMIT ? OFFSET ?`,
+      // 5 个 userId：baseSelect 的 isLiked、isFollowed、last_followed_at、WHERE、EXISTS
+      [userId, userId, userId, userId, userId, pageSize, offset],
+    );
+    // 蹲贴者昵称预览：一次 IN 查询取回本页所有帖子的蹲贴用户，按帖子分组取最近 5 位
+    const postIds = rows.map((r) => r.id);
+    const squatMap = {};
+    if (postIds.length) {
+      const [followRows] = await pool.query(
+        `SELECT f.post_id, f.user_id, u.nick_name, u.avatar_url
+         FROM forum_post_follow f LEFT JOIN sys_user u ON u.id = f.user_id
+         WHERE f.post_id IN (${postIds.map(() => '?').join(', ')}) AND f.user_id <> ?
+         ORDER BY f.created_at DESC`,
+        postIds.concat([userId]),
+      );
+      followRows.forEach((row) => {
+        const list = squatMap[row.post_id] || (squatMap[row.post_id] = []);
+        if (list.length < 5) {
+          list.push({
+            userId: row.user_id,
+            nickName: row.nick_name || '校园同学',
+            avatarUrl: normalizeLegacyAvatarUrl(row.avatar_url),
+          });
+        }
+      });
+    }
+    return success(res, {
+      list: rows.map((r) => Object.assign(mapPost(r, userId), {
+        followedAt: r.last_followed_at,
+        squatUsers: squatMap[r.id] || [],
+      })),
+      total: count.total,
+      hasMore: offset + pageSize < count.total,
+    });
+  } catch (e) {
+    fail(res, safeMessage(e), 500);
   }
 };
 

@@ -2,7 +2,9 @@
   <view class="page-title">{{title}}</view>
 
   <block>
-    <post-card wx:for="{{list}}" wx:key="id" post="{{item}}" />
+    <view wx:for="{{list}}" wx:key="id" class="feed-item anim-stagger" style="--i: {{index < 6 ? index : 0}};">
+      <post-card post="{{item}}" />
+    </view>
   </block>
 
   <empty-state wx:if="{{!loading && list.length === 0}}" text="{{emptyText}}" />

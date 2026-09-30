@@ -10,10 +10,10 @@
     <view class="search-btn" catchtap="onSearch">搜索</view>
   </view>
 
-  <view class="today-hot" wx:if="{{!searched}}">
+  <view class="today-hot" wx:if="{{!searched && dailyHotVisible}}">
     <view class="today-hot-heading"><text class="today-hot-title">今日热榜</text><text class="today-hot-note">每日更新 · 大家都在搜</text></view>
     <view class="today-hot-list" wx:if="{{hotPosts.length}}">
-      <view class="today-hot-item" wx:for="{{hotPosts}}" wx:key="id" data-id="{{item.id}}" catchtap="onHotPostTap"><text class="today-hot-rank {{index < 3 ? 'top top-' + index : ''}}">{{index + 1}}</text><text class="today-hot-text">{{item.hotText}}</text></view>
+      <view class="today-hot-item anim-stagger" style="--i: {{index < 6 ? index : 0}};" wx:for="{{hotPosts}}" wx:key="id" data-id="{{item.id}}" catchtap="onHotPostTap"><text class="today-hot-rank {{index < 3 ? 'top top-' + index : ''}}">{{index + 1}}</text><text class="today-hot-text">{{item.hotText}}</text></view>
     </view>
     <view class="today-hot-empty" wx:elif="{{hotLoading}}">热榜更新中...</view>
     <view class="today-hot-empty" wx:else>今日暂无热榜内容</view>
@@ -21,7 +21,8 @@
 
   <view class="search-results" wx:if="{{searched}}">
     <view class="result-state" wx:if="{{loading}}">搜索中...</view>
-    <block wx:for="{{results}}" wx:key="id"><post-card post="{{item}}" /></block>
+    <!-- post-card 是自定义组件，动画类挂外层 wrapper（首页 .post-feed 同款做法） -->
+    <view wx:for="{{results}}" wx:key="id" class="result-item anim-stagger" style="--i: {{index < 6 ? index : 0}};"><post-card post="{{item}}" /></view>
     <empty-state wx:if="{{!loading && results.length === 0}}" text="未找到相关内容" />
   </view>
 </view>

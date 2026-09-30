@@ -5,6 +5,9 @@ const walletController = require('../controllers/walletController')
 const clubController = require('../controllers/clubController')
 const groupChatController = require('../controllers/groupChatController')
 const activityController = require('../controllers/activityController')
+const repairController = require('../controllers/repairController')
+const drivingSchoolController = require('../controllers/drivingSchoolController')
+const reviewController = require('../controllers/reviewController')
 const { auth, requireAdmin } = require('../middleware/auth')
 
 router.use(auth)
@@ -25,6 +28,20 @@ router.put('/features', requireAdmin('config.manage'), controller.saveFeature)
 router.get('/items', requireAdmin('item.manage'), controller.listItems)
 router.post('/items', requireAdmin('item.manage'), controller.createItem)
 router.put('/items/:id', requireAdmin('item.manage'), controller.updateItem)
+// 服务宫格项管理（外部小程序/图标/链接可配置）
+router.get('/services', requireAdmin('config.manage'), controller.listServices)
+router.post('/services', requireAdmin('config.manage'), controller.createService)
+router.put('/services/:id', requireAdmin('config.manage'), controller.updateService)
+router.delete('/services/:id', requireAdmin('config.manage'), controller.deleteService)
+// 找驾校内容管理（config.manage 权限）：新增/编辑/删除驾校条目
+router.get('/driving-schools', requireAdmin('config.manage'), drivingSchoolController.adminList)
+router.post('/driving-schools', requireAdmin('config.manage'), drivingSchoolController.adminCreate)
+router.put('/driving-schools/:id', requireAdmin('config.manage'), drivingSchoolController.adminUpdate)
+router.delete('/driving-schools/:id', requireAdmin('config.manage'), drivingSchoolController.adminDelete)
+// 评分对象治理（config.manage 权限）：列表/软删/恢复，删除为软删可在「已删除」里恢复
+router.get('/review-targets', requireAdmin('config.manage'), reviewController.adminTargets)
+router.delete('/review-targets/:id', requireAdmin('config.manage'), reviewController.adminDeleteTarget)
+router.post('/review-targets/:id/restore', requireAdmin('config.manage'), reviewController.adminRestoreTarget)
 router.get('/users', requireAdmin('user.manage'), controller.listUsers)
 router.put('/users/:id/status', requireAdmin('user.manage'), controller.updateUserStatus)
 router.put('/users/:id/role', requireAdmin('role.assign'), controller.updateUserRole)
@@ -38,10 +55,17 @@ router.post('/rider-verifications/:id/review', requireAdmin('user.manage'), cont
 router.get('/admins', requireAdmin('admin.manage'), controller.listAdmins)
 router.post('/admins', requireAdmin('admin.manage'), controller.createAdmin)
 router.get('/audit-logs', requireAdmin('admin.manage'), controller.listAuditLogs)
+// 订阅消息发送流水：客服排查「用户反馈收不到微信通知」
+router.get('/subscribe-logs', requireAdmin('admin.manage'), controller.listSubscribeLogs)
+
+// 维修预约记录（日志 tab → 维修信息）：用户提交的预约维修 + 提交人资料
+router.get('/repair-orders', requireAdmin('admin.manage'), repairController.adminListOrders)
 
 // 跑腿订单流程（日志 tab：xx 发布订单 → xx 接单 → 完成/取消 全流程与双方用户信息）
 router.get('/errand-orders', requireAdmin('admin.manage'), controller.listErrandOrders)
 router.get('/errand-orders/:id', requireAdmin('admin.manage'), controller.errandOrderDetail)
+// 异议订单裁决：approve=异议成立（订单取消并原路退款）/ reject=异议不成立（订单成立并结算给接单方）
+router.post('/errand-disputes/:id/review', requireAdmin('admin.manage'), controller.reviewErrandDispute)
 
 // 社团&组织管理（config.manage 权限）
 router.get('/club/categories', requireAdmin('config.manage'), clubController.adminListCategories)
@@ -51,6 +75,9 @@ router.delete('/club/categories/:id', requireAdmin('config.manage'), clubControl
 router.post('/club/clubs', requireAdmin('config.manage'), clubController.createClub)
 router.put('/club/clubs/:id', requireAdmin('config.manage'), clubController.updateClub)
 router.delete('/club/clubs/:id', requireAdmin('config.manage'), clubController.deleteClub)
+// 社团审核（用户端提交的社团申请，审核通过后才在用户端「社团&组织」分类中展示）
+router.get('/club/applies', requireAdmin('config.manage'), clubController.adminListApplies)
+router.post('/club/applies/:id/review', requireAdmin('config.manage'), clubController.reviewApply)
 
 // 广轻群聊管理（config.manage 权限）
 router.get('/group-chat/applies', requireAdmin('config.manage'), groupChatController.adminListApplies)
@@ -59,10 +86,20 @@ router.get('/group-chat/groups', requireAdmin('config.manage'), groupChatControl
 router.post('/group-chat/groups', requireAdmin('config.manage'), groupChatController.createGroup)
 router.put('/group-chat/groups/:id', requireAdmin('config.manage'), groupChatController.updateGroup)
 router.delete('/group-chat/groups/:id', requireAdmin('config.manage'), groupChatController.deleteGroup)
+// 群聊类别编辑
+router.get('/group-chat/categories', requireAdmin('config.manage'), groupChatController.adminListCategories)
+router.post('/group-chat/categories', requireAdmin('config.manage'), groupChatController.createCategory)
+router.put('/group-chat/categories/:id', requireAdmin('config.manage'), groupChatController.updateCategory)
+router.delete('/group-chat/categories/:id', requireAdmin('config.manage'), groupChatController.deleteCategory)
 
 // 校园活动管理（content.manage 权限）
 router.get('/activities', requireAdmin('content.manage'), activityController.adminList)
+// 活动报名名单（仅管理员可见）：头像、昵称、手机号、校区、报名时间
+router.get('/activities/:id/signups', requireAdmin('content.manage'), activityController.adminSignups)
 router.put('/activities/:id', requireAdmin('content.manage'), activityController.adminUpdate)
 router.delete('/activities/:id', requireAdmin('content.manage'), activityController.adminDelete)
+// 活动审核（普通用户发布的活动需审核通过后才公开）
+router.get('/activity-audits', requireAdmin('content.manage'), activityController.adminAuditList)
+router.post('/activities/:id/audit', requireAdmin('content.manage'), activityController.adminAudit)
 
 module.exports = router

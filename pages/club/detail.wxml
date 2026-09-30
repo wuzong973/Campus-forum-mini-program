@@ -1,91 +1,78 @@
-<view class="page page-enter" wx:if="{{category}}">
-  <view class="hero" style="background:linear-gradient(180deg, {{category.theme.soft}} 0%, rgba(244,246,250,0) 100%);">
-    <view class="hero-card">
-      <view class="hero-icon" style="background:{{category.theme.gradient}};box-shadow:0 14rpx 30rpx {{category.theme.shadow}};">
-        <text class="hero-icon-char">{{category.char}}</text>
-      </view>
-      <view class="hero-info">
-        <view class="hero-name">{{category.name}}</view>
-        <view class="hero-slogan">{{category.slogan}}</view>
-      </view>
-      <view class="hero-chip" style="background:{{category.theme.soft}};color:{{category.theme.deep}};">{{category.clubs.length}} 个社团</view>
-    </view>
+<view class="page page-enter">
+  <view class="topbar" style="padding-top: {{statusBarHeight}}px;">
+    <view class="back-pill spring-btn" hover-class="back-pill-hover press-spring" hover-stay-time="80" bindtap="goBack"><text class="back-pill-icon">‹</text><text>返回</text></view>
   </view>
 
-  <view class="section anim-slide-up">
-    <view class="section-head">
-      <view class="section-bar" style="background:{{category.theme.gradient}};"></view>
-      <text class="section-title">分类定位</text>
-    </view>
-    <text class="section-text">{{category.position}}</text>
-  </view>
+  <view class="content">
+    <view class="page-title">{{category.name || '社团分类'}}</view>
+    <view class="page-sub">查看该分类下的代表社团</view>
 
-  <view class="section anim-slide-up" style="--i:1">
-    <view class="section-head">
-      <view class="section-bar" style="background:{{category.theme.gradient}};"></view>
-      <text class="section-title">涵盖范围</text>
+    <view class="campus-bar spring-btn" hover-class="campus-bar--hover press-spring" hover-stay-time="80" bindtap="onToggleCampus">
+      <text class="campus-bar-label">校区</text>
+      <text class="campus-bar-value">{{campus || '全部校区'}}</text>
+      <text class="campus-bar-arrow">{{showCampusPanel ? '▴' : '▾'}}</text>
     </view>
-    <text class="section-text">{{category.scopeIntro}}</text>
-    <view class="chip-wrap">
+
+    <view class="empty" wx:if="{{loaded && loadError}}" bindtap="retryLoad">
+      <view class="empty-icon"><text class="empty-q">!</text></view>
+      <text class="empty-text">社团加载失败，点击重试</text>
+    </view>
+
+    <view class="empty" wx:elif="{{loaded && !clubs.length}}">
+      <view class="empty-icon"><text class="empty-q">?</text></view>
+      <text class="empty-text">该分类下暂无社团</text>
+    </view>
+
+    <!-- 代表社团：单张白卡 + 行分隔线，点击整行进入社团详情 -->
+    <view class="club-panel" wx:if="{{clubs.length}}">
       <view
-        class="chip"
-        wx:for="{{category.scope}}"
-        wx:key="*this"
-        style="background:{{category.theme.soft}};color:{{category.theme.deep}};"
-      >{{item}}</view>
-    </view>
-  </view>
-
-  <view class="section anim-slide-up" style="--i:2">
-    <view class="section-head">
-      <view class="section-bar" style="background:{{category.theme.gradient}};"></view>
-      <text class="section-title">特色说明</text>
-    </view>
-    <view class="feature" wx:for="{{category.features}}" wx:key="title">
-      <view class="feature-dot" style="background:{{category.theme.gradient}};box-shadow:0 6rpx 14rpx {{category.theme.shadow}};">{{index + 1}}</view>
-      <view class="feature-body">
-        <text class="feature-title">{{item.title}}</text>
-        <text class="feature-desc">{{item.desc}}</text>
-      </view>
-    </view>
-  </view>
-
-  <view class="section anim-slide-up" style="--i:3">
-    <view class="section-head">
-      <view class="section-bar" style="background:{{category.theme.gradient}};"></view>
-      <text class="section-title">代表社团</text>
-      <text class="section-hint">点击查看详情</text>
-    </view>
-    <view class="club-item" wx:for="{{category.clubs}}" wx:key="name">
-      <view class="club-row" data-index="{{index}}" bindtap="onToggleClub" hover-class="club-row--hover" hover-stay-time="100">
-        <view class="club-badge" style="background:{{category.theme.soft}};color:{{category.theme.deep}};">{{item.firstChar}}</view>
-        <view class="club-brief">
-          <text class="club-title">{{item.name}}</text>
-          <text class="club-tags ellipsis">{{item.tags}}</text>
-        </view>
-        <text class="club-toggle {{expandedIndex === index ? 'open' : ''}}">›</text>
-      </view>
-      <view class="club-detail {{expandedIndex === index ? 'show' : ''}}">
-        <view class="club-detail-inner">
-          <text class="club-intro">{{item.intro}}</text>
-          <view class="club-recruit" style="background:{{category.theme.soft}};">
-            <text class="club-recruit-label" style="color:{{category.theme.deep}};">招新</text>
-            <text class="club-recruit-text">{{item.recruit}}</text>
+        class="club-row anim-stagger spring-btn"
+        style="--i: {{index < 6 ? index : 0}};"
+        wx:for="{{clubs}}"
+        wx:key="name"
+        hover-class="club-row--hover press-spring"
+        hover-stay-time="80"
+        data-id="{{item.id}}"
+        data-name="{{item.name}}"
+        bindtap="onClubTap"
+      >
+        <view class="row-avatar-box">
+          <!-- 文字徽标兜底：无头像/加载中/加载失败时始终可见，头像加载成功后淡入覆盖 -->
+          <view class="row-badge" style="background:{{theme.soft}};color:{{theme.deep}};">{{item.firstChar}}</view>
+          <!-- 申请人上传的社团头像：原图渲染（aspectFill 圆形裁切），不压缩、不降质 -->
+          <image
+            wx:if="{{item.avatarUrl && item.avatarState !== 'failed'}}"
+            class="row-avatar-img {{item.avatarState === 'loaded' ? 'row-avatar-img--on' : ''}}"
+            src="{{item.avatarSrc}}"
+            mode="aspectFill"
+            lazy-load="{{true}}"
+            data-index="{{index}}"
+            bindload="onAvatarLoad"
+            binderror="onAvatarError"
+          />
+          <!-- 弱网加载态：头像位置显示轻量旋转指示 -->
+          <view wx:if="{{item.avatarUrl && item.avatarState === 'loading'}}" class="row-avatar-loading">
+            <view class="row-avatar-spinner"></view>
+          </view>
+          <!-- 同步失败：明确标识 + 点击手动重试（更新时间戳绕过失败缓存） -->
+          <view
+            wx:if="{{item.avatarUrl && item.avatarState === 'failed'}}"
+            class="row-avatar-retry"
+            data-index="{{index}}"
+            catchtap="onAvatarRetry"
+          >
+            <text class="row-avatar-retry-icon">↻</text>
           </view>
         </view>
+        <view class="row-main">
+          <text class="row-name">{{item.name}}</text>
+          <text class="row-tags" wx:if="{{item.tags}}">{{item.tags}}</text>
+        </view>
+        <text class="row-arrow" wx:if="{{item.id}}">›</text>
       </view>
     </view>
   </view>
-
-  <view class="join-card" style="background:{{category.theme.soft}};">
-    <view class="join-text">
-      <text class="join-title">想加入{{category.name}}社团？</text>
-      <text class="join-sub">{{category.contact}}</text>
-    </view>
-    <button
-      class="join-btn"
-      style="background:{{category.theme.gradient}};box-shadow:0 10rpx 22rpx {{category.theme.shadow}};"
-      bindtap="onCopyContact"
-    >复制联系方式</button>
-  </view>
 </view>
+
+<!-- 校区选择弹层（fixed 元素放在带动画容器外） -->
+<campus-picker visible="{{showCampusPanel}}" value="{{campus}}" bind:change="onCampusChange" bind:close="onCloseCampus" />

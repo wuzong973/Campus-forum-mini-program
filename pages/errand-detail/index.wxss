@@ -84,7 +84,7 @@
 .contact-popup{width:600rpx;background:#fff;border-radius:20rpx;padding:32rpx 28rpx;display:flex;flex-direction:column}
 .contact-popup-title{font-size:32rpx;font-weight:600;text-align:center;color:#22303f;margin-bottom:8rpx}
 .contact-option{display:flex;align-items:center;gap:20rpx;padding:26rpx 20rpx;margin-top:16rpx;border-radius:16rpx;background:#f7f9fb}
-.contact-option-hover{background:#eef4fb}
+.contact-option-hover{background:#eef4fb transform: scale(0.96); box-shadow: inset 0 2rpx 6rpx rgba(16, 32, 64, 0.16), inset 0 -1rpx 2rpx rgba(255, 255, 255, 0.08); }
 .contact-option-icon{width:72rpx;height:72rpx;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:32rpx;color:#fff;flex-shrink:0}
 .contact-option-icon.online{background:#347ff2}
 .contact-option-icon.phone{background:#3ba872}
@@ -93,3 +93,68 @@
 .contact-option-desc{font-size:22rpx;color:#9aa6b5;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .contact-arrow{font-size:32rpx;color:#c3ccd6}
 .contact-cancel{margin-top:24rpx;height:76rpx;line-height:76rpx;text-align:center;border-radius:40rpx;background:#f4f6f8;color:#5a6a80;font-size:28rpx}
+
+/* ===== 待确认 / 有异议状态条 ===== */
+.wait-banner{display:flex;align-items:center;justify-content:space-between;margin:0 8rpx 18rpx;padding:20rpx 24rpx;background:#fff5f5;border:1rpx solid #ffe0e0;border-radius:14rpx}
+.wait-text{font-size:26rpx;color:#f2635f;flex:1;min-width:0}
+.wait-view{font-size:26rpx;color:#4d96fa;flex-shrink:0;margin-left:16rpx}
+.dispute-banner{margin:0 8rpx 18rpx;padding:20rpx 24rpx;background:#fff7e6;border:1rpx solid #ffe3b8;border-radius:14rpx;font-size:25rpx;color:#b7791f;line-height:1.5}
+
+/* ===== 接单人卡片 ===== */
+.acceptor-card{background:#fff}
+.acceptor-head{display:flex;align-items:center;gap:16rpx;margin-top:8rpx}
+.acceptor-avatar{width:76rpx;height:76rpx;border-radius:50%;background:#eef2f7;flex-shrink:0}
+.acceptor-avatar-fallback{display:flex;align-items:center;justify-content:center;font-size:38rpx}
+.acceptor-info{display:flex;flex-direction:column;gap:6rpx;flex:1;min-width:0}
+.acceptor-name{font-size:29rpx;color:#22303f;font-weight:600}
+.acceptor-time{font-size:23rpx;color:#9aa6b5}
+.acceptor-contact{flex-shrink:0;margin:0;height:64rpx;line-height:64rpx;padding:0 26rpx;border:2rpx solid #b9d7ff;border-radius:32rpx;background:#fff;color:#4d96fa;font-size:26rpx}
+.acceptor-contact::after{border:0}
+
+/* ===== 异议信息卡片 ===== */
+.dispute-card{background:#fff;border:1rpx solid #ffe3b8}
+.dispute-reason{display:block;font-size:27rpx;color:#4a5a6e;background:#f7f8fa;border-radius:10rpx;padding:16rpx;margin-bottom:8rpx;line-height:1.5}
+
+/* 底部「提出异议」按钮 */
+.btn-dispute{background:#fd6b6b;color:#fff}
+
+/* ===== 提交完成详情弹窗 ===== */
+.submit-popup{width:620rpx;max-height:76vh;background:#fff;border-radius:20rpx;padding:32rpx 28rpx;display:flex;flex-direction:column}
+.submit-head{display:flex;align-items:center;gap:14rpx}
+.submit-avatar{width:64rpx;height:64rpx;border-radius:50%;background:#eef2f7;flex-shrink:0}
+.submit-avatar-fallback{display:flex;align-items:center;justify-content:center;font-size:34rpx}
+.submit-name{font-size:28rpx;color:#22303f;font-weight:600}
+.submit-tag{font-size:21rpx;color:#e69329;background:#fff5e2;border-radius:8rpx;padding:4rpx 12rpx}
+.submit-status{display:block;font-size:30rpx;font-weight:600;color:#22303f;margin-top:24rpx}
+.submit-time{display:block;font-size:23rpx;color:#9aa6b5;margin-top:8rpx}
+.submit-body{max-height:40vh;margin-top:16rpx}
+.submit-desc{display:block;font-size:27rpx;color:#4a5a6e;line-height:1.6}
+.submit-actions{display:flex;gap:18rpx;margin-top:24rpx}
+.submit-actions button{flex:1;height:78rpx;line-height:1.3;border-radius:40rpx;font-size:27rpx;margin:0;padding:0;display:flex;align-items:center;justify-content:center}
+.submit-actions button::after{border:0}
+.btn-dispute-outline{background:#ffeceb;color:#f2635f}
+.btn-confirm-solid{background:#e8f6ee;color:#2f9c68}
+.submit-service{margin-top:22rpx;text-align:center;font-size:23rpx;color:#9aa6b5}
+.submit-service-link{color:#4d96fa;margin-left:8rpx}
+
+/* ===== 异议填写弹窗 ===== */
+.dispute-popup{width:620rpx;background:#fff;border-radius:20rpx;padding:32rpx 28rpx;display:flex;flex-direction:column}
+.dispute-textarea{width:100%;height:220rpx;background:#f6f7f9;border-radius:12rpx;padding:18rpx;font-size:26rpx;box-sizing:border-box;margin-top:24rpx}
+.dispute-tip{font-size:22rpx;color:#9aa6b5;line-height:1.5;margin-top:14rpx}
+.dispute-actions{display:flex;gap:18rpx;margin-top:28rpx}
+.dispute-actions button{flex:1;height:80rpx;line-height:80rpx;border-radius:40rpx;font-size:28rpx;margin:0}
+.dispute-actions button::after{border:0}
+.dispute-actions .btn-cancel{background:#f4f6f8;color:#5a6a80}
+.dispute-actions .btn-finish{background:#347ff2;color:#fff}
+
+/* ===== 「来晚啦」弹窗 ===== */
+.taken-popup{width:620rpx;border-radius:24rpx;background:#fff;padding:44rpx 32rpx 36rpx;display:flex;flex-direction:column;align-items:center}
+.taken-title{font-size:32rpx;font-weight:600;color:#22303f;text-align:center}
+.taken-user{display:flex;align-items:center;gap:12rpx;margin-top:26rpx;padding:10rpx 24rpx;background:#f2f3f5;border-radius:40rpx}
+.taken-user-label{font-size:24rpx;color:#8c97a7}
+.taken-avatar{width:44rpx;height:44rpx;border-radius:50%;background:#e6e9ee}
+.taken-avatar-fallback{display:flex;align-items:center;justify-content:center;font-size:28rpx}
+.taken-user-name{font-size:26rpx;color:#33445a}
+.taken-illus{font-size:180rpx;line-height:1.25}
+.taken-btn{width:100%;margin-top:18rpx;height:88rpx;line-height:88rpx;border-radius:44rpx;background:#347ff2;color:#fff;font-size:30rpx}
+.taken-btn::after{border:0}

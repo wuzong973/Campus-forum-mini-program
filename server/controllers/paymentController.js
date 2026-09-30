@@ -224,7 +224,9 @@ async function reserveErrandRefund(orderId, userId) {
       userId ? [orderId, userId] : [orderId]
     )
     const order = rows[0]
-    if (!order || !['pending', 'accepted', 'cancelled'].includes(order.status)) { await conn.rollback(); return { error: 'Order is not cancellable', code: 409 } }
+    // disputed 一并放行：管理员裁决「异议成立」时会先把订单置为 cancelled 再发起退款，
+    // 这里保留 disputed 兜底，避免状态判断把已确认要退款的订单挡在门外。
+    if (!order || !['pending', 'accepted', 'cancelled', 'disputed'].includes(order.status)) { await conn.rollback(); return { error: 'Order is not cancellable', code: 409 } }
     if (order.status !== 'cancelled') await conn.query("UPDATE errand_order SET status = 'cancelled' WHERE id = ?", [order.id])
     if (!order.payment_id || order.transaction_status !== 'SUCCESS') {
       await conn.commit()
@@ -341,8 +343,9 @@ exports.listPayments = async (req, res) => {
   const page = Math.max(1, Number(req.query.page) || 1); const pageSize = Math.min(100, Math.max(1, Number(req.query.pageSize) || 20)); const offset = (page - 1) * pageSize
   try {
     const [[count], [list]] = await Promise.all([pool.query('SELECT COUNT(*) total FROM payment_transaction'), pool.query('SELECT id, business_type businessType, business_order_id businessOrderId, merchant_order_no orderNo, user_id userId, amount_fen amountFen, status, wx_transaction_id transactionId, paid_at paidAt, created_at createdAt FROM payment_transaction ORDER BY id DESC LIMIT ? OFFSET ?', [pageSize, offset])])
-    success(res, { list, total: Number(count.total), page, hasMore: offset + list.length < Number(count.total) })
+    success(res, { list, total: Number(count[0].total), page, hasMore: offset + list.length < Number(count[0].total) })
   } catch (error) { fail(res, safeMessage(error), 500) }
 }
 
 exports.settlePayment = settlePayment
+exports.updateRefundState = updateRefundState

@@ -1,5 +1,9 @@
 {
-  "navigationBarTitleText": "分类详情",
-  "navigationBarBackgroundColor": "#D7EFFF",
-  "navigationBarTextStyle": "black"
+  "navigationStyle": "custom",
+  "backgroundColor": "#F2F3F5",
+  "enablePullDownRefresh": true,
+  "backgroundTextStyle": "dark",
+  "usingComponents": {
+    "campus-picker": "/components/campus-picker/campus-picker"
+  }
 }

@@ -16,12 +16,15 @@ async function main() {
   }
 
   try {
-    const { data } = await axios.get('https://api.weixin.qq.com/cgi-bin/token', {
-      params: {
-        grant_type: 'client_credential',
-        appid: process.env.WX_APPID,
-        secret: process.env.WX_APPSECRET,
-      },
+    // 用 cgi-bin/stable_token 而不是 cgi-bin/token：
+    // 后者每调用一次都会作废上一次签发的 token，跑一次这个体检脚本
+    // 就会把正在运行的服务端手里的 token 弄失效（线上表现为订阅消息 40001 失败）。
+    const { data } = await axios.post('https://api.weixin.qq.com/cgi-bin/stable_token', {
+      grant_type: 'client_credential',
+      appid: process.env.WX_APPID,
+      secret: process.env.WX_APPSECRET,
+      force_refresh: false,
+    }, {
       timeout: 10000,
     })
 

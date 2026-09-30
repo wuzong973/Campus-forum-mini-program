@@ -34,16 +34,25 @@ Page({
     this.loadList()
   },
 
-  loadList() {
-    this.setData({ loading: true })
-    api.getMyInteractionList(this.data.type).then((res) => {
+  loadList(append) {
+    if (append && (this._listLoading || this._listHasMore === false)) return
+    const page = append ? (this._listPage || 1) + 1 : 1
+    this._listLoading = true
+    this.setData(append ? {} : { loading: true, list: [] })
+    api.getMyInteractionList(this.data.type, page).then((res) => {
+      this._listPage = page
+      this._listHasMore = !!res.hasMore
       this.setData({
-        list: res.list || [],
+        list: append ? this.data.list.concat(res.list || []) : (res.list || []),
         loading: false
       })
     }).catch(() => {
       this.setData({ loading: false })
-    })
+    }).then(() => { this._listLoading = false })
+  },
+
+  onReachBottom() {
+    this.loadList(true)
   },
 
   onPullDownRefresh() {

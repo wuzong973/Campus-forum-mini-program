@@ -2,6 +2,7 @@ const request = require("../../utils/request");
 const api = require("../../utils/api");
 const scheduleUtils = require("../../utils/schedule");
 const { runPullDownRefresh } = require("../../utils/refresh");
+const auth = require("../../utils/auth");
 
 const COURSE_COLORS = ['#4A7AFF', '#52C41A', '#FAAD14', '#FF4D4F', '#722ED1', '#13C2C2', '#EB2F96', '#FA8C16', '#2F54EB', '#A0D911', '#F759AB', '#36CFC9'];
 
@@ -168,4 +169,9 @@ Page({
   onRetry() {
     this.setData({ showResult: false, recognizedCourses: [], imageUrl: "" });
   },
-});
+
+  onShow() {
+    // 未登录：弹窗引导去登录（取消则退回上一页）
+    if (!auth.guardPage("该功能需要登录后使用")) return;
+  },
+})

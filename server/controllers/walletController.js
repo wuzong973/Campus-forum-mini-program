@@ -3,6 +3,7 @@ const { success, fail } = require('../middleware/auth')
 const { safeMessage } = require('../utils/helpers')
 const { writeAdminAudit } = require('../utils/adminAudit')
 const { createNotification } = require('../services/notificationService')
+const subscribeService = require('../services/subscribeService')
 const wechat = require('../services/wechatPayV3Service')
 const payConfig = require('../config/wechatPay')
 
@@ -14,15 +15,19 @@ function toFen(value) {
 async function totals(conn, userId, lock) {
   const suffix = lock ? ' FOR UPDATE' : ''
   const [[earnings]] = await conn.query(`SELECT IFNULL(SUM(amount_fen), 0) amount FROM wallet_ledger WHERE user_id = ?${suffix}`, [userId])
+  // reserved：在途提现（审核/转账/待用户确认收款），仍占用余额
+  // withdrawn：已成功到账的提现，属于永久扣减；此前只扣 reserved 导致提现到账后可用余额"回满"，可重复提现（双花）
   const [[reserved]] = await conn.query(`SELECT IFNULL(SUM(amount_fen), 0) amount FROM wallet_withdrawal WHERE user_id = ? AND status IN ('PENDING', 'PROCESSING', 'WAIT_CONFIRM')${suffix}`, [userId])
-  return { earnedFen: Number(earnings.amount), reservedFen: Number(reserved.amount) }
+  const [[withdrawn]] = await conn.query(`SELECT IFNULL(SUM(amount_fen), 0) amount FROM wallet_withdrawal WHERE user_id = ? AND status = 'SUCCESS'${suffix}`, [userId])
+  return { earnedFen: Number(earnings.amount), reservedFen: Number(reserved.amount), withdrawnFen: Number(withdrawn.amount) }
 }
 
 function walletData(values) {
   return {
     earned: values.earnedFen / 100,
     withdrawing: values.reservedFen / 100,
-    available: Math.max(0, values.earnedFen - values.reservedFen) / 100
+    // 可提现 = 累计收益 - 在途提现 - 已到账提现（REJECTED/FAILED 单从未扣款，不计入）
+    available: Math.max(0, values.earnedFen - values.reservedFen - values.withdrawnFen) / 100
   }
 }
 
@@ -57,8 +62,21 @@ exports.requestWithdrawal = async (req, res) => {
   const conn = await pool.getConnection()
   try {
     await conn.beginTransaction()
+    // 锁定用户行，串行化同一用户的并发提现请求：
+    // 否则两个并发事务在各自快照里都读到旧余额并同时通过校验（FOR UPDATE 对 ledger/withdrawal 无行可锁时形同虚设）
+    await conn.query('SELECT id FROM sys_user WHERE id = ? FOR UPDATE', [req.userId])
+    // 每日提现次数上限（与前端 WITHDRAW_RULES.dailyLimit 保持一致；前端校验可被绕过，此处为最终防线）
+    const DAILY_WITHDRAW_LIMIT = 5
+    const [[daily]] = await conn.query(
+      'SELECT COUNT(*) total FROM wallet_withdrawal WHERE user_id = ? AND created_at >= CURDATE()',
+      [req.userId]
+    )
+    if (Number(daily.total) >= DAILY_WITHDRAW_LIMIT) {
+      await conn.rollback()
+      return fail(res, `今日提现次数已达上限（${DAILY_WITHDRAW_LIMIT}次）`, 429)
+    }
     const amount = await totals(conn, req.userId, true)
-    if (amountFen > amount.earnedFen - amount.reservedFen) {
+    if (amountFen > amount.earnedFen - amount.reservedFen - amount.withdrawnFen) {
       await conn.rollback()
       return fail(res, 'Insufficient available balance', 422)
     }
@@ -68,7 +86,7 @@ exports.requestWithdrawal = async (req, res) => {
       [req.userId, amountFen, `WD${token}`.slice(0, 64), `WDD${token}`.slice(0, 64)]
     )
     await conn.commit()
-    success(res, { id: result.insertId, status: 'PENDING', available: (amount.earnedFen - amount.reservedFen - amountFen) / 100 }, 'Withdrawal submitted')
+    success(res, { id: result.insertId, status: 'PENDING', available: (amount.earnedFen - amount.reservedFen - amount.withdrawnFen - amountFen) / 100 }, 'Withdrawal submitted')
   } catch (error) {
     await conn.rollback()
     fail(res, safeMessage(error), 500)
@@ -87,9 +105,9 @@ exports.listWithdrawals = async (req, res) => {
   try {
     const [[count], [list]] = await Promise.all([
       pool.query(`SELECT COUNT(*) total FROM wallet_withdrawal w ${where}`, params),
-      pool.query(`SELECT w.id, w.user_id userId, u.nick_name nickName, u.phone phone, w.amount_fen amountFen, w.status, w.review_note reviewNote, w.created_at createdAt, w.reviewed_at reviewedAt FROM wallet_withdrawal w JOIN sys_user u ON u.id = w.user_id ${where} ORDER BY w.id DESC LIMIT ? OFFSET ?`, params.concat([pageSize, offset]))
+      pool.query(`SELECT w.id, w.user_id userId, u.nick_name nickName, u.avatar_url avatarUrl, u.phone phone, w.amount_fen amountFen, w.status, w.review_note reviewNote, w.last_error lastError, w.created_at createdAt, w.reviewed_at reviewedAt FROM wallet_withdrawal w JOIN sys_user u ON u.id = w.user_id ${where} ORDER BY w.id DESC LIMIT ? OFFSET ?`, params.concat([pageSize, offset]))
     ])
-    success(res, { list: list.map((item) => ({ ...item, amount: Number(item.amountFen) / 100 })), total: Number(count.total), page, hasMore: offset + list.length < Number(count.total) })
+    success(res, { list: list.map((item) => ({ ...item, amount: Number(item.amountFen) / 100 })), total: Number(count[0].total), page, hasMore: offset + list.length < Number(count[0].total) })
   } catch (error) { fail(res, safeMessage(error), 500) }
 }
 
@@ -110,6 +128,8 @@ exports.reviewWithdrawal = async (req, res) => {
       await conn.commit()
       await writeAdminAudit(req, 'wallet.withdrawal.reject', 'wallet_withdrawal', id, { note })
       await createNotification({ userId: withdrawal.user_id, type: 'system', title: 'Withdrawal rejected', content: note || 'Your withdrawal request was rejected.', relatedId: id })
+      // 提现结果订阅提醒（增强能力，不 await 不影响审核响应）
+      subscribeService.pushWithdrawResult(withdrawal.user_id, { orderNo: String(id), amountFen: withdrawal.amount_fen, statusText: '已驳回', note: note || '提现申请被驳回，金额已退回余额' })
       return success(res, { status: 'REJECTED' })
     }
     if (!withdrawal.openid) { await conn.rollback(); return fail(res, 'User WeChat account is unavailable', 422) }
@@ -122,6 +142,7 @@ exports.reviewWithdrawal = async (req, res) => {
       await conn.commit()
       await writeAdminAudit(req, 'wallet.withdrawal.approve', 'wallet_withdrawal', id, { amountFen: Number(withdrawal.amount_fen), mode: 'test', note })
       await createNotification({ userId: withdrawal.user_id, type: 'system', title: 'Withdrawal paid', content: 'Your withdrawal has been approved.', relatedId: id })
+      subscribeService.pushWithdrawSuccess(withdrawal.user_id, { orderNo: String(id), amountFen: withdrawal.amount_fen, note: '提现审核通过，已打款' })
       return success(res, { status: 'SUCCESS', mode: 'test' })
     }
     await conn.query("UPDATE wallet_withdrawal SET status = 'PROCESSING', review_note = ?, reviewed_by = ?, reviewed_at = NOW(), last_error = NULL WHERE id = ?", [note, req.userId, id])
@@ -158,6 +179,8 @@ exports.reviewWithdrawal = async (req, res) => {
       await pool.query("UPDATE wallet_withdrawal SET status = ?, wx_batch_id = ?, completed_at = CASE WHEN ? = 'SUCCESS' THEN NOW() ELSE NULL END WHERE id = ?", [status, remote.batch_id || null, status, id])
       await writeAdminAudit(req, 'wallet.withdrawal.approve', 'wallet_withdrawal', id, { amountFen: Number(withdrawal.amount_fen), mode: 'legacy-batch', remoteStatus })
       await createNotification({ userId: withdrawal.user_id, type: 'system', title: status === 'SUCCESS' ? 'Withdrawal paid' : 'Withdrawal processing', content: status === 'SUCCESS' ? 'Your withdrawal has been sent to your WeChat wallet.' : 'Your withdrawal has been submitted to WeChat for processing.', relatedId: id })
+      if (status === 'SUCCESS') subscribeService.pushWithdrawSuccess(withdrawal.user_id, { orderNo: String(id), amountFen: withdrawal.amount_fen, note: '提现已到账微信零钱' })
+      else subscribeService.pushWithdrawResult(withdrawal.user_id, { orderNo: String(id), amountFen: withdrawal.amount_fen, statusText: '处理中', note: '提现已提交微信处理' })
       return success(res, { status })
     }
     const remoteState = bill.state || ''
@@ -175,12 +198,19 @@ exports.reviewWithdrawal = async (req, res) => {
       content: status === 'SUCCESS' ? 'Your withdrawal has been sent to your WeChat wallet.' : '管理员已通过你的提现申请，请在「钱包-收益明细」中点击「确认收款」完成提现（24小时内有效）。',
       relatedId: id
     })
+    if (status === 'SUCCESS') subscribeService.pushWithdrawSuccess(withdrawal.user_id, { orderNo: String(id), amountFen: withdrawal.amount_fen, note: '提现已到账微信零钱' })
+    else if (status === 'WAIT_CONFIRM') subscribeService.pushWithdrawResult(withdrawal.user_id, { orderNo: String(id), amountFen: withdrawal.amount_fen, statusText: '待确认', note: '请点击「确认收款」完成提现' })
     success(res, { status })
   } catch (error) {
-    // 把微信返回的真实错误（如 NO_AUTH / NOT_ENOUGH / openid 错误）透出，方便管理员定位
-    console.error('[wallet-withdraw-transfer]', safeMessage(error))
-    await pool.query("UPDATE wallet_withdrawal SET status = 'PENDING', last_error = ? WHERE id = ? AND status = 'PROCESSING'", [safeMessage(error).slice(0, 500), id]).catch(() => {})
-    fail(res, safeMessage(error), 502)
+    // 转账失败时用户的可用余额不变（单据回到 PENDING 继续占用冻结额度），
+    // 把微信的真实原因翻译成中文写进 last_error，管理员可在列表直接看到并原单号重试。
+    const described = wechat.describeTransferError(error)
+    console.error('[wallet-withdraw-transfer]', described.code, safeMessage(error))
+    const stored = `${described.message}｜${described.hint}`.slice(0, 500)
+    await pool.query("UPDATE wallet_withdrawal SET status = 'PENDING', last_error = ? WHERE id = ? AND status = 'PROCESSING'", [stored, id]).catch(() => {})
+    // 422 而不是 502：请求本身合法，是商户侧资金/配置问题导致无法执行，
+    // 502 会被前端当成"网关挂了"并触发重试，掩盖真实原因
+    fail(res, described.message, 422, { code: described.code, hint: described.hint })
   }
 }
 
@@ -198,7 +228,10 @@ exports.transferNotify = async (req, res) => {
       )
       if (result.affectedRows && status === 'SUCCESS') {
         const [[withdrawal]] = await pool.query('SELECT user_id FROM wallet_withdrawal WHERE out_batch_no = ?', [resource.out_bill_no])
-        if (withdrawal) await createNotification({ userId: withdrawal.user_id, type: 'system', title: 'Withdrawal paid', content: 'Your withdrawal has been sent to your WeChat wallet.', relatedId: resource.out_bill_no })
+        if (withdrawal) {
+          await createNotification({ userId: withdrawal.user_id, type: 'system', title: 'Withdrawal paid', content: 'Your withdrawal has been sent to your WeChat wallet.', relatedId: resource.out_bill_no })
+          subscribeService.pushWithdrawSuccess(withdrawal.user_id, { orderNo: String(resource.out_bill_no), amountFen: withdrawal.amount_fen, note: '提现已到账微信零钱' })
+        }
       }
       return res.status(200).json({ code: 'SUCCESS', message: 'OK' })
     }
@@ -208,7 +241,10 @@ exports.transferNotify = async (req, res) => {
     const [result] = await pool.query("UPDATE wallet_withdrawal SET status = ?, wx_batch_id = COALESCE(?, wx_batch_id), completed_at = CASE WHEN ? = 'SUCCESS' THEN NOW() ELSE completed_at END WHERE out_batch_no = ?", [status, resource.batch_id || null, status, resource.out_batch_no])
     if (result.affectedRows) {
       const [[withdrawal]] = await pool.query('SELECT user_id FROM wallet_withdrawal WHERE out_batch_no = ?', [resource.out_batch_no])
-      if (withdrawal && status === 'SUCCESS') await createNotification({ userId: withdrawal.user_id, type: 'system', title: 'Withdrawal paid', content: 'Your withdrawal has been sent to your WeChat wallet.', relatedId: resource.out_batch_no })
+      if (withdrawal && status === 'SUCCESS') {
+        await createNotification({ userId: withdrawal.user_id, type: 'system', title: 'Withdrawal paid', content: 'Your withdrawal has been sent to your WeChat wallet.', relatedId: resource.out_batch_no })
+        subscribeService.pushWithdrawSuccess(withdrawal.user_id, { orderNo: String(resource.out_batch_no), amountFen: withdrawal.amount_fen, note: '提现已到账微信零钱' })
+      }
     }
     res.status(200).json({ code: 'SUCCESS', message: 'OK' })
   } catch (error) {

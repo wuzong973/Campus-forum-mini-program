@@ -80,6 +80,13 @@ exports.home = async (req, res) => {
   }
 }
 
+// 小程序线上版本号（公开）。发布新版时同步更新服务器 APP_VERSION，
+// 前端用它和 wx.getAccountInfoSync().miniProgram.version 比较。
+exports.appVersion = (req, res) => {
+  const version = String(process.env.APP_VERSION || '').trim()
+  success(res, { version })
+}
+
 // ===== 页面横幅（两个独立横幅，机制一致、内容互不影响） =====
 // 复用 system_content 表，每个类型只维护一条：
 // type='message_banner' → 「我的」页「消息通知」卡片顶部横幅
@@ -174,4 +181,229 @@ exports.saveMessageBanner = (req, res) => writePageBanner('message_banner', req,
 // 帖子详情页「每日热榜」上方横幅
 exports.postBanner = (req, res) => readPageBanner('post_banner', req, res)
 exports.savePostBanner = (req, res) => writePageBanner('post_banner', req, res)
+
+// ===== 校园服务自定义页面（首个应用：校园卡页） =====
+// 复用 system_content 表，一行即一张页面，同一类型可维护多张：
+// type='service_page_campus_card' → 首页宫格「校园卡」页面（管理后台"物品"页编辑，普通用户只读）
+// title = 页面标题；body = JSON { content, images[], updatedAt }；status = 1 发布 / 0 草稿下线；sort_order 决定目录内顺序。
+const SERVICE_PAGE_TYPE = 'service_page_campus_card'
+const SERVICE_PAGE_COLUMNS = 'id, title, body, status, sort_order, updated_at'
+
+function canManageServicePage(req) {
+  return !!(req.user && hasPermission(req.user.role, 'config.manage'))
+}
+
+function parseServicePage(row) {
+  let meta = {}
+  try { meta = JSON.parse(row.body) || {} } catch (e) { meta = {} }
+  const images = (Array.isArray(meta.images) ? meta.images : [])
+    .map((u) => String(u || '').trim())
+    .filter((u) => /^https:\/\//i.test(u))
+  return {
+    id: row.id,
+    title: row.title || '',
+    content: String(meta.content || ''),
+    images,
+    status: Number(row.status) === 1,
+    sortOrder: Number(row.sort_order) || 0,
+    updatedAt: row.updated_at || null
+  }
+}
+
+// 目录列表：普通用户只返回已发布条目，管理员可读到草稿
+function listServicePages(type, req, res) {
+  pool.query(`SELECT ${SERVICE_PAGE_COLUMNS} FROM system_content WHERE type = ? ORDER BY sort_order, id`, [type])
+    .then(([rows]) => {
+      const manage = canManageServicePage(req)
+      success(res, { list: rows.map(parseServicePage).filter((page) => manage || page.status) })
+    })
+    .catch((e) => fail(res, safeMessage(e), 500))
+}
+
+function readServicePageById(type, req, res, id) {
+  if (!id) return fail(res, '页面 id 不合法')
+  pool.query(`SELECT ${SERVICE_PAGE_COLUMNS} FROM system_content WHERE id = ? AND type = ?`, [id, type])
+    .then(([rows]) => {
+      const row = rows[0]
+      if (!row) return success(res, null)
+      const page = parseServicePage(row)
+      if (!page.status && !canManageServicePage(req)) return success(res, null)
+      success(res, page)
+    })
+    .catch((e) => fail(res, safeMessage(e), 500))
+}
+
+function readServicePage(type, req, res) {
+  pool.query(
+    `SELECT ${SERVICE_PAGE_COLUMNS} FROM system_content WHERE type = ? ORDER BY sort_order, id DESC LIMIT 1`,
+    [type]
+  ).then(([rows]) => {
+    const row = rows[0]
+    if (!row) return success(res, null)
+    const page = parseServicePage(row)
+    const isAdmin = !!(req.user && hasPermission(req.user.role, 'config.manage'))
+    if (!page.status && !isAdmin) return success(res, null)
+    success(res, page)
+  }).catch((e) => fail(res, safeMessage(e), 500))
+}
+
+// 表单 → 落库字段；校验不通过时返回 null 并已经写出错误响应
+function buildServicePagePayload(req, res) {
+  const body = req.body || {}
+  const title = String(body.title || '').trim()
+  if (!title || title.length > 64) { fail(res, '页面标题不能为空且不超过64字'); return null }
+  const content = String(body.content || '').trim()
+  if (content.length > 10000) { fail(res, '页面正文不能超过10000字'); return null }
+  const images = (Array.isArray(body.images) ? body.images : [])
+    .map((u) => String(u || '').trim())
+    .filter((u) => /^https:\/\//i.test(u))
+    .slice(0, 9)
+  const status = body.status === false || Number(body.status) === 0 ? 0 : 1
+  const meta = JSON.stringify({ content, images, updatedAt: new Date().toISOString() })
+  return { title, meta, status, sortOrder: Math.max(0, Number(body.sortOrder) || 0) }
+}
+
+function createServicePage(type, req, res) {
+  const payload = buildServicePagePayload(req, res)
+  if (!payload) return undefined
+  pool.query(
+    'INSERT INTO system_content (type, title, body, status, sort_order) VALUES (?, ?, ?, ?, ?)',
+    [type, payload.title, payload.meta, payload.status, payload.sortOrder]
+  ).then(([result]) => success(res, { id: result.insertId }))
+    .catch((e) => fail(res, safeMessage(e), 500))
+}
+
+function updateServicePage(type, req, res, id) {
+  if (!id) return fail(res, '页面 id 不合法')
+  const payload = buildServicePagePayload(req, res)
+  if (!payload) return undefined
+  pool.query(
+    'UPDATE system_content SET title = ?, body = ?, status = ? WHERE id = ? AND type = ?',
+    [payload.title, payload.meta, payload.status, id, type]
+  ).then(([result]) => {
+    if (!result.affectedRows) return fail(res, '页面不存在或已删除', 404)
+    success(res, null)
+  }).catch((e) => fail(res, safeMessage(e), 500))
+}
+
+function deleteServicePage(type, req, res, id) {
+  if (!id) return fail(res, '页面 id 不合法')
+  pool.query('DELETE FROM system_content WHERE id = ? AND type = ?', [id, type])
+    .then(([result]) => {
+      if (!result.affectedRows) return fail(res, '页面不存在或已删除', 404)
+      success(res, null)
+    }).catch((e) => fail(res, safeMessage(e), 500))
+}
+
+// 校园卡页面：公开读取（管理员可读到下线草稿便于继续编辑）；增删改需 config.manage 权限。
+// 旧版单张接口（campusCardPage）保留给尚未更新的小程序版本读取，指向排序最前的一张已发布页面。
+exports.campusCardPage = (req, res) => readServicePage(SERVICE_PAGE_TYPE, req, res)
+exports.campusCardPages = (req, res) => listServicePages(SERVICE_PAGE_TYPE, req, res)
+exports.campusCardPageById = (req, res) => readServicePageById(SERVICE_PAGE_TYPE, req, res, Number(req.params.id))
+exports.createCampusCardPage = (req, res) => createServicePage(SERVICE_PAGE_TYPE, req, res)
+exports.saveCampusCardPage = (req, res) => updateServicePage(SERVICE_PAGE_TYPE, req, res, Number(req.params.id))
+exports.deleteCampusCardPage = (req, res) => deleteServicePage(SERVICE_PAGE_TYPE, req, res, Number(req.params.id))
+
+// 学车指南自定义页：与校园卡同款（标题+正文+图片），后台「物品」页编辑、普通用户只读。
+// 只放一张：读取走单行接口拿到 id，编辑器按 id 更新、没有记录时新建。
+const DRIVING_GUIDE_TYPE = 'service_page_driving_guide'
+exports.drivingGuidePage = (req, res) => readServicePage(DRIVING_GUIDE_TYPE, req, res)
+exports.createDrivingGuidePage = (req, res) => createServicePage(DRIVING_GUIDE_TYPE, req, res)
+exports.saveDrivingGuidePage = (req, res) => updateServicePage(DRIVING_GUIDE_TYPE, req, res, Number(req.params.id))
+
+// ===== 驾校运营位（管理后台「物品」页维护，普通用户只读） =====
+// 都复用 system_content 单行存储：
+//   driving_promo        找驾校列表页顶部横幅：title=主标题，body=JSON { sub, btnText, tags[], image }
+//   driving_service_tags 筛选面板的服务保障标签池：title=固定占位，body=JSON { tags[] }
+
+// 单行 upsert：有记录就更新最前一条，没有就插入（运营位每类只保留一条）
+function upsertOpsRow(type, title, meta, status, res) {
+  pool.query('SELECT id FROM system_content WHERE type = ? ORDER BY sort_order, id DESC LIMIT 1', [type])
+    .then(([rows]) => {
+      if (rows.length) {
+        return pool.query('UPDATE system_content SET title = ?, body = ?, status = ? WHERE id = ?', [title, meta, status, rows[0].id])
+      }
+      return pool.query('INSERT INTO system_content (type, title, body, status, sort_order) VALUES (?, ?, ?, ?, 0)', [type, title, meta, status])
+    })
+    .then(() => success(res, null))
+    .catch((e) => fail(res, safeMessage(e), 500))
+}
+
+function normalizeOpsImages(list, max) {
+  return (Array.isArray(list) ? list : [])
+    .map((u) => String(u || '').trim())
+    .filter((u) => /^https:\/\//i.test(u))
+    .slice(0, max)
+}
+
+function opsStatus(body) {
+  return body.status === false || Number(body.status) === 0 ? 0 : 1
+}
+
+exports.drivingPromo = (req, res) => {
+  pool.query(
+    'SELECT id, title, body, status, updated_at FROM system_content WHERE type = ? ORDER BY sort_order, id DESC LIMIT 1',
+    ['driving_promo']
+  ).then(([rows]) => {
+    const row = rows[0]
+    if (!row) return success(res, null)
+    const meta = parseBodyMeta(row.body)
+    const promo = {
+      title: row.title || '',
+      sub: String(meta.sub || ''),
+      btnText: String(meta.btnText || ''),
+      tags: (Array.isArray(meta.tags) ? meta.tags : []).map((t) => String(t || '').trim()).filter(Boolean).slice(0, 3),
+      image: normalizeOpsImages([meta.image], 1)[0] || '',
+      status: Number(row.status) === 1,
+      updatedAt: row.updated_at || null
+    }
+    const isAdmin = !!(req.user && hasPermission(req.user.role, 'config.manage'))
+    if (!promo.status && !isAdmin) return success(res, null)
+    success(res, promo)
+  }).catch((e) => fail(res, safeMessage(e), 500))
+}
+
+exports.saveDrivingPromo = (req, res) => {
+  const body = req.body || {}
+  const title = String(body.title || '').trim()
+  if (!title || title.length > 20) return fail(res, '主标题不能为空且不超过 20 字')
+  const sub = String(body.sub || '').trim()
+  if (sub.length > 30) return fail(res, '副标题不能超过 30 字')
+  const btnText = String(body.btnText || '').trim()
+  if (btnText.length > 12) return fail(res, '按钮文字不能超过 12 字')
+  const rawTags = Array.isArray(body.tags) ? body.tags : String(body.tags || '').split(/[,，、]/)
+  const tags = rawTags.map((t) => String(t || '').trim()).filter(Boolean)
+  if (tags.length > 3) return fail(res, '右侧标签最多 3 个')
+  if (tags.some((t) => t.length > 6)) return fail(res, '右侧标签每个不超过 6 字')
+  const image = normalizeOpsImages([body.image], 1)[0] || ''
+  const meta = JSON.stringify({ sub, btnText, tags, image, updatedAt: new Date().toISOString() })
+  upsertOpsRow('driving_promo', title, meta, opsStatus(body), res)
+}
+
+exports.drivingServiceTags = (req, res) => {
+  pool.query(
+    'SELECT id, title, body, status, updated_at FROM system_content WHERE type = ? ORDER BY sort_order, id DESC LIMIT 1',
+    ['driving_service_tags']
+  ).then(([rows]) => {
+    const row = rows[0]
+    if (!row) return success(res, null)
+    const meta = parseBodyMeta(row.body)
+    success(res, {
+      tags: (Array.isArray(meta.tags) ? meta.tags : []).map((t) => String(t || '').trim()).filter(Boolean).slice(0, 12),
+      status: Number(row.status) === 1,
+      updatedAt: row.updated_at || null
+    })
+  }).catch((e) => fail(res, safeMessage(e), 500))
+}
+
+exports.saveDrivingServiceTags = (req, res) => {
+  const body = req.body || {}
+  const raw = Array.isArray(body.tags) ? body.tags : String(body.tags || '').split(/[,，、]/)
+  const tags = raw.map((t) => String(t || '').trim()).filter(Boolean)
+  if (tags.length > 12) return fail(res, '标签池最多 12 个')
+  if (tags.some((t) => t.length > 8)) return fail(res, '单个标签不超过 8 字')
+  // 允许清空：清空后前台筛选面板整块不显示，所以 title 用占位文本而非标签拼接
+  const meta = JSON.stringify({ tags, updatedAt: new Date().toISOString() })
+  upsertOpsRow('driving_service_tags', '驾校服务保障标签', meta, opsStatus(body), res)
+}
 

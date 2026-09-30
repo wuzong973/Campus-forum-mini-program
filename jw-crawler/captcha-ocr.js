@@ -67,18 +67,106 @@ async function toImageBuffer(input) {
   return fs.promises.readFile(input);
 }
 
+// Otsu 大津法：按灰度直方图求类间方差最大的分割阈值。
+// 教务验证码前景/背景明暗随图变化，固定阈值（旧版 165）经常整体切糊，
+// 逐图自适应比猜一个全局值稳得多。
+function otsuThreshold(grayRaw) {
+  const histogram = new Array(256).fill(0);
+  for (let i = 0; i < grayRaw.length; i++) histogram[grayRaw[i]]++;
+  const total = grayRaw.length;
+  let sumAll = 0;
+  for (let v = 0; v < 256; v++) sumAll += v * histogram[v];
+
+  let sumB = 0;
+  let wB = 0;
+  let best = 0;
+  let threshold = 128;
+  for (let v = 0; v < 256; v++) {
+    wB += histogram[v];
+    if (!wB) continue;
+    const wF = total - wB;
+    if (!wF) break;
+    sumB += v * histogram[v];
+    const mB = sumB / wB;
+    const mF = (sumAll - sumB) / wF;
+    const between = wB * wF * (mB - mF) * (mB - mF);
+    if (between > best) {
+      best = between;
+      threshold = v;
+    }
+  }
+  return threshold;
+}
+
+async function computeAdaptiveThreshold(base) {
+  const { data } = await base
+    .clone()
+    .raw()
+    .toBuffer({ resolveWithObject: true });
+  return otsuThreshold(data);
+}
+
+// 二值图膨胀（前景为黑，即 3x3 最小值滤波）。sharp 0.33 尚无内置 dilate，
+// 自实现一个：把细笔画/断裂笔画连起来，针对 1/l/i 这类细字符。
+async function dilateBinary(pngBuffer) {
+  const { data, info } = await sharp(pngBuffer)
+    .raw()
+    .toBuffer({ resolveWithObject: true });
+  const { width, height, channels } = info;
+  const out = Buffer.alloc(width * height * channels, 255);
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      let v = 255;
+      for (let dy = -1; dy <= 1; dy++) {
+        const yy = y + dy;
+        if (yy < 0 || yy >= height) continue;
+        for (let dx = -1; dx <= 1; dx++) {
+          const xx = x + dx;
+          if (xx < 0 || xx >= width) continue;
+          const p = data[(yy * width + xx) * channels];
+          if (p < v) v = p;
+        }
+      }
+      out[(y * width + x) * channels] = v;
+    }
+  }
+  return sharp(out, { raw: { width, height, channels } }).png().toBuffer();
+}
+
 async function buildImageVariants(input, options = {}) {
   const source = await toImageBuffer(input);
   const scale = options.scale || 6;
-  const threshold = options.threshold || 165;
 
   const base = sharp(source).resize({ width: 80 * scale, withoutEnlargement: false }).grayscale();
+  const threshold = options.threshold || (await computeAdaptiveThreshold(base));
+
+  const otsu = base.clone().normalize().threshold(threshold);
+  const otsuPng = await otsu.clone().png().toBuffer();
   const variants = [
     { name: 'original', input: source },
     { name: 'gray-scale', input: await base.clone().normalize().png().toBuffer() },
-    { name: 'threshold', input: await base.clone().normalize().threshold(threshold).png().toBuffer() },
-    { name: 'threshold-negate', input: await base.clone().normalize().threshold(threshold).negate().png().toBuffer() },
+    { name: 'otsu', input: otsuPng },
+    { name: 'otsu-negate', input: await otsu.clone().negate().png().toBuffer() },
+    // 中值滤波去掉椒盐噪点后再二值化，针对验证码里的孤立杂点
+    { name: 'median-otsu', input: await base.clone().normalize().median(3).threshold(threshold).png().toBuffer() },
+    { name: 'otsu-dilate', input: await dilateBinary(otsuPng) },
   ];
+
+  // 小角度旋转变体：教务验证码字符自带随机倾斜，实测 m→n、g→d 这类误读多由倾斜造成。
+  // 在最优的二值图（otsu）上再转 ±4°/±8° 各识别一次，用于救回倾斜字符；
+  // 每张约 +50ms，默认开启，可用 rotateAngles: [] 关闭。
+  const rotateAngles = options.rotateAngles !== undefined
+    ? options.rotateAngles
+    : [-8, -4, 4, 8];
+  for (const deg of rotateAngles) {
+    variants.push({
+      name: `otsu-rot${deg > 0 ? '+' : ''}${deg}`,
+      input: await otsu.clone()
+        .rotate(deg, { background: '#ffffff' })
+        .png()
+        .toBuffer(),
+    });
+  }
 
   if (options.debugDir) {
     await fs.promises.mkdir(options.debugDir, { recursive: true });
@@ -88,6 +176,35 @@ async function buildImageVariants(input, options = {}) {
   }
 
   return variants;
+}
+
+function selectConsensus(results) {
+  // 多个预处理变体可能给出不同结果。若同一 4 位文本被多个变体认可，
+  // 优先选共识结果，比单纯取最高置信度更抗单张图预处理造成的误读。
+  const groups = new Map();
+  for (const item of results.filter(item => item.valid)) {
+    const group = groups.get(item.text) || {
+      text: item.text,
+      count: 0,
+      confidence: 0,
+      variants: [],
+      rawTexts: [],
+    };
+    group.count += 1;
+    group.confidence += (item.confidence || 0);
+    group.variants.push(item.variant);
+    group.rawTexts.push(item.rawText);
+    groups.set(item.text, group);
+  }
+
+  return Array.from(groups.values())
+    .filter(group => group.count > 1)
+    .sort((a, b) => {
+      if (a.count !== b.count) return b.count - a.count;
+      const aAvg = a.confidence / a.count;
+      const bAvg = b.confidence / b.count;
+      return bAvg - aAvg;
+    });
 }
 
 async function recognizeCaptcha(input, options = {}) {
@@ -100,6 +217,7 @@ async function recognizeCaptcha(input, options = {}) {
     variants = true,
     verbose = false,
     reuseWorker = true,
+    multiPsm = true,
   } = options;
 
   const workerOptions = getLocalTesseractOptions(lang, options);
@@ -126,39 +244,74 @@ async function recognizeCaptcha(input, options = {}) {
   }
 
   try {
-    await worker.setParameters({
-      tessedit_char_whitelist: charWhitelist,
-      tessedit_pageseg_mode: '7',
-      classify_bln_numeric_mode: '0',
-      user_defined_dpi: '300',
-    });
-
     const imageVariants = variants ? await buildImageVariants(input, options) : [{ name: 'original', input }];
     const results = [];
 
-    for (const variant of imageVariants) {
-      const result = await worker.recognize(variant.input);
-      const rawText = result.data.text || '';
-      const text = normalizeCaptchaText(rawText, expectedLength, ambiguousMap);
-      const valid = new RegExp(`^[a-z0-9]{${expectedLength}}$`).test(text);
-      results.push({
-        variant: variant.name,
-        text,
-        rawText,
-        confidence: result.data.confidence,
-        minConfidence,
-        valid,
+    const runBatch = async (psm) => {
+      await worker.setParameters({
+        tessedit_char_whitelist: charWhitelist,
+        tessedit_pageseg_mode: psm,
+        classify_bln_numeric_mode: '0',
+        user_defined_dpi: '300',
       });
+      const batch = [];
+      for (const variant of imageVariants) {
+        const result = await worker.recognize(variant.input);
+        const rawText = result.data.text || '';
+        const text = normalizeCaptchaText(rawText, expectedLength, ambiguousMap);
+        const valid = new RegExp(`^[a-z0-9]{${expectedLength}}$`).test(text);
+        batch.push({
+          variant: variant.name,
+          psm,
+          text,
+          rawText,
+          confidence: result.data.confidence,
+          minConfidence,
+          valid,
+        });
+      }
+      return batch;
+    };
+
+    const sortByPreference = () => {
+      results.sort((a, b) => {
+        if (a.valid !== b.valid) return a.valid ? -1 : 1;
+        return (b.confidence || 0) - (a.confidence || 0);
+      });
+    };
+
+    // 第一轮：单行模式（PSM 7）跑全部预处理变体，常规情况即可达成共识；
+    // 无共识时第二轮补 PSM 8（单词）与 PSM 13（原始行），换定位方式救回
+    // 字符被干扰线粘连或间距不均的图，常规路径不多花这 2/3 的时间。
+    results.push(...(await runBatch('7')));
+    sortByPreference();
+
+    let consensus = selectConsensus(results);
+    if (!consensus.length && multiPsm) {
+      results.push(...(await runBatch('8')), ...(await runBatch('13')));
+      sortByPreference();
+      consensus = selectConsensus(results);
     }
 
-    results.sort((a, b) => {
-      if (a.valid !== b.valid) return a.valid ? -1 : 1;
-      return (b.confidence || 0) - (a.confidence || 0);
-    });
+    const selected = consensus.length
+      ? {
+          variant: consensus[0].variants.join(","),
+          text: consensus[0].text,
+          rawText: consensus[0].rawTexts[0],
+          confidence: consensus[0].confidence / consensus[0].count,
+          minConfidence,
+          valid: true,
+        }
+      : results[0];
 
     return {
-      ...results[0],
+      ...selected,
       candidates: results,
+      consensus: consensus.map(group => ({
+        text: group.text,
+        count: group.count,
+        confidence: group.confidence / group.count,
+      })),
     };
   } finally {
     if (!reuseWorker) {
@@ -179,7 +332,9 @@ module.exports = {
   buildImageVariants,
   getLocalTesseractOptions,
   normalizeCaptchaText,
+  otsuThreshold,
   recognizeCaptcha,
+  selectConsensus,
   terminateCachedWorkers,
 };
 

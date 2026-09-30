@@ -2,6 +2,16 @@ const pool = require('../config/pool')
 const { success, fail } = require('../middleware/auth')
 const { clampPageSize, safeMessage } = require('../utils/helpers')
 const wsServer = require('../ws/wsServer')
+const subscribeService = require('../services/subscribeService')
+// 匿名素材池与归一化：白名单校验必须与「服务端生成分身」用的是同一份列表，
+// 否则会出现「发出去的合法形象，自己校验不通过」这类不一致
+const {
+  ANONYMOUS_AVATARS,
+  normalizeLegacyAvatarUrl,
+  normalizeAnonymousAvatarUrl,
+  isAnonymousAvatarUrl,
+  pickAnonymousAvatar,
+} = require('../utils/defaultProfile')
 
 // 分身匿名身份与帖子同一套结构（{nickName, avatarUrl}）；头像必须是内置素材路径，防止任意外链
 function parseAnonymousIdentity(identity) {
@@ -10,24 +20,20 @@ function parseAnonymousIdentity(identity) {
     try { value = JSON.parse(value) } catch (e) { return null }
   }
   if (!value || !value.nickName || !value.avatarUrl) return null
-  const avatarUrl = String(value.avatarUrl).trim()
-  if (!avatarUrl.startsWith('/assets/avatar1/')) return null
-  return { nickName: String(value.nickName).trim().slice(0, 32), avatarUrl }
+  const nickName = String(value.nickName).trim().slice(0, 32)
+  const raw = String(value.avatarUrl).trim()
+  if (raw.indexOf('/assets/avatar1/') !== 0) return null
+  // 先纠正旧文件名（「考拉 (2).jpg」→「考拉2.jpg」）；纠正后仍不在素材池内（历史脏数据）
+  // 就稳定映射到池内形象：既不渲染根本不存在的图片（渲染层「Failed to load image」），
+  // 也绝不回落真实资料 —— 那等于把匿名者直接暴露给被打扰的人
+  const normalized = normalizeAnonymousAvatarUrl(raw)
+  const avatarUrl = isAnonymousAvatarUrl(normalized) ? normalized : pickAnonymousAvatar(nickName || raw)
+  return { nickName, avatarUrl }
 }
 
 // 服务端随机分身池（与客户端 utils/anonymousIdentity.js 同源）：匿名私信发送方无档案时自动生成，保证收信方会话列表/聊天页显示统一的匿名昵称头像
-const ANON_AVATARS = [
-  '/assets/avatar1/鹰.jpg', '/assets/avatar1/鳄鱼.jpg', '/assets/avatar1/鲸鱼.jpg', '/assets/avatar1/骆驼.jpg',
-  '/assets/avatar1/青蛙.jpg', '/assets/avatar1/长颈鹿.jpg', '/assets/avatar1/袋鼠.jpg', '/assets/avatar1/蟾蜍.jpg',
-  '/assets/avatar1/蝴蝶.jpg', '/assets/avatar1/蜜蜂.jpg', '/assets/avatar1/蛇.jpg', '/assets/avatar1/考拉.jpg',
-  '/assets/avatar1/考拉 (2).jpg', '/assets/avatar1/老虎.jpg', '/assets/avatar1/老虎 (2).jpg', '/assets/avatar1/羊驼.jpg',
-  '/assets/avatar1/猴子.jpg', '/assets/avatar1/猫头鹰.jpg', '/assets/avatar1/狼.jpg', '/assets/avatar1/狮子.jpg',
-  '/assets/avatar1/狐狸.jpg', '/assets/avatar1/犀牛.jpg', '/assets/avatar1/熊猫.jpg', '/assets/avatar1/海豹.jpg',
-  '/assets/avatar1/海狮.jpg', '/assets/avatar1/河马.jpg', '/assets/avatar1/松鼠.jpg', '/assets/avatar1/斑马.jpg',
-  '/assets/avatar1/孔雀.jpg', '/assets/avatar1/大象.jpg', '/assets/avatar1/土拨鼠.jpg', '/assets/avatar1/喜鹊.jpg',
-  '/assets/avatar1/北极熊.jpg', '/assets/avatar1/刺猬.jpg', '/assets/avatar1/八哥.jpg', '/assets/avatar1/兔子.jpg',
-  '/assets/avatar1/乌龟.jpg', '/assets/avatar1/七星瓢虫.jpg'
-]
+// 头像池统一由 utils/defaultProfile.js 维护（含旧文件名纠正），这里不再重复定义。
+const ANON_AVATARS = ANONYMOUS_AVATARS
 const ANON_NAMES = [
   '蜿蜒的小溪', '平静的湖面', '汹涌的海浪', '清澈的泉水', '浑浊的黄河',
   '冰封的河面', '退潮的沙滩', '涨水的池塘', '干涸的河床', '冒泡的温泉',
@@ -81,7 +87,7 @@ async function getOrCreateConversation(userId, peerId, anonymousRequested = fals
   // 检查按分身隔离：与分身 A 的既有会话不受影响，但无法用新分身 B 建立新会话
   if (anonymousRequested && Number(users[0].allow_anonymous_pm) === 0) {
     const [existingConv] = await pool.query('SELECT id FROM private_conversation WHERE user_id = ? AND peer_id = ? AND persona_key = ? LIMIT 1', [userId, peerId, persona])
-    if (!existingConv.length) throw new Error('对方不允许匿名私信')
+    if (!existingConv.length) throw new Error('对方不允许分身私信')
   }
   const conn = await pool.getConnection()
   try {
@@ -192,7 +198,32 @@ async function isBlocked(userId, targetId) {
   return rows.length > 0
 }
 
-async function createPrivateMessage(senderId, receiverId, content, msgType = 'text', anonymousRequested = false, anonymousIdentity = null, personaKey = '') {
+/**
+ * 解析私信订阅提醒里「发送人」该显示什么昵称。
+ *
+ * 匿名性完全靠这里守住：匿名方必须用分身昵称（会话里存档的 anon_self_identity，
+ * 与聊天页展示的是同一份数据），**绝不回落到 sys_user.nick_name** ——
+ * 那等于在微信通知里直接点名匿名者，把「匿名私信」这个功能彻底废掉。
+ * 因此匿名分支刻意不查用户表。
+ *
+ * 判定依据是 conversation.isAnonymous（我这一侧是否匿名），而不是 channelAnonymous：
+ * 普通用户回复匿名发起人时，聊天页显示的是该普通用户的真实昵称，推送文案必须一致。
+ *
+ * @returns {Promise<string>} 永不为空（兜底「匿名用户」/「有同学」），
+ *   因为微信对 data 里的空值字段直接返回 47003，且该错误不可重试。
+ */
+function resolveSenderNick(conversation, senderId) {
+  if (conversation && conversation.isAnonymous) {
+    const anon = conversation.selfAnonymous || {}
+    const nickName = String(anon.nickName || '').trim()
+    return Promise.resolve(nickName || '分身用户')
+  }
+  // 普通方：查真实昵称，查不到时用中性称呼兜底
+  return pool.query('SELECT nick_name FROM sys_user WHERE id = ? LIMIT 1', [senderId])
+    .then(([rows]) => (rows[0] && rows[0].nick_name) || '有同学')
+}
+
+async function createPrivateMessage(senderId, receiverId, content, msgType = 'text', anonymousRequested = false, anonymousIdentity = null, personaKey = '', sourcePostId = 0) {
   // 拉黑双向拦截：接收方拉黑发送方时拒绝投递，发送方拉黑接收方时提示先解除
   if (await isBlocked(receiverId, senderId)) throw new Error('消息发送失败，对方已将你加入黑名单')
   if (await isBlocked(senderId, receiverId)) throw new Error('你已拉黑对方，请先解除拉黑后再发送')
@@ -204,7 +235,9 @@ async function createPrivateMessage(senderId, receiverId, content, msgType = 'te
   // 分身会话键：优先用入口显式传入的分身标识；未传时以最终存档的分身头像兜底，
   // 保证同一分身始终落在同一个隔离会话中
   const persona = normalizePersonaKey(personaKey) || (identity ? normalizePersonaKey(identity.avatarUrl) : '')
-  const conversation = await getOrCreateConversation(senderId, receiverId, anonymousRequested, identity, 'self', persona)
+  // 来源帖子：会话若由本条首消息创建（历史接口失败/离线补发等），在此一并记录，
+  // 保证任何入口进入聊天都能「回到帖子」（服务端只在为空时写入，不会覆盖已有来源）
+  const conversation = await getOrCreateConversation(senderId, receiverId, anonymousRequested, identity, 'self', persona, sourcePostId)
   // 会话只要存在匿名侧（即匿名发起方），消息统一走匿名渠道，双方查看/回复都落在同一份记录里
   const channelAnonymous = conversation.isAnonymous || conversation.peerIsAnonymous
   const text = String(content).trim()
@@ -227,6 +260,18 @@ async function createPrivateMessage(senderId, receiverId, content, msgType = 'te
   } catch (e) { await conn.rollback(); throw e } finally { conn.release() }
   const data = { id: messageId, senderId, receiverId, personaKey: persona, content: text, msgType: type, createdAt: new Date().toISOString(), status: 'sent', isAnonymous: channelAnonymous }
   wsServer.sendToUser(receiverId, { type: 'private_message', data })
+  // 私信订阅提醒：匿名渠道同样推送。
+  // 原先匿名渠道整块跳过 pushMessage，导致「对方明明开了订阅也永远收不到匿名私信提醒」，
+  // 且 subscribe_message_log 里连一行记录都不留（既无 sent 也无 skipped），排查时极易误判成额度不足。
+  // 匿名性改由「发送人昵称」守住：匿名方一律用分身昵称，绝不回落到真实昵称。
+  //
+  // 判定用 conversation.isAnonymous（**我这一侧**是否匿名），而不是 channelAnonymous：
+  // 会话任一侧匿名时整条会话都走匿名渠道，但普通用户回复匿名发起人时聊天页显示的是
+  // 该普通用户的真实昵称，推送文案必须与之一致，否则对方看到的身份对不上。
+  const digest = type === 'image' ? '[图片]' : type === 'video' ? '[视频]' : text.slice(0, 20)
+  resolveSenderNick(conversation, senderId)
+    .then((senderNick) => subscribeService.pushMessage(receiverId, { senderNick, digest }))
+    .catch((e) => console.error('[MessageSubscribe]', e.message))
   return data
 }
 
@@ -243,7 +288,9 @@ exports.send = async (req, res) => {
       msgType,
       !!req.body.anonymous,
       { nickName: req.body.anonNick, avatarUrl: req.body.anonAvatar },
-      req.body.personaKey
+      req.body.personaKey,
+      // 来源帖子：客户端从帖子页发起私信时随每条消息带上，保证首条消息创建会话时也记录来源
+      parseInt(req.body.postId, 10) || 0
     )
     success(res, { id: message.id, status: message.status, createdAt: message.createdAt, isAnonymous: message.isAnonymous, personaKey: message.personaKey })
   } catch (e) { fail(res, safeMessage(e), 400) }
@@ -259,12 +306,30 @@ exports.history = async (req, res) => {
   if (!peerId) return fail(res, '缺少peerId')
   try {
     const anonIdentity = parseAnonymousIdentity({ nickName: req.query.anonNick, avatarUrl: req.query.anonAvatar })
-    const anonSide = req.query.anonSide === 'self' ? 'self' : 'peer'
     // 分身会话键：入口显式传入优先；匿名入口未传时以分身头像兜底。
     // history 只读取该分身自己的消息，其他分身/普通渠道的记录不会出现在本会话
     const personaKey = normalizePersonaKey(req.query.personaKey) ||
       (req.query.anonymous === '1' && anonIdentity ? normalizePersonaKey(anonIdentity.avatarUrl) : '')
-    const conversation = await getOrCreateConversation(req.userId, peerId, req.query.anonymous === '1', anonIdentity, anonSide, personaKey, parseInt(req.query.postId, 10) || 0)
+    let anonSide = req.query.anonSide === 'self' ? 'self' : 'peer'
+    let anonymousRequested = req.query.anonymous === '1'
+    // 会话已存在时按库内匿名归属推导，纠正客户端未传 anonSide 的重进场景：
+    // 1) 本人行匿名、对方行普通 → 分身属于请求方本人（anonSide='self'），不得翻转对方；
+    // 2) 本人行普通 → 请求方是普通参与者，只读历史，不触发任何匿名标记更新；
+    // 3) 双方均匿名（匿名帖回复渠道）→ 保持 'peer'，更新为幂等无副作用。
+    if (anonymousRequested) {
+      const [convRows] = await pool.query(
+        `SELECT user_id, is_anonymous FROM private_conversation
+         WHERE persona_key = ? AND ((user_id = ? AND peer_id = ?) OR (user_id = ? AND peer_id = ?))`,
+        [personaKey, req.userId, peerId, peerId, req.userId]
+      )
+      if (convRows.length === 2) {
+        const mine = convRows.find((r) => Number(r.user_id) === Number(req.userId))
+        const peerRow = convRows.find((r) => Number(r.user_id) !== Number(req.userId))
+        if (Number(mine.is_anonymous) === 1 && Number(peerRow.is_anonymous) === 0) anonSide = 'self'
+        else if (Number(mine.is_anonymous) === 0) anonymousRequested = false
+      }
+    }
+    const conversation = await getOrCreateConversation(req.userId, peerId, anonymousRequested, anonIdentity, anonSide, personaKey, parseInt(req.query.postId, 10) || 0)
     // 消息渠道按会话实际的匿名侧计算：任一方是匿名发起方，双方查看/回复都落在同一匿名渠道，
     // 普通用户一方也能看到匿名消息并正常回复
     const channelAnonymous = conversation.isAnonymous || conversation.peerIsAnonymous
@@ -314,7 +379,15 @@ exports.recall = async (req, res) => {
     // 「对方已回复」判断限定在同一分身会话内，其他分身的回复不影响本会话撤回
     const [replies] = await conn.query("SELECT id FROM private_message WHERE sender_id = ? AND receiver_id = ? AND persona_key = ? AND status != 'recalled' AND id > ? LIMIT 1", [message.receiver_id, message.sender_id, message.persona_key, message.id])
     if (replies.length) throw new Error('对方已回复，无法撤回')
+    // 撤回时尚未读的消息需同步扣减对方会话未读数，否则徽标出现永久幽灵未读
+    const wasUnread = message.status && message.status !== 'read'
     await conn.query("UPDATE private_message SET status = 'recalled' WHERE id = ?", [messageId])
+    if (wasUnread) {
+      await conn.query(
+        'UPDATE private_conversation SET unread_count = GREATEST(unread_count - 1, 0) WHERE user_id = ? AND peer_id = ? AND persona_key = ?',
+        [message.receiver_id, message.sender_id, message.persona_key]
+      )
+    }
     await conn.query('INSERT INTO private_message_recall_log (message_id, operator_id, receiver_id) VALUES (?, ?, ?)', [messageId, req.userId, message.receiver_id])
     await updateConversationPreview(conn, message.sender_id, message.receiver_id, message.persona_key)
     await conn.commit()
@@ -333,7 +406,12 @@ exports.conversations = async (req, res) => {
       // 即对方发布帖子时所用的头像与昵称，不再显示笼统的「匿名用户」
       const persona = parseAnonymousIdentity(r.anon_peer_identity)
       const fallbackNick = persona ? persona.nickName : (r.peer_nick || '校园同学')
-      const fallbackAvatar = persona ? persona.avatarUrl : (r.peer_avatar || '/assets/icons/avatar.png')
+      // 兜底头像同样要过归一化：对方 avatar_url 里可能存着重命名前的旧文件名
+      // （/assets/avatar2/1%20(9).jpg、/assets/avatar1/考拉 (2).jpg），
+      // 直出会让会话列表头像空白并在渲染层刷「Failed to load image」。
+      const fallbackAvatar = persona
+        ? persona.avatarUrl
+        : normalizeLegacyAvatarUrl(r.peer_avatar || '/assets/icons/avatar.png')
       return { id: r.id, peerId: r.peer_id, personaKey: r.persona_key || '', peerNick: fallbackNick, peerAvatar: fallbackAvatar, unreadCount: r.unread_count, lastMessage: r.last_message_text, lastTime: r.last_message_time, isAnonymous: !!r.is_anonymous }
     }) })
   } catch (e) { fail(res, safeMessage(e), 500) }
@@ -355,10 +433,33 @@ exports.unreadCount = async (req, res) => {
   try { const [rows] = await pool.query('SELECT IFNULL(SUM(unread_count), 0) AS total FROM private_conversation WHERE user_id = ? AND status = 1', [req.userId]); success(res, { total: rows[0].total }) } catch (e) { fail(res, safeMessage(e), 500) }
 }
 
+// P11：消息状态白名单 —— 每种状态只允许「持有该状态语义的那一方」按既定顺序推进，
+// 不再让任一参与方把消息改成任意值（例如把已读倒回未读、伪造撤回）：
+//   delivered/read 只有接收方能报，failed 只有发送方能报，recalled 只走撤回接口。
+const STATUS_TRANSITIONS = {
+  delivered: { role: 'receiver', from: ['sent'] },
+  read: { role: 'receiver', from: ['sending', 'sent', 'delivered'] },
+  failed: { role: 'sender', from: ['sending', 'sent'] },
+}
+
 exports.updateStatus = async (req, res) => {
-  const { messageId, status } = req.body
-  if (!messageId || !status || status === 'recalled') return fail(res, '参数不完整')
-  try { await pool.query("UPDATE private_message SET status = ? WHERE id = ? AND (sender_id = ? OR receiver_id = ?) AND status != 'recalled'", [status, messageId, req.userId, req.userId]); success(res, null) } catch (e) { fail(res, safeMessage(e), 500) }
+  const messageId = parseInt(req.body.messageId, 10)
+  const status = String(req.body.status || '')
+  // 只认自有键，避开 Object.prototype 上的属性（'constructor'/'toString' 等不能当成规则）
+  const rule = Object.prototype.hasOwnProperty.call(STATUS_TRANSITIONS, status) ? STATUS_TRANSITIONS[status] : null
+  if (!rule) return fail(res, '不支持的消息状态', 400)
+  if (!messageId) return fail(res, '参数不完整')
+  try {
+    const ownerColumn = rule.role === 'receiver' ? 'receiver_id' : 'sender_id'
+    const placeholders = rule.from.map(() => '?').join(', ')
+    const [result] = await pool.query(
+      `UPDATE private_message SET status = ? WHERE id = ? AND ${ownerColumn} = ? AND status IN (${placeholders})`,
+      [status, messageId, req.userId].concat(rule.from),
+    )
+    // 0 行 = 消息不存在、不属于当前用户、或状态已经推进过（幂等，前端可安全重试）
+    if (!result.affectedRows) return fail(res, '消息状态未变更', 400)
+    success(res, { status })
+  } catch (e) { fail(res, safeMessage(e), 500) }
 }
 
 exports.block = async (req, res) => {

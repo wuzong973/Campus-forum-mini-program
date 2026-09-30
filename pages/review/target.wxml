@@ -1,0 +1,100 @@
+<view class="page page-enter">
+  <view class="content" wx:if="{{target}}">
+    <!-- 头部对象卡 -->
+    <view class="head-card">
+      <image wx:if="{{target.avatar}}" class="head-avatar" src="{{target.avatar}}" mode="aspectFill" />
+      <view wx:else class="head-avatar head-avatar--char" style="background:{{target.avatarBg}};color:{{target.avatarColor}};">
+        <text>{{target.char}}</text>
+      </view>
+      <view class="head-main">
+        <view class="head-name">{{target.name}}</view>
+        <view wx:if="{{subtitle}}" class="head-sub">{{subtitle}}</view>
+      </view>
+      <view class="head-score">
+        <view class="head-score-num">{{scoreText}}<text wx:if="{{scoreText !== '暂无'}}" class="head-score-unit">分</text></view>
+        <view class="head-score-count">{{ratingCountText}}</view>
+      </view>
+    </view>
+
+    <!-- 我的评分 -->
+    <view class="rate-card">
+      <view class="rate-head">
+        <text class="rate-title">我的评分</text>
+        <text class="rate-tip">再次点击可以重新评分</text>
+      </view>
+      <view class="star-row">
+        <view
+          wx:for="{{stars}}"
+          wx:key="*this"
+          class="star {{myRating >= item ? 'star--on' : ''}}"
+          data-score="{{item}}"
+          bindtap="onStarTap"
+        >★</view>
+      </view>
+      <view class="star-labels">
+        <text>{{starLabels[0]}}</text>
+        <text>{{starLabels[2]}}</text>
+        <text>{{starLabels[4]}}</text>
+      </view>
+    </view>
+
+    <!-- 评价列表 -->
+    <view class="comment-head">
+      <view class="comment-sort">
+        <view
+          wx:for="{{commentSorts}}"
+          wx:key="key"
+          class="comment-sort-chip {{commentSort === item.key ? 'comment-sort-chip--active' : ''}}"
+          data-sort="{{item.key}}"
+          bindtap="onCommentSortTap"
+        >{{item.label}}</view>
+      </view>
+    </view>
+
+    <view class="comment-list">
+      <view wx:for="{{comments}}" wx:key="id" class="comment-card anim-stagger" style="--i: {{index < 6 ? index : 0}};">
+        <view class="comment-top">
+          <view class="comment-user">
+            <text class="comment-nick">{{item.nickName || '校园用户'}}</text>
+            <text wx:if="{{item.certLabel}}" class="comment-cert">{{item.certLabel}}</text>
+          </view>
+          <view class="comment-like {{item.liked ? 'comment-like--on' : ''}}" data-id="{{item.id}}" bindtap="onCommentLikeTap">
+            <text>👍</text><text class="comment-like-num">{{item.likeCount}}</text>
+          </view>
+        </view>
+        <view class="comment-content">{{item.content}}</view>
+        <view class="comment-time">{{item.timeText}}</view>
+      </view>
+
+      <view wx:if="{{!comments.length && !commentLoading}}" class="empty-tip">还没有评价，来写第一条吧</view>
+      <view wx:if="{{commentLoading}}" class="loading-tip">加载中...</view>
+    </view>
+  </view>
+
+  <!-- 加载失败 / 不存在 -->
+  <view wx:if="{{loadFailed}}" class="fail-tip">
+    <text>{{notFound ? '该评分对象不存在或已下架' : '加载失败，请稍后重试'}}</text>
+  </view>
+</view>
+
+<!-- 底部输入栏（fixed 放在带动画容器外） -->
+<view class="bottom-bar">
+  <view class="input-wrap">
+    <input
+      class="bottom-input"
+      placeholder="说点什么..."
+      placeholder-class="bottom-placeholder"
+      value="{{inputText}}"
+      confirm-type="send"
+      bindinput="onInput"
+      bindconfirm="onSend"
+    />
+    <view class="send-btn {{inputText ? 'send-btn--on' : ''}}" bindtap="onSend">发送</view>
+  </view>
+  <view class="bar-action {{liked ? 'bar-action--on' : ''}}" bindtap="onTargetLikeTap">
+    <text>🐾</text><text>{{likeCount}}</text>
+  </view>
+  <view class="bar-action">
+    <text>💬</text><text>{{commentCount}}</text>
+  </view>
+</view>

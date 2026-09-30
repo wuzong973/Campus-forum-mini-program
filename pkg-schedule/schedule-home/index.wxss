@@ -1,0 +1,296 @@
+.page {
+  min-height: 100vh;
+  background:
+    radial-gradient(ellipse at 14% -6%, rgba(137, 202, 255, 0.28) 0%, rgba(137, 202, 255, 0) 48%),
+    linear-gradient(180deg, #d7efff 0%, #eaf6ff 18%, #f5f9fd 46%, #f7f8fb 72%, #f4f6fa 100%);
+  padding: 40rpx 32rpx 80rpx;
+  box-sizing: border-box;
+}
+
+/* ===== 顶部标识 ===== */
+.hero {
+  display: flex;
+  align-items: center;
+  padding: 32rpx;
+  margin-bottom: 28rpx;
+  border-radius: 20rpx;
+  background: linear-gradient(110deg, #347ff2, #12b8a6);
+  box-shadow: 0 6rpx 20rpx rgba(52, 127, 242, 0.24);
+}
+
+.hero-logo {
+  width: 96rpx;
+  height: 96rpx;
+  margin-right: 24rpx;
+  border-radius: 18rpx;
+  background: rgba(255, 255, 255, 0.92);
+  flex-shrink: 0;
+}
+
+.hero-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 8rpx;
+  min-width: 0;
+}
+
+.hero-title {
+  color: #fff;
+  font-size: 38rpx;
+  font-weight: 700;
+}
+
+.hero-desc {
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 24rpx;
+}
+
+/* ===== 数据概览卡片 ===== */
+.overview-card,
+.entry-card,
+.form-card,
+.tips {
+  background: #fff;
+  border-radius: 18rpx;
+  box-shadow: 0 3rpx 16rpx rgba(32, 48, 76, 0.06);
+}
+
+.overview-card {
+  padding: 30rpx 28rpx;
+  margin-bottom: 24rpx;
+}
+
+.overview-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.overview-info {
+  display: flex;
+  flex-direction: column;
+  gap: 6rpx;
+  min-width: 0;
+}
+
+.overview-title {
+  color: #27364a;
+  font-size: 30rpx;
+  font-weight: 600;
+}
+
+.overview-sub {
+  color: #7c8798;
+  font-size: 25rpx;
+}
+
+.overview-time {
+  color: #a6afbb;
+  font-size: 22rpx;
+}
+
+.sync-btn {
+  flex-shrink: 0;
+  padding: 14rpx 38rpx;
+  border-radius: 999rpx;
+  background: #347ff2;
+  color: #fff;
+  font-size: 26rpx;
+  font-weight: 600;
+  transition: opacity 0.2s ease;
+}
+
+.sync-btn:active {
+  opacity: 0.82;
+}
+
+.sync-btn.busy {
+  background: #9dbfef;
+}
+
+.stat-row {
+  display: flex;
+  margin-top: 30rpx;
+  padding-top: 26rpx;
+  border-top: 1rpx solid #eef0f4;
+}
+
+.stat-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8rpx;
+  min-width: 0;
+}
+
+.stat-item:active {
+  opacity: 0.7;
+}
+
+.stat-num {
+  color: #347ff2;
+  font-size: 40rpx;
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.stat-label {
+  color: #87909e;
+  font-size: 22rpx;
+}
+
+.week-tip {
+  display: block;
+  margin-top: 24rpx;
+  text-align: center;
+  color: #87909e;
+  font-size: 24rpx;
+}
+
+/* ===== 服务入口列表 ===== */
+.entry-card {
+  padding: 30rpx 28rpx 8rpx;
+  margin-bottom: 24rpx;
+}
+
+.entry-title {
+  display: block;
+  color: #27364a;
+  font-size: 30rpx;
+  font-weight: 600;
+  margin-bottom: 8rpx;
+}
+
+.entry-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.entry-item {
+  display: flex;
+  align-items: center;
+  padding: 26rpx 0;
+  border-bottom: 1rpx solid #eef0f4;
+}
+
+.entry-item:last-child {
+  border-bottom: none;
+}
+
+.entry-item:active {
+  opacity: 0.72;
+}
+
+.entry-icon {
+  width: 72rpx;
+  height: 72rpx;
+  margin-right: 22rpx;
+  border-radius: 16rpx;
+  background: #f5f8ff;
+  flex-shrink: 0;
+}
+
+.entry-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 6rpx;
+  flex: 1;
+  min-width: 0;
+}
+
+.entry-name {
+  color: #27364a;
+  font-size: 29rpx;
+  font-weight: 600;
+}
+
+.entry-desc {
+  color: #98a2b3;
+  font-size: 23rpx;
+}
+
+.entry-arrow {
+  flex-shrink: 0;
+  color: #c2c9d4;
+  font-size: 30rpx;
+  font-weight: 700;
+}
+
+/* ===== 登录表单 ===== */
+.form-card {
+  padding: 8rpx 32rpx;
+  margin-bottom: 24rpx;
+}
+
+.form-item {
+  display: flex;
+  align-items: center;
+  padding: 30rpx 0;
+  border-bottom: 1rpx solid #eef0f4;
+}
+
+.form-item:last-child {
+  border-bottom: none;
+}
+
+.form-label {
+  width: 120rpx;
+  flex-shrink: 0;
+  color: #27364a;
+  font-size: 28rpx;
+}
+
+.form-input {
+  flex: 1;
+  color: #27364a;
+  font-size: 28rpx;
+}
+
+/* ===== 主按钮 ===== */
+.primary-btn {
+  height: 92rpx;
+  line-height: 92rpx;
+  margin-top: 8rpx;
+  border: none;
+  border-radius: 999rpx;
+  background: #347ff2;
+  color: #fff;
+  font-size: 32rpx;
+  font-weight: 600;
+  transition: opacity 0.2s ease;
+}
+
+.primary-btn:active {
+  opacity: 0.85;
+}
+
+.primary-btn::after {
+  border: none;
+}
+
+/* ===== 说明 ===== */
+.tips {
+  margin-top: 32rpx;
+  padding: 32rpx;
+}
+
+.tips-title {
+  display: block;
+  margin-bottom: 16rpx;
+  color: #27364a;
+  font-size: 28rpx;
+  font-weight: 600;
+}
+
+.tips-text {
+  display: block;
+  margin-bottom: 10rpx;
+  color: #87909e;
+  font-size: 24rpx;
+  line-height: 1.65;
+}
+
+.tips-text:last-child {
+  margin-bottom: 0;
+}

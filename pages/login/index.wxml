@@ -13,13 +13,12 @@
   </view>
 
   <view class="action-area">
-    <button
-      class="login-btn btn-primary {{agreementChecked ? '' : 'login-btn-disabled'}}"
+    <button hover-class="press-spring"
+      class="login-btn btn-primary {{agreementChecked ? '' : 'login-btn-disabled'}} spring-btn"
       open-type="{{agreementChecked ? 'getPhoneNumber' : ''}}"
       bindtap="onLoginTap"
       bindgetphonenumber="onGetPhoneNumber"
-      loading="{{loading}}"
-    >手机号快捷登录</button>
+      loading="{{loading}}" hover-stay-time="120">手机号快捷登录</button>
     <view class="agreement-area">
       <view class="agreement-row" bindtap="toggleAgreement" role="checkbox" aria-checked="{{agreementChecked}}">
         <view class="agreement-checkbox {{agreementChecked ? 'checked' : ''}}">
@@ -31,6 +30,6 @@
         <text class="agreement-link" catchtap="goPrivacy">《隐私政策》</text>
       </view>
     </view>
-    <button class="cancel-btn" bindtap="onCancel">返回首页</button>
+    <button hover-class="press-spring" class="cancel-btn spring-btn" bindtap="onCancel" hover-stay-time="120">返回首页</button>
   </view>
 </view>

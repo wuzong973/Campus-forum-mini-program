@@ -8,11 +8,17 @@
     <text class="loading-text">海报生成中...</text>
   </view>
 
+  <!-- P12：失败态给「重试」入口，不再让页面卡在生成中 -->
+  <view class="poster-loading" wx:if="{{loadError && !generating}}">
+    <text class="loading-text">{{loadError}}</text>
+    <button hover-class="press-spring" class="save-btn poster-retry-btn spring-btn" bindtap="retry" hover-stay-time="120">重新生成</button>
+  </view>
+
   <canvas id="posterCanvas" type="2d" style="width:{{canvasWidth}}px;height:{{canvasHeight}}px;position:fixed;left:-9999px;top:-9999px;"></canvas>
 
   <view class="poster-actions" wx:if="{{posterTempPath}}">
     <view class="poster-share-tip">分享至</view>
-    <button class="save-btn" bindtap="onSaveToAlbum">
+    <button hover-class="press-spring" class="save-btn spring-btn" bindtap="onSaveToAlbum" hover-stay-time="120">
       <text class="save-icon">⬇</text>
       <text>保存到相册</text>
     </button>

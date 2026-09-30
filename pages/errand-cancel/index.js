@@ -1,6 +1,8 @@
 const request = require('../../utils/request')
 const qr = require('../../utils/qr')
+const auth = require('../../utils/auth')
 const { runPullDownRefresh } = require('../../utils/refresh')
+const errandStatus = require('../../utils/errand-status')
 
 // 取消原因方与对应的快捷理由（与温馨提示的30分钟规则联动）
 const SIDES = {
@@ -43,12 +45,24 @@ Page({
     })
   },
 
+  onShow() {
+    // 未登录：弹窗引导去登录（取消则退回上一页）
+    if (!auth.guardPage('订单取消操作需要先登录')) return
+  },
+
   onPullDownRefresh() {
     runPullDownRefresh(this)
   },
 
   goBack() {
     wx.navigateBack()
+  },
+
+  // 「举报领奖」：复用页面内 contact-admin 组件的「联系管理员」弹窗
+  // （在线联系微信客服 / 添加管理员微信），与「我的」页面的「联系客服」行为完全一致
+  onReportReward() {
+    const comp = this.selectComponent('#serviceAdmin')
+    if (comp) comp.openMenu()
   },
 
   selectSide(e) {
@@ -163,6 +177,7 @@ Page({
       const reasonSide = (this._sideKeys || ['self', 'accepter'])[this.data.sideIndex]
       return request.post('/errand/' + this.data.id + '/cancel', { reason, reasonSide, images }, true, { idempotencyKey: 'errand_cancel_' + this.data.id })
     }).then((data) => {
+      errandStatus.publish(this.data.id, 'cancelled')
       wx.showToast({ title: data && data.refundStatus ? '订单已取消，退款处理中' : '订单已取消', icon: 'success' })
       setTimeout(() => wx.navigateBack(), 900)
     }).catch(() => {}).finally(() => this.setData({ submitting: false }))
@@ -185,6 +200,7 @@ Page({
         wx.showToast({ title: '已取消接单，退款发起失败，请联系客服', icon: 'none' })
         setTimeout(() => wx.navigateBack(), 1600)
       } else {
+        errandStatus.publish(this.data.id, 'cancelled')
         wx.showToast({ title: '已取消接单，赏金将原路退回', icon: 'none' })
         setTimeout(() => wx.navigateBack(), 1200)
       }

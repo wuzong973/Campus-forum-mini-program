@@ -1,0 +1,28 @@
+<view class="page page-enter">
+  <!-- 后台可编辑的自定义页面：标题 + 正文（换行分段）+ 图片，普通用户只读 -->
+  <view class="card" wx:if="{{page && (paragraphs.length || page.images.length)}}">
+    <view class="sec-title" wx:if="{{page.title}}">{{page.title}}</view>
+    <text class="para" wx:for="{{paragraphs}}" wx:key="*this">{{item}}</text>
+    <view class="image-list" wx:if="{{page.images.length}}">
+      <image
+        class="image"
+        wx:for="{{page.images}}"
+        wx:key="*this"
+        src="{{item}}"
+        mode="widthFix"
+        lazy-load
+        data-url="{{item}}"
+        bindtap="onPreviewImage"
+      ></image>
+    </view>
+    <text class="updated" wx:if="{{page.updatedAtText}}">更新于 {{page.updatedAtText}}</text>
+  </view>
+
+  <view class="card" wx:elif="{{loaded}}">
+    <view class="empty">
+      <text class="empty-text">学车指南正在整理中，上线后会在这里展示学车流程、报名材料与避坑提示。</text>
+    </view>
+  </view>
+
+  <text class="foot-note">本页面信息由平台整理发布，不涉及任何驾校招生、报价与收费。</text>
+</view>

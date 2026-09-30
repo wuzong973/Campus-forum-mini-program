@@ -6,6 +6,7 @@
     "service-grid": "/components/service-grid/service-grid",
     "load-more": "/components/load-more/load-more",
     "empty-state": "/components/empty-state/empty-state",
-    "contact-admin": "/components/contact-admin/contact-admin"
+    "contact-admin": "/components/contact-admin/contact-admin",
+    "update-dialog": "/components/update-dialog/index"
   }
 }

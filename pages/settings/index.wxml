@@ -1,7 +1,7 @@
 <view class="page">
   <view class="nav" style="padding-top: {{statusBarHeight}}px; height: {{statusBarHeight + navBarHeight}}px;">
     <view class="nav-content" style="height: {{navBarHeight}}px;">
-      <view class="back-pill" hover-class="back-pill-hover" hover-stay-time="80" bindtap="goBack"><text class="back-pill-icon">‹</text><text>返回</text></view>
+      <view class="back-pill spring-btn" hover-class="back-pill-hover press-spring" hover-stay-time="80" bindtap="goBack"><text class="back-pill-icon">‹</text><text>返回</text></view>
       <text class="nav-title">设置</text>
       <view class="nav-placeholder"></view>
     </view>
@@ -20,5 +20,45 @@
         </view>
       </view>
     </block>
+
+    <!-- 通知：原有设置项 + 六个通知渠道（主开关右侧带展开箭头，可展开子开关栏） -->
+    <view class="setting-group">
+      <text class="group-title">通知</text>
+      <view class="setting-list">
+        <view class="setting-row" wx:for="{{notifyItems}}" wx:key="key">
+          <view class="setting-left"><image class="setting-icon" src="{{item.icon}}" mode="aspectFit"></image><text>{{item.name}}</text></view>
+          <switch checked="{{item.key === 'dailyHot' ? dailyHotVisible : settings[item.key]}}" color="#00bc19" data-key="{{item.key}}" bindchange="onSettingChange"></switch>
+        </view>
+        <block wx:for="{{notifyChannels}}" wx:for-item="channel" wx:for-index="chIndex" wx:key="key">
+          <view class="setting-row channel-row">
+            <view class="setting-left"><image class="setting-icon" src="{{channel.icon}}" mode="aspectFit"></image><text>{{channel.name}}</text></view>
+            <view class="channel-right">
+              <switch checked="{{channel.on}}" color="#00bc19" data-key="{{channel.key}}" bindchange="onChannelMainChange"></switch>
+              <view class="channel-arrow {{channel.open ? 'open' : ''}}" catchtap="onToggleChannelOpen" data-key="{{channel.key}}">›</view>
+            </view>
+          </view>
+          <view class="channel-subs" wx:if="{{channel.open}}">
+            <view class="channel-sub-row" wx:for="{{channel.subs}}" wx:for-item="sub" wx:key="key">
+              <text class="channel-sub-name">{{sub.name}}</text>
+              <switch checked="{{channelPrefs[sub.key]}}" color="#00bc19" data-channel="{{channel.key}}" data-key="{{sub.key}}" bindchange="onChannelSubChange"></switch>
+            </view>
+          </view>
+        </block>
+      </view>
+    </view>
+
+    <!-- 显示：卡片动效等视觉偏好。渲染在通知之后，所以独立于上方的 groups 数组 -->
+    <view class="setting-group">
+      <text class="group-title">显示</text>
+      <view class="setting-list">
+        <view class="setting-row" wx:for="{{displayItems}}" wx:key="key">
+          <view class="setting-left"><image class="setting-icon" src="{{item.icon}}" mode="aspectFit"></image><text>{{item.name}}</text></view>
+          <!-- cardFx 与 dailyHot 一样走独立存储，不读 settings 映射 -->
+          <switch checked="{{item.key === 'cardFx' ? cardFxEnabled : settings[item.key]}}" color="#00bc19" data-key="{{item.key}}" bindchange="onSettingChange"></switch>
+        </view>
+        <!-- 开关显示的是偏好，低端机强制关闭时它仍是开的，不说明会让人以为动效生效中 -->
+        <view class="setting-hint" wx:if="{{fxAutoOff}}">已检测到低端设备，动效已自动关闭（静态描边仍保留）</view>
+      </view>
+    </view>
   </view>
 </view>

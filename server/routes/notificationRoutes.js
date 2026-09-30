@@ -4,6 +4,7 @@ const notificationController = require('../controllers/notificationController')
 const { auth } = require('../middleware/auth')
 
 router.get('/', auth, notificationController.list)
+router.get('/unread-count', auth, notificationController.unreadCount)
 router.put('/read-all', auth, notificationController.markAllRead)
 router.put('/:id/read', auth, notificationController.markRead)
 

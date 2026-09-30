@@ -27,7 +27,7 @@
 
   <!-- 转发按钮 -->
   <view class="share-actions">
-    <button class="share-btn" bindtap="onShare" disabled="{{sharing}}">
+    <button hover-class="press-spring" class="share-btn spring-btn" bindtap="onShare" disabled="{{sharing}}" hover-stay-time="120">
       <text>{{sharing ? '转发中...' : '转发'}}</text>
     </button>
   </view>

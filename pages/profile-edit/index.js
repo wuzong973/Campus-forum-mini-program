@@ -2,6 +2,7 @@ const request = require('../../utils/request')
 const wechat = require('../../utils/wechat')
 const avatar = require('../../utils/avatar')
 const api = require('../../utils/api')
+const auth = require('../../utils/auth')
 const { runPullDownRefresh } = require('../../utils/refresh')
 
 const PROFILE_EXT_KEY = 'profile_ext'
@@ -34,10 +35,26 @@ Page({
   },
 
   onLoad() {
+    // 未登录：弹窗引导去登录（取消则退回），登录后回到本页在 onShow 补初始化
+    if (!auth.guardPage('编辑资料需要先登录')) return
+    this._initialized = true
+    this.initProfile()
+  },
+
+  onShow() {
+    // 从登录页返回时补执行初始化（首次进入已在 onLoad 完成）
+    if (this._initialized) return
+    if (!auth.isLoggedIn()) return
+    this._initialized = true
+    this.initProfile()
+  },
+
+  initProfile() {
     const app = getApp()
     this.setData({ statusBarHeight: app.globalData.statusBarHeight || 20 })
     const defaults = avatar.getDefaultProfile()
     const user = Object.assign({}, defaults, app.globalData.userInfo || {})
+    user.avatarUrl = avatar.normalizeLegacyAvatar(user.avatarUrl)
     if (!avatar.isStoredAvatar(user.avatarUrl)) user.avatarUrl = defaults.avatarUrl
     if (avatar.isDefaultName(user.nickName)) user.nickName = defaults.nickName
     const ext = wx.getStorageSync(PROFILE_EXT_KEY) || {}
@@ -124,9 +141,11 @@ Page({
 
   // ===== 更换默认头像：自选模式（弹层网格） =====
   onChangeDefaultAvatar() {
-    // 路径规则与 getRandomAvatar 保持一致：/assets/avatar2/ + encodeURIComponent(文件名)
-    const list = avatar.DEFAULT_AVATARS.map((name) => '/assets/avatar2/' + encodeURIComponent(name))
-    const current = this.data.avatarUrl
+    // 路径规则与 getRandomAvatar 保持一致：/assets/avatar2/ + 文件名。
+    // 文件名现为纯 ASCII，不再做 encodeURIComponent —— 旧写法会把括号原样留在
+    // 路径里，真机解析失败导致头像空白。
+    const list = avatar.DEFAULT_AVATARS.map((name) => '/assets/avatar2/' + name)
+    const current = avatar.normalizeLegacyAvatar(this.data.avatarUrl)
     const currentAvatarIndex = list.indexOf(current)
     this.setData({
       showSheet: 'avatar',

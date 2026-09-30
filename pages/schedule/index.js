@@ -135,46 +135,13 @@ const COURSE_RANDOM_PALETTE = [
   },
 ];
 
-// 节次结构：每节包含序号、时间段、所属时段（上午/午休/下午/晚上）
-const SECTIONS = [
-  { period: "早读", section: "早", time: "07:30-07:45" },
-  { period: "上午", section: 1, time: "08:30-09:10" },
-  { period: "上午", section: 2, time: "09:15-09:55" },
-  { period: "上午", section: 3, time: "10:15-10:55" },
-  { period: "上午", section: 4, time: "11:00-11:40" },
-  { period: "午休", section: 5, time: "11:45-12:25" },
-  { period: "午休", section: 6, time: "13:15-13:55" },
-  { period: "下午", section: 7, time: "14:00-14:40" },
-  { period: "下午", section: 8, time: "14:45-15:25" },
-  { period: "下午", section: 9, time: "15:45-16:25" },
-  { period: "下午", section: 10, time: "16:30-17:10" },
-  { period: "晚上", section: 11, time: "19:30-20:10" },
-];
-
-// 将课程 startTime 映射到节次索引（0-based）
-function timeToSectionIdx(startTime) {
-  if (!startTime) return -1;
-  const parts = String(startTime).split(":");
-  const h = parseInt(parts[0], 10);
-  const m = parseInt(parts[1], 10);
-  const minutes = h * 60 + m;
-  for (let i = SECTIONS.length - 1; i >= 0; i--) {
-    const startStr = SECTIONS[i].time.split("-")[0];
-    const sp = startStr.split(":");
-    const sh = parseInt(sp[0], 10);
-    const sm = parseInt(sp[1], 10);
-    if (minutes >= sh * 60 + sm) return i;
-  }
-  return 0;
-}
-
-// 计算课程跨越的节次数
-function calcSpan(startTime, endTime) {
-  if (!startTime || !endTime) return 1;
-  const startIdx = timeToSectionIdx(startTime);
-  const endIdx = timeToSectionIdx(endTime);
-  return Math.max(1, endIdx - startIdx + 1);
-}
+// ===== 课表网格：节次口径统一在 utils/schedule.js（与官方教务系统一致）=====
+// 行 = 节次对（1-2 / 3-4 / 5-6 / 7-8 / 9-10 / 11-12），列 = 星期（隐藏周末时只留周一到周五）。
+const CLASS_ROWS = scheduleUtils.CLASS_ROWS;
+const HEADER_ROW_COUNT = 2; // 第 1 行日期、第 2 行星期
+const PERIOD_COL = 1; // 午别列
+const TIME_COL = 2; // 节次 + 上课时间列
+const FIRST_DAY_COL = 3; // 星期列起始列号
 
 Page({
   data: {
@@ -199,13 +166,31 @@ Page({
     totalWeeks: 20,
     showSemesterView: false,
     semesterWeeks: [],
+    // 空态区分用：本学期总课程数 / 首个有课的教学周。
+    // 只有课程数 > 0 时才说明「数据在，只是本周没课」，避免把
+    // 「本周无课」误报成「暂无课程（课表是空的）」。
+    semesterCourseCount: 0,
+    firstCourseWeek: 0,
   },
 
   onShow() {
     const tabBar = this.getTabBar && this.getTabBar()
     if (tabBar) tabBar.setSelected(1)
-    // 从教务同步/考试/成绩页返回时收起抽屉（跳转时不再提前收起，避免转场闪烁）
-    if (this.data.showDrawer) this.setData({ showDrawer: false });
+    // 点击「课程表」tab 进入时自动展开左侧功能栏（标记由自定义 tabBar 写入）；
+    // 仅在课表尚未同步（未绑定教务系统）时弹出引导，已同步用户不再打扰；
+    // 从教务同步/考试/成绩页返回时仍收起，避免转场闪烁
+    const autoOpen = !!(app.globalData && app.globalData.scheduleDrawerAutoOpen)
+    if (app.globalData) app.globalData.scheduleDrawerAutoOpen = false
+    if (autoOpen) {
+      // 未登录/请求失败时 getJwBound 返回 false → 照常弹出，保证同步入口可达
+      auth.getJwBound().then((bound) => this.setData({ showDrawer: !bound }))
+    } else {
+      this.setData({ showDrawer: false });
+    }
+    // 手动添加课程后带过来的定位意图：先摘走再拉数据，避免下次 onShow 重复触发
+    const pending = (app.globalData && app.globalData.scheduleJumpToWeek) || null
+    if (app.globalData) app.globalData.scheduleJumpToWeek = null
+    if (pending) this._pendingJumpCourse = pending
     this.initFromConfig();
     this.applyCurrentWeekCourses(this.data.allCourses);
     this.loadSchedule();
@@ -216,12 +201,17 @@ Page({
   },
 
   initFromConfig() {
-    const config = app.globalData.scheduleConfig;
-    const startDate = new Date(config.startDate || "2026-03-02");
-    const now = new Date();
-    const diffDays = Math.floor((now - startDate) / 86400000);
-    const currentWeek = Math.max(1, Math.floor(diffDays / 7) + 1);
-    const isExpired = currentWeek > 20;
+    const config = app.globalData.scheduleConfig || {};
+    // 周次统一走 computeAcademicWeek：超出学期总周数时夹到最后一周并给出过期标记，
+    // 避免像旧逻辑那样算出「第 28 周」并把日期表头推到学期之外。
+    // 起始日一律过 parseSemesterStart（周一锚点）——若配置里存的是周日值（历史缓存写过
+    // 2026-09-06），不锚定会让这里算出的周次与表头列日期各差一天甚至一周。
+    const academicWeek = scheduleUtils.computeAcademicWeek(
+      config.startDate,
+      this.data.totalWeeks,
+    );
+    const currentWeek = academicWeek.currentWeek;
+    const isExpired = academicWeek.isExpired;
 
     this.setData({
       statusBarHeight: app.globalData.statusBarHeight,
@@ -231,8 +221,19 @@ Page({
       bgColor: config.bgColor,
       currentWeek,
       isExpired,
-      currentWeekText: this.formatWeekText(startDate, currentWeek),
+      currentWeekText: this.weekDateText(currentWeek),
     });
+  },
+
+  // 「本周课表」标题下的日期区间。与 buildGridItems 的表头列共用同一份起始日口径，
+  // 因此任何改变 currentWeek 的地方都必须重算它（见 switchWeek / onJumpToFirstCourseWeek），
+  // 否则会出现「标题第 3 周、表头 9/21、卡片却还写着上一周 9.14-9.20」的三处不一致。
+  weekDateText(week) {
+    const config = app.globalData.scheduleConfig || {};
+    return this.formatWeekText(
+      scheduleUtils.parseSemesterStart(config.startDate),
+      week,
+    );
   },
 
   // 格式化周次显示文本
@@ -251,8 +252,10 @@ Page({
   loadSchedule() {
     // The schedule is private data. Guests can open this tab without sending
     // an authenticated request or being redirected away from it.
-    if (!app.globalData.token) {
-      this.setData({ allCourses: [] });
+    // 用 auth.isLoggedIn() 而不是直接看 token 字符串：token 已过期时它是 false，
+    // 否则会带着废 token 打服务端拿 401，再把 catch 分支的空数组渲染成「暂无课程」。
+    if (!auth.isLoggedIn()) {
+      this.setData({ allCourses: [], semesterCourseCount: 0, firstCourseWeek: 0 });
       this.applyCurrentWeekCourses([]);
       return;
     }
@@ -263,8 +266,9 @@ Page({
       );
       this.setData({ allCourses: list });
       this.applyCurrentWeekCourses(list);
+      this.maybeJumpToCourseWeek(list);
     }).catch(() => {
-      this.setData({ allCourses: [] });
+      this.setData({ allCourses: [], semesterCourseCount: 0, firstCourseWeek: 0 });
       this.applyCurrentWeekCourses([]);
     });
   },
@@ -285,7 +289,8 @@ Page({
 
   applyCurrentWeekCourses(list) {
     const currentWeek = Number(this.data.currentWeek) || 1;
-    const visibleCourses = (list || []).filter((course) => {
+    const source = list || [];
+    const visibleCourses = source.filter((course) => {
       const startWeek = Number(course.startWeek) || 1;
       const endWeek = Number(course.endWeek) || startWeek;
       const weekType = course.weekType || "all";
@@ -305,13 +310,109 @@ Page({
       isExpired: visibleCourses.length === 0 && this.data.isExpired,
       gridItems: this.buildGridItems(visibleCourses, this.data.hideWeekend),
       legendColors: this.buildLegendColors(visibleCourses),
+      // 供空态区分「本学期没有课」与「只是本周没课」：后者要引导用户跳到有课的周，
+      // 而不是让他以为课表压根没导入成功。
+      semesterCourseCount: source.length,
+      firstCourseWeek: this.resolveFirstCourseWeek(source),
     });
   },
 
-  // 构建图例颜色（使用实际课程颜色）
+  // 单门课在给定周次是否上课（含单双周）
+  isCourseActiveInWeek(course, week) {
+    const startWeek = Number(course && course.startWeek) || 1;
+    const endWeek = Number(course && course.endWeek) || startWeek;
+    const weekType = (course && course.weekType) || "all";
+    if (week < startWeek || week > endWeek) return false;
+    if (weekType === "odd") return week % 2 === 1;
+    if (weekType === "even") return week % 2 === 0;
+    return true;
+  },
+
+  // 从某门课的开始周起，找到它第一个真正上课的周（跳过单双周不匹配的周）
+  resolveFirstActiveWeek(course) {
+    const startWeek = Math.max(1, Number(course && course.startWeek) || 1);
+    const endWeek = Math.min(
+      this.data.totalWeeks,
+      Number(course && course.endWeek) || startWeek,
+    );
+    for (let week = startWeek; week <= endWeek; week += 1) {
+      if (this.isCourseActiveInWeek(course, week)) return week;
+    }
+    return 0;
+  },
+
+  // 整张课表里最早有课的教学周（0 = 本学期没有任何课）
+  resolveFirstCourseWeek(list) {
+    let earliest = 0;
+    (list || []).forEach((course) => {
+      const week = this.resolveFirstActiveWeek(course);
+      if (!week) return;
+      if (!earliest || week < earliest) earliest = week;
+    });
+    return earliest;
+  },
+
+  /**
+   * 自动定位到「有课的周」。
+   *
+   * 两种触发：
+   *  1) 刚手动添加了课程（_pendingJumpCourse）→ 无条件跳到该课所在周，
+   *     否则用户选了 13-19 周却停在当前周，只会看到空课表并以为保存失败；
+   *  2) 首次进入时本周恰好没课（如大一军训期）→ 跳到本学期首个有课周。
+   *     只自动跳一次，之后用户手动翻到空周不会被反复拽走。
+   */
+  maybeJumpToCourseWeek(list) {
+    if (!list || !list.length) return;
+
+    const pending = this._pendingJumpCourse;
+    if (pending) this._pendingJumpCourse = null;
+
+    if (!pending && this._autoJumpedToCourseWeek) return;
+    if (!pending && this.data.courses.length > 0) {
+      this._autoJumpedToCourseWeek = true;
+      return;
+    }
+
+    const target = pending
+      ? this.resolveFirstActiveWeek(pending)
+      : this.resolveFirstCourseWeek(list);
+    this._autoJumpedToCourseWeek = true;
+    if (!target || target === this.data.currentWeek) return;
+
+    this.switchWeek(target);
+    // 自动跳（本周原本没课）时说明原因，否则用户会以为是自己误触了周次
+    wx.showToast({
+      title: pending ? "已切到第 " + target + " 周" : "本周无课，已切到第 " + target + " 周",
+      icon: "none",
+    });
+  },
+
+  // 空态里的「跳到第 N 周查看」按钮
+  onJumpToFirstCourseWeek() {
+    const target = Number(this.data.firstCourseWeek) || 0;
+    if (!target) return;
+    this._autoJumpedToCourseWeek = true;
+    this.switchWeek(target);
+  },
+
+  /**
+   * 点击顶部「第 N 周」→ 打开全周次总览（与本学期课表按钮同一个视图）。
+   * 目的是让用户一眼看到整个学期每周几门课、哪一周开始有课，
+   * 不用一周一周地点「下一周」去试。
+   */
+  onWeekTextTap() {
+    if (!this.data.semesterCourseCount) {
+      // 学期里一门课都没有时，视图没有内容可展开，如实告知而不是"点了没反应"
+      wx.showToast({ title: "还没有课表，可手动添加或同步教务", icon: "none" });
+      return;
+    }
+    this.toggleSemesterView();
+  },
+
+  // 构建图例颜色（按午别取该时段第一门课的颜色）
   buildLegendColors(courses) {
     const periodMap = {};
-    courses.forEach((course) => {
+    (courses || []).forEach((course) => {
       const period = this.getPeriod(course.startTime);
       if (!periodMap[period] && course.courseColor) {
         periodMap[period] = course.courseColor;
@@ -319,237 +420,192 @@ Page({
     });
     return [
       { label: "上午课程", color: periodMap["上午"] || "#4A7AFF" },
-      { label: "午休时段", color: periodMap["午休"] || "#FA8C16" },
       { label: "下午课程", color: periodMap["下午"] || "#52C41A" },
       { label: "晚上课程", color: periodMap["晚上"] || "#722ED1" },
     ];
   },
 
-  // 根据时间获取时段
+  // 根据上课时间获取午别：与作息表同口径（12 点前上午、18 点前下午、其后晚上）
   getPeriod(time) {
-    if (!time) return "上午";
-    const parts = time.split(":");
-    const hour = parseInt(parts[0], 10);
-    if (hour < 12) return "上午";
-    if (hour < 14) return "午休";
-    if (hour < 18) return "下午";
-    return "晚上";
+    return scheduleUtils.getDayPeriod(time);
   },
 
-  // 构建 CSS Grid 所需的所有格子
+  // 构建 CSS Grid 所需的所有格子：日期/星期表头 + 午别列 + 节次时间列 + 课程格 + 空格
   buildGridItems(courses, hideWeekend) {
     const items = [];
     const dayCount = hideWeekend ? 5 : 7;
+    const rowCount = CLASS_ROWS.length;
 
-    // 计算本周各天的日期
-    const config = app.globalData.scheduleConfig;
-    const startDate = new Date(config.startDate || "2026-03-02");
+    // 本周各天的日期（学期起始日 = 第 1 教学周的周一，统一走 parseSemesterStart 锚定）
+    const config = app.globalData.scheduleConfig || {};
+    const startDate = scheduleUtils.parseSemesterStart(config.startDate);
     const weekStart = new Date(
-      startDate.getTime() + (this.data.currentWeek - 1) * 7 * 86400000,
+      startDate.getTime() +
+        ((Number(this.data.currentWeek) || 1) - 1) * 7 * 86400000,
     );
     const dayDates = [];
-    for (let i = 0; i < dayCount; i++) {
+    for (let i = 0; i < dayCount; i += 1) {
       const d = new Date(weekStart.getTime() + i * 86400000);
       dayDates.push(d.getMonth() + 1 + "/" + d.getDate());
     }
 
-    // 1. 日期行（row 1）
-    items.push({
-      id: "h-time-date",
-      type: "header-date",
-      text: "",
-      rowStart: 1,
-      rowEnd: 2,
-      col: 1,
-    });
-    for (let i = 0; i < dayCount; i++) {
+    // 1. 日期行（grid row 1）
+    items.push({ id: "hd-period", type: "header-date", text: "", rowStart: 1, rowEnd: 2, col: PERIOD_COL });
+    items.push({ id: "hd-time", type: "header-date", text: "", rowStart: 1, rowEnd: 2, col: TIME_COL });
+    for (let i = 0; i < dayCount; i += 1) {
       items.push({
-        id: "h-date-" + i,
+        id: "hd-date-" + i,
         type: "header-date",
         text: dayDates[i],
         rowStart: 1,
         rowEnd: 2,
-        col: i + 2,
+        col: FIRST_DAY_COL + i,
       });
     }
 
-    // 2. 星期行（row 2）
-    items.push({
-      id: "h-time",
-      type: "header",
-      text: "时间",
-      rowStart: 2,
-      rowEnd: 3,
-      col: 1,
-    });
-    for (let i = 0; i < dayCount; i++) {
+    // 2. 星期行（grid row 2）
+    items.push({ id: "h-period", type: "header", text: "午别", rowStart: 2, rowEnd: 3, col: PERIOD_COL });
+    items.push({ id: "h-time", type: "header", text: "节次", rowStart: 2, rowEnd: 3, col: TIME_COL });
+    for (let i = 0; i < dayCount; i += 1) {
       items.push({
         id: "h-day-" + i,
         type: "header",
         text: WEEK_DAY_SHORT[i],
         rowStart: 2,
         rowEnd: 3,
-        col: i + 2,
+        col: FIRST_DAY_COL + i,
       });
     }
 
-    // 3. 时间列（每行一个）
-    SECTIONS.forEach((s, idx) => {
-      const row = idx + 3; // row 1=日期, row 2=星期, 数据从 row 3 开始
+    // 3. 午别列：同一午别的连续行合并成一格
+    let groupStart = 0;
+    while (groupStart < rowCount) {
+      let groupEnd = groupStart;
+      while (
+        groupEnd + 1 < rowCount &&
+        CLASS_ROWS[groupEnd + 1].period === CLASS_ROWS[groupStart].period
+      ) {
+        groupEnd += 1;
+      }
+      items.push({
+        id: "period-" + groupStart,
+        type: "period",
+        text: CLASS_ROWS[groupStart].period,
+        rowStart: HEADER_ROW_COUNT + groupStart + 1,
+        rowEnd: HEADER_ROW_COUNT + groupEnd + 2,
+        col: PERIOD_COL,
+      });
+      groupStart = groupEnd + 1;
+    }
+
+    // 4. 节次 + 上课时间列
+    CLASS_ROWS.forEach((row, idx) => {
       items.push({
         id: "time-" + idx,
         type: "time",
-        text: s.time,
-        rowStart: row,
-        rowEnd: row + 1,
-        col: 1,
+        text: row.label,
+        sub: row.startTime + "-" + row.endTime,
+        rowStart: HEADER_ROW_COUNT + idx + 1,
+        rowEnd: HEADER_ROW_COUNT + idx + 2,
+        col: TIME_COL,
       });
     });
 
-    // 3. 课程格子 + 空白格子
-    // 冲突检测：同一时间段多门课程时，自动插入额外行
-    const filtered = hideWeekend
-      ? courses.filter((c) => c.weekDay <= 5)
-      : courses.slice();
+    // 5. 课程格：按天分列后，对同一列内时间重叠的课程做「泳道」并排。
+    //    旧逻辑靠插入额外行避让冲突，会把后面的时间轴整体顶偏，这里改成同格并排。
+    const placed = [];
+    const occupied = {};
+    for (let col = 0; col < dayCount; col += 1) {
+      const dayCourses = [];
+      (courses || []).forEach((c) => {
+        if (Number(c.weekDay) - 1 !== col) return;
+        dayCourses.push({ course: c, slot: scheduleUtils.resolveCourseSlot(c) });
+      });
+      dayCourses.sort(
+        (a, b) =>
+          a.slot.rowIndex - b.slot.rowIndex ||
+          b.slot.rowSpan - a.slot.rowSpan ||
+          String(a.course.startTime).localeCompare(String(b.course.startTime)),
+      );
 
-    // 按 (startRow, col) 分组
-    const courseByCell = {};
-    filtered.forEach((c) => {
-      const startRow = timeToSectionIdx(c.startTime);
-      const col = c.weekDay - 1;
-      if (
-        startRow < 0 ||
-        startRow >= SECTIONS.length ||
-        col < 0 ||
-        col >= dayCount
-      )
-        return;
-      const key = startRow + "-" + col;
-      if (!courseByCell[key]) courseByCell[key] = [];
-      courseByCell[key].push(c);
-    });
-
-    // 计算每个原始行需要多少额外行（冲突数 - 1）
-    const extraRows = {}; // key: original row index, value: number of extra rows needed
-    Object.keys(courseByCell).forEach((key) => {
-      const [rowStr] = key.split("-");
-      const row = parseInt(rowStr);
-      const count = courseByCell[key].length;
-      if (count > 1) {
-        extraRows[row] = Math.max(extraRows[row] || 0, count - 1);
-      }
-    });
-
-    // 构建行偏移映射：originalRow -> gridRow (1-based, 1=日期行, 2=星期行)
-    // 表头占 row 1-2，数据从 row 3 开始
-    const rowOffset = {};
-    let offset = 0;
-    for (let r = 0; r < SECTIONS.length; r++) {
-      rowOffset[r] = r + 3 + offset; // +3: 2 for header rows, 1 for 0-based to 1-based
-      if (extraRows[r]) offset += extraRows[r];
-    }
-    const totalGridRows = SECTIONS.length + 3 + offset; // +3 for 2 header rows
-
-    // 更新午别跨行范围
-    items.forEach((item) => {
-      if (item.type === "period") {
-        // 找到该时段覆盖的原始行范围
-        let firstRow = -1,
-          lastRow = -1;
-        for (let r = 0; r < SECTIONS.length; r++) {
-          if (SECTIONS[r].period === item.text) {
-            if (firstRow === -1) firstRow = r;
-            lastRow = r;
+      let cluster = [];
+      let clusterEnd = -1;
+      const flush = () => {
+        if (!cluster.length) return;
+        const laneEnds = []; // 每条泳道占用的最后一行（含）
+        cluster.forEach((entry) => {
+          let lane = -1;
+          for (let i = 0; i < laneEnds.length; i += 1) {
+            if (laneEnds[i] < entry.slot.rowIndex) {
+              lane = i;
+              break;
+            }
           }
-        }
-        if (firstRow >= 0) {
-          item.rowStart = rowOffset[firstRow];
-          item.rowEnd = rowOffset[lastRow] + 1 + (extraRows[lastRow] || 0);
-        }
-      }
-    });
-
-    // 放置课程
-    const courseItems = [];
-    const placedCells = {}; // 记录已放置课程的格子
-
-    Object.keys(courseByCell).forEach((key) => {
-      const [rowStr, colStr] = key.split("-");
-      const row = parseInt(rowStr);
-      const col = parseInt(colStr);
-      const coursesInCell = courseByCell[key];
-      const gridRow = rowOffset[row];
-      const extras = extraRows[row] || 0;
-
-      if (coursesInCell.length === 1) {
-        // 单门课程，正常放置
-        const c = coursesInCell[0];
-        const span = calcSpan(c.startTime, c.endTime);
-        courseItems.push({
-          id: "course-" + c.id,
-          type: "course",
-          course: c,
-          locationClass: this.getLocationClass(c.location),
-          courseStyle: this.getCourseCardStyle(c),
-          courseBg: c.courseColorSoft
-            ? "background:" + c.courseColorSoft + ";"
-            : "",
-          rowStart: gridRow,
-          rowEnd: gridRow + span,
-          col: col + 2,
+          if (lane === -1) lane = laneEnds.length;
+          const span = Math.max(
+            1,
+            Math.min(entry.slot.rowSpan, rowCount - entry.slot.rowIndex),
+          );
+          laneEnds[lane] = entry.slot.rowIndex + span - 1;
+          entry.lane = lane;
+          entry.span = span;
         });
-        for (let r = row; r < Math.min(SECTIONS.length, row + span); r++) {
-          placedCells[r + "-" + col] = true;
-        }
-      } else {
-        // 多门课程冲突，平均分配额外行
-        coursesInCell.forEach((c, idx) => {
-          const span = calcSpan(c.startTime, c.endTime);
-          const start = gridRow + idx;
-          const end = start + Math.max(1, span);
-          courseItems.push({
+        const laneCount = laneEnds.length;
+        const share = 100 / laneCount;
+        cluster.forEach((entry) => {
+          const c = entry.course;
+          placed.push({
             id: "course-" + c.id,
             type: "course",
             course: c,
             locationClass: this.getLocationClass(c.location),
             courseStyle: this.getCourseCardStyle(c),
-            courseBg: c.courseColorSoft
-              ? "background:" + c.courseColorSoft + ";"
-              : "",
-            rowStart: start,
-            rowEnd: end,
-            col: col + 2,
+            courseBg: c.courseColorSoft ? "background:" + c.courseColorSoft + ";" : "",
+            narrow: laneCount > 1,
+            cellStyle:
+              laneCount > 1
+                ? "width:" + share + "%;margin-left:" + share * entry.lane + "%;"
+                : "",
+            rowStart: HEADER_ROW_COUNT + entry.slot.rowIndex + 1,
+            rowEnd: HEADER_ROW_COUNT + entry.slot.rowIndex + entry.span + 1,
+            col: FIRST_DAY_COL + col,
           });
+          for (
+            let r = entry.slot.rowIndex;
+            r < entry.slot.rowIndex + entry.span;
+            r += 1
+          ) {
+            occupied[r + "-" + col] = true;
+          }
         });
-        const maxSpan = coursesInCell.reduce(
-          (max, c) => Math.max(max, calcSpan(c.startTime, c.endTime)),
-          1,
-        );
-        for (let r = row; r < Math.min(SECTIONS.length, row + maxSpan); r++) {
-          placedCells[r + "-" + col] = true;
-        }
-      }
-    });
+        cluster = [];
+        clusterEnd = -1;
+      };
 
-    // 空白格子（保持默认样式，不添加颜色）
+      dayCourses.forEach((entry) => {
+        if (cluster.length && entry.slot.rowIndex >= clusterEnd) flush();
+        cluster.push(entry);
+        clusterEnd = Math.max(clusterEnd, entry.slot.rowIndex + entry.slot.rowSpan);
+      });
+      flush();
+    }
+
+    // 6. 空格子（保持默认虚线样式）
     const emptyItems = [];
-    for (let r = 0; r < SECTIONS.length; r++) {
-      for (let c = 0; c < dayCount; c++) {
-        if (!placedCells[r + "-" + c]) {
-          const gridRow = rowOffset[r];
-          const extras = extraRows[r] || 0;
-          emptyItems.push({
-            id: "empty-" + r + "-" + c,
-            type: "empty",
-            rowStart: gridRow,
-            rowEnd: gridRow + 1 + extras,
-            col: c + 2,
-          });
-        }
+    for (let r = 0; r < rowCount; r += 1) {
+      for (let c = 0; c < dayCount; c += 1) {
+        if (occupied[r + "-" + c]) continue;
+        emptyItems.push({
+          id: "empty-" + r + "-" + c,
+          type: "empty",
+          rowStart: HEADER_ROW_COUNT + r + 1,
+          rowEnd: HEADER_ROW_COUNT + r + 2,
+          col: FIRST_DAY_COL + c,
+        });
       }
     }
 
-    return items.concat(courseItems, emptyItems);
+    return items.concat(placed, emptyItems);
   },
 
   // 根据教室名称返回颜色 class
@@ -667,7 +723,9 @@ Page({
   // 切换周次
   switchWeek(week) {
     if (week < 1 || week > this.data.totalWeeks) return;
-    this.setData({ currentWeek: week });
+    // currentWeekText 必须与 currentWeek 同批更新：此前只 setData({ currentWeek })，
+    // 于是「下一周 / 自动跳到有课周」之后标题与表头都进了新周，卡片日期还停在上周。
+    this.setData({ currentWeek: week, currentWeekText: this.weekDateText(week) });
     this.applyCurrentWeekCourses(this.data.allCourses);
     this.buildSemesterWeeks();
   },
@@ -690,8 +748,8 @@ Page({
 
   // 构建学期周次数据
   buildSemesterWeeks() {
-    const config = app.globalData.scheduleConfig;
-    const startDate = new Date(config.startDate || "2026-03-02");
+    const config = app.globalData.scheduleConfig || {};
+    const startDate = scheduleUtils.parseSemesterStart(config.startDate);
     const weeks = [];
     for (let i = 1; i <= this.data.totalWeeks; i++) {
       const weekStart = new Date(startDate.getTime() + (i - 1) * 7 * 86400000);
@@ -725,12 +783,12 @@ Page({
     wx.showModal({
       title: "设置开始日期",
       editable: true,
-      placeholderText: "格式：2026-03-02",
+      placeholderText: "格式：2026-09-07",
       success: (res) => {
         if (
           res.confirm &&
           res.content &&
-          /^\d{4}-\d{2}-\d{2}$/.test(res.content)
+          scheduleUtils.isRealDate(res.content)
         ) {
           app.saveScheduleConfig({ startDate: res.content });
           this.initFromConfig();
@@ -805,11 +863,24 @@ Page({
             content: "确定要清空所有课程吗？此操作不可恢复。",
             success: (modalRes) => {
               if (modalRes.confirm) {
-                wx.setStorageSync("schedule_courses", []);
-                api.clearSchedule().catch(() => {});
-                this.setData({ allCourses: [] });
-                this.loadSchedule();
-                wx.showToast({ title: "课表已清空", icon: "success" });
+                // 与「手动添加」同一原则：必须等服务端真删掉再提示成功。
+                // 原先是 fire-and-forget + 立刻提示「课表已清空」，一旦 401/断网，
+                // 用户以为清空了、刷新后课程又全部回来。
+                api
+                  .clearSchedule()
+                  .then(() => {
+                    this.setData({
+                      allCourses: [],
+                      semesterCourseCount: 0,
+                      firstCourseWeek: 0,
+                    });
+                    this.applyCurrentWeekCourses([]);
+                    wx.showToast({ title: "课表已清空", icon: "success" });
+                  })
+                  .catch(() => {
+                    // 失败原因由 utils/request.js 统一提示（401 会引导重新登录），
+                    // 这里保持课表原样，不制造"已清空"的假象
+                  });
               }
             },
           });

@@ -1,6 +1,7 @@
 const request = require('../../utils/request')
 const format = require('../../utils/format')
 const api = require('../../utils/api')
+const avatar = require('../../utils/avatar')
 const qr = require('../../utils/qr')
 
 Page({
@@ -8,6 +9,8 @@ Page({
     postId: '',
     actorNick: '',
     actorAvatar: '',
+    // 头像加载失败标记：防止兜底后的路径再次报错时陷入「失败→替换→失败」循环
+    actorAvatarFailed: false,
     actorUserId: 0,
     canViewProfile: false,
     content: '',
@@ -17,7 +20,10 @@ Page({
     postTitle: '',
     post: null,
     postTimeText: '',
-    loading: true
+    loading: true,
+    // 原帖不可用（被删除/下架/加载失败）：用于给出准确文案并禁用「查看原帖」入口
+    postMissing: false,
+    postMissingText: ''
   },
 
   onLoad(options) {
@@ -57,7 +63,31 @@ Page({
 
   onActorProfile() {
     if (!this.data.canViewProfile) return
-    wx.navigateTo({ url: '/pages/profile/index?id=' + this.data.actorUserId })
+    // 防连点：连续点击会重复压栈，栈深超限后整页白屏
+    if (this._profileNavigating) return
+    this._profileNavigating = true
+    setTimeout(() => { this._profileNavigating = false }, 800)
+    wx.navigateTo({
+      url: '/pages/profile/index?id=' + this.data.actorUserId,
+      // 跳转失败必须有反馈，不能静默（用户会以为点了没反应）
+      fail: () => {
+        this._profileNavigating = false
+        wx.showToast({ title: '打开用户主页失败，请稍后重试', icon: 'none' })
+      }
+    })
+  },
+
+  // 头像加载失败兜底：通知快照里的历史脏路径（不存在的内置素材名）会让渲染层
+  // 反复报「Failed to load image」并留下空白头像，这里就地换成可用头像
+  onAvatarError() {
+    if (this.data.actorAvatarFailed) return
+    const broken = String(this.data.actorAvatar || '')
+    // 匿名形象换成素材池内的稳定形象，其余换默认头像
+    const fallback = avatar.looksAnonymousAvatar(broken)
+      ? avatar.pickAnonymousAvatar(this.data.actorNick || broken)
+      : '/assets/icons/avatar.png'
+    if (!fallback || fallback === broken) return
+    this.setData({ actorAvatarFailed: true, actorAvatar: fallback })
   },
 
   onPreviewMedia(e) {
@@ -75,20 +105,44 @@ Page({
 
   loadPost() {
     if (!this.data.postId) {
-      this.setData({ loading: false })
+      this.setData({ loading: false, postMissing: true, postMissingText: '原帖信息不可用' })
       return
     }
     api.getPostDetail(this.data.postId).then((post) => {
       this.setData({
         post,
         postTimeText: format.formatRelativeTime(post.createdAt) || '刚刚',
-        loading: false
+        loading: false,
+        postMissing: false,
+        postMissingText: ''
       })
-    }).catch(() => this.setData({ loading: false }))
+    }).catch((err) => {
+      // 帖子可能已被作者删除或审核下架（详情接口 404）。此前只关掉 loading：
+      // 页面停在「暂无法查看」，而「查看原帖」仍然可点 —— 点进去又是一个 404，
+      // 用户白屏一次后仍不知道发生了什么（截图里的 /post/34、/post/44 404 就是这个）。
+      // 这里区分「不存在」与「加载失败」，并禁用入口。
+      const notFound = Number(err && err.statusCode) === 404
+      this.setData({
+        loading: false,
+        postMissing: true,
+        postMissingText: notFound ? '原帖已被删除或下架' : '原帖加载失败，请稍后重试'
+      })
+    })
   },
 
   viewOriginalPost() {
-    if (!this.data.postId) return
-    wx.navigateTo({ url: '/pages/post-detail/index?id=' + this.data.postId })
+    if (!this.data.postId) {
+      wx.showToast({ title: this.data.postMissingText || '原帖信息不可用', icon: 'none' })
+      return
+    }
+    // 已确认原帖不存在时不再跳转：目标页同样会 404，只会再多一次空白
+    if (this.data.postMissing) {
+      wx.showToast({ title: this.data.postMissingText || '原帖已不存在', icon: 'none' })
+      return
+    }
+    wx.navigateTo({
+      url: '/pages/post-detail/index?id=' + this.data.postId,
+      fail: () => wx.showToast({ title: '打开原帖失败，请稍后重试', icon: 'none' })
+    })
   }
 })

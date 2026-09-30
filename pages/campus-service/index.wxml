@@ -1,0 +1,157 @@
+<view class="page page-enter" wx:if="{{service}}">
+  <!-- 头部：图标 + 服务名 + 一句话定位 -->
+  <view class="hero">
+    <view class="hero-icon-wrap">
+      <image class="hero-icon" src="{{service.icon}}" mode="aspectFit"></image>
+    </view>
+    <view class="hero-copy">
+      <text class="hero-title">{{service.name}}</text>
+      <text class="hero-sub">{{service.tagline}}</text>
+    </view>
+  </view>
+
+  <!-- 校园卡：后台可编辑的自定义页面（标题+正文+图片），可配置多张；多张时先出目录，普通用户只读 -->
+  <block wx:if="{{isCardPage}}">
+    <view class="card" wx:if="{{cardPages.length}}">
+      <view class="sec-title">校园卡页面</view>
+      <view class="card-entry fx-card anim-stagger {{index < 6 ? 'is-entry' : ''}} {{fxOff ? 'fx-off' : ''}}" style="--i: {{index < 6 ? index : 0}};" wx:for="{{cardPages}}" wx:key="id" data-id="{{item.id}}" bindtap="onOpenCardPage">
+        <!-- 静态旋转描边（styles/card-fx.wxss）：目录条目是列表项，不开自转，见 §2.7。
+             内容搬进内容层，卡自身 padding 移到内容层上（描边环按 padding box 定位）；
+             条目高度随 summary 行数变化，内容层留在文档流里由内容长出来（§2.6） -->
+        <view class="fx-ring"><view class="fx-ring-spin"></view></view>
+        <view class="fx-body">
+          <view class="card-entry-main">
+            <text class="card-entry-title">{{item.title}}</text>
+            <text class="card-entry-summary" wx:if="{{item.summary}}">{{item.summary}}</text>
+            <text class="card-updated" wx:if="{{item.updatedAtText}}">更新于 {{item.updatedAtText}}</text>
+          </view>
+          <text class="card-entry-arrow">›</text>
+        </view>
+      </view>
+    </view>
+    <view class="card" wx:elif="{{servicePage && (cardParagraphs.length || servicePage.images.length)}}">
+      <view class="sec-title" wx:if="{{servicePage.title}}">{{servicePage.title}}</view>
+      <text class="para card-para" wx:for="{{cardParagraphs}}" wx:key="*this">{{item}}</text>
+      <view class="card-image-list" wx:if="{{servicePage.images.length}}">
+        <image class="card-image" wx:for="{{servicePage.images}}" wx:key="*this" src="{{item}}" mode="widthFix" lazy-load data-url="{{item}}" bindtap="onPreviewCardImage"></image>
+      </view>
+      <text class="card-updated" wx:if="{{servicePage.updatedAtText}}">更新于 {{servicePage.updatedAtText}}</text>
+    </view>
+    <view class="card" wx:else>
+      <view class="card-empty">
+        <text class="card-empty-text">页面内容正在编辑中，上线后这里将展示最新的校园卡办理指南。</text>
+        <contact-admin>
+          <view slot="trigger" class="info-empty-btn">向管理员咨询</view>
+        </contact-admin>
+      </view>
+    </view>
+  </block>
+
+  <block wx:else>
+  <!-- 这个服务能做什么（校车时刻未配 summary，整卡不渲染） -->
+  <view class="card" wx:if="{{service.summary}}">
+    <view class="sec-title">这个服务能做什么</view>
+    <text class="para">{{service.summary}}</text>
+  </view>
+
+  <!-- 什么时候会用到 -->
+  <view class="card" wx:if="{{service.scenes.length}}">
+    <view class="sec-title">什么时候会用到</view>
+    <view class="scene-list">
+      <view class="scene" wx:for="{{service.scenes}}" wx:key="*this">
+        <text class="scene-dot"></text>
+        <text class="scene-text">{{item}}</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 关键信息：运营填写后展示；未填写时降级为咨询入口，不留空白区块 -->
+  <view class="card">
+    <view class="sec-title">{{service.info.title}}</view>
+
+    <block wx:if="{{hasInfo}}">
+      <text class="info-note" wx:if="{{service.info.note}}">{{service.info.note}}</text>
+      <view class="info-item" wx:for="{{infoItems}}" wx:key="title">
+        <text class="info-item-title">{{item.title}}</text>
+        <view class="info-line" wx:for="{{item.lines}}" wx:for-item="line" wx:key="label">
+          <text class="info-label">{{line.label}}</text>
+          <view wx:if="{{line.kind === 'times'}}" class="time-pills">
+            <text class="time-pill" wx:for="{{line.parts}}" wx:for-item="t" wx:key="*this">{{t}}</text>
+          </view>
+          <view wx:elif="{{line.kind === 'flow'}}" class="flow-line">
+            <view class="flow-node" wx:for="{{line.parts}}" wx:for-item="stop" wx:key="*this">
+              <view class="flow-dot"></view>
+              <text class="flow-stop">{{stop}}</text>
+              <text wx:if="{{index < line.parts.length - 1}}" class="flow-arrow">›</text>
+            </view>
+          </view>
+          <text wx:else class="info-value" user-select>{{line.value}}</text>
+        </view>
+      </view>
+    </block>
+
+    <view wx:else class="info-empty">
+      <text class="info-empty-text">{{service.info.emptyText}}</text>
+      <contact-admin>
+        <view slot="trigger" class="info-empty-btn">向管理员索取最新信息</view>
+      </contact-admin>
+    </view>
+  </view>
+
+  <!-- 怎么用 -->
+  <view class="card" wx:if="{{service.steps.length}}">
+    <view class="sec-title">怎么用</view>
+    <view class="step-list">
+      <view class="step" wx:for="{{service.steps}}" wx:key="*this">
+        <view class="step-no">{{index + 1}}</view>
+        <text class="step-text">{{item}}</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 温馨提示 -->
+  <view class="card" wx:if="{{service.tips.length}}">
+    <view class="sec-title">温馨提示</view>
+    <view class="tip-list">
+      <view class="tip" wx:for="{{service.tips}}" wx:key="*this">
+        <text class="tip-icon">!</text>
+        <text class="tip-text">{{item}}</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 相关说明（原「常见问题」）：条目多为解释性说明而非提问，标题按内容口径改 -->
+  <view class="card" wx:if="{{service.faqs.length}}">
+    <view class="sec-title">相关说明</view>
+    <view class="faq-list">
+      <view class="faq-item" wx:for="{{service.faqs}}" wx:key="q">
+        <view class="faq-q" data-index="{{index}}" bindtap="onToggleFaq">
+          <text class="faq-q-text">{{item.q}}</text>
+          <text class="faq-arrow {{item.expanded ? 'expanded' : ''}}">⌄</text>
+        </view>
+        <view class="faq-a {{item.expanded ? 'show' : ''}}">
+          <text class="faq-a-text">{{item.a}}</text>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 相关入口：跳转站内已有页面，避免重复造页面 -->
+  <view class="card card--tight" wx:if="{{service.links.length}}">
+    <view class="link-row spring-btn" wx:for="{{service.links}}" wx:key="label" data-url="{{item.url}}" hover-stay-time="80" hover-class="link-row--hover press-spring" bindtap="onLinkTap">
+      <text class="link-text">{{item.label}}</text>
+      <text class="link-arrow">›</text>
+    </view>
+  </view>
+  </block>
+
+  <!-- 底部咨询 -->
+  <view class="foot-card">
+    <text class="foot-title">没找到你要的信息？</text>
+    <text class="foot-sub">可以联系我们补充，信息有误也欢迎反馈。</text>
+    <contact-admin>
+      <view slot="trigger" class="foot-btn">联系管理员</view>
+    </contact-admin>
+    <text class="foot-note">本页信息由平台整理，具体以学校各单位的公示与通知为准</text>
+  </view>
+</view>

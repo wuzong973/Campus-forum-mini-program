@@ -1,0 +1,93 @@
+<view class="page">
+  <!-- 状态卡：依据图中教学周自动定位 -->
+  <view class="status-card status-{{themeKey}}">
+    <view class="status-top">
+      <text class="status-month">{{monthDay}}</text>
+      <text class="status-weekday">星期{{weekDayName}}</text>
+    </view>
+    <text class="status-label">{{phaseLabel}}</text>
+    <text class="status-sub">{{phaseSub}}</text>
+
+    <!-- 学期进度条 -->
+    <block wx:if="{{phase === 'semester'}}">
+      <view class="progress-track">
+        <view class="progress-fill" style="width: {{weekProgress}}%"></view>
+      </view>
+      <view class="progress-meta">
+        <text class="progress-text">第 {{weekNo}} / {{totalWeeks}} 周</text>
+        <text class="progress-tag" wx:if="{{isExamWeek}}">复习考试周</text>
+        <text class="progress-tag rest" wx:elif="{{isWeekend}}">周末</text>
+        <text class="progress-tag normal" wx:else>上课日</text>
+      </view>
+    </block>
+
+    <text class="status-note" wx:if="{{phase === 'unknown'}}">
+      校历已过期，请以教务处最新发布为准
+    </text>
+  </view>
+
+  <!-- 两学期概览 -->
+  <view class="card">
+    <text class="card-title">学期安排</text>
+    <view class="sem-item {{item.active ? 'sem-active' : ''}}" wx:for="{{semesterCards}}" wx:key="key">
+      <view class="sem-head">
+        <view class="sem-name-box">
+          <text class="sem-name">{{item.name}}</text>
+          <text class="sem-badge {{item.status === '进行中' ? 'on' : ''}}">{{item.status}}</text>
+        </view>
+        <text class="sem-note">{{item.note}}</text>
+      </view>
+      <text class="sem-range">{{item.range}}</text>
+      <view class="sem-track">
+        <view class="sem-fill" style="width: {{item.progress}}%"></view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 校历原图 -->
+  <view class="card">
+    <view class="card-head">
+      <text class="card-title">校历原图</text>
+      <text class="card-action" bindtap="onPreview">全屏查看</text>
+    </view>
+    <view class="image-box" bindtap="onPreview">
+      <image
+        class="calendar-image"
+        src="{{thumbImage}}"
+        mode="widthFix"
+        lazy-load
+        show-menu-by-longpress
+      ></image>
+      <view class="image-mask">
+        <text class="image-mask-text">点击查看大图 · 支持双指缩放</text>
+      </view>
+    </view>
+    <text class="card-tip">长按图片可直接保存或转发给同学</text>
+  </view>
+
+  <!-- 关键日期 -->
+  <view class="card">
+    <text class="card-title">重要日期</text>
+    <view class="date-list">
+      <view class="date-item {{item.state}} anim-stagger" style="--i: {{index < 6 ? index : 0}};" wx:for="{{keyDates}}" wx:key="date">
+        <view class="date-left">
+          <text class="date-md">{{item.monthDay}}</text>
+          <text class="date-type">{{item.type}}</text>
+        </view>
+        <view class="date-right">
+          <text class="date-title">{{item.title}}</text>
+        </view>
+        <text class="date-flag" wx:if="{{item.state === 'today'}}">今天</text>
+        <text class="date-flag soon" wx:elif="{{item.state === 'soon'}}">临近</text>
+      </view>
+    </view>
+  </view>
+
+  <view class="tips">
+    <text class="tips-title">说明</text>
+    <text class="tips-text">1. 校历数据来自学校教务处发布的「2026-2027 学年校历」原图。</text>
+    <text class="tips-text">2. 上方周次由图中教学周起止日期自动推算，仅供日常参考。</text>
+    <text class="tips-text">3. 法定节假日调课安排以教务处临时通知为准。</text>
+    <text class="tips-text">4. 寒暑假与注册、军训、校运会等节点见「重要日期」。</text>
+  </view>
+</view>

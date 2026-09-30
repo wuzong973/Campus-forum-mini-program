@@ -7,8 +7,9 @@
         <text class="hero-banner-text">{{banner.text}}</text>
       </view>
       <view class="offline-tip" wx:if="{{isAdmin && banner.text && !banner.status}}">横幅已下线，普通用户不可见；可点击下方编辑重新发布</view>
+      <view class="offline-tip" wx:elif="{{isCard && isAdmin && banner.detailTitle && !banner.status}}">页面已下线，普通用户不可见；可点击下方编辑重新发布</view>
 
-      <block wx:if="{{banner.text}}">
+      <block wx:if="{{banner.text || (isCard && banner.detailTitle)}}">
         <view class="hero-title" wx:if="{{banner.detailTitle}}">{{banner.detailTitle}}</view>
         <view class="hero-content" wx:if="{{paragraphs.length}}">
           <text class="hero-para" wx:for="{{paragraphs}}" wx:key="index">{{item}}</text>
@@ -34,7 +35,7 @@
         <view class="hero-empty" wx:if="{{!paragraphs.length && !banner.images.length && !banner.link}}">管理员还没有发布详细内容，敬请期待</view>
       </block>
 
-      <view class="hero-empty" wx:if="{{loaded && !banner.text}}">暂无公告内容</view>
+      <view class="hero-empty" wx:if="{{loaded && !banner.text && !(isCard && banner.detailTitle)}}">{{isCard ? pageLabel + '还没有内容，点击下方编辑' : '暂无公告内容'}}</view>
       <view class="hero-empty" wx:if="{{!loaded}}">加载中...</view>
     </view>
 
@@ -44,8 +45,9 @@
   <!-- ===== 管理员编辑态 ===== -->
   <block wx:if="{{editing}}">
     <view class="form card">
-      <view class="form-title">编辑横幅与详情</view>
+      <view class="form-title">{{isCard ? '编辑' + pageLabel : '编辑横幅与详情'}}</view>
 
+      <block wx:if="{{!isCard}}">
       <view class="form-item">
         <view class="form-label">横幅文字 <text class="form-req">*</text>（展示在「我的-消息通知」卡片顶部）</view>
         <input class="form-input" value="{{form.text}}" maxlength="60" placeholder="例如：驾校报名咨询" data-field="text" bindinput="onFieldInput" />
@@ -81,15 +83,16 @@
           <text class="banner-preview-text">{{form.text || '横幅文字预览效果'}}</text>
         </view>
       </view>
+      </block>
 
       <view class="form-item">
-        <view class="form-label">详情标题（可选）</view>
-        <input class="form-input" value="{{form.detailTitle}}" maxlength="60" placeholder="详情页大标题" data-field="detailTitle" bindinput="onFieldInput" />
+        <view class="form-label">{{isCard ? '页面标题' : '详情标题'}} <text class="form-req" wx:if="{{isCard}}">*</text><text wx:else>（可选）</text></view>
+        <input class="form-input" value="{{form.detailTitle}}" maxlength="60" placeholder="{{isCard ? pageLabel + '大标题' : '详情页大标题'}}" data-field="detailTitle" bindinput="onFieldInput" />
       </view>
 
       <view class="form-item">
-        <view class="form-label">详情内容（换行分段）</view>
-        <textarea class="form-textarea" value="{{form.detailContent}}" maxlength="5000" placeholder="向用户解释横幅内容的详细文字..." data-field="detailContent" bindinput="onFieldInput" auto-height></textarea>
+        <view class="form-label">{{isCard ? '正文内容' : '详情内容'}}（换行分段）</view>
+        <textarea class="form-textarea" value="{{form.detailContent}}" maxlength="5000" placeholder="{{isCard ? '填写' + pageLabel + '的详细说明，换行分段...' : '向用户解释横幅内容的详细文字...'}}" data-field="detailContent" bindinput="onFieldInput" auto-height></textarea>
       </view>
 
       <view class="form-item">
@@ -106,6 +109,7 @@
         </view>
       </view>
 
+      <block wx:if="{{!isCard}}">
       <view class="form-item">
         <view class="form-label">跳转链接（可选；内部页面填 /pages/... 路径，外部链接将提供复制）</view>
         <input class="form-input" value="{{form.link}}" placeholder="https:// 或 /pages/xxx/index" data-field="link" bindinput="onFieldInput" />
@@ -115,9 +119,10 @@
         <view class="form-label">链接文字（可选）</view>
         <input class="form-input" value="{{form.linkText}}" maxlength="30" placeholder="例如：报名入口" data-field="linkText" bindinput="onFieldInput" />
       </view>
+      </block>
 
       <view class="form-item form-switch-row">
-        <view class="form-label">发布横幅（关闭即对用户下线）</view>
+        <view class="form-label">{{isCard ? '发布状态（关闭即对用户下线）' : '发布横幅（关闭即对用户下线）'}}</view>
         <switch checked="{{form.status}}" color="#3d7bfa" bindchange="onStatusChange" />
       </view>
 

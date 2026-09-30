@@ -1,4 +1,6 @@
 {
   "navigationStyle": "custom",
-  "usingComponents": {}
+  "usingComponents": {
+    "contact-admin": "/components/contact-admin/contact-admin"
+  }
 }

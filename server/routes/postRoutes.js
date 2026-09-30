@@ -10,6 +10,8 @@ router.get('/hot', optionalAuth, postController.hot)
 router.get('/hot-rank', optionalAuth, postController.hotRank)
 router.get('/hidden', auth, postController.hiddenList)
 router.delete('/hidden/:postId', auth, postController.unhide)
+// 蹲贴列表必须注册在 '/:id' 之前，否则 '/post/follow' 会被当成帖子 id 命中详情路由
+router.get('/follow/list', auth, postController.followedList)
 router.get('/:id', optionalAuth, postController.detail)
 router.post('/', auth, contentSecurity, postController.create)
 router.post('/:id/vote', auth, postController.vote)
@@ -18,5 +20,6 @@ router.post('/:id/not-interested', auth, postController.hideAsNotInterested)
 router.post('/:id/review-note', auth, requireAdmin('content.manage'), postController.updateReviewNote)
 router.post('/:id/like', auth, postController.like)
 router.post('/:id/favorite', auth, postController.favorite)
+router.post('/:id/follow', auth, postController.follow)
 
 module.exports = router

@@ -1,4 +1,5 @@
 const api = require('../../utils/api')
+const auth = require('../../utils/auth')
 const { runPullDownRefresh } = require('../../utils/refresh')
 
 // 帖子详情预览文案：标题优先，无标题时截取正文
@@ -21,6 +22,8 @@ Page({
   },
 
   onShow() {
+    // 未登录：弹窗引导去登录（取消则退回上一页）
+    if (!auth.guardPage('查看黑名单需要先登录')) return
     this.loadList()
   },
 

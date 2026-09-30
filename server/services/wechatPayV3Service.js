@@ -204,4 +204,86 @@ function queryTransferBill(outBillNo) {
   return request('GET', `/v3/fund-app/mch-transfer/transfer-bills/out-bill-no/${encodeURIComponent(outBillNo)}`)
 }
 
-module.exports = { createJsapiPayment, verifyCallback, decryptResource, queryTransaction, createRefund, queryRefund, createTransferBatch, createTransferBill, queryTransferBill, authorization, isConfigured }
+// 把微信支付返回的原始错误翻译成管理员能直接照做的中文提示。
+// 商家转账失败绝大多数是「商户侧资金/权限配置」问题，而不是程序 bug：
+// 只把 "HTTP 403 NOT_ENOUGH" 透给后台，管理员根本无法判断该做什么，
+// 所以这里必须给出 code（给前端分支用）、message（一句话结论）、hint（具体怎么做）。
+function describeTransferError(error) {
+  const wxCode = String((error && error.wxCode) || '')
+  const wxMessage = String((error && error.wxMessage) || '')
+  const wxStatus = Number((error && error.wxStatus) || 0)
+  const raw = String((error && error.message) || '')
+  const has = (...keywords) => keywords.some((word) => wxMessage.includes(word) || raw.includes(word))
+  const pick = (code, message, hint) => ({ code, message, hint })
+
+  // 1) 运营账户余额不足 —— 最常见的失败原因。
+  //    微信「商家转账」只能从【运营账户】出款，用户付款/收款结算进入的是【基本账户】。
+  //    关键：两个账户资金不通用，且自 2022 年底微信已取消「基本账户 → 运营账户」的划转，
+  //    运营账户只能用银行卡充值（专款专用）。这里必须写清楚，否则管理员会以为
+  //    "账上有钱就能提"，反复重试却一直失败。
+  if (wxCode === 'NOT_ENOUGH' || has('运营账户', '资金不足')) {
+    return pick(
+      'WITHDRAW_CHANNEL_NOT_ENOUGH',
+      '微信商户【运营账户】余额不足，转账被微信拒绝',
+      '微信「商家转账」只能从【运营账户】出款；用户付款结算进入的是【基本账户】，两者资金不通用，'
+      + '也不能互转（微信已取消基本账户向运营账户的划转）。请用银行卡向运营账户充值：'
+      + '商户平台 → 交易中心 → 充值/转入 → 入款账户选「运营账户」→ 扫码充值或网银充值'
+      + '（也可在 产品中心 → 资金解决方案 开通「转账充值」后用银行转账充值）。'
+      + '充值到账后回到本页点「重试打款」；微信要求保持原商户单号，请勿新建提现申请。'
+    )
+  }
+  // 2) 产品未开通 / 无调用权限
+  if (wxCode === 'NO_AUTH' || wxStatus === 401) {
+    return pick(
+      'WITHDRAW_CHANNEL_NO_AUTH',
+      '商户号未开通「商家转账」产品或接口无调用权限',
+      '请登录微信支付商户平台 → 产品中心 开通「商家转账」；若已开通，请确认 API 证书序列号、'
+      + '商户号（mchid）与当前商户一致，并检查「账户中心 → API 安全」中的调用 IP 白名单是否包含本服务器出口 IP。'
+    )
+  }
+  if (wxStatus === 403) {
+    return pick(
+      'WITHDRAW_CHANNEL_FORBIDDEN',
+      '微信拒绝了本次转账请求（无权限或参数不合法）',
+      '请依次检查：① 商户平台「账户中心 → API 安全」的 IP 白名单是否包含服务器出口 IP；'
+      + '② 转账场景 ID（transfer_scene_id）是否已在商户平台开通并报备；'
+      + '③ API 证书序列号与私钥是否为同一套。原始返回：' + (wxCode || wxStatus) + ' ' + wxMessage
+    )
+  }
+  // 3) 用户侧 openid 问题 —— 必须排在「场景/参数」通用分支之前：
+  //    openid 不匹配时微信也返回 PARAM_ERROR，先判场景会把用户问题误报成商户配置问题
+  if (has('openid', 'OPENID') || wxCode === 'OPENID_ERROR') {
+    return pick(
+      'WITHDRAW_USER_OPENID_INVALID',
+      '用户微信身份（openid）与当前商户号不匹配',
+      '该用户的 openid 可能是旧商户号/旧小程序下发的。请让用户重新进入小程序登录一次刷新 openid 后再发起提现。'
+    )
+  }
+  // 4) 转账场景未开通 / 报备信息不符（createTransferBill 会先换场景重试，走到这里说明都失败了）
+  if (has('场景', '报备') || wxCode === 'INVALID_REQUEST') {
+    return pick(
+      'WITHDRAW_CHANNEL_SCENE',
+      '转账场景未开通或场景报备信息不符合微信要求',
+      '请到微信支付商户平台 → 产品中心 → 商家转账 → 转账场景，开通「佣金报酬」等对应场景，'
+      + '并按微信要求填写报备信息；也可通过环境变量 WX_TRANSFER_SCENE_ID 与 '
+      + 'WX_TRANSFER_SCENE_REPORT_INFOS 指定场景与报备内容后重启服务。原始返回：' + (wxCode || '') + ' ' + wxMessage
+    )
+  }
+  // 5) 频控与微信侧故障
+  if (wxCode === 'FREQUENCY_LIMITED' || has('频率', '限流')) {
+    return pick('WITHDRAW_CHANNEL_RATE_LIMIT', '触发微信转账频率限制', '请等待几分钟后点击「重试打款」再试，不要连续快速重试。')
+  }
+  if (wxCode === 'SYSTEM_ERROR' || (wxStatus >= 500 && wxStatus < 600)) {
+    return pick('WITHDRAW_CHANNEL_SYSTEM_ERROR', '微信支付系统繁忙，转账未受理', '这属于微信侧临时故障，稍后点击「重试打款」即可（原单号重试安全）。')
+  }
+  if (wxCode === 'NOT_FOUND') {
+    return pick('WITHDRAW_CHANNEL_NOT_FOUND', '微信侧查不到该转账单', '请确认商户号是否切换过；如为首次发起，可直接点击「重试打款」。')
+  }
+  return pick(
+    'WITHDRAW_CHANNEL_ERROR',
+    '微信转账失败：' + (wxCode || wxStatus || '未知错误'),
+    (wxMessage || raw || '未返回具体原因') + '　可稍后点击「重试打款」；若持续失败，请携带本条原始信息联系微信支付客服。'
+  )
+}
+
+module.exports = { createJsapiPayment, verifyCallback, decryptResource, queryTransaction, createRefund, queryRefund, createTransferBatch, createTransferBill, queryTransferBill, describeTransferError, authorization, isConfigured }

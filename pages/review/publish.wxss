@@ -1,0 +1,168 @@
+.page {
+  min-height: 100vh;
+  background: #f7f7f7;
+}
+
+.content {
+  padding: 24rpx 24rpx 80rpx;
+}
+
+.form-card {
+  background: #ffffff;
+  border-radius: 24rpx;
+  padding: 36rpx 32rpx;
+  box-shadow: 0 8rpx 24rpx rgba(28, 43, 86, 0.05);
+}
+
+.form-label {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #1f2329;
+  margin-bottom: 20rpx;
+}
+
+.required {
+  color: #e34d4d;
+  margin-left: 4rpx;
+}
+
+/* 头像上传 */
+.avatar-box {
+  margin-bottom: 40rpx;
+}
+
+.avatar-upload {
+  width: 200rpx;
+  height: 200rpx;
+  border-radius: 20rpx;
+  background: #f4f6fa;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8rpx;
+  transition: opacity 0.16s ease, transform 0.35s cubic-bezier(0.34, 1.42, 0.6, 1), box-shadow 0.35s cubic-bezier(0.34, 1.42, 0.6, 1);
+}
+
+.avatar-upload--hover {
+  opacity: 0.75;
+ transform: scale(0.96); box-shadow: inset 0 2rpx 6rpx rgba(16, 32, 64, 0.16), inset 0 -1rpx 2rpx rgba(255, 255, 255, 0.08); }
+
+.avatar-plus {
+  font-size: 56rpx;
+  color: #969799;
+  line-height: 1;
+}
+
+.avatar-upload-text {
+  font-size: 22rpx;
+  color: #969799;
+}
+
+.avatar-preview {
+  position: relative;
+  width: 200rpx;
+}
+
+.avatar-img {
+  width: 200rpx;
+  height: 200rpx;
+  border-radius: 20rpx;
+}
+
+.avatar-remove {
+  position: absolute;
+  top: -14rpx;
+  right: -14rpx;
+  width: 44rpx;
+  height: 44rpx;
+  border-radius: 50%;
+  background: rgba(31, 35, 41, 0.8);
+  color: #ffffff;
+  font-size: 30rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* 名称 */
+.name-input-wrap {
+  display: flex;
+  align-items: center;
+  background: #f4f6fa;
+  border-radius: 16rpx;
+  padding: 24rpx 28rpx;
+  margin-bottom: 40rpx;
+}
+
+.name-input {
+  flex: 1;
+  font-size: 28rpx;
+  color: #1f2329;
+}
+
+.name-placeholder {
+  color: #c8c9cc;
+}
+
+.name-count {
+  flex-shrink: 0;
+  margin-left: 16rpx;
+  font-size: 24rpx;
+  color: #969799;
+}
+
+/* 所属分类 */
+.chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18rpx;
+}
+
+/* 主校区 chip（广州/佛山直选，无分校区行） */
+.chip--main {
+  border: 1rpx solid #e0e3e8;
+  background: #ffffff;
+  font-weight: 600;
+}
+
+.chip {
+  padding: 14rpx 30rpx;
+  border-radius: 14rpx;
+  background: #f4f6fa;
+  font-size: 26rpx;
+  color: #646566;
+  transition: all 0.16s ease;
+}
+
+.chip--active {
+  background: #e8f3ff;
+  color: #315cff;
+  font-weight: 600;
+}
+
+.chip--fixed {
+  background: #e8f3ff;
+  color: #315cff;
+}
+
+/* 发布按钮 */
+.submit-btn {
+  margin-top: 48rpx;
+  text-align: center;
+  padding: 26rpx 0;
+  border-radius: 999rpx;
+  background: #e5e6eb;
+  color: #ffffff;
+  font-size: 30rpx;
+  font-weight: 600;
+  transition: all 0.16s ease, transform 0.35s cubic-bezier(0.34, 1.42, 0.6, 1), box-shadow 0.35s cubic-bezier(0.34, 1.42, 0.6, 1);
+}
+
+.submit-btn--on {
+  background: #1f2329;
+}
+
+.submit-btn--hover {
+  transform: scale(0.96);
+ box-shadow: inset 0 2rpx 6rpx rgba(16, 32, 64, 0.16), inset 0 -1rpx 2rpx rgba(255, 255, 255, 0.08); }

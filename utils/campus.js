@@ -24,11 +24,12 @@ function getProfileCampus() {
   }
 }
 
-// 页面默认校区：优先取设置中选择的校区（主校区），未设置时默认广州校区
+// 页面默认校区：优先取设置中选择的校区并解析为父校区（主校区），未设置时默认广州校区
 function getDefaultCampus() {
   const campus = getProfileCampus()
-  const main = CAMPUS_GROUPS.find((group) => group.name === campus)
-  return main ? main.name : CAMPUS_GROUPS[0].name
+  // 兼容分校区取值（如「南海南校区」）：先解析出所属父校区（主校区）
+  const group = CAMPUS_GROUPS.find((item) => item.name === campus || item.subs.indexOf(campus) >= 0)
+  return group ? group.name : CAMPUS_GROUPS[0].name
 }
 
 // 指定校区是否为合法取值（主校区或分校区）

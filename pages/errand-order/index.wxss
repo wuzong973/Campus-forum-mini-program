@@ -138,17 +138,8 @@
   font-weight: 600;
 }
 
-.top-tab.active::after {
-  content: "";
-  position: absolute;
-  bottom: 0;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 48rpx;
-  height: 4rpx;
-  background: var(--primary);
-  border-radius: 2rpx;
-}
+/* 原每标签的 .top-tab.active::after 静态下划线已移除：
+   指示条换成 .liquid-indicator 滑动液态条（utils/liquid-tab.js），避免双重下划线 */
 
 .tab-badge {
   min-width: 32rpx;
@@ -330,6 +321,8 @@
 .status-pill.unpaid { color: #e64340; }
 .status-pill.cancelled { color: #9aa3b2; }
 .status-pill.refunding { color: #faad14; }
+.status-pill.finishing { color: #fa8c16; }
+.status-pill.disputed { color: #f2635f; }
 
 /* 卡片内容：期望完成时间 */
 .card-body {
@@ -460,12 +453,12 @@
   padding: 8rpx 0;
   color: #fff;
   border-radius: 28rpx;
-  transition: opacity 0.2s ease;
+  transition: opacity 0.2s ease, transform 0.35s cubic-bezier(0.34, 1.42, 0.6, 1), box-shadow 0.35s cubic-bezier(0.34, 1.42, 0.6, 1);
 }
 
 .float-item-hover {
   opacity: 0.65;
-}
+ transform: scale(0.96); box-shadow: inset 0 2rpx 6rpx rgba(16, 32, 64, 0.16), inset 0 -1rpx 2rpx rgba(255, 255, 255, 0.08); }
 
 .float-icon {
   font-size: 32rpx;

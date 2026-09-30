@@ -13,9 +13,15 @@
     "pages/errand-cancel/index",
     "pages/rider-verify/index",
     "pages/repair/index",
+    "pages/driving-school/index",
+    "pages/driving-school/detail",
+    "pages/driving-school/guide",
+    "pages/campus-service/index",
     "pages/campus-map/index",
     "pages/club/index",
     "pages/club/detail",
+    "pages/club/club-detail",
+    "pages/club/apply",
     "pages/group-chat/index",
     "pages/group-chat/apply",
     "pages/group-chat/list",
@@ -50,6 +56,10 @@
     "pages/my-messages/index",
     "pages/message-detail/index",
     "pages/banner-detail/index",
+    "pages/review/index",
+    "pages/review/list",
+    "pages/review/target",
+    "pages/review/publish",
     "pages/wallet/index",
     "pages/webview/index"
   ],
@@ -58,10 +68,12 @@
       "root": "pkg-admin",
       "pages": ["admin/index"]
     },
-    {
-      "root": "pkg-schedule",
-      "pages": [
-        "schedule-exam/index",
+  {
+    "root": "pkg-schedule",
+    "pages": [
+      "schedule-home/index",
+      "schedule-calendar/index",
+      "schedule-exam/index",
         "schedule-grade/index",
         "schedule-ocr/index",
         "schedule-login/index",
@@ -103,10 +115,6 @@
     "pages/schedule/index": {
       "network": "all",
       "packages": ["pkg-schedule"]
-    },
-    "pages/user/index": {
-      "network": "wifi",
-      "packages": ["pkg-admin"]
     }
   }
 }

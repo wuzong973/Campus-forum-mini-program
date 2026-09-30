@@ -1,12 +1,12 @@
 <view class="page">
   <view class="nav" style="padding-top: {{statusBarHeight}}px; height: {{statusBarHeight + navBarHeight}}px;">
-    <view class="nav-content" style="height: {{navBarHeight}}px;"><view class="back-pill" hover-class="back-pill-hover" hover-stay-time="80" bindtap="goBack"><text class="back-pill-icon">‹</text><text>返回</text></view><text class="nav-title">意见(必回)</text><view class="nav-placeholder"></view></view>
+    <view class="nav-content" style="height: {{navBarHeight}}px;"><view class="back-pill spring-btn" hover-class="back-pill-hover press-spring" hover-stay-time="80" bindtap="goBack"><text class="back-pill-icon">‹</text><text>返回</text></view><text class="nav-title">意见(必回)</text><view class="nav-placeholder"></view></view>
   </view>
   <view style="height: {{statusBarHeight + navBarHeight}}px;"></view>
 
   <scroll-view class="feedback-list" scroll-y scroll-top="{{scrollTop}}" style="height: calc(100vh - {{statusBarHeight + navBarHeight}}px);" bindscroll="onScroll" bindscrolltolower="onReachBottom">
     <view class="public-tip">所有意见都会公开展示，管理员会逐条处理和回复。</view>
-    <view class="feedback-card" wx:for="{{feedbacks}}" wx:for-item="feedback" wx:key="id" data-id="{{feedback.id}}" bindtap="onFeedbackTap">
+    <view class="feedback-card anim-stagger" style="--i: {{index < 6 ? index : 0}};" wx:for="{{feedbacks}}" wx:for-item="feedback" wx:key="id" data-id="{{feedback.id}}" bindtap="onFeedbackTap">
       <view class="feedback-author"><image class="avatar" src="{{feedback.avatarUrl}}" mode="aspectFill"></image><view class="author-meta"><view><text class="author-name">{{feedback.nickName}}</text><text class="type-tag">{{feedback.type}}</text></view><text class="feedback-time">{{feedback.timeText}}</text></view><text class="status-tag {{feedback.status}}">{{feedback.statusText}}</text><view class="card-more" wx:if="{{feedback.canManage}}" catchtap="onCardMore" data-id="{{feedback.id}}"><image class="card-more-icon" src="/assets/icons/more.png" mode="aspectFit"></image></view></view>
       <text class="feedback-content">{{feedback.content}}</text>
       <view class="feedback-images" wx:if="{{feedback.images.length}}"><image wx:for="{{feedback.images}}" wx:for-item="image" wx:key="*this" class="feedback-image" src="{{image}}" mode="aspectFill" data-id="{{feedback.id}}" data-url="{{image}}" data-urls="{{feedback.images}}" catchtap="onPreviewImage" bindlongpress="onImageQrScan"></image></view>
@@ -26,11 +26,11 @@
       </view>
       <view class="comment-editor" wx:if="{{commentEditorId === feedback.id}}" catchtap="noop">
         <view class="comment-editor-head"><text class="comment-editor-target" wx:if="{{commentTargetNick}}">回复 @{{commentTargetNick}}</text><text class="comment-editor-cancel" catchtap="closeCommentEditor">收起</text></view>
-        <view class="comment-editor-row"><input class="comment-input" value="{{commentDraft}}" focus placeholder="{{commentTargetNick ? '回复 @' + commentTargetNick + '：' : '公开发表评论，所有人可见'}}" maxlength="500" confirm-type="send" cursor-spacing="20" bindinput="onCommentInput" bindconfirm="submitComment"></input><button class="comment-send" loading="{{commentSubmitting}}" disabled="{{commentSubmitting}}" catchtap="submitComment">发送</button></view>
+        <view class="comment-editor-row"><input class="comment-input" value="{{commentDraft}}" focus placeholder="{{commentTargetNick ? '回复 @' + commentTargetNick + '：' : '公开发表评论，所有人可见'}}" maxlength="500" confirm-type="send" cursor-spacing="20" bindinput="onCommentInput" bindconfirm="submitComment"></input><button hover-class="press-spring" class="comment-send spring-btn" loading="{{commentSubmitting}}" disabled="{{commentSubmitting}}" catchtap="submitComment" hover-stay-time="120">发送</button></view>
       </view>
       <view class="reply-editor" wx:if="{{isAdmin && expandedId === feedback.id && (!feedback.reply || editingReplyId === feedback.id)}}" catchtap="noop">
         <textarea class="reply-input" value="{{replyDraft}}" maxlength="500" placeholder="{{editingReplyId === feedback.id ? '编辑回复内容（公开可见）' : '以管理员身份回复（公开可见）'}}" bindinput="onReplyInput"></textarea>
-        <view class="reply-editor-actions"><button class="reply-cancel" catchtap="cancelReply">取消</button><button class="reply-submit" loading="{{replySubmitting}}" disabled="{{replySubmitting}}" catchtap="submitReply">{{editingReplyId === feedback.id ? '保存修改' : '发布回复'}}</button></view>
+        <view class="reply-editor-actions"><button hover-class="press-spring" class="reply-cancel spring-btn" catchtap="cancelReply" hover-stay-time="120">取消</button><button hover-class="press-spring" class="reply-submit spring-btn" loading="{{replySubmitting}}" disabled="{{replySubmitting}}" catchtap="submitReply" hover-stay-time="120">{{editingReplyId === feedback.id ? '保存修改' : '发布回复'}}</button></view>
       </view>
     </view>
     <view class="empty" wx:if="{{!loading && !feedbacks.length}}">还没有意见，来写第一条吧</view>
@@ -47,6 +47,6 @@
     <view class="form-block"><text class="form-label">意见内容</text><textarea value="{{feedbackContent}}" maxlength="500" placeholder="请描述你的建议或遇到的问题，公开发布后所有用户可见" bindinput="onContentInput"></textarea><text class="char-count">{{feedbackContent.length}}/500</text></view>
     <view class="form-block"><text class="form-label">图片说明</text><view class="upload-list"><view class="upload-item" wx:for="{{images}}" wx:key="*this"><image src="{{item}}" mode="aspectFill"></image><text class="remove-image" data-index="{{index}}" bindtap="onRemoveImage">×</text></view><view class="upload-add" wx:if="{{images.length < 4}}" bindtap="onChooseImage">＋</view></view></view>
     <view class="form-block" wx:if="{{!editingId}}"><text class="form-label">联系方式（仅管理员可见，选填）</text><input placeholder="手机号或邮箱" value="{{contact}}" bindinput="onContactInput"></input></view>
-    <button class="submit-button" loading="{{submitting}}" bindtap="submitFeedback">{{editingId ? '保存修改' : '公开发布'}}</button>
+    <button hover-class="press-spring" class="submit-button spring-btn" loading="{{submitting}}" bindtap="submitFeedback" hover-stay-time="120">{{editingId ? '保存修改' : '公开发布'}}</button>
   </view>
 </view>

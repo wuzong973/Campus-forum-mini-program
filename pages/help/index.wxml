@@ -20,7 +20,7 @@
 
   <!-- 问题列表 -->
   <view class="faq-list">
-    <view class="faq-item" wx:for="{{filteredFaqs}}" wx:key="id">
+    <view class="faq-item anim-stagger" style="--i: {{index < 8 ? index : 0}};" wx:for="{{filteredFaqs}}" wx:key="id">
       <view class="faq-question" bindtap="onToggleFaq" data-id="{{item.id}}">
         <text class="faq-question-text">{{item.question}}</text>
         <text class="faq-arrow {{item.expanded ? 'expanded' : ''}}"></text>

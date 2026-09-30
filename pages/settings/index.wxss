@@ -10,5 +10,17 @@
 .setting-row { display: flex; min-height: 98rpx; align-items: center; justify-content: space-between; padding: 0 30rpx; border-bottom: 1rpx solid #eeeeee; }
 .setting-row:last-child { border-bottom: 0; }
 .setting-left { display: flex; min-width: 0; align-items: center; color: #343434; font-size: 29rpx; }
+/* 开关状态与实际生效不一致时的说明行，只在「显示」组里出现 */
+.setting-hint { padding: 4rpx 24rpx 20rpx; color: #98a4b2; font-size: 23rpx; line-height: 1.5; }
 .setting-icon { width: 42rpx; height: 42rpx; margin-right: 18rpx; }
 .setting-row switch { flex-shrink: 0; transform: scale(.9); transform-origin: right center; }
+
+/* ===== 通知渠道：主开关 + 展开子开关 ===== */
+.channel-row { border-bottom: 1rpx solid #eeeeee; }
+.channel-right { display: flex; flex-shrink: 0; align-items: center; }
+.channel-arrow { width: 56rpx; height: 56rpx; margin-left: 6rpx; color: #b9b9b9; font-size: 40rpx; line-height: 52rpx; text-align: center; transition: transform .2s ease; transform: rotate(0deg); }
+.channel-arrow.open { transform: rotate(90deg); }
+.channel-subs { padding: 4rpx 30rpx 22rpx 90rpx; background: #ffffff; }
+.channel-sub-row { display: flex; min-height: 84rpx; align-items: center; justify-content: space-between; padding: 0 24rpx; margin-top: 14rpx; border-radius: 12rpx; background: #f7f8fa; }
+.channel-sub-name { color: #555555; font-size: 27rpx; }
+.channel-sub-row switch { flex-shrink: 0; transform: scale(.85); transform-origin: right center; }

@@ -3,8 +3,29 @@ const bannerUtil = require('../../utils/banner')
 const request = require('../../utils/request')
 const format = require('../../utils/format')
 const hotRank = require('../../utils/hot-rank')
+// 卡片动效降级开关（低端机 / 用户在设置里关闭）：命中时挂 .fx-off
+const motion = require('../../utils/motion')
 const wechat = require('../../utils/wechat')
+const messageStore = require('../../utils/messageStore')
+const campusServices = require('../../utils/campus-services')
+const versionUpdate = require('../../utils/version-update')
 const { runPullDownRefresh } = require('../../utils/refresh')
+const subscribe = require('../../utils/subscribe')
+const scheduleUtils = require('../../utils/schedule')
+const avatarUtil = require('../../utils/avatar')
+
+// 评论媒体按扩展名区分图片/视频（与 pages/post-detail 同一口径）
+const COMMENT_VIDEO_RE = /\.(mp4|m4v|mov|3gp|mkv|flv|avi|wmv|webm)(\?|#|$)/i
+function isVideoUrl(url) {
+  return COMMENT_VIDEO_RE.test(String(url || ''))
+}
+
+// 首页宫格里的校园服务（校车时刻 / 轻友指南 / 校园卡 / 速印 / 返乡大巴 / 特惠寄件）
+// 统一进入通用服务详情页。名字 → id 的映射直接由数据源生成，避免两处手写不同步。
+const CAMPUS_SERVICE_IDS = campusServices.SERVICES.reduce((map, item) => {
+  map[item.name] = item.id
+  return map
+}, {})
 
 const POSTS_CACHE_KEY = 'home_posts_cache'
 const PENDING_POST_KEY = 'home_pending_post'
@@ -12,8 +33,13 @@ const POST_VIEW_SYNC_KEY = 'post_view_sync'
 const POST_STATE_SYNC_KEY = 'post_state_sync'
 // 其他页面（如全部服务页）要求首页切到指定分类时，通过该存储标记传递
 const PENDING_CATEGORY_KEY = 'home_pending_category'
-// 教务系统固定入口地址
-const JW_SYSTEM_URL = 'https://jw.gdipu.edu.cn/jsxsd'
+// ===== 顶部导航栏随滚动方向显隐的阈值 =====
+// 单次滚动位移超过该值才判定方向，避免像素级抖动反复触发显隐
+const NAV_DIRECTION_THRESHOLD = 6
+// scrollTop 小于该值视为“已在顶部”，导航栏必定展开
+const NAV_AT_TOP_OFFSET = 8
+// 滚动距离不足该值时（刚离开顶部的一点点位移）不收起，避免轻轻一划就收掉
+const NAV_HIDE_MIN_OFFSET = 30
 
 Page({
   data: {
@@ -23,6 +49,13 @@ Page({
     bannerCurrent: 0,
     bannerInterval: 4200,
     bannerDuration: 520,
+    // 轮播按压：-1 = 未受力；tiltStyle 同时承载倾斜、缩小与光斑位置
+    bannerPressedIndex: -1,
+    bannerTiltStyle: 'transform: perspective(720px) rotateX(0deg) rotateY(0deg) scale(1); --spot-x: 50%; --spot-y: 50%;',
+    // 滚动期间挂到 banner-stage 上，暂停描边自转与背光呼吸，把合成让给滚动
+    bannerFxPaused: false,
+    // 动效降级：低端机或用户在「设置 → 显示 → 卡片动效」关闭时为 true，挂 .fx-off
+    fxOff: false,
     notice: '如果你在使用中遇到了问题，请尽快点击联系',
     noticeLinkText: '点此查看',
     noticeLinkUrl: '',
@@ -39,6 +72,8 @@ Page({
     hotPosts: [],
     hotRankGroups: [],
     hotLoading: false,
+    // 「显示每日热榜」用户偏好：关闭时隐藏热榜预览卡、浮动按钮与「最热」分类内容
+    dailyHotVisible: true,
     posts: [],
     page: 1,
     pageSize: 10,
@@ -48,6 +83,8 @@ Page({
     scrollTop: 0,
     scrollIntoView: '',
     isAtTop: true,
+    // 顶部导航栏是否展开：向下滚动收起，向上滚动/回到顶部/刷新后必定展开
+    navVisible: true,
     showFloatBtns: false,
     // 「置顶」浮动按钮：随滚动方向显隐（初始隐藏）
     showTopBtn: false,
@@ -62,14 +99,24 @@ Page({
     scheduleWeekText: '',
     scheduleRemainText: '',
     scheduleEmpty: false,
+    // 消息未读数（私信 + 评论/点赞/蹲贴/回复/系统通知，悬浮按钮徽章实时同步）
+    unreadCount: 0,
     commentSheetVisible: false,
     commentSheetPost: null,
     commentSheetComments: [],
+    // 评论弹层标题计数：commentSheetComments 已线程化（长度=根评论数），
+    // 「评论 N」必须显示含回复的总条数，不能再用数组长度
+    commentSheetTotal: 0,
     commentSheetText: '',
     commentSheetImages: [],
     commentSheetLoading: false,
+    commentSheetHasMore: false,
     commentSheetEmojiVisible: false,
     commentSheetFocus: false,
+    // 评论面板的键盘高度。面板是 position:fixed + bottom:0，且输入框为
+    // adjust-position="{{false}}"（页面不自动上推），因此必须自己按键盘高度上移，
+    // 否则用户点输入框时键盘会盖住输入区，看不到自己在打什么。
+    commentSheetKeyboardHeight: 0,
     serviceLoading: false,
     serviceLoadFailed: false,
     commentSheetEmojis: [
@@ -77,7 +124,11 @@ Page({
       '😭', '', '👏', '🙏', '🔥',
       '❤️', '🎉', '🥹', '😊', '😴',
       '💪', '✨', '📚', '🏃', '☕'
-    ]
+    ],
+    updateDialogVisible: false,
+    updateDialogUpdating: false,
+    updateLatestVersion: '',
+    updateLocalVersion: ''
   },
 
   onLoad() {
@@ -87,10 +138,15 @@ Page({
       navBarHeight: app.globalData.navBarHeight,
       reminderEnabled: !!(app.globalData.scheduleConfig || {}).reminder
     })
+    this.maybeCheckVersionUpdate()
     this.loadStaticData()
     this.loadServices()
     // 轮播/公告配置由 onShow 统一拉取（首次进入 onShow 也会触发）
     this.loadPosts(true)
+    // 订阅未读数变化：WebSocket 新消息 / 已读同步都会触发回调，实时刷新悬浮徽章
+    this._unsubscribeUnread = messageStore.onMessage(() => {
+      this.setData({ unreadCount: messageStore.getUnreadTotal() })
+    })
   },
 
   // 管理后台「配置」维护的轮播图与公告；为空时沿用本地默认
@@ -152,12 +208,26 @@ Page({
   onShow() {
     const tabBar = this.getTabBar && this.getTabBar()
     if (tabBar) tabBar.setSelected(0)
+    this.maybeCheckVersionUpdate()
+    // 回到首页时同步一次未读数（其他页面已读后返回，徽章立即更新）
+    messageStore.syncUnreadCount()
+    this.setData({ unreadCount: messageStore.getUnreadTotal() })
+    // 回到首页时导航栏必定展开（从详情页返回、切 tab 回来都算“重新出现”）
+    if (!this.data.navVisible) this.setData({ navVisible: true })
+    // onHide 挂过暂停，这里必须唤醒：恢复原本只由滚动触发，切回来不滚动就会一直停在暂停态
+    if (this.data.bannerFxPaused) this.setData({ bannerFxPaused: false })
+    // 动效降级每次回到首页都同步：设置页刚关掉要立即生效，低端机判定结果不会变但成本极低
+    const fxOff = motion.isCardFxOff()
+    if (fxOff !== this.data.fxOff) this.setData({ fxOff })
     // 每次回到首页刷新课表提醒开关状态和课表数据
     const app = getApp()
     const reminderEnabled = !!(app.globalData.scheduleConfig || {}).reminder
     if (reminderEnabled !== this.data.reminderEnabled) {
       this.setData({ reminderEnabled })
     }
+    // 每次回到首页同步「显示每日热榜」用户偏好（设置页修改后切回立即生效）
+    const dailyHotVisible = hotRank.isDailyHotVisible()
+    if (dailyHotVisible !== this.data.dailyHotVisible) this.setData({ dailyHotVisible })
     // 重新拉取轮播/公告配置：管理员在后台改样式后，切回首页即可生效（首页 tab 常驻，onLoad 只走一次）
     this.loadHomeConfig()
     this.loadTodaySchedule()
@@ -171,6 +241,51 @@ Page({
   // 切走首页时兜底复位热榜触摸状态，防止 touchend 丢失后下拉刷新被永久禁用
   onHide() {
     this.onHotAreaTouchEnd()
+    // 页面不可见时常驻动画没有观众：挂暂停并撤掉恢复计时器，回来时由下一次滚动唤醒
+    if (this._bannerFxTimer) {
+      clearTimeout(this._bannerFxTimer)
+      this._bannerFxTimer = null
+    }
+    this.onBannerTouchEnd()
+    if (!this.data.bannerFxPaused) this.setData({ bannerFxPaused: true })
+  },
+
+  maybeCheckVersionUpdate() {
+    // 登录后回到首页时再检查一次，覆盖“启动时游客、进入首页前才登录”的情况。
+    if (this._versionCheckStarted || !versionUpdate.isLoggedIn()) return
+    this._versionCheckStarted = true
+    versionUpdate.checkForUpdate((info) => this.onVersionUpdateAvailable(info))
+  },
+
+  onVersionUpdateAvailable(info) {
+    this.setData({
+      updateDialogVisible: true,
+      updateDialogUpdating: false,
+      updateLatestVersion: info.latestVersion || 'package',
+      updateLocalVersion: info.localVersion || ''
+    })
+  },
+
+  onVersionUpdateConfirm() {
+    if (this.data.updateDialogUpdating) return
+    this.setData({ updateDialogUpdating: true })
+    versionUpdate.restart()
+  },
+
+  onVersionUpdateCancel() {
+    versionUpdate.markVersionDismissed(this.data.updateLatestVersion)
+    this.setData({ updateDialogVisible: false, updateDialogUpdating: false })
+  },
+
+  onUnload() {
+    if (this._unsubscribeUnread) {
+      this._unsubscribeUnread()
+      this._unsubscribeUnread = null
+    }
+    if (this._bannerFxTimer) {
+      clearTimeout(this._bannerFxTimer)
+      this._bannerFxTimer = null
+    }
   },
 
   consumePendingPost() {
@@ -248,10 +363,15 @@ Page({
   renderTodaySchedule(courses) {
     const app = getApp()
     const config = app.globalData.scheduleConfig || {}
-    const startDate = new Date(config.startDate || '2026-03-02')
+    // 周次与课表页共用同一套口径（utils/schedule.computeAcademicWeek）。
+    // 此前这里自己算：默认值还是**上一学期**的日期，且用 new Date(字符串) 按 UTC 解析。
+    // 未配置起始日的用户会被算成「第 29 周」，今天的课程全部筛不出来 —— 首页恒显示「今天没课」，
+    // 而课表页正常，两边对不上。起始日为周日时同样由 computeAcademicWeek 内部锚定到周一。
+    const currentWeek = scheduleUtils.computeAcademicWeek(
+      config.startDate,
+      scheduleUtils.DEFAULT_TOTAL_WEEKS,
+    ).currentWeek
     const now = new Date()
-    const diffDays = Math.floor((now - startDate) / 86400000)
-    const currentWeek = Math.max(1, Math.floor(diffDays / 7) + 1)
     const weekDay = now.getDay() === 0 ? 7 : now.getDay() // 周日=7
     const weekDayNames = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
     const weekText = '第' + currentWeek + '周 ' + weekDayNames[now.getDay()]
@@ -326,13 +446,16 @@ Page({
     })
   },
 
-  // 首页功能栏：两行、按列填充（第 1 项→第一行第 1 列，第 2 项→第二行第 1 列……）。
-  //   第一行（沿用服务端教务/生活服务）：课程表 教务系统 成绩查询 考试安排 校历
-  //           校园地图 自助购电 订水系统 校车时刻 乘车码 轻友指南 教务文档
+  // 首页功能栏：两行、按列填充（第 1 项→第一行第 1 列，第 2 项→第二行第 1 列……），
+  // 共 12 列 × 2 行 = 24 个入口，与设计稿的完整宫格保持一致。
+  //   第一行（沿用服务端教务/生活服务）：课程表 教务系统 成绩查询 考试安排 校历 校园地图
+  //           自助购电 订水系统 校车时刻 乘车码 轻友指南 教务文档
   //   第二行（端上固定目录）：校园活动 广轻群聊 社团&组织 校园评价 找驾校
   //           校园市场 广轻义修 校园卡 速印 失物招领 返乡大巴 特惠寄件
-  // 服务端未下发的条目在端上补齐占位（暂不带跳转，点击提示「即将上线」）；
-  // 第二行仅 广轻义修 / 失物招领 保留原有跳转，其余清空 link / miniAppId。
+  // 说明：校车时刻 / 轻友指南 / 校园卡 / 速印 / 返乡大巴 / 特惠寄件 六项统一进入
+  //       pages/campus-service（通用服务详情页），内容由 utils/campus-services.js 提供，
+  //       因此 24 个入口全部有真实落地页，不会再出现「服务暂未开放」的兜底提示。
+  // 第二行仅 广轻义修 / 失物招领 保留服务端跳转配置，其余清空 link / miniAppId 由端上路由接管。
   buildHomeGrid(services) {
     const byName = {}
     ;(services || []).forEach((item) => {
@@ -358,17 +481,22 @@ Page({
     ]
     const row2KeepJump = { '广轻义修': true, '失物招领': true }
     const grid = []
-    row1.forEach((name, index) => {
-      const serverTop = byName[name]
-      grid.push(serverTop || {
-        id: 'home-top-' + index,
-        name,
-        iconPath: api.SERVICE_ICON_MAP[name] || '',
-        icon: '',
-        badge: '',
-        link: ''
-      })
+    const columnCount = Math.max(row1.length, row2.length)
+    for (let index = 0; index < columnCount; index += 1) {
+      const name = row1[index]
+      if (name) {
+        const serverTop = byName[name]
+        grid.push(serverTop || {
+          id: 'home-top-' + index,
+          name,
+          iconPath: api.SERVICE_ICON_MAP[name] || '',
+          icon: '',
+          badge: '',
+          link: ''
+        })
+      }
       const def = row2[index]
+      if (!def) continue
       const serverBottom = byName[def.name]
       let bottom
       if (serverBottom) {
@@ -389,7 +517,7 @@ Page({
         }
       }
       grid.push(bottom)
-    })
+    }
     return grid
   },
 
@@ -482,20 +610,35 @@ Page({
   // 「回到置顶」浮动按钮显隐联动：
   //   滚动超过阈值(120px) → 显示，同时整个图标组向上顶起一个图标高度
   //   滚回顶部附近 → 隐藏，图标组回落
+  // 「顶部导航栏」显隐联动：
+  //   向下滚动 → 收起；向上滚动 / 回到顶部 → 展开（永远以“本次滚动方向”为准，
+  //   保证无论此前停在什么位置，向上滚动都能把它拉回来）
   onContentScroll(e) {
     if (!e || !e.detail) return
     const scrollTop = e.detail.scrollTop || 0
     const now = Date.now()
     if (this._scrollTick && now - this._scrollTick < 80) return
     this._scrollTick = now
+    // 放在 scrollTop 未变化的早退之前：滚动条在动就要让常驻动画停手，与位置是否变化无关
+    this._pauseBannerFx()
     if (scrollTop === this._lastScrollTop) return
+    const delta = scrollTop - (this._lastScrollTop || 0)
     this._lastScrollTop = scrollTop
-    const isAtTop = scrollTop < 8
+
+    const isAtTop = scrollTop < NAV_AT_TOP_OFFSET
     const showFloatBtns = scrollTop > 80
     const showTopBtn = scrollTop > 120
-    if (isAtTop !== this.data.isAtTop || showFloatBtns !== this.data.showFloatBtns || showTopBtn !== this.data.showTopBtn) {
-      this.setData({ isAtTop, showFloatBtns, showTopBtn })
-    }
+    let navVisible = this.data.navVisible
+    if (isAtTop || delta <= -NAV_DIRECTION_THRESHOLD) navVisible = true
+    else if (delta >= NAV_DIRECTION_THRESHOLD && scrollTop > NAV_HIDE_MIN_OFFSET) navVisible = false
+
+    const patch = {}
+    let dirty = false
+    if (isAtTop !== this.data.isAtTop) { patch.isAtTop = isAtTop; dirty = true }
+    if (showFloatBtns !== this.data.showFloatBtns) { patch.showFloatBtns = showFloatBtns; dirty = true }
+    if (showTopBtn !== this.data.showTopBtn) { patch.showTopBtn = showTopBtn; dirty = true }
+    if (navVisible !== this.data.navVisible) { patch.navVisible = navVisible; dirty = true }
+    if (dirty) this.setData(patch)
   },
 
   // Enhanced scroll-view can delay scroll events in developer tools, so show the control on the first swipe as well.
@@ -507,7 +650,7 @@ Page({
 
   onContentScrollToUpper() {
     this._lastScrollTop = 0
-    this.setData({ isAtTop: true, showFloatBtns: false, showTopBtn: false })
+    this.setData({ isAtTop: true, navVisible: true, showFloatBtns: false, showTopBtn: false })
   },
 
   // 强制 scroll-view 回到顶部。
@@ -515,9 +658,10 @@ Page({
   // 与真实滚动位置脱节。复现：滑到底部 → 点进帖子 → 返回 → 点右下角"置顶"浮动按钮，
   // setData({scrollTop: 0}) 因值未变化而成为空操作，页面不会回顶。
   // 解法：绑定值已是 0 时先改成微小偏移量强制产生一次变更，再在回调里归零。
+  // 回到顶部同时把导航栏展开（切换分类、点「置顶」等入口都会走到这里）
   scrollContentToTop(extra = {}) {
     this._lastScrollTop = 0
-    const reset = () => this.setData(Object.assign({ scrollTop: 0 }, extra))
+    const reset = () => this.setData(Object.assign({ scrollTop: 0, navVisible: true }, extra))
     if (this.data.scrollTop > 0) {
       reset()
     } else {
@@ -526,13 +670,13 @@ Page({
   },
 
   onScrollToTop() {
-    this.scrollContentToTop({ isAtTop: true, showFloatBtns: false, showTopBtn: false })
+    this.scrollContentToTop({ isAtTop: true, navVisible: true, showFloatBtns: false, showTopBtn: false })
   },
 
   // 搜索栏内刷新按钮只负责刷新，不随滚动切换成回到顶部
   onRefreshAction() {
     if (this.data.refreshing) return
-    this.setData({ refreshing: true })
+    this.setData({ refreshing: true, navVisible: true })
     const job = this.data.isHotCategory
       ? Promise.resolve(this.loadHotPosts())
       : Promise.all([this.fetchPosts(1, true, true), this.loadHotPosts()])
@@ -565,7 +709,84 @@ Page({
   },
 
   onBannerChange(e) {
-    this.setData({ bannerCurrent: e.detail.current || 0 })
+    // 横滑切页会打断手势，touchend 不一定来；不回正就会把上一张的倾斜带进新的一张
+    this._bannerRect = null
+    this.setData({
+      bannerCurrent: e.detail.current || 0,
+      bannerPressedIndex: -1,
+      bannerTiltStyle: this.buildTiltStyle(0, 0, 50, 50, 1)
+    })
+  },
+
+  // ===== 轮播按压：朝触点方向轻微 3D 倾斜并缩小，背后光斑向触点聚拢，松手弹性复原 =====
+  // 倾斜量按触点相对卡片中心的偏移算，所以点右上角和点左下角的 lean 方向不同；
+  // 上限 ±6deg，再大就像卡片要翻过去，反而不像"被按下去"
+  onBannerTouchStart(e) {
+    const touch = (e.touches || [])[0]
+    const index = Number(e.currentTarget.dataset.index)
+    if (!touch || Number.isNaN(index)) return
+    this._bannerMoveTick = 0
+    this._bannerRect = null
+    // 先落按压态，描边/流光/过渡时长立刻生效，不等异步量 rect
+    this.setData({ bannerPressedIndex: index })
+    wx.createSelectorQuery().in(this).select('#banner-' + index).boundingClientRect((rect) => {
+      this._bannerRect = rect && rect.width && rect.height ? rect : null
+      this.applyBannerTilt(touch.clientX, touch.clientY, 0.965)
+    }).exec()
+  },
+
+  // 用 bind 而不是 catch：这条手势同时是 swiper 的横滑切页，catch 掉轮播就划不动了
+  onBannerTouchMove(e) {
+    if (this.data.bannerPressedIndex < 0) return
+    const touch = (e.touches || [])[0]
+    if (!touch) return
+    const now = Date.now()
+    // 节流到约 30fps：一次 setData 是逻辑层到视图层的一趟往返，
+    // 逐 touchmove 事件下发的开销比动效本身还大
+    if (this._bannerMoveTick && now - this._bannerMoveTick < 32) return
+    this._bannerMoveTick = now
+    this.applyBannerTilt(touch.clientX, touch.clientY, 0.965)
+  },
+
+  // rect 只在 touchstart 量一次并缓存：createSelectorQuery 异步且贵，
+  // 放进 touchmove 逐帧查询会直接掉帧，而一次手势内卡片尺寸不会变
+  applyBannerTilt(clientX, clientY, scale) {
+    const rect = this._bannerRect
+    let rx = 0.5
+    let ry = 0.5
+    if (rect && rect.width && rect.height) {
+      rx = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width))
+      ry = Math.min(1, Math.max(0, (clientY - rect.top) / rect.height))
+    }
+    this.setData({
+      bannerTiltStyle: this.buildTiltStyle((0.5 - ry) * 12, (rx - 0.5) * 12, rx * 100, ry * 100, scale)
+    })
+  },
+
+  onBannerTouchEnd() {
+    if (this.data.bannerPressedIndex < 0) return
+    this._bannerRect = null
+    // 回弹也要给具体数值（不能清空 style），否则从 transform 过渡到 none 在部分机型上会跳一下
+    this.setData({
+      bannerPressedIndex: -1,
+      bannerTiltStyle: this.buildTiltStyle(0, 0, 50, 50, 1)
+    })
+  },
+
+  // 常驻动画让路给滚动：滚动中挂 fx-paused，停手 420ms 后恢复
+  _pauseBannerFx() {
+    if (!this.data.bannerFxPaused) this.setData({ bannerFxPaused: true })
+    if (this._bannerFxTimer) clearTimeout(this._bannerFxTimer)
+    this._bannerFxTimer = setTimeout(() => {
+      this._bannerFxTimer = null
+      if (this.data.bannerFxPaused) this.setData({ bannerFxPaused: false })
+    }, 420)
+  },
+
+  buildTiltStyle(tiltX, tiltY, spotX, spotY, scale) {
+    const fixed = (n) => (Math.round(n * 100) / 100)
+    return 'transform: perspective(720px) rotateX(' + fixed(tiltX) + 'deg) rotateY(' + fixed(tiltY)
+      + 'deg) scale(' + fixed(scale) + '); --spot-x: ' + fixed(spotX) + '%; --spot-y: ' + fixed(spotY) + '%;'
   },
 
   goServiceAll() {
@@ -603,11 +824,18 @@ Page({
       this.applyCategoryByName('二手闲置')
       return
     }
-    // 教务系统：跳转教务系统首页（webview 内嵌）
+    // 教务系统：进入原生教务首页（服务端抓取 + 原生渲染，不再用 web-view）
     if (item.name === '教务系统') {
       wx.vibrateShort({ type: 'light' })
-      wx.navigateTo({
-        url: '/pages/webview/index?url=' + encodeURIComponent(JW_SYSTEM_URL) + '&title=' + encodeURIComponent('教务系统')
+      wx.navigateTo({ url: '/pkg-schedule/schedule-home/index' })
+      return
+    }
+    // 校园评价：评价分类页（课程 / 食堂 / 商圈评分；统一访问控制同其他三项）
+    if (item.name === '校园评价') {
+      wx.vibrateShort({ type: 'light' })
+      const auth = require('../../utils/auth')
+      auth.requireFeatureAccess('校园评价', { autoBack: false }).then((ok) => {
+        if (ok) wx.navigateTo({ url: '/pages/review/index' })
       })
       return
     }
@@ -629,22 +857,50 @@ Page({
       wx.navigateTo({ url: '/pages/campus-map/index' })
       return
     }
-    // 校园活动：进入活动列表页面
+    // 校园活动：进入活动列表页面（统一访问控制：已登录且教务登录/骑手认证任一满足）
     if (item.name === '校园活动') {
       wx.vibrateShort({ type: 'light' })
-      wx.navigateTo({ url: '/pages/activity/index' })
+      const auth = require('../../utils/auth')
+      auth.requireFeatureAccess('校园活动', { autoBack: false }).then((ok) => {
+        if (ok) wx.navigateTo({ url: '/pages/activity/index' })
+      })
       return
     }
     // 广轻群聊：进入群聊分类页面
     if (item.name === '广轻群聊') {
       wx.vibrateShort({ type: 'light' })
-      wx.navigateTo({ url: '/pages/group-chat/index' })
+      const auth = require('../../utils/auth')
+      auth.requireFeatureAccess('广轻群聊', { autoBack: false }).then((ok) => {
+        if (ok) wx.navigateTo({ url: '/pages/group-chat/index' })
+      })
       return
     }
     // 社团&组织：进入社团组织页面（六大分类）
     if (item.name === '社团&组织') {
       wx.vibrateShort({ type: 'light' })
-      wx.navigateTo({ url: '/pages/club/index' })
+      const auth = require('../../utils/auth')
+      auth.requireFeatureAccess('社团&组织', { autoBack: false }).then((ok) => {
+        if (ok) wx.navigateTo({ url: '/pages/club/index' })
+      })
+      return
+    }
+    // 校园服务六项：统一进入通用服务详情页（作用说明 / 适用场景 / 关键信息 / 使用流程 / 常见问题）
+    const campusServiceId = CAMPUS_SERVICE_IDS[item.name]
+    if (campusServiceId) {
+      wx.vibrateShort({ type: 'light' })
+      wx.navigateTo({ url: '/pages/campus-service/index?id=' + campusServiceId })
+      return
+    }
+    // 找驾校：端上静态内容页（学车流程 / 报名材料 / 班型参考 / 常见问题），无需登录
+    if (item.name === '找驾校') {
+      wx.vibrateShort({ type: 'light' })
+      wx.navigateTo({ url: '/pages/driving-school/index' })
+      return
+    }
+    // 校园市场：映射到首页「二手闲置」分类（校园内二手交易的真实帖子）
+    if (item.name === '校园市场') {
+      wx.vibrateShort({ type: 'light' })
+      this.applyCategoryByName('二手闲置')
       return
     }
     // 跳转到外部小程序（乘车码 / 零食店 等）
@@ -653,12 +909,43 @@ Page({
       wx.navigateToMiniProgram({
         appId: item.miniAppId,
         envVersion: 'release',
-        success() { console.log('[' + item.name + '] 跳转成功') },
         fail(err) {
-          console.error('[' + item.name + '] 跳转失败', err)
           wx.showModal({
             title: '跳转失败',
             content: '错误信息：' + (err && err.errMsg ? err.errMsg : JSON.stringify(err)),
+            showCancel: false
+          })
+        }
+      })
+      return
+    }
+    // 订水系统：微信网页授权体系，且目标站不能稳定内嵌 → 复制链接 + 微信内打开引导
+    if (item.name === '订水系统' && item.link && /^https?:\/\//i.test(item.link)) {
+      wx.vibrateShort({ type: 'light' })
+      wx.setClipboardData({
+        data: item.link,
+        success: () => {
+          wx.showModal({
+            title: '订水系统',
+            content: '该服务需在微信内打开，链接已复制：① 将链接发送给任意微信聊天（推荐「文件传输助手」）；② 在聊天中点击该链接即可使用。',
+            confirmText: '知道了',
+            showCancel: false
+          })
+        }
+      })
+      return
+    }
+    // 自助购电：微信网页授权体系（oauth 仅微信内有效），且目标站只有 HTTP，
+    // 小程序 web-view 无法完成授权回调 → 复制链接 + 两步引导（发到微信聊天后点开）
+    if (item.name === '自助购电' && item.link && /^https?:\/\//i.test(item.link)) {
+      wx.vibrateShort({ type: 'light' })
+      wx.setClipboardData({
+        data: item.link,
+        success: () => {
+          wx.showModal({
+            title: '自助购电',
+            content: '该服务需在微信内打开，链接已复制：① 将链接发送给任意微信聊天（推荐「文件传输助手」）；② 在聊天中点击该链接即可使用。',
+            confirmText: '知道了',
             showCancel: false
           })
         }
@@ -679,17 +966,22 @@ Page({
     }
     const routes = {
       '课程表': '/pages/schedule/index',
-      '社区论坛': '/pages/index/index'
+      '社区论坛': '/pages/index/index',
+      // 教务文档暂无独立页面，先进入教务系统首页统一承载
+      '教务文档': '/pkg-schedule/schedule-home/index',
+      '校历': '/pkg-schedule/schedule-calendar/index'
     }
     const url = routes[item.name]
     if (url) {
-      if (url.indexOf('index/index') > -1 || url.indexOf('schedule') > -1) {
+      if (url.indexOf('index/index') > -1 || url.indexOf('schedule/index') > -1) {
         wx.switchTab({ url })
       } else {
         wx.navigateTo({ url })
       }
     } else {
-      wx.showToast({ title: item.name + ' 即将上线', icon: 'none' })
+      // 兜底分支：首页宫格内已不存在没有落地页的入口，这里只用于防御服务端临时
+      // 新增的未知条目，避免出现空白响应。
+      wx.showToast({ title: item.name + ' 服务暂未开放', icon: 'none' })
     }
   },
 
@@ -707,6 +999,9 @@ Page({
   goMessages() {
     const auth = require('../../utils/auth')
     if (!auth.requireLogin('查看私信需要先登录')) return
+    // 新增触发点：点击首页右下角「消息」悬浮按钮时同步申请「私信通知」订阅授权。
+    // 与聊天页「发送」按钮共用 message 触发组（只含 message 一个模板）。
+    if (typeof subscribe.requestTriggerByTap === 'function') subscribe.requestTriggerByTap('message')
     wx.navigateTo({ url: '/pages/my-messages/index?tab=0' })
   },
 
@@ -748,13 +1043,26 @@ Page({
     this.setData({ hotLoading: true })
     api.getHotPostRank().then((res) => {
       // 与帖子详情页共用 utils/hot-rank.js 的同一份构建逻辑
+      // （buildHotPosts 内部已统一过滤「本地标记为已删除」的帖子）
       const hotPosts = hotRank.buildHotPosts(res.list || [])
       const hotRankGroups = hotRank.groupHotPosts(hotPosts)
       this.setData({ hotPosts, hotRankGroups, hotLoading: false, skeleton: false })
-    }).catch(() => this.setData({ hotLoading: false, skeleton: false }))
+    }).catch(() => {
+      // 拉取失败时不能原样保留旧列表：其中可能含刚被删除的帖子。
+      // 至少剔除本地已确认删除的条目，避免「帖子已删、热榜还在」
+      const kept = hotRank.filterRemovedPosts(this.data.hotPosts)
+      this.setData({
+        hotPosts: kept,
+        hotRankGroups: hotRank.groupHotPosts(kept),
+        hotLoading: false,
+        skeleton: false
+      })
+    })
   },
 
   onTodayHotTap() {
+    // 偏好关闭时热榜入口已隐藏，这里兜底防误触（如手势残留）
+    if (!this.data.dailyHotVisible) return
     wx.navigateTo({ url: '/pages/hot-rank/index' })
   },
 
@@ -840,21 +1148,122 @@ Page({
   noop() {},
 
   mapCommentItem(c) {
-    const images = api.parseImages(c.images)
+    const media = api.parseImages(c.images)
+    let anonymous = c.anonymousIdentity || c.anonymous_identity
+    if (typeof anonymous === 'string') { try { anonymous = JSON.parse(anonymous) } catch (e) { anonymous = null } }
+    const isAnonymous = !!(c.is_anonymous || c.isAnonymous || (anonymous && anonymous.nickName && anonymous.avatarUrl))
+    const createdAt = c.created_at || c.createdAt
+    const rawAvatar = isAnonymous ? anonymous.avatarUrl : (c.avatar_url || c.avatarUrl || '')
     return {
       id: c.id,
       userId: c.user_id || c.userId,
-      nickName: c.nick_name || c.nickName || '校园用户',
-      avatarUrl: c.avatar_url || c.avatarUrl || '',
-      // 有图时去掉「[图片]/[视频]」占位文字，直接展示图片本身
-      content: images.length ? format.stripMediaPlaceholder(c.content) : (c.content || ''),
-      images,
+      nickName: isAnonymous ? anonymous.nickName : (c.nick_name || c.nickName || '校园用户'),
+      avatarUrl: avatarUtil.normalizeLegacyAvatar(rawAvatar) || '',
+      isAnonymous,
+      // 有图/视频时去掉「[图片]/[视频]」占位文字，直接展示媒体本身
+      content: media.length ? format.stripMediaPlaceholder(c.content) : (c.content || ''),
+      images: media.filter((url) => !isVideoUrl(url)),
+      videos: media.filter(isVideoUrl),
       parentNickName: c.parent_nick_name || c.parentNickName || '',
-      timeText: c.timeText || format.formatDateTime(c.created_at || c.createdAt || new Date()),
-      createdAt: c.created_at || c.createdAt,
-      likeCount: c.like_count || c.likeCount || 0,
+      parentId: Number(c.parent_id || c.parentId || 0),
+      timeText: format.formatRelativeTime(createdAt) || '刚刚',
+      createdAt,
+      likeCount: Number(c.like_count || c.likeCount || 0),
       isLiked: !!(c.is_liked || c.isLiked)
     }
+  },
+
+  // 评论弹层线程化：与帖子详情页 buildCommentThreads 同一套层级/回复前缀/收起展开规则，
+  // 保证首页弹层与详情页评论区的结构、缩进、排版完全一致
+  buildSheetThreads(rawComments) {
+    const post = this.data.commentSheetPost || {}
+    const authorId = Number(post.userId || 0)
+    const isAnonymousPost = !!post.isAnonymous
+    const expandedIds = this._sheetExpandedIds || {}
+    const byId = {}
+    rawComments.forEach((comment) => {
+      byId[comment.id] = Object.assign({}, comment, {
+        isAuthor: !isAnonymousPost && !comment.isAnonymous && authorId > 0 && Number(comment.userId) === authorId
+      })
+    })
+    // 回复前缀规则：仅「回复回复」（嵌套回复）显示「回复 xxx:」，直接回复根评论不显示
+    Object.keys(byId).forEach((id) => {
+      const comment = byId[id]
+      const parent = comment.parentId ? byId[comment.parentId] : null
+      comment.replyToNick = parent && parent.parentId ? parent.nickName : ''
+    })
+    const findRoot = (comment) => {
+      let current = comment
+      const visited = {}
+      while (current.parentId && byId[current.parentId] && !visited[current.id]) {
+        visited[current.id] = true
+        current = byId[current.parentId]
+      }
+      return current
+    }
+    const threadsById = {}
+    const roots = []
+    Object.keys(byId).forEach((id) => {
+      const comment = byId[id]
+      const root = findRoot(comment)
+      if (root.id === comment.id) {
+        threadsById[comment.id] = Object.assign({}, comment, { replies: [] })
+        roots.push(threadsById[comment.id])
+      }
+    })
+    Object.keys(byId).forEach((id) => {
+      const comment = byId[id]
+      const root = findRoot(comment)
+      if (root.id !== comment.id && threadsById[root.id]) threadsById[root.id].replies.push(comment)
+    })
+    return roots.map((thread) => {
+      // 子评论按时间正序，新回复落在所属评论下方
+      const replies = thread.replies.slice().sort((a, b) => {
+        const timeA = new Date(a.createdAt || 0).getTime() || 0
+        const timeB = new Date(b.createdAt || 0).getTime() || 0
+        return timeA - timeB || Number(a.id || 0) - Number(b.id || 0)
+      })
+      const expanded = !!expandedIds[thread.id]
+      return Object.assign({}, thread, {
+        replies,
+        recentReplies: replies.slice(0, 3),
+        expanded,
+        hasHiddenReplies: replies.length > 3,
+        hiddenReplyCount: Math.max(0, replies.length - 3)
+      })
+    })
+  },
+
+  // 评论弹层唯一数据出口：raw 扁平列表进、线程化列表出（乐观追加/分页/点赞都走这里）
+  setSheetComments(rawList) {
+    this._sheetRawComments = rawList
+    this.setData({ commentSheetComments: this.buildSheetThreads(rawList) })
+  },
+
+  toggleSheetCommentReplies(e) {
+    const id = e.currentTarget.dataset.id
+    const expandedIds = this._sheetExpandedIds || (this._sheetExpandedIds = {})
+    expandedIds[id] = !expandedIds[id]
+    this.setData({ commentSheetComments: this.buildSheetThreads(this._sheetRawComments || []) })
+  },
+
+  onSheetLikeComment(e) {
+    const auth = require('../../utils/auth')
+    if (!auth.requireLogin('点赞需要先登录')) return
+    const commentId = e.currentTarget.dataset.id
+    // transform 读当前状态取反：成功/回滚共用同一逻辑（与详情页 onLikeComment 一致）
+    const toggle = (comment) => Object.assign({}, comment, {
+      isLiked: !comment.isLiked,
+      likeCount: Math.max(0, (comment.likeCount || 0) + (!comment.isLiked ? 1 : -1))
+    })
+    const raw = this._sheetRawComments || []
+    const index = raw.findIndex((c) => String(c.id) === String(commentId))
+    if (index < 0) return
+    this.setSheetComments(raw.map((c, i) => (i === index ? toggle(c) : c)))
+    api.likeComment(commentId).catch(() => {
+      // 服务端失败：再次取反即回滚
+      this.setSheetComments((this._sheetRawComments || []).map((c, i) => (i === index ? toggle(c) : c)))
+    })
   },
 
   onCommentAvatarTap(e) {
@@ -866,25 +1275,35 @@ Page({
     const post = e.detail.post
     if (!post || !post.id) return
     wx.vibrateShort({ type: 'light' })
+    this._sheetRawComments = []
+    this._sheetExpandedIds = {}
     this.setData({
       commentSheetVisible: true,
       commentSheetPost: post,
       commentSheetComments: [],
+      commentSheetTotal: 0,
       commentSheetText: '',
       commentSheetImages: [],
       commentSheetEmojiVisible: false,
-      commentSheetFocus: true
+      // 点评论图标 = 看评论，因此**不抢焦点**。
+      // 此前这里是 true，配合 WXML 的 focus="{{commentSheetFocus}}"，
+      // 导致每次打开评论面板都立刻弹出键盘、挡住评论列表（用户只是想读评论）。
+      // 需要发评论时用户点底部输入框即可，届时由 onSheetKeyboardChange 把面板顶上去。
+      commentSheetFocus: false,
+      commentSheetKeyboardHeight: 0
     })
     this.loadCommentSheet(post.id)
   },
 
   loadCommentSheet(postId) {
-    this.setData({ commentSheetLoading: true })
+    this._sheetCommentPage = 1
+    this.setData({ commentSheetLoading: true, commentSheetHasMore: false })
     api.getCommentList(postId).then((res) => {
-      const list = (res.list || []).map((item) => this.mapCommentItem(item))
+      this.setSheetComments((res.list || []).map((item) => this.mapCommentItem(item)))
       this.setData({
-        commentSheetComments: list,
-        commentSheetLoading: false
+        commentSheetTotal: Number(res.total) || (res.list || []).length,
+        commentSheetLoading: false,
+        commentSheetHasMore: !!res.hasMore
       })
     }).catch(() => {
       this.setData({ commentSheetLoading: false })
@@ -892,14 +1311,37 @@ Page({
     })
   },
 
+  // 评论弹层上滑加载下一页
+  loadMoreSheetComments() {
+    const post = this.data.commentSheetPost
+    if (!post || !post.id || !this.data.commentSheetHasMore || this._sheetLoadingMore) return
+    this._sheetLoadingMore = true
+    api.getCommentList(post.id, 'hot', (this._sheetCommentPage || 1) + 1).then((res) => {
+      this._sheetCommentPage = (this._sheetCommentPage || 1) + 1
+      const list = (res.list || []).map((item) => this.mapCommentItem(item))
+      this.setSheetComments((this._sheetRawComments || []).concat(list))
+      this.setData({
+        commentSheetHasMore: !!res.hasMore
+      })
+    }).catch(() => {}).then(() => { this._sheetLoadingMore = false })
+  },
+
   closeCommentSheet() {
     this.setData({
       commentSheetVisible: false,
       commentSheetEmojiVisible: false,
       commentSheetFocus: false,
+      commentSheetKeyboardHeight: 0,
       commentSheetText: '',
       commentSheetImages: []
     })
+  },
+
+  // 评论面板的键盘高度跟踪：面板固定 bottom:0，需按键盘高度上移，
+  // 否则输入框会被键盘遮住（输入框是 adjust-position="{{false}}"）。
+  // 与 components/post-card 的 onNoteKeyboardChange 同一套写法。
+  onSheetKeyboardChange(e) {
+    this.setData({ commentSheetKeyboardHeight: ((e && e.detail) || {}).height || 0 })
   },
 
   onSheetCommentInput(e) {
@@ -964,6 +1406,10 @@ Page({
     const text = (this.data.commentSheetText || '').trim()
     let images = this.data.commentSheetImages.slice()
     if (!text && !images.length) return
+    // 新增触发点：首页评论面板提交评论时同步申请「评论通知」订阅授权。
+    // 与「发帖成功」「点帖子」「点评论区」共用 postPublish 触发组；
+    // 放在校验之后、任何 await 之前，保证仍在 tap 同步链内。
+    if (typeof subscribe.requestTriggerByTap === 'function') subscribe.requestTriggerByTap('postPublish')
 
     const postId = post.id
     const content = text || '[图片]'
@@ -978,8 +1424,9 @@ Page({
 
       const finish = (rawComment) => {
         const comment = this.mapCommentItem(rawComment)
+        this.setSheetComments((this._sheetRawComments || []).concat([comment]))
         this.setData({
-          commentSheetComments: this.data.commentSheetComments.concat([comment]),
+          commentSheetTotal: (this.data.commentSheetTotal || 0) + 1,
           commentSheetText: '',
           commentSheetImages: [],
           commentSheetEmojiVisible: false,
@@ -1027,13 +1474,15 @@ Page({
 
   onContentRefresh() {
     if (this.data.scrollRefreshing || this.__pullRefreshing) return
-    this.setData({ scrollRefreshing: true })
+    // 下拉刷新后导航栏必须回到展开态（此前可能因向下滚动处于收起状态）
+    this.setData({ scrollRefreshing: true, navVisible: true })
     runPullDownRefresh(this, this.getHomeRefreshLoaders()).finally(() => {
       this.setData({ scrollRefreshing: false })
     })
   },
 
   onPullDownRefresh() {
+    this.setData({ navVisible: true })
     runPullDownRefresh(this, this.getHomeRefreshLoaders())
   },
 

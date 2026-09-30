@@ -2,10 +2,11 @@
   <!-- 跑腿聊天会话列表（与私信消息列表独立） -->
   <view class="chat-list" wx:if="{{chats.length}}">
     <view
-      class="chat-item"
+      class="chat-item anim-stagger spring-btn"
+      style="--i: {{index < 6 ? index : 0}};"
       wx:for="{{chats}}"
       wx:key="orderId"
-      hover-class="chat-item-hover"
+      hover-class="chat-item-hover press-spring"
       hover-stay-time="80"
       data-id="{{item.orderId}}"
       bindtap="openChat"

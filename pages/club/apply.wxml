@@ -1,0 +1,100 @@
+<view class="page page-enter">
+  <view class="topbar" style="padding-top: {{statusBarHeight}}px;">
+    <view class="back-pill spring-btn" hover-class="back-pill-hover press-spring" hover-stay-time="80" bindtap="goBack"><text class="back-pill-icon">‹</text><text>返回</text></view>
+  </view>
+
+  <view class="content">
+    <view class="page-title">申请创建社团</view>
+    <view class="page-status">{{categoryIndex > -1 ? categoryNames[categoryIndex] : '未选择'}}</view>
+
+    <view class="card">
+      <view class="row row-seg">
+        <text class="row-label">社团类型</text>
+        <view class="seg">
+          <view class="seg-item seg-active">学生社团</view>
+        </view>
+      </view>
+      <view class="seg-tip">当前仅支持申请学生社团，需经管理员审核通过后上架</view>
+
+      <view class="campus-bar spring-btn" hover-class="campus-bar--hover press-spring" hover-stay-time="80" bindtap="onToggleCampus">
+        <text class="campus-bar-label">校区</text>
+        <text class="campus-bar-value">{{campus || '全部校区'}}</text>
+        <text class="campus-bar-arrow">{{showCampusPanel ? '▴' : '▾'}}</text>
+      </view>
+
+      <view class="row row-line">
+        <text class="row-label">所属分类</text>
+        <picker range="{{categoryNames}}" value="{{categoryIndex}}" bindchange="onPickCategory">
+          <view class="picker-value spring-btn" hover-stay-time="80" hover-class="picker-value--hover press-spring">
+            <text class="{{categoryIndex > -1 ? 'set' : ''}}">{{categoryIndex > -1 ? categoryNames[categoryIndex] : '未选择'}}</text>
+            <text class="chev">›</text>
+          </view>
+        </picker>
+      </view>
+
+      <view class="row row-line">
+        <text class="row-label">社团名称</text>
+        <input class="row-input" placeholder="请输入社团名称" placeholder-class="ph" maxlength="30" value="{{name}}" bindinput="onNameInput" />
+      </view>
+
+      <view class="row row-line">
+        <text class="row-label">负责人微信</text>
+        <view class="thumb-wrap" wx:if="{{adminQr}}">
+          <image class="thumb" src="{{adminQr}}" mode="aspectFill" data-url="{{adminQr}}" bindtap="onPreviewImage" />
+          <text class="thumb-x" catchtap="onClearAdmin">×</text>
+        </view>
+        <view class="upload-btn spring-btn" hover-class="upload-btn--hover press-spring" hover-stay-time="100" bindtap="onUploadAdmin">上传</view>
+      </view>
+    </view>
+
+    <view class="card">
+      <view class="row row-line">
+        <text class="row-label">社团头像</text>
+        <view class="thumb-wrap" wx:if="{{avatar}}">
+          <image class="thumb" src="{{avatar}}" mode="aspectFill" data-url="{{avatar}}" bindtap="onPreviewImage" />
+          <text class="thumb-x" catchtap="onClearAvatar">×</text>
+        </view>
+        <view class="upload-btn spring-btn" hover-class="upload-btn--hover press-spring" hover-stay-time="100" bindtap="onUploadAvatar">上传</view>
+      </view>
+      <view class="row row-line">
+        <text class="row-label">社团二维码</text>
+        <view class="thumb-wrap" wx:if="{{qrcode}}">
+          <image class="thumb" src="{{qrcode}}" mode="aspectFill" data-url="{{qrcode}}" bindtap="onPreviewImage" />
+          <text class="thumb-x" catchtap="onClearQrcode">×</text>
+        </view>
+        <view class="upload-btn spring-btn" hover-class="upload-btn--hover press-spring" hover-stay-time="100" bindtap="onUploadQrcode">上传</view>
+      </view>
+      <view class="row">
+        <text class="row-label">公众号二维码(选填)</text>
+        <view class="thumb-wrap" wx:if="{{gzhQr}}">
+          <image class="thumb" src="{{gzhQr}}" mode="aspectFill" data-url="{{gzhQr}}" bindtap="onPreviewImage" />
+          <text class="thumb-x" catchtap="onClearGzh">×</text>
+        </view>
+        <view class="upload-btn spring-btn" hover-class="upload-btn--hover press-spring" hover-stay-time="100" bindtap="onUploadGzh">上传</view>
+      </view>
+    </view>
+
+    <view class="card">
+      <view class="card-label">文字介绍</view>
+      <textarea class="intro" placeholder="简单介绍社团定位/活动/招新要求等" placeholder-class="ph" maxlength="500" value="{{intro}}" bindinput="onIntroInput" />
+    </view>
+
+    <view class="card">
+      <view class="card-label">图片介绍(选填)</view>
+      <view class="img-grid">
+        <view class="img-cell" wx:for="{{images}}" wx:key="*this">
+          <image class="img" src="{{item}}" mode="aspectFill" data-url="{{item}}" bindtap="onPreviewImage" />
+          <text class="img-x" catchtap="onRemoveIntroImage" data-index="{{index}}">×</text>
+        </view>
+        <view class="img-cell img-add spring-btn" wx:if="{{images.length < 5}}" hover-class="img-add--hover press-spring" hover-stay-time="100" bindtap="onAddIntroImage">
+          <text class="img-add-plus">+</text>
+        </view>
+      </view>
+    </view>
+
+    <button hover-class="press-spring" class="submit spring-btn" loading="{{submitting}}" disabled="{{submitting}}" bindtap="onSubmit" hover-stay-time="120">提交申请</button>
+  </view>
+</view>
+
+<!-- 校区选择弹层（fixed 元素放在带动画容器外） -->
+<campus-picker visible="{{showCampusPanel}}" value="{{campus}}" simple="{{true}}" bind:change="onCampusChange" bind:close="onCloseCampus" />

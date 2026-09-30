@@ -3,6 +3,7 @@
     <view class="tab-item" hover-class="tab-item--hover" hover-stay-time="120" wx:if="{{tabIndex < 2}}" data-index="{{tabIndex}}" bindtap="onChange">
       <view class="tab-icon-wrap">
         <image class="tab-icon" src="{{selected === tabIndex ? tab.selectedIconPath : tab.iconPath}}" mode="aspectFit"></image>
+        <view class="tab-badge" wx:if="{{tab.badge === 'unread' && unreadCount > 0}}">{{unreadCount > 99 ? '99+' : unreadCount}}</view>
       </view>
       <text class="tab-text" style="color: {{selected === tabIndex ? selectedColor : color}};">{{tab.text}}</text>
     </view>
@@ -15,6 +16,7 @@
     <view class="tab-item" hover-class="tab-item--hover" hover-stay-time="120" wx:if="{{tabIndex >= 2}}" data-index="{{tabIndex}}" bindtap="onChange">
       <view class="tab-icon-wrap">
         <image class="tab-icon" src="{{selected === tabIndex ? tab.selectedIconPath : tab.iconPath}}" mode="aspectFit"></image>
+        <view class="tab-badge" wx:if="{{tab.badge === 'unread' && unreadCount > 0}}">{{unreadCount > 99 ? '99+' : unreadCount}}</view>
       </view>
       <text class="tab-text" style="color: {{selected === tabIndex ? selectedColor : color}};">{{tab.text}}</text>
     </view>

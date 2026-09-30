@@ -1,6 +1,28 @@
 const pool = require('../config/pool')
 const { success, fail } = require('../middleware/auth')
 const { clampPageSize, safeMessage } = require('../utils/helpers')
+const {
+  normalizeLegacyAvatarUrl,
+  normalizeAnonymousAvatarUrl,
+  isAnonymousAvatarUrl,
+  pickAnonymousAvatar,
+} = require('../utils/defaultProfile')
+
+// 通知快照头像归一化（读取出口）。
+// 通知表存的是「操作者头像快照」，历史行里仍有旧文件名（如 `/assets/avatar1/老虎 (2).jpg`
+// —— 含空格与半角括号，真机解析失败）以及已从素材池移除的路径。它们会直接进消息列表的
+// <image>，表现就是头像空白 + 渲染层不停刷「Failed to load image」。
+// 匿名形象（avatar1）纠正后仍不在池内的，稳定映射到池内形象并保住匿名语义；
+// 绝不回落到真实头像 —— 那等于把匿名者暴露给被打扰的人。
+function normalizeActorAvatar(raw, actorNick) {
+  const url = String(raw || '').trim()
+  if (!url) return ''
+  if (url.indexOf('/assets/avatar1/') === 0) {
+    const fixed = normalizeAnonymousAvatarUrl(url)
+    return isAnonymousAvatarUrl(fixed) ? fixed : pickAnonymousAvatar(actorNick || url)
+  }
+  return normalizeLegacyAvatarUrl(url)
+}
 
 exports.list = async (req, res) => {
   const page = Math.max(1, parseInt(req.query.page, 10) || 1)
@@ -15,7 +37,7 @@ exports.list = async (req, res) => {
         fp.title AS related_post_title
        FROM system_notification n
        LEFT JOIN sys_user u2 ON u2.id = n.actor_user_id
-       LEFT JOIN forum_post fp ON n.type IN ('comment','like') AND fp.id = n.related_id
+       LEFT JOIN forum_post fp ON n.type IN ('comment','like','follow') AND fp.id = n.related_id
        WHERE n.user_id = ?
        ORDER BY n.created_at DESC
        LIMIT ? OFFSET ?`,
@@ -36,7 +58,10 @@ exports.list = async (req, res) => {
           // 互动通知展示信息：优先快照，历史通知回退到点赞者资料/帖子标题
           actorUserId: anonPersona ? 0 : (item.actor_user_id || 0),
           actorNick: item.actor_nick || item.actor_real_nick || '',
-          actorAvatar: item.actor_avatar || item.actor_real_avatar || '',
+          actorAvatar: normalizeActorAvatar(
+            item.actor_avatar || item.actor_real_avatar,
+            item.actor_nick || item.actor_real_nick,
+          ),
           postTitle: item.post_title || item.related_post_title || '',
           commentImages
         }
@@ -44,6 +69,19 @@ exports.list = async (req, res) => {
       total: count.total,
       hasMore: offset + pageSize < count.total
     })
+  } catch (e) {
+    fail(res, safeMessage(e), 500)
+  }
+}
+
+// 互动/系统通知未读总数：与私信未读相加后，用于首页悬浮按钮和「我的」页消息入口角标。
+exports.unreadCount = async (req, res) => {
+  try {
+    const [[row]] = await pool.query(
+      'SELECT COUNT(*) AS total FROM system_notification WHERE user_id = ? AND is_read = 0',
+      [req.userId]
+    )
+    success(res, { total: row.total })
   } catch (e) {
     fail(res, safeMessage(e), 500)
   }

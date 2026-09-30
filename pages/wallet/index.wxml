@@ -1,12 +1,35 @@
 <view class="page">
-  <view class="balance-card gradient-nav">
-    <text class="balance-label">可提现余额</text>
-    <text class="balance-value">¥{{balance}}</text>
-    <view class="balance-meta">
-      <text>累计收益 ¥{{earned}}</text>
-      <text wx:if="{{withdrawing !== '0.00'}}">审核/转账中 ¥{{withdrawing}}</text>
+  <!-- 顶部订阅入口：点击直接拉起「提现结果通知」原生订阅授权弹窗（与原「提交」触发一致）；
+       订阅生效后整行隐藏，在设置页关闭该渠道后重新出现 -->
+  <view class="sub-notice-card" wx:if="{{showWithdrawSubscribeEntry}}">
+    <view class="sub-notice-main" bindtap="onWithdrawSubscribeTap">
+      <text class="sub-notice-title">订阅提现结果提醒</text>
+      <text class="sub-notice-desc">提现审核与到账结果第一时间通知你</text>
     </view>
-    <button class="withdraw-btn" bindtap="openWithdraw">提现到微信零钱</button>
+    <switch class="sub-notice-switch" checked="{{withdrawSubscribeChecked}}" color="#00bc19" bindchange="onWithdrawSubscribeTap"></switch>
+  </view>
+  <!-- 余额主卡接共享层 styles/card-fx.wxss：旋转描边 + 呼吸背光（设计文档 §2）。
+       背光必须是卡片的兄弟节点：卡容器要 overflow:hidden 才裁得住描边方块，背光放进去会被整层切掉（§2.5）。
+       卡高仍由内容驱动 —— .fx-body 改为随流、四周内缩由 .balance-card 的 padding 提供，
+       §2.6 的「容器高 - 2×描边宽 = 内容高」因此自动成立，
+       不会因为写死卡高把「审核/转账中」那行（withdrawing 非 0 时多出一行）裁掉。
+       fx-off 由「设置 → 显示 → 卡片动效」或低端机命中：只停动画，静态描边与静态背光保留。 -->
+  <view class="balance-stage fx-stage {{fxOff ? 'fx-off' : ''}}">
+    <view class="fx-glow-layer">
+      <view class="fx-glow is-on"><view class="fx-glow-pulse"></view></view>
+    </view>
+    <view class="balance-card gradient-nav fx-card is-live">
+      <view class="fx-ring"><view class="fx-ring-spin"></view></view>
+      <view class="fx-body">
+        <text class="balance-label">可提现余额</text>
+        <text class="balance-value">¥{{balance}}</text>
+        <view class="balance-meta">
+          <text>累计收益 ¥{{earned}}</text>
+          <text wx:if="{{withdrawing !== '0.00'}}">审核/转账中 ¥{{withdrawing}}</text>
+        </view>
+        <button hover-class="press-spring" class="withdraw-btn spring-btn" bindtap="openWithdraw" hover-stay-time="120">提现到微信零钱</button>
+      </view>
+    </view>
   </view>
 
   <!-- 提现规则说明区域 -->
@@ -65,7 +88,7 @@
 
   <view class="section-title text-h3">收益明细</view>
   <view class="record-list card">
-    <view class="record-item flex-between" wx:for="{{records}}" wx:key="id">
+    <view class="record-item flex-between anim-stagger" style="--i: {{index < 6 ? index : 0}};" wx:for="{{records}}" wx:key="id">
       <view class="record-main">
         <text class="record-title text-body">{{item.title}}</text>
         <text class="record-detail text-caption" wx:if="{{item.detailText}}">{{item.detailText}}</text>
@@ -73,7 +96,7 @@
       </view>
       <view class="record-right">
         <text class="record-amount {{item.amount >= 0 ? 'income' : 'expense'}}">{{item.amountText}}</text>
-        <button class="confirm-btn" wx:if="{{item.canConfirm}}" loading="{{confirming}}" catchtap="onConfirmReceive" data-id="{{item.refId}}">确认收款</button>
+        <button hover-class="press-spring" class="confirm-btn spring-btn" wx:if="{{item.canConfirm}}" loading="{{confirming}}" catchtap="onConfirmReceive" data-id="{{item.refId}}" hover-stay-time="120">确认收款</button>
       </view>
     </view>
     <view class="empty text-caption" wx:if="{{!loading && records.length === 0}}">完成跑腿订单后的收益会显示在这里</view>
@@ -90,8 +113,9 @@
       <text class="sheet-rule-text">· 工作日 09:00-18:00 提交，非工作时间顺延处理</text>
     </view>
     <view class="sheet-actions">
-      <button class="sheet-cancel" bindtap="closeWithdraw">取消</button>
-      <button class="sheet-submit" loading="{{submitting}}" bindtap="submitWithdraw">提交</button>
+      <button hover-class="press-spring" class="sheet-cancel spring-btn" bindtap="closeWithdraw" hover-stay-time="120">取消</button>
+      <button hover-class="press-spring" class="sheet-submit spring-btn" loading="{{submitting}}" bindtap="submitWithdraw" hover-stay-time="120">提交</button>
     </view>
   </view>
+
 </view>

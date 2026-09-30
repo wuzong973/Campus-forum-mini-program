@@ -82,3 +82,9 @@
 .save-icon {
   font-size: 32rpx;
 }
+
+/* P12：错误态下的「重新生成」按钮，沿用底部操作区样式，只调整间距与宽度 */
+.poster-retry-btn {
+  margin-top: 24rpx;
+  width: 60%;
+}

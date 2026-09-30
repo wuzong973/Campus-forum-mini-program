@@ -201,8 +201,14 @@ image {
 .anim-slide-right {
   animation: slide-right 0.25s ease-out both;
 }
+/* 页面入场动画：不要写 fill-mode(both/forwards)。
+   动画结束后若保留最后一帧的 transform(translateY(0))，.page 会一直存在非 none 的
+   transform，从而成为后代 position:fixed 元素的包含块 —— fixed 视觉上退化为
+   “相对该祖先定位”，再叠加 .page 比屏幕高一个导航占位，会出现导航栏/浮动按钮/
+   弹层被顶出屏幕且无法复位的问题。keyframes 的终态与元素默认样式一致，
+   去掉 fill-mode 后视觉完全等价。 */
 .page-enter {
-  animation: page-enter 0.28s var(--ease-standard) both;
+  animation: page-enter 0.28s var(--ease-standard);
 }
 
 @keyframes fade-in {
@@ -229,10 +235,96 @@ image {
   box-shadow: var(--shadow);
 }
 
-/* 列表项交错进场（配合 style="--i: n"） */
+/* 列表项交错进场（配合 style="--i: n"，见 docs/2026-09-30_列表入场交错动画清单与实现.md）。
+   微弱弹性滑入：弹性不靠关键帧补 overshoot 段，靠缓动曲线 y 控制点 > 1——
+   位移在落定前轻微越过终点再回弹，回弹量由曲线决定。取 1.3 而不是标准 back-out
+   的 1.56：越过约 4%~6%，一屏多卡同时入场时不会显得"蹦"。
+   --i 建议封顶（页面写 {{index < 6 ? index : 0}}）：长列表后段项延迟 360ms+ 会显得迟钝。
+   fill-mode 必须用 backwards 而不是 both：both 会在动画结束后永久钉住末帧的 transform，
+   而 keyframes 的 transform 会压过 transition —— 交错项同时是可按压元素（act-card 等）
+   时，按压 scale(0.96) 将永远不生效。末帧与自然态完全一致，backwards 视觉等价。 */
 .anim-stagger {
-  animation: slide-up 0.28s ease-out both;
+  animation: stagger-in 0.45s cubic-bezier(0.34, 1.3, 0.64, 1) backwards;
   animation-delay: calc(var(--i, 0) * 60ms);
+}
+
+@keyframes stagger-in {
+  from { opacity: 0; transform: translateY(28rpx) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* 降级与 card-fx 共用同一个 fx-off class（用户主动关动效 / 低端机时页面已挂）。
+   入场动画只播一次且只动 transform/opacity，比常驻合成动画轻一个量级，
+   低端机不必单独停它；但用户偏好与系统减弱动效必须尊重。 */
+.fx-off.anim-stagger {
+  animation: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .anim-stagger { animation: none; }
+  /* 按压弹性同样尊重减弱动效：保留瞬间 scale 变化（状态仍可见），去掉位移过渡 */
+  .spring-btn, .press-spring { transition: none;  transform: scale(0.96); box-shadow: inset 0 2rpx 6rpx rgba(16, 32, 64, 0.16), inset 0 -1rpx 2rpx rgba(255, 255, 255, 0.08); }
+}
+
+/* ===== 按钮弹性按压反馈（docs/2026-09-30_按钮弹性按压反馈.md） =====
+   触发机制用小程序的 hover-class：touchstart 加类、touchend/touchcancel/鼠标移出移除，
+   触摸与鼠标（开发者工具/PC 端）行为一致；小程序视图无键盘焦点语义，不涉及键盘分支。
+   挂法：交互元素 class 追加 spring-btn（基础态 transition），按压态由 hover-class 给出 ——
+   既可以是共享的 press-spring，也可以是页面自己的 hover 类（构建脚本已注入同款按压样式）。
+   按压 0.12s 快速压缩；释放回到基础态，走 spring-btn 的 0.35s 弹性贝塞尔 ——
+   y1 = 1.42 带来约 3%~5% 的轻微超调回弹，模拟物理弹簧。 */
+.spring-btn {
+  transition:
+    transform 0.35s cubic-bezier(0.34, 1.42, 0.6, 1),
+    box-shadow 0.35s cubic-bezier(0.34, 1.42, 0.6, 1);
+}
+
+/* 按压态：物理压缩 + 深度内阴影（凹陷感来自 inset 上暗下亮）。 */
+.press-spring {
+  transform: scale(0.96);
+  box-shadow: inset 0 2rpx 6rpx rgba(16, 32, 64, 0.16), inset 0 -1rpx 2rpx rgba(255, 255, 255, 0.08);
+  transition-duration: 0.12s;
+  transition-timing-function: cubic-bezier(0.3, 0.9, 0.5, 1);
+}
+
+/* ===== 液态标签指示条（elastic tab indicator，docs/2026-09-30_液态标签指示条.md） =====
+   双相位模型，由 utils/liquid-tab.js 驱动（每次切换只有 2 次 setData）：
+   rush（0.1s ≈ 6 帧）：前沿以强 ease-out 奔向目标，后沿原地不动 → 指示条被拉伸；
+   chase（0.3s）：后沿延迟 6 帧后以弹性贝塞尔追赶、宽度收回，y1 > 1 带来末端轻微超调。
+   位置与宽度一律用 left/width —— 禁止 scaleX：圆角会被横向拉伸变形（需求红线）；
+   指示条是绝对定位小元素，layout 回流被限制在标签栏容器内，成本可忽略。
+   页面可在 .liquid-indicator 上用 --liquid-indicator-color 覆盖颜色。 */
+.liquid-tab-track { position: relative; }
+
+.liquid-indicator {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 0;
+  height: 6rpx;
+  border-radius: 999rpx;
+  background: var(--liquid-indicator-color, var(--primary, #315CFF));
+  pointer-events: none;
+}
+
+/* 基础态无 transition：首次落位（snap）不播动画，只有相位类才带过渡 */
+.liquid-indicator--rush {
+  transition:
+    left 0.1s cubic-bezier(0.3, 0.9, 0.5, 1),
+    width 0.1s cubic-bezier(0.3, 0.9, 0.5, 1);
+}
+
+.liquid-indicator--chase {
+  transition:
+    left 0.3s cubic-bezier(0.34, 1.42, 0.6, 1),
+    width 0.3s cubic-bezier(0.34, 1.42, 0.6, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .liquid-indicator--rush,
+  .liquid-indicator--chase {
+    transition: none;
+  }
 }
 
 /* ===== 全局返回按钮（白色胶囊：‹ 返回）—— 所有页面统一使用 ===== */
@@ -261,7 +353,7 @@ image {
 
 .back-pill-hover {
   background: #eef1f5;
-}
+ transform: scale(0.96); box-shadow: inset 0 2rpx 6rpx rgba(16, 32, 64, 0.16), inset 0 -1rpx 2rpx rgba(255, 255, 255, 0.08); }
 
 /* ===== 全局图标悬浮交互工具类 =====
    用法：在可点击的图标容器上加 hover-class="fx-icon-hover" hover-stay-time="120"，
@@ -280,3 +372,23 @@ image {
     0 16rpx 30rpx rgba(49, 92, 255, .24),
     0 4rpx 10rpx rgba(49, 92, 255, .10);
 }
+
+/* ===== 页面顶部「通知设置入口」行（8 个页面共用） =====
+   钱包 / 校园活动 / 发布活动 / 活动详情 / 骑手认证 / 发布跑腿 / 私信 / 发布帖子 各一处。
+   样式统一放在这里，避免各页各写一份后视觉漂移（历史上同一元素分页写就是怎么调都对不齐的根因）。
+   显隐与授权逻辑见 utils/subscribe.js 的 entryVisible / requestEntryByTap。 */
+.sub-notice-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16rpx;
+  margin-bottom: 20rpx;
+  padding: 20rpx 26rpx;
+  border-radius: 20rpx;
+  background: #ffffff;
+}
+.sub-notice-main { flex: 1; min-width: 0; }
+/* <text> 是 inline：必须 display:block，否则标题与描述会挤在同一行 */
+.sub-notice-title { display: block; color: #10213a; font-size: 31rpx; font-weight: 700; }
+.sub-notice-desc { display: block; margin-top: 8rpx; color: #98a4b2; font-size: 23rpx; line-height: 1.5; }
+.sub-notice-switch { flex: 0 0 auto; transform: scale(0.88); transform-origin: right center; }

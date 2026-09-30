@@ -77,6 +77,20 @@ async function contentSecurity(req, res, next) {
   }
 }
 
+/**
+ * 聊天/私信发送专用：只对文本做 msg_sec_check。
+ *
+ * 图片、视频、表情包消息的 content 存的是上传后的 URL —— 媒体本身在上传链路已经
+ * 过 img_sec_check（图片）或由举报/后台兜底（视频），再把 URL 当文本检测既没有意义，
+ * 又会白烧每天的内容安全调用额度。
+ */
+function messageTextSecurity(req, res, next) {
+  const msgType = String((req.body || {}).msgType || 'text')
+  if (msgType !== 'text') return next()
+  return contentSecurity(req, res, next)
+}
+
 module.exports = contentSecurity
 module.exports.checkText = checkText
 module.exports.collectTexts = collectTexts
+module.exports.messageTextSecurity = messageTextSecurity

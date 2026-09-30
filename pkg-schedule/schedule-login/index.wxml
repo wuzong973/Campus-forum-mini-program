@@ -37,7 +37,7 @@
     <view class="captcha-card" wx:if="{{captchaChallenge}}">
       <view class="captcha-title-row">
         <text class="captcha-title">验证码</text>
-        <text class="captcha-refresh" bindtap="refreshCaptcha">换一张</text>
+        <text class="captcha-refresh" bindtap="onRefreshCaptchaTap">换一张</text>
       </view>
       <view class="captcha-row">
         <image class="captcha-image" src="{{captchaImage}}" mode="aspectFit"></image>
@@ -49,8 +49,8 @@
           bindinput="onCaptchaInput"
         />
       </view>
-      <text class="captcha-tip">OCR 未能自动识别时，需要手动输入一次验证码继续同步。</text>
-      <button class="login-btn captcha-submit" bindtap="onLogin" loading="{{loading}}">提交验证码并同步</button>
+      <text class="captcha-tip">{{captchaOcrStatus || '自动识别失败时，需要手动输入一次验证码继续同步。'}}</text>
+      <button hover-class="press-spring" class="login-btn captcha-submit spring-btn" bindtap="onLogin" loading="{{loading}}" hover-stay-time="120">提交验证码并同步</button>
     </view>
   </block>
 
@@ -70,7 +70,7 @@
     <view class="captcha-card" wx:if="{{captchaChallenge}}">
       <view class="captcha-title-row">
         <text class="captcha-title">验证码</text>
-        <text class="captcha-refresh" bindtap="refreshCaptcha">换一张</text>
+        <text class="captcha-refresh" bindtap="onRefreshCaptchaTap">换一张</text>
       </view>
       <view class="captcha-row">
         <image class="captcha-image" src="{{captchaImage}}" mode="aspectFit"></image>
@@ -82,10 +82,10 @@
           bindinput="onCaptchaInput"
         />
       </view>
-      <text class="captcha-tip">OCR 未能自动识别时，需要手动输入一次验证码继续同步。</text>
+      <text class="captcha-tip">{{captchaOcrStatus || '自动识别失败时，需要手动输入一次验证码继续同步。'}}</text>
     </view>
 
-    <button class="login-btn" bindtap="onLogin" loading="{{loading}}">
+    <button hover-class="press-spring" class="login-btn spring-btn" bindtap="onLogin" loading="{{loading}}" hover-stay-time="120">
       {{captchaChallenge ? '提交验证码并同步' : '同步课表'}}
     </button>
   </block>

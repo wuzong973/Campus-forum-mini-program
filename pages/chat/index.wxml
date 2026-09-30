@@ -2,12 +2,12 @@
   <!-- 自定义导航栏 -->
   <view class="custom-nav" style="padding-top: {{statusBarHeight}}px;">
     <view class="nav-content" style="height: {{navBarHeight}}px;">
-      <view class="back-pill" hover-class="back-pill-hover" hover-stay-time="80" bindtap="onNavBack"><text class="back-pill-icon">‹</text><text>返回</text></view>
+      <view class="back-pill spring-btn" hover-class="back-pill-hover press-spring" hover-stay-time="80" bindtap="onNavBack"><text class="back-pill-icon">‹</text><text>返回</text></view>
       <view class="nav-title-wrap">
         <view
-          class="back-post-btn {{returning ? 'is-returning' : ''}}"
+          class="back-post-btn {{returning ? 'is-returning' : ''}} spring-btn"
           wx:if="{{showBackToPost}}"
-          hover-class="back-post-hover"
+          hover-class="back-post-hover press-spring"
           hover-stay-time="80"
           catchtap="onBackToPost"
         >回到帖子</view>
@@ -17,11 +17,11 @@
   <!-- 安全提示栏 -->
   <view class="chat-notice">
     <view class="notice-line">
-      <text class="notice-text">如遇骚扰、广告请立即联系</text>
+      <text class="notice-text">如遇问题、广告请立即联系</text>
       <contact-admin class="inline-contact">
         <view slot="trigger" class="notice-contact"><text class="notice-diamond"></text>管理员</view>
       </contact-admin>
-      <text class="notice-text">，严禁私聊骚扰</text>
+      <text class="notice-text">，可选择</text>
       <text class="notice-block {{peerBlocked ? 'is-blocked' : ''}}" bindtap="onToggleBlock" hover-class="notice-press">{{peerBlocked ? '已拉黑 · 解除' : '…拉黑对方'}}</text>
     </view>
   </view>
@@ -34,7 +34,18 @@
     bindscrolltoupper="onLoadMore"
   >
     <view class="message-item {{item.isSelf ? 'self' : 'other'}}" wx:for="{{messages}}" wx:key="id" id="msg-{{item.id}}">
-      <image class="avatar" src="{{item.avatar}}" mode="aspectFill" lazy-load></image>
+      <image
+        class="avatar {{!item.isSelf && canOpenPeerProfile ? 'avatar-tappable' : ''}}"
+        hover-class="{{!item.isSelf && canOpenPeerProfile ? 'avatar-tappable-hover' : 'none'}}"
+        hover-stay-time="80"
+        src="{{item.avatar}}"
+        mode="aspectFill"
+        data-self="{{item.isSelf}}"
+        data-index="{{index}}"
+        bindtap="onTapAvatar"
+        binderror="onAvatarError"
+        lazy-load
+      ></image>
       <view class="message-content">
         <view class="message-bubble {{item.type === 'image' || item.type === 'video' ? 'media-bubble' : ''}}" bindlongpress="onRecallMessage" data-id="{{item.id}}">
           <text wx:if="{{item.type === 'text'}}" class="message-text">{{item.content}}</text>
@@ -50,7 +61,7 @@
 
   <!-- 微信式输入区 -->
   <view class="input-area">
-    <view class="anonymous-chat-tip" wx:if="{{anonymousMode}}">{{anonSelfMode ? '分身私信不会展示你的真实姓名与头像' : '匿名聊天不会展示双方真实姓名与头像'}}</view>
+    <view class="anonymous-chat-tip" wx:if="{{anonymousMode}}">{{anonSelfMode ? '此会话不会展示你的真实姓名与头像' : '分身聊天不会展示双方真实姓名与头像'}}</view>
     <view class="send-limit-tip block-tip" wx:if="{{peerBlocked}}">已拉黑对方，解除拉黑后才能继续发送消息</view>
     <view class="send-limit-tip block-tip" wx:elif="{{blockedByPeer}}">对方已将你加入黑名单，消息将无法送达</view>
     <view class="send-limit-tip" wx:elif="{{!canSend}}">等待对方回复后才能继续发送。长按上一条消息可撤回并重发。</view>
@@ -68,11 +79,11 @@
 
     <!-- ＋ 功能面板：照片 / 视频 -->
     <view class="tool-panel" wx:if="{{activePanel === 'tools'}}">
-      <view class="tool-panel-item" hover-class="tool-item-hover" hover-stay-time="80" bindtap="onChooseImage">
+      <view class="tool-panel-item spring-btn" hover-class="tool-item-hover press-spring" hover-stay-time="80" bindtap="onChooseImage">
         <view class="tool-tile"><view class="tool-icon-photo"></view></view>
         <text class="tool-panel-label">照片</text>
       </view>
-      <view class="tool-panel-item" hover-class="tool-item-hover" hover-stay-time="80" bindtap="onChooseVideo">
+      <view class="tool-panel-item spring-btn" hover-class="tool-item-hover press-spring" hover-stay-time="80" bindtap="onChooseVideo">
         <view class="tool-tile"><view class="tool-icon-video"></view></view>
         <text class="tool-panel-label">视频</text>
       </view>
@@ -80,7 +91,7 @@
 
     <!-- 微信原生风格输入栏：语音 / 输入框 / 表情 / 加号(发送) -->
     <view class="input-toolbar">
-      <view class="tool-btn" hover-class="tool-btn-hover" hover-stay-time="80" bindtap="onToggleVoice">
+      <view class="tool-btn spring-btn" hover-class="tool-btn-hover press-spring" hover-stay-time="80" bindtap="onToggleVoice">
         <view class="icon-voice {{voiceMode ? 'is-keyboard' : ''}}"></view>
       </view>
       <input
@@ -94,14 +105,14 @@
         confirm-type="send"
         focus="{{inputFocus}}"
       />
-      <view class="voice-input" wx:else hover-class="voice-hover" bindtouchstart="onVoiceHint">按住 说话</view>
-      <view class="tool-btn" hover-class="tool-btn-hover" hover-stay-time="80" bindtap="onToggleEmoji">
+      <view class="voice-input spring-btn" wx:else hover-stay-time="80" hover-class="voice-hover press-spring" bindtouchstart="onVoiceHint">按住 说话</view>
+      <view class="tool-btn spring-btn" hover-class="tool-btn-hover press-spring" hover-stay-time="80" bindtap="onToggleEmoji">
         <view class="icon-emoji"></view>
       </view>
-      <view class="tool-btn" wx:if="{{!inputValue}}" hover-class="tool-btn-hover" hover-stay-time="80" bindtap="onToggleTools">
+      <view class="tool-btn spring-btn" wx:if="{{!inputValue}}" hover-class="tool-btn-hover press-spring" hover-stay-time="80" bindtap="onToggleTools">
         <view class="icon-plus"></view>
       </view>
-      <view class="send-btn" wx:else hover-class="send-btn-hover" hover-stay-time="80" bindtap="onSend">发送</view>
+      <view class="send-btn spring-btn" wx:else hover-class="send-btn-hover press-spring" hover-stay-time="80" bindtap="onSend">发送</view>
     </view>
   </view>
 </view>

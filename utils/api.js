@@ -57,20 +57,35 @@ const SERVICE_ICON_MAP = {
 const SERVICE_RENAME_MAP = {
   '食堂菜单': '轻友指南',
   '通知公告': '教务文档',
-  '广轻维修': '广轻义修'
+  '广轻维修': '广轻义修',
+  // 服务端库中为「宅印」，端上统一叫「速印」，与首页宫格一致（同名才能命中同一套落地页）
+  '宅印': '速印'
 }
 
-// 暂不开放跳转的服务：清空 link / miniAppId，点击时走「即将上线」提示
+// 端上路由接管的服务：清空服务端下发的 link / miniAppId，改由 pages/index、pages/service-all 的
+// onServiceTap 按服务名跳转到站内落地页（教务系统/校园卡/速印/校车时刻/轻友指南/教务文档 等），
+// 不再有「即将上线」式空提示（审核规范要求）。
 const SERVICE_NO_LINK = ['轻友指南', '教务文档']
+
+// 这两个第三方服务依赖微信内置浏览器授权，且目标站不能稳定内嵌；
+// 即使服务端误下发小程序 AppID，也统一改为复制 H5 链接引导。
+const SERVICE_COPY_LINK_SERVICES = {
+  '订水系统': true,
+  '自助购电': true
+}
 
 // 跳转兜底配置：服务列表由服务端下发，但 link / miniAppId 之外的字段不会
 // 存储（数据库重置后容易丢失跳转配置），此处按服务名兜底补齐。
 // 服务端 link 非空时以服务端为准。
-// 订水/购电走 nginx 托管的中转页（https://payun01.cn/services/，webview 白名单
-// 域名），由中转页二次跳转到第三方 http 站点，规避真机 web-view 的 https 限制。
+// 服务端 link 非空时以服务端为准。
+// 订水/购电为第三方 http 站点，无法内嵌（https 的 H5 里 iframe 嵌 http 会被混合内容
+// 策略拦截；订水 https 版还有 X-Frame-Options: DENY），也不再走 services 中转页二次
+// 跳转（web-view 内页面导航到未配置域名同样被微信拦截，真机实测打不开）。
+// 改为直填 http 链接：首页点击后复制链接并引导「发送到微信聊天后点开」——
+// 两个系统均为微信网页授权体系（oauth 仅微信内有效），浏览器反而打不开。
 const SERVICE_FALLBACK_LINKS = {
-  '订水系统': { link: 'https://payun01.cn/services/?service=water' },
-  '自助购电': { link: 'https://payun01.cn/services/?service=power' },
+  '订水系统': { link: 'http://wx.dingbaoxiaoyuan.com/home' },
+  '自助购电': { link: 'http://bd.bdfairy.cn' },
   '零食店': { miniAppId: 'wx2cd0769ebeb0d213' },
   '杂货店': { miniAppId: 'wxbe48d181d8d5762e' },
   '乘车码': { miniAppId: 'wxe9f4a4df3ac90522' }
@@ -145,7 +160,9 @@ function parseComponents(components) {
 
 function mapPost(r) {
   const userId = r.userId || r.user_id;
-  const avatarUrl = String(r.avatarUrl || r.avatar_url || '').trim()
+  // Heal avatars saved before the bundled files were renamed to plain ASCII
+  // names; real devices could not render the old "/assets/avatar2/1%20(9).jpg".
+  const avatarUrl = avatar.normalizeLegacyAvatar(String(r.avatarUrl || r.avatar_url || '').trim())
   return {
     id: r.id,
     userId,
@@ -172,6 +189,8 @@ function mapPost(r) {
     pinned: !!r.pinned,
     isLiked: !!r.isLiked,
     isFavorited: !!r.isFavorited,
+    // 蹲贴态（服务端下发；拼写兼容 snake_case 下发）
+    isFollowed: !!(r.isFollowed || r.is_followed),
     reviewNote: r.reviewNote || r.review_note || "",
     isDeleted: !!(r.isDeleted || r.is_deleted),
     contact: parseContact(r.contact),
@@ -191,6 +210,55 @@ function getHomeConfig() {
   }));
 }
 
+// 校园卡自定义页面（管理后台「物品」页维护，可多张）：
+// 列表普通用户只拿到已发布条目；带 token 时管理员可读到下线草稿，未发布返回 null
+function getCampusCardPages() {
+  return request.get("/config/campus-card-pages", {}, true, { silent: true }).then((d) => (d && d.list) || []);
+}
+
+function getCampusCardPage(id) {
+  return request.get("/config/campus-card-page/" + id, {}, true, { silent: true }).then((d) => d || null);
+}
+
+function createCampusCardPage(payload) {
+  return request.post("/config/campus-card-page", payload, true);
+}
+
+function saveCampusCardPage(id, payload) {
+  return request.put("/config/campus-card-page/" + id, payload, true);
+}
+
+// 学车指南自定义页（后台「物品」页维护，单张）：未发布返回 null，页面走空态
+function getDrivingGuidePage() {
+  return request.get("/config/driving-guide-page", {}, true, { silent: true }).then((d) => d || null);
+}
+
+function createDrivingGuidePage(payload) {
+  return request.post("/config/driving-guide-page", payload, true);
+}
+
+function saveDrivingGuidePage(id, payload) {
+  return request.put("/config/driving-guide-page/" + id, payload, true);
+}
+
+// 驾校运营位：列表页顶部横幅（背景图+文案+标签）与筛选标签池。
+// 未配置返回 null，前台用 utils/driving-school.js 里的内置默认兜底，避免首屏空白。
+function getDrivingPromo() {
+  return request.get("/config/driving-promo", {}, true, { silent: true }).then((d) => d || null);
+}
+
+function saveDrivingPromo(payload) {
+  return request.put("/config/driving-promo", payload, true);
+}
+
+function getDrivingServiceTags() {
+  return request.get("/config/driving-service-tags", {}, true, { silent: true }).then((d) => d || null);
+}
+
+function saveDrivingServiceTags(payload) {
+  return request.put("/config/driving-service-tags", payload, true);
+}
+
 // 消息通知横幅（「我的」页「消息通知」卡片顶部）：公开读取；管理员保存后服务端广播 banner_update 实时刷新
 function getMessageBanner() {
   return request.get("/config/message-banner", {}, false, { silent: true }).then((d) => d || null);
@@ -207,6 +275,16 @@ function getPostBanner() {
 
 function savePostBanner(payload) {
   return request.put("/config/post-banner", payload, true);
+}
+
+// 找驾校：驾校列表（公开，仅启用条目，可按校区过滤）与详情
+function getDrivingSchools(campus) {
+  const query = campus ? { campus } : {};
+  return request.get("/driving-school/list", query, false, { silent: true }).then((d) => (d && d.list) || []);
+}
+
+function getDrivingSchoolDetail(id) {
+  return request.get("/driving-school/detail/" + id, {}, false, { silent: true }).then((d) => (d && d.school) || null);
 }
 
 function getPostList(params) {
@@ -298,12 +376,16 @@ function getServiceList() {
         item.iconPath = iconPath || SERVICE_ICON_MAP[name] || ''
         item.icon = item.iconPath ? '' : (rawIcon || rawIconPath)
         item.badge = item.badge || ''
+        if (SERVICE_COPY_LINK_SERVICES[name]) {
+          delete item.miniAppId
+          if (!item.link) item.link = SERVICE_FALLBACK_LINKS[name] && SERVICE_FALLBACK_LINKS[name].link
+        }
         if (!item.link && !item.miniAppId && SERVICE_FALLBACK_LINKS[name]) {
           const fallbackLink = SERVICE_FALLBACK_LINKS[name]
           if (fallbackLink.miniAppId) item.miniAppId = fallbackLink.miniAppId
           else item.link = fallbackLink.link
         }
-        // 暂不开放跳转的服务：清空服务端下发的跳转配置，点击走「即将上线」提示
+        // 端上路由接管的服务：清空服务端下发的跳转配置，点击由 onServiceTap 走站内落地页
         if (SERVICE_NO_LINK.indexOf(name) > -1) {
           delete item.miniAppId
           item.link = ''
@@ -355,6 +437,14 @@ function submitScheduleCaptcha(challengeId, code) {
   });
 }
 
+// 换一张验证码：复用服务端挑战内已保存的教务凭据重新抓图，
+// 用户无需在未绑定态重新输入学号密码
+function refreshScheduleCaptcha(challengeId) {
+  return request.post("/schedule/sync/captcha/refresh", { challengeId }, true, {
+    timeout: 60000,
+  });
+}
+
 // 教务账号绑定状态（服务端是否已保存加密凭证，用于免密自动同步）
 function getJwBindStatus() {
   return request
@@ -381,6 +471,16 @@ function getGradeList() {
   return request.get("/schedule/grades", {}, true, { silent: true });
 }
 
+function updateScheduleCourse(courseId, course) {
+  return request.put(`/schedule/course/${courseId}`, course, true, {
+    idempotencyKey: `schedule_course_update_${courseId}_${Date.now()}`,
+  });
+}
+
+function deleteScheduleCourse(courseId) {
+  return request.del(`/schedule/course/${courseId}`, {}, true);
+}
+
 function clearSchedule() {
   return request.post("/schedule/clear", {}, true);
 }
@@ -396,8 +496,9 @@ function getScheduleConfig() {
   return request.get("/schedule/config", {}, true);
 }
 
-function getCommentList(postId, sort = "hot") {
-  return request.get("/comment/list", { postId, sort, page: 1, pageSize: 50 }, false);
+function getCommentList(postId, sort = "hot", page = 1) {
+  // needAuth=true：optionalAuth 路由依赖 token 计算每条评论的 is_liked（点赞态水合）
+  return request.get("/comment/list", { postId, sort, page, pageSize: 50 }, true);
 }
 
 function likeComment(commentId) {
@@ -412,10 +513,16 @@ function getUserProfile(userId) {
   return request.get("/user/profile/" + userId, {}, false);
 }
 
-function getUserPosts(userId) {
+function getUserPosts(userId, page = 1) {
+  // needAuth=true：服务端按「本人」放行自己的匿名帖；无 token 时仅不带凭据，匿名帖仍不可见（预期行为）
   return request
-    .get("/user/profile/" + userId + "/posts", {}, false)
-    .then((d) => (d.list || []).map(mapPost));
+    .get("/user/profile/" + userId + "/posts", { page }, true)
+    .then((d) => {
+      const list = (d.list || []).map(mapPost);
+      // 附加 hasMore 供需要加载更多的页面读取；数组本身仍可直接遍历
+      list.hasMore = !!d.hasMore;
+      return list;
+    });
 }
 
 function getMyDeletedPosts() {
@@ -434,6 +541,26 @@ function unhidePost(postId) {
 
 function favoritePost(postId) {
   return request.post("/post/" + postId + "/favorite", {}, true);
+}
+
+// 蹲贴：切换「蹲」状态，返回 { followed, followCount }
+function followPost(postId) {
+  return request.post("/post/" + postId + "/follow", {}, true);
+}
+
+// 蹲贴列表：type = 'mine'（我蹲过的帖子）/ 'theirs'（其他用户蹲过的我的帖子）
+function getFollowedPosts(type, page, pageSize) {
+  return request.get('/post/follow/list', {
+    type: type || 'mine',
+    page: page || 1,
+    pageSize: pageSize || 50,
+  }, true, { silent: true });
+}
+
+// 删除评论：作者可删自己的评论，管理员（content.manage）可删任意评论。
+// 服务端会连带删除该评论的所有下级回复，并同步帖子评论计数。
+function deleteComment(commentId) {
+  return request.del('/comment/' + commentId, {}, true)
 }
 
 function votePost(postId, optionIndexes, pollIndex) {
@@ -481,10 +608,10 @@ function getMyInteractionStats() {
   return request.get("/user/interactions/stats", {}, true);
 }
 
-function getMyInteractionList(type) {
+function getMyInteractionList(type, page = 1) {
   return request.get(
     "/user/interactions/" + type,
-    { page: 1, pageSize: 50 },
+    { page, pageSize: 50 },
     true,
   );
 }
@@ -540,6 +667,22 @@ function getClubCategories(campus) {
   return request.get("/club/categories", campus ? { campus: campus } : {}, false);
 }
 
+// 提交社团申请（需登录，管理员审核通过后才在分类中展示）
+function submitClubApply(data) {
+  return request.post("/club/apply", data, true);
+}
+
+// 我的社团申请（审核进度与审核意见）
+function getMyClubApplies() {
+  return request.get("/club/mine", {}, true);
+}
+
+// 单个社团详情（公开）。silent：社团不存在/已下线时由详情页自行渲染空态，
+// 避免「接口 toast + 页面空态」同一条信息提示两遍。
+function getClubDetail(id) {
+  return request.get("/club/detail/" + id, {}, false, { silent: true });
+}
+
 // ===== 广轻群聊 =====
 function getGroupChatList(campus) {
   return request.get("/group-chat/list", campus ? { campus: campus } : {}, false);
@@ -557,10 +700,18 @@ function getMyGroupChatApplies() {
   return request.get("/group-chat/mine", {}, true);
 }
 
+// 群聊类别（管理后台「群聊类别编辑」维护）
+function getGroupChatCategories() {
+  return request.get("/group-chat/categories", {}, false, { silent: true });
+}
+
 // ===== 校园活动 =====
-function getActivities(tab, campus) {
+// page：页码（从 1 开始）。后端按 page 真实分页并返回 hasMore，
+// 缺省时不传 page 参数、行为与旧版一致（后端返回第 1 页）。
+function getActivities(tab, campus, page) {
   const query = { tab: tab || "all" };
   if (campus) query.campus = campus;
+  if (page && Number(page) > 1) query.page = Number(page);
   return request.get("/activity/list", query, tab === "mine", { silent: true });
 }
 
@@ -574,6 +725,47 @@ function createActivity(data) {
 
 function signupActivity(id) {
   return request.post("/activity/signup/" + id, {}, true);
+}
+
+// ===== 校园评价（课程 / 食堂 / 商圈评分） =====
+// query: { category, campus, floor, grade, level, parentId, keyword, sort, page }
+function getReviewTargets(query) {
+  return request.get("/review/targets", query || {}, false, { silent: true });
+}
+
+function getReviewTargetDetail(id) {
+  return request.get("/review/target/" + id, {}, false, { silent: true });
+}
+
+function createReviewTarget(data) {
+  return request.post("/review/target", data, true);
+}
+
+function getRandomReviewTarget(query) {
+  return request.get("/review/random", query || {}, false, { silent: true });
+}
+
+function rateReviewTarget(id, score) {
+  return request.post("/review/target/" + id + "/rate", { score }, true);
+}
+
+function likeReviewTarget(id) {
+  return request.post("/review/target/" + id + "/like", {}, true);
+}
+
+// sort: time 时间 / likes 赞数
+function getReviewComments(id, sort, page) {
+  const query = { sort: sort || "time" };
+  if (page && Number(page) > 1) query.page = Number(page);
+  return request.get("/review/target/" + id + "/comments", query, false, { silent: true });
+}
+
+function addReviewComment(id, content) {
+  return request.post("/review/target/" + id + "/comments", { content }, true);
+}
+
+function likeReviewComment(id) {
+  return request.post("/review/comment/" + id + "/like", {}, true);
 }
 
 module.exports = {
@@ -590,14 +782,27 @@ module.exports = {
   searchPosts,
   getServiceList,
   getClubCategories,
+  submitClubApply,
+  getMyClubApplies,
+  getClubDetail,
   getGroupChatList,
   getGroupChatDetail,
   submitGroupChatApply,
   getMyGroupChatApplies,
+  getGroupChatCategories,
   getActivities,
   getActivityDetail,
   createActivity,
   signupActivity,
+  getReviewTargets,
+  getReviewTargetDetail,
+  createReviewTarget,
+  getRandomReviewTarget,
+  rateReviewTarget,
+  likeReviewTarget,
+  getReviewComments,
+  addReviewComment,
+  likeReviewComment,
   getErrandList,
   getErrandChats,
   getErrandChatMessages,
@@ -606,19 +811,38 @@ module.exports = {
   getScheduleList,
   syncSchedule,
   submitScheduleCaptcha,
+  refreshScheduleCaptcha,
   refreshJwData,
   getJwBindStatus,
   getExamList,
   getGradeList,
+  updateScheduleCourse,
+
+  deleteScheduleCourse,
+
   clearSchedule,
+
   replaceSchedule,
   getScheduleConfig,
   getCommentList,
   getHomeConfig,
+  getCampusCardPages,
+  getCampusCardPage,
+  createCampusCardPage,
+  saveCampusCardPage,
+  getDrivingGuidePage,
+  createDrivingGuidePage,
+  saveDrivingGuidePage,
+  getDrivingPromo,
+  saveDrivingPromo,
+  getDrivingServiceTags,
+  saveDrivingServiceTags,
   getMessageBanner,
   saveMessageBanner,
   getPostBanner,
   savePostBanner,
+  getDrivingSchools,
+  getDrivingSchoolDetail,
   likeComment,
   getTopLikedComment,
   getUserProfile,
@@ -628,6 +852,9 @@ module.exports = {
   unhidePost,
   parseImages,
   favoritePost,
+  followPost,
+  getFollowedPosts,
+  deleteComment,
   votePost,
   updatePostReviewNote,
   deletePost,

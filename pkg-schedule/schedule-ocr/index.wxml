@@ -25,7 +25,7 @@
     </view>
   </view>
 
-  <button class="upload-btn btn-primary" bindtap="onUpload" loading="{{recognizing}}">上传识别</button>
+  <button hover-class="press-spring" class="upload-btn btn-primary spring-btn" bindtap="onUpload" loading="{{recognizing}}" hover-stay-time="120">上传识别</button>
 
   <!-- 识别结果列表 -->
   <view class="result-section" wx:if="{{showResult}}">
@@ -71,8 +71,8 @@
     </view>
 
     <view class="result-actions">
-      <button class="retry-btn" bindtap="onRetry">重新识别</button>
-      <button class="confirm-btn btn-primary" bindtap="onConfirmImport">确认导入</button>
+      <button hover-class="press-spring" class="retry-btn spring-btn" bindtap="onRetry" hover-stay-time="120">重新识别</button>
+      <button hover-class="press-spring" class="confirm-btn btn-primary spring-btn" bindtap="onConfirmImport" hover-stay-time="120">确认导入</button>
     </view>
   </view>
 </view>

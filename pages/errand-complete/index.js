@@ -1,6 +1,8 @@
 const request = require('../../utils/request')
 const qr = require('../../utils/qr')
+const auth = require('../../utils/auth')
 const { runPullDownRefresh } = require('../../utils/refresh')
+const errandStatus = require('../../utils/errand-status')
 
 Page({
   data: {
@@ -9,7 +11,11 @@ Page({
     navBarHeight: 44,
     description: '',
     images: [],
-    submitting: false
+    submitting: false,
+    // 提交成功后的提示弹窗：倒计时结束自动返回订单详情，也可点击立即返回
+    showTip: false,
+    countdown: 5,
+    autoConfirmHours: 2
   },
 
   onLoad(options) {
@@ -19,6 +25,11 @@ Page({
       statusBarHeight: app.globalData.statusBarHeight || 20,
       navBarHeight: app.globalData.navBarHeight || 44
     })
+  },
+
+  onShow() {
+    // 未登录：弹窗引导去登录（取消则退回上一页）
+    if (!auth.guardPage('完成订单需要先登录')) return
   },
 
   onPullDownRefresh() {
@@ -110,9 +121,50 @@ Page({
     this.setData({ submitting: true })
     this.uploadImages().then((images) => {
       return request.post('/errand/' + this.data.id + '/finish', { description, images }, true, { idempotencyKey: 'errand_finish_' + this.data.id })
-    }).then(() => {
-      wx.showToast({ title: '提交成功', icon: 'success' })
-      setTimeout(() => wx.navigateBack(), 700)
+    }).then((res) => {
+      errandStatus.publish(this.data.id, 'finishing')
+      // 订单已置为「待确认」：弹窗提示等待发单人确认，倒计时后自动回到订单详情
+      this.setData({ autoConfirmHours: (res && res.autoConfirmHours) || 2 })
+      this.showSubmittedTip()
     }).catch(() => {}).finally(() => this.setData({ submitting: false }))
+  },
+
+  // 提交成功提示：5 秒倒计时后自动返回订单详情，也可点击立即返回
+  showSubmittedTip() {
+    this.clearTipTimer()
+    this.setData({ showTip: true, countdown: 5 })
+    this._tipTimer = setInterval(() => {
+      const next = this.data.countdown - 1
+      if (next <= 0) {
+        this.backToDetail()
+        return
+      }
+      this.setData({ countdown: next })
+    }, 1000)
+  },
+
+  // 返回订单详情：从详情页进入时直接回退（onShow 会自动刷新为「待确认」），
+  // 从列表页「立即完成」进入时用 redirectTo 落回详情页
+  backToDetail() {
+    this.clearTipTimer()
+    this.setData({ showTip: false })
+    const pages = getCurrentPages()
+    const prev = pages[pages.length - 2]
+    if (prev && prev.route === 'pages/errand-detail/index') {
+      wx.navigateBack()
+      return
+    }
+    wx.redirectTo({ url: '/pages/errand-detail/index?id=' + this.data.id })
+  },
+
+  clearTipTimer() {
+    if (this._tipTimer) {
+      clearInterval(this._tipTimer)
+      this._tipTimer = null
+    }
+  },
+
+  onUnload() {
+    this.clearTipTimer()
   }
 })

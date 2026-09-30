@@ -43,3 +43,16 @@
 .deadline-sheet-btn.cancel:active{background:#e5eaf1}
 .deadline-sheet-btn.confirm{background:#4388ff;color:#fff}
 .deadline-sheet-btn.confirm:active{background:#3576e8}
+
+/* ===== 订阅消息提醒弹窗（进入发布跑腿页） ===== */
+.sub-mask { position: fixed; z-index: 100; inset: 0; background: rgba(0, 0, 0, .58); }
+.sub-dialog { position: fixed; z-index: 101; top: 50%; left: 50%; width: 600rpx; transform: translate(-50%, -50%); padding: 40rpx 32rpx 32rpx; border-radius: 28rpx; background: #ffffff; box-sizing: border-box; }
+.sub-title { display: block; color: #15233a; font-size: 36rpx; font-weight: 700; text-align: center; }
+.sub-desc { display: block; margin: 14rpx 0 6rpx; color: #8a94a6; font-size: 25rpx; text-align: center; }
+.sub-row { display: flex; align-items: center; justify-content: space-between; min-height: 104rpx; border-bottom: 1rpx solid #f0f2f5; }
+.sub-row-label { display: block; color: #10213a; font-size: 30rpx; }
+.sub-row-hint { display: block; margin-top: 4rpx; color: #8a94a6; font-size: 22rpx; }
+.sub-actions { display: flex; margin-top: 32rpx; }
+.sub-btn-skip, .sub-btn-confirm { display: flex; align-items: center; justify-content: center; height: 88rpx; border-radius: 44rpx; font-size: 30rpx; }
+.sub-btn-skip { flex: 1; margin-right: 20rpx; background: #f6f7f9; color: #5a6572; }
+.sub-btn-confirm { flex: 1.6; background: #3478f6; color: #ffffff; font-weight: 600; }

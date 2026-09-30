@@ -4,6 +4,7 @@ const request = require("../../utils/request");
 const api = require("../../utils/api");
 const qr = require("../../utils/qr");
 const anonymousIdentity = require("../../utils/anonymousIdentity");
+const subscribe = require("../../utils/subscribe");
 
 Component({
   properties: {
@@ -133,7 +134,6 @@ Component({
       const previewImages = this.data.previewImages.map((item) =>
         item.url === url ? Object.assign({}, item, { failed: true }) : item,
       );
-      console.warn("[post-card] image load failed", url, e.detail || {});
       this.setData({ previewImages });
       this.triggerEvent("imageerror", { postId: (this.data.post || {}).id, url });
     },
@@ -177,6 +177,10 @@ Component({
 
     onTap() {
       if (this.data.readonly) return;
+      // 新增触发点：点击帖子卡片（进入详情）时同步申请「评论通知」订阅授权。
+      // 与「发帖成功」共用同一个触发组 postPublish（commentNew + commentReply），
+      // 必须写在 tap 同步调用链里 —— 微信要求 requestSubscribeMessage 由用户手势直接触发。
+      if (typeof subscribe.requestTriggerByTap === "function") subscribe.requestTriggerByTap("postPublish");
       wx.navigateTo({
         url: "/pages/post-detail/index?id=" + this.data.post.id,
       });
@@ -235,7 +239,7 @@ Component({
       if (!auth.requireLogin("私信需要先登录")) return;
       wx.showModal({
         title: "分身私信",
-        content: "开启对话后，你将以匿名身份与对方交流",
+        content: "开启对话后，你将以分身身份与对方交流",
         confirmText: "确认",
         cancelText: "取消",
         success: (res) => {
@@ -281,12 +285,12 @@ Component({
       if (!popup || !popup.userId) return;
       if (popup.allowAnonymousPm === false) {
         this.setData({ anonPopup: null });
-        wx.showToast({ title: "对方不允许匿名私信", icon: "none" });
+        wx.showToast({ title: "对方不允许分身私信", icon: "none" });
         return;
       }
       wx.showModal({
-        title: "匿名私信",
-        content: "与匿名用户对话时，你也自动变为匿名用户",
+        title: "分身私信",
+        content: "与分身用户对话时，你也自动变为分身用户",
         confirmText: "确认",
         cancelText: "取消",
       success: (res) => {
@@ -296,7 +300,7 @@ Component({
           // 与对方的某个分身对话：personaKey 用该分身头像作隔离键，
           // 对方其他分身（同一真实用户）的聊天记录不会出现在本会话
           url: "/pages/chat/index?peerId=" + popup.userId +
-            "&nick=" + encodeURIComponent(popup.nick || "匿名用户") +
+            "&nick=" + encodeURIComponent(popup.nick || "分身用户") +
             "&avatar=" + encodeURIComponent(popup.avatar || "/assets/icons/avatar.png") +
             "&anonymous=1" +
             "&personaKey=" + encodeURIComponent(popup.avatar || "/assets/icons/avatar.png") +
@@ -357,6 +361,9 @@ Component({
     },
 
     onComment() {
+      // 新增触发点：点击评论区（评论按钮）同样申请「评论通知」授权。
+      // sheet 模式（首页原地开面板）与 detail 模式（跳详情页）两条路径都在这里收口，故只写一处。
+      if (typeof subscribe.requestTriggerByTap === "function") subscribe.requestTriggerByTap("postPublish");
       if (this.data.commentMode === "sheet") {
         this.triggerEvent("comment", { post: this.data.post });
         return;

@@ -4,6 +4,50 @@
   padding-bottom: 60rpx;
 }
 
+/* 活动发起人卡片 */
+.initiator-card { margin-top: 24rpx; }
+.initiator-row { display: flex; align-items: center; }
+.initiator-avatar { width: 88rpx; height: 88rpx; border-radius: 50%; margin-right: 20rpx; flex-shrink: 0; background: #eef2f8; }
+.initiator-avatar--fallback { display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #3f7cff, #6aa0ff); }
+.initiator-avatar--fallback text { color: #fff; font-size: 36rpx; font-weight: 600; }
+.initiator-info { display: flex; flex-direction: column; gap: 6rpx; flex: 1; min-width: 0; }
+.initiator-name { font-size: 28rpx; font-weight: 600; color: #1f2b43; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.initiator-phone { font-size: 24rpx; color: #8792a6; }
+.initiator-tag { flex-shrink: 0; font-size: 22rpx; color: #3478f6; background: #eaf1ff; padding: 6rpx 18rpx; border-radius: 999rpx; }
+
+/* 审核状态提示（仅发起人可见） */
+.audit-banner {
+  display: flex;
+  flex-direction: column;
+  gap: 6rpx;
+  margin: 24rpx 32rpx 0;
+  padding: 20rpx 24rpx;
+  border-radius: 16rpx;
+  background: #fff7e6;
+  border: 1rpx solid #ffe1ad;
+}
+
+.audit-banner--rejected {
+  background: #fff1f0;
+  border-color: #ffccc7;
+}
+
+.audit-banner-text {
+  font-size: 26rpx;
+  color: #ad6800;
+  line-height: 1.5;
+}
+
+.audit-banner--rejected .audit-banner-text {
+  color: #cf1322;
+}
+
+.audit-banner-note {
+  font-size: 24rpx;
+  color: #8c8c8c;
+  line-height: 1.5;
+}
+
 .cover-wrap {
   position: relative;
   width: 100%;
@@ -49,6 +93,24 @@
   padding: 28rpx;
   margin-bottom: 24rpx;
   box-shadow: 0 8rpx 24rpx rgba(0, 0, 0, 0.04);
+}
+
+.audit-tip-card {
+  padding: 20rpx 28rpx;
+}
+
+.audit-tip {
+  font-size: 25rpx;
+  color: #e8940a;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+.audit-note {
+  margin-top: 10rpx;
+  font-size: 24rpx;
+  color: #d54941;
+  line-height: 1.5;
 }
 
 .act-title {
@@ -167,16 +229,29 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: opacity 0.16s ease, transform 0.16s ease;
+  transition: opacity 0.16s ease, transform 0.35s cubic-bezier(0.34, 1.42, 0.6, 1), box-shadow 0.35s cubic-bezier(0.34, 1.42, 0.6, 1);
 }
 
 .signup-btn--hover {
   opacity: 0.88;
-  transform: scale(0.99);
-}
+  transform: scale(0.96);
+ box-shadow: inset 0 2rpx 6rpx rgba(16, 32, 64, 0.16), inset 0 -1rpx 2rpx rgba(255, 255, 255, 0.08); }
 
 .signup-btn--disabled {
   background: #c9cdd4;
   box-shadow: none;
   color: #ffffff;
 }
+
+/* ===== 订阅消息提醒弹窗（报名成功后） ===== */
+.sub-mask { position: fixed; z-index: 100; inset: 0; background: rgba(0, 0, 0, .58); }
+.sub-dialog { position: fixed; z-index: 101; top: 50%; left: 50%; width: 600rpx; transform: translate(-50%, -50%); padding: 40rpx 32rpx 32rpx; border-radius: 28rpx; background: #ffffff; box-sizing: border-box; }
+.sub-title { display: block; color: #15233a; font-size: 36rpx; font-weight: 700; text-align: center; }
+.sub-desc { display: block; margin: 14rpx 0 6rpx; color: #8a94a6; font-size: 25rpx; text-align: center; }
+.sub-row { display: flex; align-items: center; justify-content: space-between; min-height: 104rpx; border-bottom: 1rpx solid #f0f2f5; }
+.sub-row-label { display: block; color: #10213a; font-size: 30rpx; }
+.sub-row-hint { display: block; margin-top: 4rpx; color: #8a94a6; font-size: 22rpx; }
+.sub-actions { display: flex; margin-top: 32rpx; }
+.sub-btn-skip, .sub-btn-confirm { display: flex; align-items: center; justify-content: center; height: 88rpx; border-radius: 44rpx; font-size: 30rpx; }
+.sub-btn-skip { flex: 1; margin-right: 20rpx; background: #f6f7f9; color: #5a6572; }
+.sub-btn-confirm { flex: 1.6; background: #3478f6; color: #ffffff; font-weight: 600; }

@@ -1,5 +1,5 @@
 <view class="page">
-  <view class="topbar" style="padding-top: {{statusBarHeight}}px;"><view class="topbar-inner" style="height: {{navBarHeight}}px;"><view class="back-pill" hover-class="back-pill-hover" hover-stay-time="80" bindtap="goBack"><text class="back-pill-icon">‹</text><text>返回</text></view><text class="nav-title">广轻工论坛</text><view class="topbar-right"></view></view></view>
+  <view class="topbar" style="padding-top: {{statusBarHeight}}px;"><view class="topbar-inner" style="height: {{navBarHeight}}px;"><view class="back-pill spring-btn" hover-class="back-pill-hover press-spring" hover-stay-time="80" bindtap="goBack"><text class="back-pill-icon">‹</text><text>返回</text></view><text class="nav-title">广轻工论坛</text><view class="topbar-right"></view></view></view>
   <view class="nav-space" style="height: {{statusBarHeight + navBarHeight}}px;"></view>
 
   <!-- 选择原因方 + 取消理由（图五版式，接单方/发单方通用） -->
@@ -39,18 +39,22 @@
 1、在 30 分钟内取消接单，若为发单人原因，需征求对方同意，才能取消接单；
 2、超过 30 分钟取消接单，无论原因，均需征求发单人同意后，才能取消接单；
 3、自身原因多次取消接单会降低完成率，完成率过低将被系统冻结接单功能；
-4、严禁以任何形式引导用户私下交易。</text><text class="tip-link">举报领奖</text>
+4、严禁以任何形式引导用户私下交易。</text><text class="tip-link" catchtap="onReportReward">举报领奖</text>
   </view>
   <view class="warm-tip" wx:else>
     <text class="tip-line">温馨提示：
 1、取消订单后，赏金将按原支付路径退回，订单无法恢复；
 2、订单已被接单时取消，请先与接单方沟通说明，避免产生纠纷；
 3、频繁取消订单将影响您的发单信用；
-4、严禁以任何形式引导用户私下交易。</text><text class="tip-link">举报领奖</text>
+4、严禁以任何形式引导用户私下交易。</text><text class="tip-link" catchtap="onReportReward">举报领奖</text>
   </view>
 
+  <!-- 联系客服：复用「联系管理员」能力（在线联系微信客服 / 添加管理员微信），
+       与「我的」页面「联系客服」完全一致 -->
+  <contact-admin id="serviceAdmin"></contact-admin>
+
   <view class="bottom-actions">
-    <button class="primary" bindtap="goBack">我再想想</button>
-    <button class="secondary" bindtap="submit" disabled="{{submitting}}">确认提交</button>
+    <button hover-class="press-spring" class="primary spring-btn" bindtap="goBack" hover-stay-time="120">我再想想</button>
+    <button hover-class="press-spring" class="secondary spring-btn" bindtap="submit" disabled="{{submitting}}" hover-stay-time="120">确认提交</button>
   </view>
 </view>

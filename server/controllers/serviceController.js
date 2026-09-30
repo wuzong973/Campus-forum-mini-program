@@ -10,7 +10,8 @@ exports.list = async (req, res) => {
       id: cat.id,
       title: cat.name,
       items: items.filter((i) => i.category_id === cat.id).map((i) => ({
-        id: i.id, name: i.name, icon: i.icon, badge: i.badge, link: i.link
+        id: i.id, name: i.name, icon: i.icon, badge: i.badge, link: i.link,
+        miniAppId: i.mini_app_id || '', iconPath: i.icon_path || '', sortOrder: i.sort_order
       }))
     }))
     success(res, result)

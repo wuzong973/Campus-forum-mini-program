@@ -1,0 +1,8 @@
+{
+  "navigationBarTitleText": "驾校详情",
+  "navigationBarBackgroundColor": "#D7EFFF",
+  "navigationBarTextStyle": "black",
+  "usingComponents": {
+    "contact-admin": "/components/contact-admin/contact-admin"
+  }
+}

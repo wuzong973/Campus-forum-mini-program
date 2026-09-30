@@ -56,6 +56,10 @@ const walletRoutes = require("./routes/walletRoutes");
 const clubRoutes = require("./routes/clubRoutes");
 const groupChatRoutes = require("./routes/groupChatRoutes");
 const activityRoutes = require("./routes/activityRoutes");
+const subscribeRoutes = require("./routes/subscribeRoutes");
+const reviewRoutes = require("./routes/reviewRoutes");
+const powerProxyRoutes = require("./routes/powerProxyRoutes");
+const drivingSchoolRoutes = require("./routes/drivingSchoolRoutes");
 const wsServer = require("./ws/wsServer");
 const { runMigrations } = require("./utils/migrations");
 
@@ -76,8 +80,20 @@ app.use(express.json({
   },
 }));
 app.use(express.urlencoded({ extended: true }));
+// API 一律禁缓存：帖子/热榜等内容会因「作者或管理员删除」而在服务端立刻变化，
+// 任何中间层（CDN、企业代理、客户端缓存）缓存住旧响应，都会让已删除的帖子继续出现。
+// 之前响应里没有任何 Cache-Control，等于把「要不要缓存」交给中间层自行决定。
+app.use("/api", (req, res, next) => {
+  res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+  res.setHeader("Pragma", "no-cache");
+  res.setHeader("Expires", "0");
+  next();
+});
 app.use(requestContext);
 app.use(logger);
+// 微信「消息推送」回调（媒体内容安全检测结果）：注册在全局限流之前，
+// 否则全局 120 次/分钟窗口会把微信批量回调判为失败并触发重推（与支付回调同类问题）。
+app.use('/api/v1/wechat', require('./routes/wechatPushRoutes'));
 app.use(rateLimit({ max: 120 }));
 // 本地磁盘上传（UPLOAD_STORAGE_DRIVER=disk）需要对外暴露 /uploads；
 // 开发环境同样托管，方便本地调试。对象存储模式下图片由 COS 提供。
@@ -124,6 +140,10 @@ app.use("/api/v1/wallet", walletRoutes);
 app.use("/api/v1/club", clubRoutes);
 app.use("/api/v1/group-chat", groupChatRoutes);
 app.use("/api/v1/activity", activityRoutes);
+app.use("/api/v1/subscribe", subscribeRoutes);
+app.use("/api/v1/review", reviewRoutes);
+app.use("/api/v1/power", powerProxyRoutes);
+app.use("/api/v1/driving-school", drivingSchoolRoutes);
 
 app.use("/api/v1/*", (req, res) => fail(res, "接口不存在", 404));
 
@@ -148,6 +168,16 @@ async function start() {
   wsServer.init(server);
   // 跑腿订单超时自动取消：待支付超 30 分钟取消；待接单超 30 分钟取消并原路退款
   require("./services/errandExpiryService").start();
+  // 活动开始前 30 分钟提醒已报名用户（订阅消息）
+  require("./services/activityReminderService").start();
+  // 注销冷静期到期后真正删除账号数据（每小时扫描 pending 且 scheduled_for<=NOW 的申请）
+  require("./services/accountDeletionService").start();
+  // 订阅消息待发补发：合并窗口过期 / 额度恢复后把「本该发但没发出去」的通知补上
+  require("./services/subscribeRetryService").start();
+  // 媒体内容安全：定时刷新「异步检测已判违规」的地址集合，读取出口统一过滤
+  require("./services/mediaCheckService").start();
+  // 计数器对账：修正点赞/评论/收藏/蹲贴/转发计数与明细表的双写偏差（P22）
+  require("./services/counterReconcileService").start();
 }
 
 start().catch((err) => {

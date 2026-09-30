@@ -1,11 +1,14 @@
+const fs = require("fs");
 const pool = require("../config/pool");
 const { success, fail } = require("../middleware/auth");
 const { safeMessage } = require("../utils/helpers");
+const ocrService = require("../services/ocrService");
 const {
   DEFAULT_SEMESTER_START,
   syncScheduleFromJw,
   refreshFromJw,
   submitScheduleCaptcha,
+  refreshCaptchaChallenge,
   getJwBinding,
 } = require("../services/jwScheduleSyncService");
 
@@ -13,24 +16,32 @@ function inferCourseColor(name, location, startTime) {
   const text = String(name || "") + " " + String(location || "");
   if (/军体|体育|操场/.test(text)) return "#52C41A";
   if (/实验|第四实训楼|B\d{3}|制图/.test(text)) return "#FA8C16";
-  if (/晚训|晚自习/.test(text) || /^1[89]:/.test(startTime || "")) return "#EB2F96";
+  if (/晚训|晚自习/.test(text) || /^(1[89]|2[0-9]):/.test(startTime || "")) return "#EB2F96";
   if (/班会|活动|讲座/.test(text)) return "#13C2C2";
   return "#4A7AFF";
 }
 
+// 校定作息表：与小程序 utils/schedule.js 的 CLASS_PERIODS 同口径。
+// 官方教务系统课表按两节一行展示：1-2 08:30-09:55 / 3-4 10:15-11:40 /
+// 5-6 14:00-15:25 / 7-8 15:45-17:10 / 9-10 18:30-19:55 / 11-12 20:00-21:25。
+// 旧表把 5-6 节当成午休（11:45-13:55）并整体下移两节，OCR 按节次回填时
+// 会把课程时间写错，这里一并纠正。
 const SECTION_TIME = {
   1: ['08:30', '09:10'],
   2: ['09:15', '09:55'],
   3: ['10:15', '10:55'],
   4: ['11:00', '11:40'],
-  5: ['11:45', '12:25'],
-  6: ['13:15', '13:55'],
-  7: ['14:00', '14:40'],
-  8: ['14:45', '15:25'],
-  9: ['15:45', '16:25'],
-  10: ['16:30', '17:10'],
-  11: ['19:30', '20:10']
+  5: ['14:00', '14:40'],
+  6: ['14:45', '15:25'],
+  7: ['15:45', '16:25'],
+  8: ['16:30', '17:10'],
+  9: ['18:30', '19:10'],
+  10: ['19:15', '19:55'],
+  11: ['20:00', '20:40'],
+  12: ['20:45', '21:25'],
 }
+
+const TOTAL_SECTIONS = Object.keys(SECTION_TIME).length
 
 function normalizeTime(value) {
   const match = String(value || '').match(/(\d{1,2})[:：](\d{2})/)
@@ -49,8 +60,8 @@ function parseWeekDay(text) {
 function parseSectionRange(text) {
   const sectionMatch = String(text || '').match(/第?\s*(\d{1,2})\s*(?:[-~至、,，]\s*(\d{1,2}))?\s*节/)
   if (!sectionMatch) return null
-  const start = Math.max(1, Math.min(11, parseInt(sectionMatch[1], 10)))
-  const end = Math.max(start, Math.min(11, parseInt(sectionMatch[2] || sectionMatch[1], 10)))
+  const start = Math.max(1, Math.min(TOTAL_SECTIONS, parseInt(sectionMatch[1], 10)))
+  const end = Math.max(start, Math.min(TOTAL_SECTIONS, parseInt(sectionMatch[2] || sectionMatch[1], 10)))
   return { start, end, startTime: SECTION_TIME[start][0], endTime: SECTION_TIME[end][1] }
 }
 
@@ -97,7 +108,7 @@ function parseLine(line, index) {
   const weekDay = parseWeekDay(text)
   const time = timeMatch
     ? { startTime: normalizeTime(timeMatch[1]), endTime: normalizeTime(timeMatch[2]) }
-    : (section || { startTime: '08:30', endTime: '09:10' })
+    : (section || { startTime: '08:30', endTime: '09:55' })
   const weekRange = parseWeekRange(text)
   const fields = splitCourseFields(text, index)
   const confidence = [
@@ -205,6 +216,70 @@ exports.add = async (req, res) => {
   }
 };
 
+function normalizeCoursePayload(course) {
+  const name = String(course.name || '').trim();
+  const weekDay = Number(course.weekDay);
+  const startWeek = Number(course.startWeek || 1);
+  const endWeek = Number(course.endWeek || startWeek);
+  if (!name || !Number.isInteger(weekDay) || weekDay < 1 || weekDay > 7 || !Number.isInteger(startWeek) || !Number.isInteger(endWeek) || startWeek < 1 || endWeek < startWeek || endWeek > 30) return null;
+  return {
+    name: name.slice(0, 64),
+    location: String(course.location || '').trim().slice(0, 128),
+    teacher: String(course.teacher || '').trim().slice(0, 64),
+    weekDay,
+    startTime: String(course.startTime || '').trim().slice(0, 8),
+    endTime: String(course.endTime || '').trim().slice(0, 8),
+    startWeek,
+    endWeek,
+    weekType: ['all', 'odd', 'even'].includes(course.weekType) ? course.weekType : 'all',
+    color: String(course.color || '').trim().slice(0, 16),
+  };
+}
+
+exports.updateCourse = async (req, res) => {
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id) || id <= 0) return fail(res, "课程 ID 无效");
+  const payload = normalizeCoursePayload(req.body || {});
+  if (!payload) return fail(res, "课程数据无效");
+  try {
+    const [result] = await pool.query(
+      `UPDATE user_schedule
+       SET name = ?, location = ?, teacher = ?, week_day = ?, start_time = ?, end_time = ?, start_week = ?, end_week = ?, week_type = ?, color = ?
+       WHERE id = ? AND user_id = ?`,
+      [
+        payload.name,
+        payload.location,
+        payload.teacher,
+        payload.weekDay,
+        payload.startTime,
+        payload.endTime,
+        payload.startWeek,
+        payload.endWeek,
+        payload.weekType,
+        payload.color,
+        id,
+        req.userId,
+      ],
+    );
+    if (!result.affectedRows) return fail(res, "课程不存在", 404);
+    success(res, { id });
+  } catch (e) {
+    fail(res, safeMessage(e), 500);
+  }
+};
+
+exports.deleteCourse = async (req, res) => {
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id) || id <= 0) return fail(res, "课程 ID 无效");
+  try {
+    const [result] = await pool.query("DELETE FROM user_schedule WHERE id = ? AND user_id = ?", [id, req.userId]);
+    if (!result.affectedRows) return fail(res, "课程不存在", 404);
+    success(res, { id });
+  } catch (e) {
+    fail(res, safeMessage(e), 500);
+  }
+};
+
 exports.replace = async (req, res) => {
   const courses = Array.isArray(req.body.courses) ? req.body.courses : [];
   if (!courses.length || courses.length > 100) return fail(res, "课程数据不能为空且最多导入100门");
@@ -247,27 +322,50 @@ exports.clear = async (req, res) => {
   }
 };
 
+// 课表截图 OCR：客户端上传图片（multipart），服务端走微信通用印刷体 OCR
+// 得到逐行文本，再交给 parseOcrText 结构化。JSON 直接传 rawText 的老用法保留，
+// 便于排查与测试。strategy 字段标明实际生效的识别链路。
 exports.ocr = async (req, res) => {
   try {
-    const rawText = String(req.body.rawText || req.body.text || "").trim();
-    let courses = [];
     const tips = [];
-    if (rawText) {
-      courses = parseOcrText(rawText);
-      const lowConfidenceCount = courses.filter(
-        (item) => item.confidence < 70,
-      ).length;
-      if (lowConfidenceCount)
-        tips.push(lowConfidenceCount + " 门课程置信度偏低，请导入前人工核对");
+    let rawText = String(req.body.rawText || req.body.text || "").trim();
+    let strategy = "rule-parse-v2";
+
+    if (req.ocrImageBuffer) {
+      if (!ocrService.isConfigured()) {
+        return fail(res, "课表识别服务未配置，请联系管理员", 503);
+      }
+      try {
+        const ocr = await ocrService.recognizeScheduleImage(req.ocrImageBuffer);
+        rawText = ocr.rawText;
+        strategy = "wechat-ocr+rule-parse";
+        if (!rawText) {
+          tips.push("OCR 未从图片中识别出文字，请上传更清晰的课表完整截图");
+        }
+      } catch (e) {
+        if (e.expose) return fail(res, e.message, e.status || 503);
+        console.error("[ScheduleOcr] failed:", e.message);
+        return fail(res, "课表识别服务暂时不可用，请稍后重试", 503);
+      }
     }
+
+    let courses = rawText ? parseOcrText(rawText) : [];
+    const lowConfidenceCount = courses.filter(
+      (item) => item.confidence < 70,
+    ).length;
+    if (lowConfidenceCount)
+      tips.push(lowConfidenceCount + " 门课程置信度偏低，请导入前人工核对");
     if (!courses.length) return fail(res, "未能识别出有效课程，请上传清晰完整的课表截图", 422)
     success(res, {
       courses,
       tips,
-      strategy: "rule-parse-v2",
+      strategy,
     });
   } catch (e) {
     fail(res, safeMessage(e), 500);
+  } finally {
+    // multer 临时文件只服务本次识别，旧实现从不清理导致 uploads 目录持续膨胀
+    if (req.file && req.file.path) fs.unlink(req.file.path, () => {});
   }
 };
 
@@ -371,6 +469,25 @@ async function persistGrades(userId, grades) {
 }
 
 // 考试/成绩抓取失败不阻断课表同步：落库失败仅记录警告，不回滚课表
+// 由成绩文本派生「是否通过」，供前端挂科标红（此前后端不返回 pass，红色永不生效）。
+// 规则：纯分数 >=60 通过；文字等级按及格/不及格判定；无法判定返回 null（前端不标红）。
+function deriveGradePass(grade) {
+  if (!grade || typeof grade !== "object") return grade;
+  const raw = String(grade.score == null ? "" : grade.score).trim();
+  let pass = null;
+  if (raw) {
+    const numMatch = raw.match(/^(\d+(?:\.\d+)?)\s*分?$/);
+    if (numMatch) pass = Number(numMatch[1]) >= 60;
+    else if (/不及格|不合格|未通过|不通过|缺考|作弊/.test(raw)) pass = false;
+    else if (/优秀|良好|中等|及格|合格|通过|一等|二等|三等/.test(raw)) pass = true;
+    else {
+      const letter = raw.toUpperCase().match(/^[A-F]/);
+      if (letter) pass = letter[0] !== "F";
+    }
+  }
+  return Object.assign({}, grade, { pass });
+}
+
 function buildSyncPayload(result) {
   return {
     count: result.courses.length,
@@ -384,7 +501,7 @@ function buildSyncPayload(result) {
     fast: !!result.meta.fast,
     concurrency: result.meta.concurrency || null,
     exams: result.exams || [],
-    grades: result.grades || [],
+    grades: (result.grades || []).map(deriveGradePass),
     warnings: result.warnings || [],
   };
 }
@@ -465,6 +582,22 @@ exports.syncCaptcha = async (req, res) => {
         data: e.challenge,
       });
     }
+    fail(res, safeMessage(e), e.status || 500);
+  }
+};
+
+// 换一张验证码：复用挑战内已保存的凭据与会话重新抓图，
+// 用户在「教务同步」页点「换一张」时无需重新输入学号密码
+exports.refreshCaptcha = async (req, res) => {
+  const challengeId = String(req.body.challengeId || "").trim();
+  if (!challengeId) return fail(res, "验证码挑战不存在");
+
+  try {
+    success(
+      res,
+      await refreshCaptchaChallenge({ userId: req.userId, challengeId }),
+    );
+  } catch (e) {
     fail(res, safeMessage(e), e.status || 500);
   }
 };
@@ -552,7 +685,8 @@ exports.listGrades = async (req, res) => {
       ORDER BY semester DESC, id`,
       [req.userId],
     );
-    success(res, rows);
+    // 成绩读库后补派生字段 pass，供前端挂科标红（M1e）
+    success(res, rows.map(deriveGradePass));
   } catch (e) {
     fail(res, safeMessage(e), 500);
   }
@@ -581,15 +715,39 @@ exports.getConfig = async (req, res) => {
         bgColor: "#F5F7FA",
       });
   } catch (e) {
+    // safeMessage 会把 ER_* 吞成"数据库操作失败"，这里落一条原始错误方便线上排障
+    console.error(`[schedule.getConfig] requestId=${req.requestId}`, e.code || "", e.message);
     fail(res, safeMessage(e), 500);
   }
 };
 
+// 形状对不等于日期对：'2026-02-30' 能过 /^\d{4}-\d{2}-\d{2}$/，但 MySQL 会以
+// ER_TRUNCATED_WRONG_VALUE 拒绝，端上再把坏值永久重发（每次启动一次 500）。
+function isRealDate(text) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(text || ""));
+  if (!m) return false;
+  const y = Number(m[1]);
+  const mo = Number(m[2]);
+  const d = Number(m[3]);
+  const date = new Date(y, mo - 1, d);
+  return (
+    date.getFullYear() === y &&
+    date.getMonth() === mo - 1 &&
+    date.getDate() === d
+  );
+}
+
 exports.updateConfig = async (req, res) => {
-  const { startDate, hideWeekend, reminder, bgColor } = req.body;
+  const { startDate, hideWeekend, reminder, bgColor } = req.body || {};
+  if (startDate && !isRealDate(startDate))
+    return fail(res, "开始日期不合法，请按 2026-09-07 填写真实日期");
   // 客户端离线队列可能缺字段，兜底默认值，避免 mysql2 遇到 undefined 直接抛错返回 500
   const safeStartDate = startDate || DEFAULT_SEMESTER_START;
-  const safeBgColor = bgColor || "#F5F7FA";
+  // bg_color 允许 7 位 hex 与 ~45 字符的 linear-gradient 串（课表页 BG_COLOR_PALETTE），
+  // 列宽 VARCHAR(128)；超长脏值回退默认色而不是让 ER_DATA_TOO_LONG 打成 500——
+  // 5xx 不清前端离线队列，一条坏颜色会把提醒开关等所有配置保存一起卡死
+  const safeBgColor =
+    typeof bgColor === "string" && bgColor.length <= 128 ? bgColor : "#F5F7FA";
   try {
     const [rows] = await pool.query(
       "SELECT id FROM schedule_config WHERE user_id = ?",
@@ -608,6 +766,11 @@ exports.updateConfig = async (req, res) => {
     }
     success(res, null);
   } catch (e) {
+    // 同上：原始错误落日志（ER_NO_SUCH_TABLE / ER_BAD_FIELD_ERROR 一眼定位）
+    console.error(`[schedule.updateConfig] requestId=${req.requestId}`, e.code || "", e.message);
     fail(res, safeMessage(e), 500);
   }
 };
+
+// 导出成绩派生函数，便于单测（前端挂科标红依赖 pass 字段）
+exports.deriveGradePass = deriveGradePass;

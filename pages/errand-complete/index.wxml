@@ -1,5 +1,5 @@
 <view class="page">
-  <view class="topbar" style="padding-top: {{statusBarHeight}}px;"><view class="topbar-inner" style="height: {{navBarHeight}}px;"><view class="back-pill" hover-class="back-pill-hover" hover-stay-time="80" bindtap="goBack"><text class="back-pill-icon">‹</text><text>返回</text></view><text class="nav-title">订单处理</text><view class="topbar-right"></view></view></view>
+  <view class="topbar" style="padding-top: {{statusBarHeight}}px;"><view class="topbar-inner" style="height: {{navBarHeight}}px;"><view class="back-pill spring-btn" hover-class="back-pill-hover press-spring" hover-stay-time="80" bindtap="goBack"><text class="back-pill-icon">‹</text><text>返回</text></view><text class="nav-title">订单处理</text><view class="topbar-right"></view></view></view>
   <view class="nav-space" style="height: {{statusBarHeight + navBarHeight}}px;"></view>
 
   <view class="card">
@@ -28,7 +28,16 @@
   <view class="service-tip">如有疑问，请尽快联系<contact-admin style="display: inline;"><text slot="trigger">客服处理</text></contact-admin></view>
 
   <view class="bottom-actions">
-    <button class="primary" bindtap="goBack">我再想想</button>
-    <button class="secondary" bindtap="submit" disabled="{{submitting}}">确认提交</button>
+    <button hover-class="press-spring" class="primary spring-btn" bindtap="goBack" hover-stay-time="120">我再想想</button>
+    <button hover-class="press-spring" class="secondary spring-btn" bindtap="submit" disabled="{{submitting}}" hover-stay-time="120">确认提交</button>
+  </view>
+
+  <!-- 提交成功提示：倒计时结束自动返回订单详情，也可点击立即返回 -->
+  <view class="tip-mask" wx:if="{{showTip}}">
+    <view class="tip-popup">
+      <text class="tip-title">待办提示</text>
+      <text class="tip-content">已通知发单人确认，若发单人 {{autoConfirmHours}} 小时还未确认，系统将自动确认完成并结算赏金。</text>
+      <view class="tip-action" bindtap="backToDetail">立即返回订单详情（{{countdown}}s）</view>
+    </view>
   </view>
 </view>

@@ -97,7 +97,14 @@ function updateTabBarBadge(n) {
   const pages = getCurrentPages()
   const cur = pages[pages.length - 1]
   if (!cur) return
-  // 用户页 tabBar 角标
+  // 自定义 tabBar 下 wx.setTabBarBadge 不生效：直接通知当前页 tabBar 组件更新角标
+  try {
+    const tabBar = cur.getTabBar && cur.getTabBar()
+    if (tabBar && typeof tabBar.setUnreadCount === 'function') {
+      tabBar.setUnreadCount(n)
+    }
+  } catch (e) { /* ignore */ }
+  // 原生 tabBar 兜底（关闭 custom 配置时仍可用）
   try {
     if (n > 0) {
       wx.setTabBarBadge({ index: 3, text: n > 99 ? '99+' : String(n) })
@@ -145,6 +152,8 @@ function connect() {
       notifyHandlers({ type: 'errand_message', data: msg.data })
     }
     if (msg.type === 'notification') {
+      // 新通知实时叠加到聚合角标；已读后的准确数量由 syncUnreadCount 修正
+      setUnreadTotal(getUnreadTotal() + 1)
       notifyHandlers({ type: 'notification', data: msg.data })
     }
     // 消息通知横幅被管理员更新：通知「我的」页与横幅详情页立即重新拉取
@@ -262,8 +271,11 @@ function notifyHandlers(payload) {
 }
 
 // ===== API 调用 =====
-function sendMessage(receiverId, content, msgType = 'text', anonymous = false, anonymousIdentity = null, personaKey = '') {
+function sendMessage(receiverId, content, msgType = 'text', anonymous = false, anonymousIdentity = null, personaKey = '', sourcePostId = 0) {
   const body = { receiverId, content, msgType, anonymous, personaKey: personaKey || '' }
+  // 来源帖子随发送一并上报：会话若由「首次发送」创建（历史接口失败、离线补发、
+  // 网络抖动后直接发消息等场景），服务端同样能记录来源，避免来源帖子永久丢失
+  if (Number(sourcePostId) > 0) body.postId = Math.floor(Number(sourcePostId))
   // 匿名发送时携带自己一侧的分身形象，服务端首次存档后收信方列表/聊天页统一显示
   if (anonymous && anonymousIdentity && anonymousIdentity.nickName && anonymousIdentity.avatarUrl) {
     body.anonNick = anonymousIdentity.nickName
@@ -272,8 +284,11 @@ function sendMessage(receiverId, content, msgType = 'text', anonymous = false, a
   return request.post('/message/send', body, true)
 }
 
-function getHistory(peerId, page, pageSize, anonymous = false, anonymousIdentity = null, anonSide = 'peer', personaKey = '') {
+function getHistory(peerId, page, pageSize, anonymous = false, anonymousIdentity = null, anonSide = 'peer', personaKey = '', sourcePostId = 0) {
   const query = { peerId, page, pageSize, anonymous: anonymous ? 1 : 0, personaKey: personaKey || '' }
+  // 来源帖子随历史请求上报：服务端只在会话首次写入（之后不覆盖），
+  // 这样从「我的消息」等没有帖子页面的入口进入、甚至换设备，也能「回到帖子」
+  if (Number(sourcePostId) > 0) query.postId = Math.floor(Number(sourcePostId))
   // 匿名会话首次进入时把分身身份传给服务端存档（服务端只存一次）
   if (anonymousIdentity && anonymousIdentity.nickName && anonymousIdentity.avatarUrl) {
     query.anonNick = anonymousIdentity.nickName
@@ -306,6 +321,10 @@ function getUnreadCount() {
   return request.get('/message/unread-count', {}, true, { silent: true })
 }
 
+function getNotificationUnreadCount() {
+  return request.get('/notification/unread-count', {}, true, { silent: true })
+}
+
 function updateMessageStatus(messageId, status) {
   return request.put('/message/status', { messageId, status }, true, { silent: true })
 }
@@ -322,12 +341,19 @@ function getBlacklist() {
   return request.get('/message/blacklist', {}, true)
 }
 
-// 同步未读数到本地
+// 同步未读数到本地。角标不再只统计私信，而是：
+// 私信 + 评论 + 点赞 + 蹲贴 + 回复 + 系统通知的未读总数。
+// 任一接口失败时仍尽量使用另一个接口的结果，避免通知服务抖动导致私信角标丢失。
 function syncUnreadCount() {
-  return getUnreadCount().then((res) => {
-    setUnreadTotal(res.total || 0)
-    return res.total || 0
-  }).catch(() => 0)
+  return Promise.allSettled([getUnreadCount(), getNotificationUnreadCount()]).then(([pmResult, notificationResult]) => {
+    const pmTotal = pmResult.status === 'fulfilled' ? Number(pmResult.value && pmResult.value.total) || 0 : 0
+    const notificationTotal = notificationResult.status === 'fulfilled'
+      ? Number(notificationResult.value && notificationResult.value.total) || 0
+      : 0
+    const total = pmTotal + notificationTotal
+    setUnreadTotal(total)
+    return total
+  })
 }
 
 module.exports = {
@@ -339,6 +365,6 @@ module.exports = {
   connect, disconnect, onMessage,
   // API
   sendMessage, getHistory, recallMessage, getConversations, markRead,
-  getUnreadCount, updateMessageStatus, syncUnreadCount,
+  getUnreadCount, getNotificationUnreadCount, updateMessageStatus, syncUnreadCount,
   blockPeer, unblockPeer, getBlacklist
 }

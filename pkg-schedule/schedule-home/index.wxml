@@ -1,0 +1,111 @@
+<view class="page">
+  <!-- 顶部：教务系统标识 -->
+  <view class="hero">
+    <image class="hero-logo" src="/assets/icons/svc-edu.png" mode="aspectFit"></image>
+    <view class="hero-copy">
+      <text class="hero-title">教务系统</text>
+      <text class="hero-desc">课表、成绩、考试安排一站同步</text>
+    </view>
+  </view>
+
+  <!-- 已绑定：数据概览 + 快捷入口 -->
+  <block wx:if="{{bound}}">
+    <view class="overview-card">
+      <view class="overview-head">
+        <view class="overview-info">
+          <text class="overview-title">已绑定教务账号</text>
+          <text class="overview-sub">学号 {{bindUsername || '—'}}</text>
+          <text class="overview-time" wx:if="{{lastSyncText}}">{{lastSyncText}}</text>
+        </view>
+        <view class="sync-btn {{syncing ? 'busy' : ''}}" bindtap="onSync">
+          <text class="sync-text">{{syncing ? '同步中…' : '同步'}}</text>
+        </view>
+      </view>
+
+      <view class="stat-row">
+        <view class="stat-item" bindtap="goSchedule">
+          <text class="stat-num">{{courseCount}}</text>
+          <text class="stat-label">本学期课程</text>
+        </view>
+        <view class="stat-item">
+          <text class="stat-num">{{todayCount}}</text>
+          <text class="stat-label">今日课程</text>
+        </view>
+        <view class="stat-item" bindtap="goExam">
+          <text class="stat-num">{{examCount}}</text>
+          <text class="stat-label">考试安排</text>
+        </view>
+        <view class="stat-item" bindtap="goGrade">
+          <text class="stat-num">{{gradeCount}}</text>
+          <text class="stat-label">成绩记录</text>
+        </view>
+      </view>
+
+      <text class="week-tip" wx:if="{{currentWeek}}">当前第 {{currentWeek}} 周<text wx:if="{{totalWeeks}}"> / 共 {{totalWeeks}} 周</text></text>
+    </view>
+
+    <view class="entry-card">
+      <text class="entry-title">教务服务</text>
+      <view class="entry-list">
+        <view class="entry-item" bindtap="goSchedule">
+          <image class="entry-icon" src="/assets/icons/svc-schedule.png" mode="aspectFit"></image>
+          <view class="entry-copy">
+            <text class="entry-name">我的课表</text>
+            <text class="entry-desc">按周查看本学期课程安排</text>
+          </view>
+          <text class="entry-arrow">></text>
+        </view>
+        <view class="entry-item" bindtap="goGrade">
+          <image class="entry-icon" src="/assets/icons/svc-grade.png" mode="aspectFit"></image>
+          <view class="entry-copy">
+            <text class="entry-name">成绩查询</text>
+            <text class="entry-desc">各学期成绩与学分绩点</text>
+          </view>
+          <text class="entry-arrow">></text>
+        </view>
+        <view class="entry-item" bindtap="goExam">
+          <image class="entry-icon" src="/assets/icons/svc-exam.png" mode="aspectFit"></image>
+          <view class="entry-copy">
+            <text class="entry-name">考试安排</text>
+            <text class="entry-desc">考场、座位号与考试时间</text>
+          </view>
+          <text class="entry-arrow">></text>
+        </view>
+        <!-- 原「教务文档」入口没有落地页（点击只提示"即将上线"），已按审核规范移除；
+             常用表格与办事指引可经下方「教务系统跳转网址」进入教务系统查看 -->
+        <view class="entry-item" bindtap="goJwWebsite">
+          <image class="entry-icon" src="/assets/icons/svc-doc.png" mode="aspectFit"></image>
+          <view class="entry-copy">
+            <text class="entry-name">教务系统跳转网址</text>
+            <text class="entry-desc">{{jwWebsiteUrl}}</text>
+          </view>
+          <text class="entry-arrow">></text>
+        </view>
+      </view>
+    </view>
+  </block>
+
+  <!-- 未绑定：教务账号登录表单 -->
+  <block wx:else>
+    <view class="form-card">
+      <view class="form-item">
+        <text class="form-label">学号</text>
+        <input class="form-input" placeholder="请输入教务系统学号" value="{{username}}" bindinput="onUsernameInput" />
+      </view>
+      <view class="form-item">
+        <text class="form-label">密码</text>
+        <input class="form-input" type="password" placeholder="请输入教务系统密码" value="{{password}}" bindinput="onPasswordInput" />
+      </view>
+    </view>
+
+    <button hover-class="press-spring" class="primary-btn spring-btn" bindtap="onLogin" loading="{{loading}}" hover-stay-time="120">绑定并同步</button>
+
+    <view class="tips">
+      <text class="tips-title">说明</text>
+      <text class="tips-text">1. 首次使用需输入教务系统学号与密码，用于在服务端登录并抓取课表、成绩与考试安排。</text>
+      <text class="tips-text">2. 密码仅加密保存在服务端，用于后续免密同步，不会明文存储。</text>
+      <text class="tips-text">3. 如遇验证码校验，会自动跳转到同步页完成一次验证，随后即可继续同步。</text>
+      <text class="tips-text">4. 数据更新不及时时，可在同步后下拉刷新或点击「同步」重新获取。</text>
+    </view>
+  </block>
+</view>

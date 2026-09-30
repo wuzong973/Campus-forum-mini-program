@@ -2,7 +2,7 @@
   <!-- 自定义导航栏：点击标题切换时间段 -->
   <view class="custom-nav" style="padding-top: {{statusBarHeight}}px;">
     <view class="nav-inner">
-      <view class="back-pill" hover-class="back-pill-hover" hover-stay-time="80" bindtap="goBack"><text class="back-pill-icon">‹</text><text>返回</text></view>
+      <view class="back-pill spring-btn" hover-class="back-pill-hover press-spring" hover-stay-time="80" bindtap="goBack"><text class="back-pill-icon">‹</text><text>返回</text></view>
       <view class="nav-title" bindtap="toggleMenu">
         <text>{{currentLabel}}</text>
         <text class="nav-title-arrow {{menuVisible ? 'up' : ''}}">▼</text>
@@ -11,15 +11,26 @@
   </view>
   <view class="nav-space" style="height: {{statusBarHeight + 56}}px;"></view>
 
-  <!-- 顶部海报：底部渐变融入页面背景 -->
-  <view class="hot-poster-wrap">
-    <image class="hot-poster" src="/assets/banners/hot-rank-poster.jpg" mode="widthFix"></image>
-    <view class="hot-poster-fade"></view>
+  <!-- 顶部海报接卡片动效共享层的描边（styles/card-fx.wxss，设计文档 §2）。
+       只上描边、不上背光：海报下沿到榜单之间只有本元素自己的 8rpx 下边距，
+       远小于 §2.5 要求的 24rpx 背光落脚空隙，而本轮不为塞特效改本页间距。
+       没有背光层就不需要 .fx-stage，降级 class 直接挂在卡片根上。
+       mode="widthFix" 的卡高由图片自己决定：.fx-body 保持随流（见 wxss 注释），
+       换一张比例不同的海报卡高跟着变，不会按写死的数值把画面裁掉。 -->
+  <view class="hot-poster-wrap fx-card is-live {{fxOff ? 'fx-off' : ''}}">
+    <view class="fx-ring"><view class="fx-ring-spin"></view></view>
+    <view class="fx-body">
+      <image class="hot-poster" src="/assets/banners/hot-rank-poster.jpg" mode="widthFix"></image>
+      <view class="hot-poster-fade"></view>
+    </view>
   </view>
 
   <!-- 帖子榜单 -->
   <view class="hot-list" wx:if="{{posts.length}}">
-    <post-card wx:for="{{posts}}" wx:key="id" post="{{item}}" />
+    <!-- post-card 是自定义组件，动画类要挂在外层 wrapper 上（首页 .post-feed 同款做法） -->
+    <view wx:for="{{posts}}" wx:key="id" class="hot-item anim-stagger" style="--i: {{index < 6 ? index : 0}};">
+      <post-card post="{{item}}" />
+    </view>
   </view>
   <empty-state wx:elif="{{!loading}}" text="暂无上榜帖子" icon="🔥" />
   <view class="hot-loading" wx:else>榜单更新中...</view>

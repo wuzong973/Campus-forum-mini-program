@@ -10,7 +10,7 @@
 
   <!-- 规则列表 -->
   <view class="rule-list">
-    <view class="rule-item" wx:for="{{rules}}" wx:key="id">
+    <view class="rule-item anim-stagger" style="--i: {{index < 8 ? index : 0}};" wx:for="{{rules}}" wx:key="id">
       <view class="rule-header">
         <text class="rule-icon {{item.iconClass}}">{{item.icon}}</text>
         <text class="rule-title">{{item.title}}</text>
@@ -21,6 +21,6 @@
 
   <!-- 底部按钮 -->
   <view class="bottom-btn-wrap">
-    <button class="agree-btn" bindtap="onAgree">我已阅读并同意社区规定✓</button>
+    <button hover-class="press-spring" class="agree-btn spring-btn" bindtap="onAgree" hover-stay-time="120">我已阅读并同意社区规定✓</button>
   </view>
 </view>

@@ -29,10 +29,12 @@
 .post-title { display: block; margin-top: 18rpx; color: #1c2e44; font-size: 31rpx; font-weight: 700; line-height: 1.45; }
 .post-content { display: block; margin-top: 16rpx; color: #1e3048; font-size: 30rpx; line-height: 1.6; word-break: break-word; }
 /* 图片九宫格：1图大图(4:3)、2图半宽、3图及以上三列，aspect-ratio 随屏宽等比缩放 */
+/* 每项都留 12rpx 余量：原来 calc(50% - 6rpx) + gap 12rpx 正好凑满 100%，
+   rpx→px 向上取整就会挤成换行（两张图变竖排），且只在部分机型上出现 */
 .post-images { display: flex; flex-wrap: wrap; gap: 12rpx; margin-top: 16rpx; }
-.post-img-wrap { width: calc(33.33% - 8rpx); aspect-ratio: 1 / 1; overflow: hidden; border-radius: 8rpx; background: #edf1f6; }
+.post-img-wrap { width: calc(33.333% - 12rpx); aspect-ratio: 1 / 1; overflow: hidden; border-radius: 8rpx; background: #edf1f6; }
 .post-images.count-1 .post-img-wrap { width: 65%; aspect-ratio: 4 / 3; }
-.post-images.count-2 .post-img-wrap { width: calc(50% - 6rpx); }
+.post-images.count-2 .post-img-wrap { width: calc(50% - 12rpx); }
 .post-img { width: 100%; height: 100%; }
 .post-video { background: #000; }
 .post-img-error { display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; color: #8290a0; font-size: 22rpx; }
@@ -53,7 +55,7 @@
 .post-actions { display: flex; align-items: center; justify-content: space-between; margin-top: 18rpx; padding-top: 15rpx; border-top: 1rpx solid #eef1f4; }
 .post-action-group { display: flex; align-items: center; gap: 14rpx; }
 .post-action-group-right { gap: 14rpx; }
-.post-action { display: flex; align-items: center; gap: 3rpx; color: #8995a3; font-size: 22rpx; white-space: nowrap; position: relative; transition: transform .18s cubic-bezier(.34, 1.56, .64, 1); }
+.post-action { display: flex; align-items: center; gap: 3rpx; color: #8995a3; font-size: 22rpx; white-space: nowrap; position: relative; transition: transform 0.35s cubic-bezier(0.34, 1.42, 0.6, 1), box-shadow 0.35s cubic-bezier(0.34, 1.42, 0.6, 1); }
 .post-action image { width: 38rpx; height: 38rpx; opacity: .74; }
 .active-like { color: #e55b69; }
 .active-favorite { color: #f7b500; }
@@ -69,7 +71,7 @@
 .pa-bookmark { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%238995a3' d='M17 3H7c-1.1 0-2 .9-2 2v16l7-3 7 3V5c0-1.1-.9-2-2-2zm0 15l-5-2.18L7 18V5h10v13z'/%3E%3C/svg%3E"); }
 .pa-bookmark.on { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%236d9eeb' d='M17 3H7c-1.1 0-2 .9-2 2v16l7-3 7 3V5c0-1.1-.9-2-2-2z'/%3E%3C/svg%3E"); }
 /* ===== 操作按钮动效（纯视觉层，不改业务逻辑）：按下缩小、松开回弹，选中/取消弹跳切换 ===== */
-.post-action-pressed { transform: scale(.82); }
+.post-action-pressed { transform: scale(0.96);  box-shadow: inset 0 2rpx 6rpx rgba(16, 32, 64, 0.16), inset 0 -1rpx 2rpx rgba(255, 255, 255, 0.08); }
 .post-action.anim-pop .pa-icon { animation: actionIconPop .38s cubic-bezier(.2, .9, .3, 1.35); }
 .post-action.anim-unpop .pa-icon { animation: actionIconUnpop .28s ease; }
 @keyframes actionIconPop { 0% { transform: scale(.55); } 55% { transform: scale(1.22); } 100% { transform: scale(1); } }
@@ -89,22 +91,22 @@
 .contact-value { flex: 1; min-width: 0; color: #25364d; font-size: 28rpx; font-weight: 600; word-break: break-all; }
 .contact-copy { width: 34rpx; height: 34rpx; margin-left: 14rpx; opacity: .7; }
 .contact-tip { display: block; margin-top: 12rpx; padding-top: 16rpx; border-top: 1rpx solid #edf0f4; color: #9da7b2; font-size: 22rpx; text-align: center; }
-.contact-toggle { display: flex; align-items: center; justify-content: center; gap: 8rpx; min-height: 52rpx; border-radius: 12rpx; color: #98a4b1; font-size: 24rpx; transition: background-color .2s ease; }
-.contact-toggle-hover { background: #f2f5f9; }
+.contact-toggle { display: flex; align-items: center; justify-content: center; gap: 8rpx; min-height: 52rpx; border-radius: 12rpx; color: #98a4b1; font-size: 24rpx; transition: background-color .2s ease, transform 0.35s cubic-bezier(0.34, 1.42, 0.6, 1), box-shadow 0.35s cubic-bezier(0.34, 1.42, 0.6, 1); }
+.contact-toggle-hover { background: #f2f5f9;  transform: scale(0.96); box-shadow: inset 0 2rpx 6rpx rgba(16, 32, 64, 0.16), inset 0 -1rpx 2rpx rgba(255, 255, 255, 0.08); }
 .contact-toggle-icon { font-size: 28rpx; transition: transform .32s ease; }
 .contact-toggle-icon.expanded { transform: rotate(180deg); }
 .comments-section { margin-bottom: 150rpx; }
 .comments-header { display: flex; align-items: center; justify-content: space-between; padding-bottom: 18rpx; border-bottom: 1rpx solid #eef1f4; }
 /* 评论区胶囊标签：白底 + 蓝灰柔影 */
-.comments-tag { display: flex; align-items: center; gap: 10rpx; padding: 10rpx 26rpx; border-radius: 999rpx; background: #ffffff; box-shadow: 0 6rpx 16rpx rgba(46, 61, 82, 0.10); transition: background-color 0.2s ease; }
-.comments-tag-hover { background: #f1f3f6; }
+.comments-tag { display: flex; align-items: center; gap: 10rpx; padding: 10rpx 26rpx; border-radius: 999rpx; background: #ffffff; box-shadow: 0 6rpx 16rpx rgba(46, 61, 82, 0.10); transition: background-color 0.2s ease, transform 0.35s cubic-bezier(0.34, 1.42, 0.6, 1), box-shadow 0.35s cubic-bezier(0.34, 1.42, 0.6, 1); }
+.comments-tag-hover { background: #f1f3f6;  transform: scale(0.96); box-shadow: inset 0 2rpx 6rpx rgba(16, 32, 64, 0.16), inset 0 -1rpx 2rpx rgba(255, 255, 255, 0.08); }
 .comments-tag-text { color: #2e3d52; font-size: 26rpx; font-weight: 600; }
 .comments-tag-count { color: #98a2b3; font-size: 22rpx; }
 /* 排序按钮：外层浅灰胶囊，选中项白色浮动胶囊 */
 .comment-sort { display: flex; gap: 4rpx; padding: 6rpx; border-radius: 999rpx; background: #f1f3f6; }
-.sort-option { padding: 8rpx 26rpx; border-radius: 999rpx; color: #6b7686; font-size: 24rpx; transition: color 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease; }
+.sort-option { padding: 8rpx 26rpx; border-radius: 999rpx; color: #6b7686; font-size: 24rpx; transition: color 0.2s ease, background-color 0.2s ease, transform 0.35s cubic-bezier(0.34, 1.42, 0.6, 1), box-shadow 0.35s cubic-bezier(0.34, 1.42, 0.6, 1); }
 .sort-option.active { background: #ffffff; color: #3478f6; font-weight: 600; box-shadow: 0 2rpx 8rpx rgba(46, 61, 82, 0.12); }
-.sort-hover { opacity: 0.6; }
+.sort-hover { opacity: 0.6;  transform: scale(0.96); box-shadow: inset 0 2rpx 6rpx rgba(16, 32, 64, 0.16), inset 0 -1rpx 2rpx rgba(255, 255, 255, 0.08); }
 .comment-content-wrap { flex: 1; min-width: 0; }
 .comment-reply-trigger { min-height: 64rpx; }
 .comment-text { display: block; margin-top: 6rpx; color: #27394f; font-size: 26rpx; line-height: 1.5; word-break: break-word; }
@@ -112,7 +114,8 @@
 .comment-like-count image { width: 28rpx; height: 28rpx; opacity: .72; }
 .comment-item { display: flex; align-items: flex-start; gap: 14rpx; padding: 22rpx 0; border-bottom: 1rpx solid #f0f2f5; }
 .comment-meta { display: flex; align-items: center; gap: 12rpx; }
-.author-comment-label { flex: 0 0 auto; padding: 1rpx 8rpx; border: 1rpx solid #ffcaca; border-radius: 4rpx; background: #fff4f4; color: #e34b4b; font-size: 20rpx; font-weight: 600; line-height: 1.45; }
+/* 「作者」标识：与首页帖子卡片（post-card 的 .post-anonymous-label）样式保持一致 */
+.author-comment-label { display: inline-flex; align-items: center; justify-content: center; overflow: hidden; height: 34rpx; flex: 0 0 auto; padding: 0 11rpx; border: 0; border-radius: 9rpx; background: #f34e72; color: #fff; font-size: 22rpx; font-weight: 700; line-height: 1; }
 /* 评论头部：昵称/时间在左，三个点菜单在右上角 */
 .comment-head { display: flex; align-items: center; }
 .comment-head .comment-meta { flex: 1; min-width: 0; }
@@ -128,13 +131,13 @@
 .comment-video { width: 100%; height: 340rpx; margin-top: 2rpx; border-radius: 12rpx; background: #000; }
 .comment-actions { display: flex; gap: 20rpx; margin-top: 12rpx; color: #98a3af; font-size: 22rpx; }
 .comment-actions .delete { color: #d8666d; }
-.comment-like { display: flex; align-items: center; gap: 6rpx; flex: 0 0 auto; margin-left: 16rpx; color: #99a4b1; font-size: 21rpx; white-space: nowrap; transition: color 0.2s ease, opacity 0.2s ease; }
+.comment-like { display: flex; align-items: center; gap: 6rpx; flex: 0 0 auto; margin-left: 16rpx; color: #99a4b1; font-size: 21rpx; white-space: nowrap; transition: color 0.2s ease, opacity 0.2s ease, transform 0.35s cubic-bezier(0.34, 1.42, 0.6, 1), box-shadow 0.35s cubic-bezier(0.34, 1.42, 0.6, 1); }
 .comment-like image { width: 32rpx; height: 32rpx; opacity: .72; }
 /* 评论区点赞心：复用操作栏 SVG 双态（灰描边→实心红），尺寸放大到 40rpx */
 .comment-like .pa-icon { width: 40rpx; height: 40rpx; opacity: .8; }
 .comment-like .pa-icon.on { opacity: 1; }
 .comment-like .like-count { font-size: 22rpx; line-height: 1.2; }
-.like-hover { opacity: 0.6; }
+.like-hover { opacity: 0.6;  transform: scale(0.96); box-shadow: inset 0 2rpx 6rpx rgba(16, 32, 64, 0.16), inset 0 -1rpx 2rpx rgba(255, 255, 255, 0.08); }
 .reply-list { margin-top: 20rpx; padding: 4rpx 0 0 18rpx; border-left: 2rpx solid #e8edf3; }
 .reply-item { display: flex; align-items: flex-start; gap: 12rpx; padding: 14rpx 0; }
 .reply-avatar { width: 46rpx; height: 46rpx; flex: 0 0 auto; border-radius: 50%; background: #edf1f6; }
@@ -240,3 +243,6 @@
 .author-sheet-btn.ghost { background: #fff; color: #333; border: 1rpx solid #e3e3e8; }
 .author-sheet-btn.primary { background: #f8503a; color: #fff; }
 
+
+/* 评论加载更多提示 */
+.load-more{text-align:center;padding:16rpx 0 24rpx;font-size:24rpx;color:#9aa4b2}

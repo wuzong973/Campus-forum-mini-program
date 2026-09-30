@@ -57,18 +57,31 @@ Page({
     else this.loadDeletedPosts()
   },
 
-  loadPosts() {
-    this.setData({ loading: true })
+  loadPosts(append) {
+    if (append && (this._postsLoading || this._postsHasMore === false)) return
     const userId = Number((getApp().globalData.userInfo || {}).id || 0)
     if (!userId) {
       this.setData({ posts: [], loading: false })
       return
     }
-    api.getUserPosts(userId).then((posts) => {
-      this.setData({ posts: posts || [], loading: false })
+    const page = append ? (this._postsPage || 1) + 1 : 1
+    this._postsLoading = true
+    this.setData(append ? {} : { loading: true, posts: [] })
+    api.getUserPosts(userId, page).then((posts) => {
+      this._postsPage = page
+      this._postsHasMore = !!posts.hasMore
+      this.setData({
+        posts: append ? this.data.posts.concat(posts) : posts,
+        loading: false
+      })
     }).catch(() => {
       this.setData({ loading: false })
-    })
+    }).then(() => { this._postsLoading = false })
+  },
+
+  onReachBottom() {
+    // 仅「我的帖子」标签分页；蹲贴/删除/隐藏子列表为全量接口
+    if (this.data.activeTopic === 0 && this.data.activeSubTab === 0) this.loadPosts(true)
   },
 
   loadDeletedPosts() {
@@ -106,7 +119,9 @@ Page({
 
   loadSquattedPosts() {
     this.setData({ loading: true })
-    api.getMyInteractionList('favorited').then((res) => {
+    // 「我蹲的贴」取真实蹲贴数据（forum_post_follow）。此前误用收藏接口
+    // getMyInteractionList('favorited')，导致收藏过的帖子被当成蹲贴展示。
+    api.getFollowedPosts('mine').then((res) => {
       this.setData({ squattedPosts: (res && res.list) || [], squattedLoaded: true, loading: false })
     }).catch(() => {
       this.setData({ squattedLoaded: true, loading: false })

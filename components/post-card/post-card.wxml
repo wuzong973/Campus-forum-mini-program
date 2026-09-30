@@ -41,7 +41,7 @@
       <view class="campus-tag">{{post.campus || '未设置校区'}}</view>
     </view>
     <view class="footer-actions">
-      <view class="footer-action {{post.isLiked ? 'active-like' : ''}} {{likeAnim}}" hover-class="action-pressed" hover-start-time="0" hover-stay-time="120" catchtap="onLike"><view class="footer-action-icon act-heart {{post.isLiked ? 'on' : ''}}"></view><text>{{post.likeCount > 0 ? post.likeCount : '点赞'}}</text><view class="heart-fly" wx:if="{{likeHeartFly}}"><view class="heart-fly-core"></view></view></view>
+      <view class="footer-action {{post.isLiked ? 'active-like' : ''}} {{likeAnim}} spring-btn" hover-class="action-pressed press-spring" hover-start-time="0" hover-stay-time="120" catchtap="onLike"><view class="footer-action-icon act-heart {{post.isLiked ? 'on' : ''}}"></view><text>{{post.likeCount > 0 ? post.likeCount : '点赞'}}</text><view class="heart-fly" wx:if="{{likeHeartFly}}"><view class="heart-fly-core"></view></view></view>
       <view class="footer-action" catchtap="onComment"><image class="footer-action-icon" src="/assets/icons/comment.png" mode="aspectFit"></image><text>{{post.commentCount > 0 ? post.commentCount : '评论'}}</text></view>
     </view>
   </view>
@@ -54,8 +54,8 @@
     </view>
     <textarea class="note-editor-input" placeholder="请输入备注内容" maxlength="255" value="{{noteDraft}}" focus="{{noteInputFocus}}" cursor-spacing="20" adjust-position="{{false}}" bindinput="onNoteInput" bindkeyboardheightchange="onNoteKeyboardChange" />
     <view class="note-editor-actions">
-      <button class="note-editor-btn cancel" catchtap="closeNoteEditor">取消</button>
-      <button class="note-editor-btn confirm {{savingNote || !noteDraft ? 'is-disabled' : ''}}" loading="{{savingNote}}" disabled="{{savingNote || !noteDraft}}" catchtap="saveNote">保存备注</button>
+      <button hover-class="press-spring" class="note-editor-btn cancel spring-btn" catchtap="closeNoteEditor" hover-stay-time="120">取消</button>
+      <button hover-class="press-spring" class="note-editor-btn confirm {{savingNote || !noteDraft ? 'is-disabled' : ''}} spring-btn" loading="{{savingNote}}" disabled="{{savingNote || !noteDraft}}" catchtap="saveNote" hover-stay-time="120">保存备注</button>
     </view>
   </view>
 
@@ -80,7 +80,7 @@
         <text class="anon-sheet-owner-op">OP</text>
       </view>
     </view>
-    <button class="anon-sheet-msg-btn" catchtap="onAnonPopupMessage">私信</button>
+    <button hover-class="press-spring" class="anon-sheet-msg-btn spring-btn" catchtap="onAnonPopupMessage" hover-stay-time="120">私信</button>
     <text class="anon-sheet-tip">这是一位分身用户</text>
   </view>
 
@@ -93,8 +93,8 @@
       <view class="author-sheet-badge" wx:if="{{authorPopup.certLabel}}"><text class="author-sheet-badge-text">{{authorPopup.certLabel}}</text></view>
     </view>
     <view class="author-sheet-actions">
-      <button class="author-sheet-btn ghost" catchtap="onAuthorPopupProfile">个人主页</button>
-      <button class="author-sheet-btn primary" catchtap="onAuthorPopupMessage">分身私信</button>
+      <button hover-class="press-spring" class="author-sheet-btn ghost spring-btn" catchtap="onAuthorPopupProfile" hover-stay-time="120">个人主页</button>
+      <button hover-class="press-spring" class="author-sheet-btn primary spring-btn" catchtap="onAuthorPopupMessage" hover-stay-time="120">分身私信</button>
     </view>
     <text class="anon-sheet-tip">帖主允许分身私信，进入主页可以进行普通私信</text>
   </view>

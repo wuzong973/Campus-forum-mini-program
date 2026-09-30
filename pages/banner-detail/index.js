@@ -32,12 +32,37 @@ const EMPTY_FORM = {
   status: true
 }
 
+// 「自定义页面」类 scope：复用本页的表单与展示，但字段是 { title, content, images, status }。
+// campusCard 可配多张（带 id 编辑某一张）；drivingGuide 是单张运营位（不传 id 时先取现有页面原地更新）
+const PAGE_SCOPES = {
+  campusCard: {
+    label: '校园卡页面',
+    createLabel: '新增校园卡页面',
+    single: false,
+    fetch: (id) => (id ? api.getCampusCardPage(id) : Promise.resolve(null)),
+    create: (payload) => api.createCampusCardPage(payload),
+    save: (id, payload) => api.saveCampusCardPage(id, payload)
+  },
+  drivingGuide: {
+    label: '学车指南',
+    createLabel: '编辑学车指南',
+    single: true,
+    fetch: () => api.getDrivingGuidePage(),
+    create: (payload) => api.createDrivingGuidePage(payload),
+    save: (id, payload) => api.saveDrivingGuidePage(id, payload)
+  }
+}
+
 Page({
   data: {
     banner: { text: '', icon: '', detailTitle: '', detailContent: '', images: [], link: '', linkText: '', bgColor: '', textColor: '', status: true },
     paragraphs: [],
     loaded: false,
     isAdmin: false,
+    // 自定义页面模式（校园卡 / 学车指南）：复用同一套表单样式，隐藏横幅专属字段（文字/图标/配色/预览/链接），
+    // 「发布横幅」改为「发布状态」；pageLabel 用于表单里的文案随 scope 切换
+    isCard: false,
+    pageLabel: '',
     // 编辑态
     editing: false,
     saving: false,
@@ -51,13 +76,21 @@ Page({
 
   onLoad(options) {
     // scope=post → 帖子详情页「每日热榜」上方横幅；scope=publish → 发布页顶部横幅详情（只读）；
-    // 默认 message → 「我的」页消息通知横幅
-    this.scope = options.scope === 'post' ? 'post' : (options.scope === 'publish' ? 'publish' : 'message')
+    // scope=campusCard / drivingGuide → 后台可编辑的自定义页面（管理后台「物品」入口跳入）；默认 message → 消息通知横幅
+    this.scope = ['post', 'publish', 'campusCard', 'drivingGuide'].indexOf(options.scope) >= 0 ? options.scope : 'message'
+    this.pageScope = PAGE_SCOPES[this.scope] || null
     // publish 模式下按公告 id 精准展示对应横幅（发布页可配置多条公告，各自进各自详情）
     this.publishBannerId = options.id || ''
+    // 自定义页面：带 id 编辑既有页面，不带 id 为新建（单张运营位取到现有页面后会补上 id）
+    this.cardId = this.pageScope ? (options.id || '') : ''
+    this.cardCreateMode = !!this.pageScope && !options.id && !this.pageScope.single
     const userInfo = app.globalData.userInfo || {}
     // publish 横幅在管理后台「内容配置-发布横幅」中编辑，本页仅展示
-    this.setData({ isAdmin: BANNER_ADMIN_ROLES.indexOf(userInfo.role) >= 0 && this.scope !== 'publish' })
+    this.setData({
+      isCard: !!this.pageScope,
+      pageLabel: this.pageScope ? this.pageScope.label : '',
+      isAdmin: BANNER_ADMIN_ROLES.indexOf(userInfo.role) >= 0 && this.scope !== 'publish'
+    })
     // 管理员保存后服务端 WS 广播，在线用户进入本页/停留时立即刷新
     this.unsubscribe = messageStore.onMessage((payload) => {
       if (payload && payload.type === 'banner_update') {
@@ -65,7 +98,10 @@ Page({
         this.loadBanner()
       }
     })
-    this.loadBanner()
+    this.loadBanner().then(() => {
+      // 后台「编辑页面」按钮跳入时直接进编辑态；「新增校园卡」跳入时空表单直接进编辑态
+      if ((options.edit === '1' || this.cardCreateMode) && this.data.isAdmin && this.data.banner) this.onStartEdit()
+    })
   },
 
   onUnload() {
@@ -74,15 +110,33 @@ Page({
 
   fetchBanner() {
     if (this.scope === 'publish') return api.getPublishBanner(this.publishBannerId)
+    if (this.pageScope) return this.pageScope.fetch(this.cardId)
     return this.scope === 'post' ? api.getPostBanner() : api.getMessageBanner()
   },
 
   submitBanner(payload) {
+    if (this.pageScope) {
+      if (this.cardId) return this.pageScope.save(this.cardId, payload)
+      // 新建成功后记住 id，同页二次保存走更新而不是再插一条
+      return this.pageScope.create(payload).then((res) => {
+        this.cardId = (res && res.id) || ''
+        this.cardCreateMode = false
+      })
+    }
     return this.scope === 'post' ? api.savePostBanner(payload) : api.saveMessageBanner(payload)
   },
 
   loadBanner() {
-    return this.fetchBanner().then((banner) => {
+    return this.fetchBanner().then((raw) => {
+      // 单张运营位（学车指南）后台跳入时不带 id：取到现有页面后补上，避免保存时重复插入
+      if (this.pageScope && this.pageScope.single && raw && !this.cardId) {
+        this.cardId = raw.id
+        this.cardCreateMode = false
+      }
+      // 自定义页面数据结构 { title, content }，映射进横幅展示字段（detailTitle/detailContent）复用同一套渲染
+      const banner = this.pageScope && raw
+        ? Object.assign({}, raw, { text: '', icon: '', detailTitle: raw.title || '', detailContent: raw.content || '', link: '', linkText: '', bgColor: '', textColor: '' })
+        : raw
       const data = banner || { text: '', icon: '', detailTitle: '', detailContent: '', images: [], link: '', linkText: '', bgColor: '', textColor: '', status: true }
       if (!Array.isArray(data.images)) data.images = []
       if (data.status === undefined) data.status = true
@@ -92,8 +146,11 @@ Page({
         loaded: true,
         paragraphs: this.splitParagraphs(data.detailContent)
       })
-      // 导航栏标题固定为「公告详情」，不受后台横幅文字/详情标题影响，加载失败也保持不变
-      wx.setNavigationBarTitle({ title: '公告详情' })
+      // 导航栏标题按场域固定，不受后台内容影响，加载失败也保持不变
+      const navTitle = this.pageScope
+        ? (this.cardCreateMode ? this.pageScope.createLabel : this.pageScope.label)
+        : '公告详情'
+      wx.setNavigationBarTitle({ title: navTitle })
     }).catch(() => {
       this.setData({ loaded: true })
     })
@@ -227,24 +284,38 @@ Page({
 
   onSave() {
     const form = this.data.form
-    if (!String(form.text || '').trim()) {
+    const isCard = this.data.isCard
+    if (isCard) {
+      if (!String(form.detailTitle || '').trim()) {
+        wx.showToast({ title: '请填写页面标题', icon: 'none' })
+        return
+      }
+      if (!String(form.detailContent || '').trim() && !form.images.length) {
+        wx.showToast({ title: '正文与图片不能同时为空', icon: 'none' })
+        return
+      }
+    } else if (!String(form.text || '').trim()) {
       wx.showToast({ title: '请填写横幅文字', icon: 'none' })
       return
     }
     if (this.data.saving) return
     this.setData({ saving: true })
-    this.submitBanner({
-      text: form.text,
-      icon: form.icon,
-      detailTitle: form.detailTitle,
-      detailContent: form.detailContent,
-      images: form.images,
-      link: form.link,
-      linkText: form.linkText,
-      bgColor: form.bgColor,
-      textColor: form.textColor,
-      status: form.status
-    }).then(() => {
+    // 校园卡页面只提交 { title, content, images, status }；横幅按原字段全量提交
+    const payload = isCard
+      ? { title: String(form.detailTitle || '').trim(), content: form.detailContent, images: form.images, status: form.status }
+      : {
+        text: form.text,
+        icon: form.icon,
+        detailTitle: form.detailTitle,
+        detailContent: form.detailContent,
+        images: form.images,
+        link: form.link,
+        linkText: form.linkText,
+        bgColor: form.bgColor,
+        textColor: form.textColor,
+        status: form.status
+      }
+    this.submitBanner(payload).then(() => {
       this.setData({ editing: false, saving: false })
       wx.showToast({ title: form.status ? '已发布' : '已保存（下线）', icon: 'success' })
       // 保存成功后立即回读，页面即时呈现最新内容；其他在线用户经 WS 广播刷新

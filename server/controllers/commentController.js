@@ -1,7 +1,10 @@
 const pool = require('../config/pool')
-const { success, fail } = require('../middleware/auth')
+const { success, fail, hasPermission } = require('../middleware/auth')
 const { clampPageSize, safeMessage } = require('../utils/helpers')
 const { createNotification, withMediaPlaceholder } = require('../services/notificationService')
+const { normalizeLegacyAvatarUrl, normalizeAnonymousAvatarUrl, isAnonymousAvatarUrl, pickAnonymousAvatar } = require('../utils/defaultProfile')
+// 评论图片同样过一遍违规地址集合，避免已下线媒体继续展示（P02/P14）
+const mediaCheck = require('../services/mediaCheckService')
 
 function parseJson(value) {
   if (!value) return null
@@ -12,17 +15,27 @@ function parseJson(value) {
 function parseAnonymousIdentity(identity) {
   const value = parseJson(identity)
   if (!value || !value.nickName || !value.avatarUrl) return null
-  const avatarUrl = String(value.avatarUrl).trim()
-  if (!avatarUrl.startsWith('/assets/avatar1/')) return null
-  return { nickName: String(value.nickName).trim().slice(0, 32), avatarUrl }
+  const nickName = String(value.nickName).trim().slice(0, 32)
+  const raw = String(value.avatarUrl).trim()
+  if (raw.indexOf('/assets/avatar1/') !== 0) return null
+  // 旧文件名先纠正；纠正后仍不在素材池内的（历史脏数据）稳定映射到池内形象，
+  // 否则这条评论的头像会在聊天页/通知列表里一直图裂并刷渲染层错误
+  const normalized = normalizeAnonymousAvatarUrl(raw)
+  const avatarUrl = isAnonymousAvatarUrl(normalized) ? normalized : pickAnonymousAvatar(nickName || raw)
+  return { nickName, avatarUrl }
 }
 
 function presentComment(row) {
   const anonymousIdentity = parseAnonymousIdentity(row.anonymous_identity)
+  // 评论区头像此前漏了旧路径归一化（/assets/avatar2/1 (39).jpg 已重命名为 avatar_39.jpg），
+  // 导致真机上评论者头像渲染为灰色空圆。放在这里是最靠近数据出口的位置，
+  // 不依赖 success() 的递归处理，也兼容下划线字段名。
+  const rawAvatar = anonymousIdentity ? anonymousIdentity.avatarUrl : row.avatar_url
   return Object.assign({}, row, {
     nick_name: anonymousIdentity ? anonymousIdentity.nickName : row.nick_name,
-    avatar_url: anonymousIdentity ? anonymousIdentity.avatarUrl : row.avatar_url,
+    avatar_url: normalizeLegacyAvatarUrl(rawAvatar),
     is_anonymous: !!anonymousIdentity,
+    images: mediaCheck.filterStoredImages(row.images),
   })
 }
 
@@ -57,15 +70,23 @@ exports.like = async (req, res) => {
     const [existing] = await pool.query('SELECT id FROM forum_comment_like WHERE comment_id = ? AND user_id = ?', [commentId, req.userId])
     if (existing.length) {
       // 已点赞，取消点赞
-      await pool.query('DELETE FROM forum_comment_like WHERE comment_id = ? AND user_id = ?', [commentId, req.userId])
-      await pool.query('UPDATE forum_comment SET like_count = GREATEST(0, like_count - 1) WHERE id = ?', [commentId])
+      const [removed] = await pool.query('DELETE FROM forum_comment_like WHERE comment_id = ? AND user_id = ?', [commentId, req.userId])
+      // P22：并发取消点赞时第二次 DELETE 影响 0 行，不能再扣评论点赞数
+      if (!removed || removed.affectedRows !== 0) {
+        await pool.query('UPDATE forum_comment SET like_count = GREATEST(0, like_count - 1) WHERE id = ?', [commentId])
+      }
       success(res, { liked: false })
     } else {
       // 点赞
-      await pool.query('INSERT INTO forum_comment_like (comment_id, user_id) VALUES (?, ?)', [commentId, req.userId])
-      await pool.query('UPDATE forum_comment SET like_count = like_count + 1 WHERE id = ?', [commentId])
+      // 唯一键 uk_comment_user + INSERT IGNORE 挡住并发重复点赞（P22）
+      const [added] = await pool.query('INSERT IGNORE INTO forum_comment_like (comment_id, user_id) VALUES (?, ?)', [commentId, req.userId])
+      const likedNow = !added || added.affectedRows !== 0
+      if (likedNow) {
+        await pool.query('UPDATE forum_comment SET like_count = like_count + 1 WHERE id = ?', [commentId])
+      }
       const [comments] = await pool.query('SELECT user_id, post_id, content, images FROM forum_comment WHERE id = ?', [commentId])
-      if (comments.length && Number(comments[0].user_id) !== Number(req.userId)) {
+      // 并发重复点赞（明细其实已存在）不再补发通知，避免作者收到两条一样的点赞提醒（P22）
+      if (likedNow && comments.length && Number(comments[0].user_id) !== Number(req.userId)) {
         const [actors] = await pool.query('SELECT id, nick_name, avatar_url FROM sys_user WHERE id = ?', [req.userId])
         const actor = actors.length ? { id: actors[0].id, nickName: actors[0].nick_name, avatarUrl: actors[0].avatar_url } : null
         const [posts] = await pool.query('SELECT title FROM forum_post WHERE id = ?', [comments[0].post_id])
@@ -111,7 +132,7 @@ exports.create = async (req, res) => {
   if (!postId || !content || !content.trim()) return fail(res, '参数不完整')
   try {
     const normalizedAnonymousIdentity = parseAnonymousIdentity(anonymousIdentity)
-    if (anonymousIdentity && !normalizedAnonymousIdentity) return fail(res, '匿名身份格式不正确')
+    if (anonymousIdentity && !normalizedAnonymousIdentity) return fail(res, '分身身份格式不正确')
     const [posts] = await pool.query('SELECT id, user_id, title FROM forum_post WHERE id = ? AND status = 1', [postId])
     if (!posts.length) return fail(res, '帖子不存在', 404)
     // 同一评论区身份一致性：该用户在此帖子下已有匿名评论时，一律复用首次存档的分身身份，
@@ -133,27 +154,83 @@ exports.create = async (req, res) => {
       [postId, req.userId, content.trim(), imagesJson, effectiveIdentity ? JSON.stringify(effectiveIdentity) : null, parentId || 0]
     )
     await pool.query('UPDATE forum_post SET comment_count = comment_count + 1 WHERE id = ?', [postId])
-    if (Number(posts[0].user_id) !== Number(req.userId)) {
-      // 通知快照：匿名评论用匿名形象，否则用评论者真实资料
-      let actor = effectiveIdentity
-        ? { id: null, nickName: effectiveIdentity.nickName, avatarUrl: effectiveIdentity.avatarUrl }
-        : null
-      if (!actor) {
-        const [actors] = await pool.query('SELECT id, nick_name, avatar_url FROM sys_user WHERE id = ?', [req.userId])
-        actor = actors.length ? { id: actors[0].id, nickName: actors[0].nick_name, avatarUrl: actors[0].avatar_url } : null
-      }
-      createNotification({
-        userId: posts[0].user_id,
+    // 通知快照：匿名评论用匿名形象，否则用评论者真实资料
+    let actor = effectiveIdentity
+      ? { id: null, nickName: effectiveIdentity.nickName, avatarUrl: effectiveIdentity.avatarUrl }
+      : null
+    if (!actor) {
+      const [actors] = await pool.query('SELECT id, nick_name, avatar_url FROM sys_user WHERE id = ?', [req.userId])
+      actor = actors.length ? { id: actors[0].id, nickName: actors[0].nick_name, avatarUrl: actors[0].avatar_url } : null
+    }
+    const actorSnapshot = {
+      actorUserId: actor ? actor.id : null,
+      actorNick: actor ? actor.nickName : '',
+      actorAvatar: actor ? actor.avatarUrl : '',
+    }
+    const commentContent = withMediaPlaceholder(content.trim().slice(0, 200), images)
+    const postTitle = posts[0].title || ''
+    const postAuthorId = Number(posts[0].user_id)
+    const commenterId = Number(req.userId)
+    // 先解析父评论作者，后续据此区分「帖子评论」和「回复评论」通知。
+    // 回复帖子作者自己的评论时，应优先发送 reply 通知，避免被误归类为 comment。
+    const parentCommentId = Number(parentId) || 0
+    let parentAuthorId = 0
+    if (parentCommentId > 0) {
+      const [parentRows] = await pool.query(
+        'SELECT user_id FROM forum_comment WHERE id = ? AND status = 1 LIMIT 1',
+        [parentCommentId]
+      )
+      parentAuthorId = parentRows.length ? Number(parentRows[0].user_id) : 0
+    }
+    // 1) 帖子作者：你的帖子有新评论
+    // 如果父评论就是帖子作者本人，则由下方 reply 通知覆盖，避免同一事件显示为「评论了你的帖子」。
+    if (postAuthorId !== commenterId && !(parentAuthorId && parentAuthorId === postAuthorId)) {
+      createNotification(Object.assign({
+        userId: postAuthorId,
         type: 'comment',
         title: '你的帖子有新评论',
-        content: withMediaPlaceholder(content.trim().slice(0, 200), images),
+        content: commentContent,
         relatedId: postId,
-        actorUserId: actor ? actor.id : null,
-        actorNick: actor ? actor.nickName : '',
-        actorAvatar: actor ? actor.avatarUrl : '',
-        postTitle: posts[0].title || '',
+        postTitle,
         commentImages: Array.isArray(images) ? images : []
-      }).catch(() => {})
+      }, actorSnapshot)).catch(() => {})
+    }
+    // 2) 蹲贴者：你蹲的帖子有新评论。
+    //    此前只通知帖子作者，蹲过该帖的用户收不到任何消息（消息列表永远为空）——
+    //    这是「其他用户评论了用户蹲过的帖子时消息未显示」的根因。
+    //    排除评论者本人与帖子作者（作者已在上面收到一条，避免同一评论重复通知作者）。
+    const [followRows] = await pool.query('SELECT user_id FROM forum_post_follow WHERE post_id = ?', [postId])
+    const followTargets = []
+    followRows.forEach((row) => {
+      const targetId = Number(row.user_id)
+      if (!targetId || targetId === commenterId || targetId === postAuthorId || targetId === parentAuthorId) return
+      if (followTargets.indexOf(targetId) === -1) followTargets.push(targetId)
+    })
+    followTargets.forEach((targetId) => {
+      createNotification(Object.assign({
+        userId: targetId,
+        // 独立类型：前端归入「评论」tab，但标题区分「你蹲的帖子」，避免用户误以为是自己发布的帖子被评论
+        type: 'follow',
+        title: '你蹲的帖子有新评论',
+        content: commentContent,
+        relatedId: postId,
+        postTitle,
+        commentImages: Array.isArray(images) ? images : []
+      }, actorSnapshot)).catch(() => {})
+    })
+    // 3) 被回复的评论作者：有人回复了你的评论。
+    // 即使被回复人同时是帖子作者，也必须保留 reply 类型，前端才能正确展示文案并使用回复订阅模板。
+    if (parentAuthorId && parentAuthorId !== commenterId) {
+      createNotification(Object.assign({
+        userId: parentAuthorId,
+        type: 'reply',
+        sourceCommentId: result.insertId,
+        title: '有人回复了你的评论',
+        content: commentContent,
+        relatedId: postId,
+        postTitle,
+        commentImages: Array.isArray(images) ? images : []
+      }, actorSnapshot)).catch(() => {})
     }
     // 返回实际生效的匿名身份：客户端乐观上屏时用它纠偏，保证显示与服务端存档一致
     success(res, { id: result.insertId, anonymousIdentity: effectiveIdentity })
@@ -175,11 +252,53 @@ exports.update = async (req, res) => {
   }
 }
 
+// 删除评论。三种身份可以删：
+//   1) 管理员（content.manage）—— 任意帖子下的任意评论；
+//   2) 帖子作者 —— 自己评论区里的任意评论（含他人发的），但不能删别人帖子下的评论；
+//   3) 评论作者 —— 自己发的评论。
+// 连带删除所有下级回复，并同步 forum_post.comment_count。
+// 旧实现只认「评论作者」，因此帖子作者在自己评论区里删别人的评论会命中 0 行返回 403。
 exports.remove = async (req, res) => {
+  const commentId = parseInt(req.params.id, 10)
+  if (!commentId) return fail(res, '评论不存在', 404)
+  const isAdmin = !!(req.user && hasPermission(req.user.role, 'content.manage'))
   try {
-    const [result] = await pool.query('UPDATE forum_comment SET status = 0 WHERE id = ? AND user_id = ?', [req.params.id, req.userId])
-    if (!result.affectedRows) return fail(res, '无权删除', 403)
-    success(res, null)
+    // 一并取出帖子作者：判「是否本帖作者」必须和评论同一次查询拿到，避免两次查询之间评论被删
+    const [rows] = await pool.query(
+      `SELECT c.id, c.post_id, c.user_id, p.user_id AS post_author_id
+       FROM forum_comment c LEFT JOIN forum_post p ON p.id = c.post_id
+       WHERE c.id = ? AND c.status = 1`,
+      [commentId],
+    )
+    if (!rows.length) return fail(res, '评论不存在', 404)
+    const comment = rows[0]
+    const isCommentOwner = Number(comment.user_id) === Number(req.userId)
+    const isPostAuthor = Number(comment.post_author_id) === Number(req.userId)
+    if (!isAdmin && !isCommentOwner && !isPostAuthor) return fail(res, '无权删除', 403)
+
+    // 逐层收集后代回复：数据里存在二级及更深的回复，只查一层会留下孤儿
+    const ids = [commentId]
+    let frontier = [commentId]
+    while (frontier.length) {
+      const [children] = await pool.query(
+        `SELECT id FROM forum_comment WHERE parent_id IN (${frontier.map(() => '?').join(', ')}) AND status = 1`,
+        frontier,
+      )
+      if (!children.length) break
+      frontier = children.map((item) => item.id)
+      ids.push(...frontier)
+    }
+    const [result] = await pool.query(
+      `UPDATE forum_comment SET status = 0 WHERE id IN (${ids.map(() => '?').join(', ')}) AND status = 1`,
+      ids,
+    )
+    if (result.affectedRows) {
+      await pool.query(
+        'UPDATE forum_post SET comment_count = GREATEST(comment_count - ?, 0) WHERE id = ?',
+        [result.affectedRows, comment.post_id],
+      )
+    }
+    success(res, { removed: result.affectedRows, asPostAuthor: isPostAuthor && !isAdmin })
   } catch (e) {
     fail(res, safeMessage(e), 500)
   }

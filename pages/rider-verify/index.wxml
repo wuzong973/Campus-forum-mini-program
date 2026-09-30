@@ -1,7 +1,7 @@
 <view class="page">
   <view class="nav" style="padding-top: {{statusBarHeight}}px; height: {{statusBarHeight + navBarHeight}}px;">
     <view class="nav-content" style="height: {{navBarHeight}}px;">
-      <view class="back-pill" hover-class="back-pill-hover" hover-stay-time="80" bindtap="goBack"><text class="back-pill-icon">‹</text><text>返回</text></view>
+      <view class="back-pill spring-btn" hover-class="back-pill-hover press-spring" hover-stay-time="80" bindtap="goBack"><text class="back-pill-icon">‹</text><text>返回</text></view>
       <text class="nav-title">骑手认证</text>
       <view class="nav-placeholder"></view>
     </view>
@@ -9,6 +9,15 @@
   <view style="height: {{statusBarHeight + navBarHeight}}px;"></view>
 
   <scroll-view class="scroll" scroll-y style="height: calc(100vh - {{statusBarHeight + navBarHeight}}px);">
+    <!-- 顶部订阅入口：点击直接拉起「认证审核通知」等原生订阅授权弹窗（与原「立即验证」/「提交认证」触发一致）；
+         订阅生效后整行隐藏，在设置页关闭「审核结果通知」后重新出现 -->
+    <view class="sub-notice-card" wx:if="{{showRiderVerifySubscribeEntry}}">
+      <view class="sub-notice-main" bindtap="onRiderVerifySubscribeTap">
+        <text class="sub-notice-title">订阅审核结果提醒</text>
+        <text class="sub-notice-desc">认证审核进度与结果第一时间通知你</text>
+      </view>
+      <switch class="sub-notice-switch" checked="{{riderVerifySubscribeChecked}}" color="#00bc19" bindchange="onRiderVerifySubscribeTap"></switch>
+    </view>
     <block wx:if="{{stage === 'overview'}}">
       <view class="hero">
         <text class="hero-title">骑手认证</text>
@@ -49,7 +58,7 @@
         <view wx:if="{{!phoneBound}}" class="phone-bind-button" bindtap="openPhoneModal">待绑定</view>
         <view wx:else class="phone-bound-actions"><text class="status done">已绑定</text><view class="change-phone-button" bindtap="openPhoneModal">修改手机号</view></view>
       </view>
-      <button class="primary-button" bindtap="startVerify">{{verificationStatus === 'approved' ? '已完成认证' : (verificationStatus === 'pending' ? '认证审核中' : '开始认证')}}</button>
+      <button hover-class="press-spring" class="primary-button spring-btn" bindtap="startVerify" hover-stay-time="120">{{verificationStatus === 'approved' ? '已完成认证' : (verificationStatus === 'pending' ? '认证审核中' : '开始认证')}}</button>
     </block>
 
     <block wx:else>
@@ -74,13 +83,13 @@
 
         <block wx:if="{{verifyMethod === 'jw'}}">
           <view class="warning">! 通过学校教务系统验证你的学生身份，密码仅用于本次验证、不会被保存</view>
-          <view class="field"><text>学号</text><input type="number" placeholder="请输入学号" value="{{studentId}}" data-field="studentId" bindinput="onInput" /></view>
+          <view class="field"><text>学号</text><input placeholder="请输入账号" value="{{studentId}}" data-field="studentId" bindinput="onInput" /></view>
           <view class="field"><text>密码</text><input password placeholder="请输入教务系统密码" value="{{jwPassword}}" data-field="jwPassword" bindinput="onInput" /></view>
         </block>
 
         <block wx:else>
           <view class="warning">! 上传资料仅用于骑手资格审核，平台将妥善保护</view>
-          <view class="field"><text>学号</text><input type="number" placeholder="请输入学号" value="{{studentId}}" data-field="studentId" bindinput="onInput" /></view>
+          <view class="field"><text>学号（选填）</text><input type="number" placeholder="请输入学号" value="{{studentId}}" data-field="studentId" bindinput="onInput" /></view>
         </block>
       </view>
       <view class="form-card" wx:if="{{verifyMethod === 'credential'}}">
@@ -89,13 +98,13 @@
         <image wx:else class="credential-image" src="{{campusCredential}}" mode="aspectFill" data-src="{{campusCredential}}" bindtap="previewCredential" bindlongpress="onImageQrScan" />
       </view>
       <view class="agreement-row" bindtap="toggleAgreement"><text class="checkbox {{campusAgreed ? 'checked' : ''}}">{{campusAgreed ? '✓' : ''}}</text><text>我已阅读并同意</text><text class="agreement-link" bindtap="openAgreement">《认证协议》</text><text>与</text><text class="agreement-link" bindtap="openPrivacy">《隐私协议》</text></view>
-      <button wx:if="{{verifyMethod === 'jw'}}" class="primary-button" loading="{{submitting}}" bindtap="submitJw">立即验证</button>
-      <button wx:else class="primary-button" loading="{{submitting}}" bindtap="submitCampus">提交认证</button>
+      <button hover-class="press-spring" wx:if="{{verifyMethod === 'jw'}}" class="primary-button spring-btn" loading="{{submitting}}" bindtap="submitJw" hover-stay-time="120">立即验证</button>
+      <button hover-class="press-spring" wx:else class="primary-button spring-btn" loading="{{submitting}}" bindtap="submitCampus" hover-stay-time="120">提交认证</button>
     </block>
   </scroll-view>
 
-  <view class="modal-mask {{showPhoneModal ? 'show' : ''}}" bindtap="closePhoneModal"></view>
-  <view class="phone-modal {{showPhoneModal ? 'show' : ''}}">
+  <view class="modal-mask show" wx:if="{{showPhoneModal}}" bindtap="closePhoneModal"></view>
+  <view class="phone-modal show" wx:if="{{showPhoneModal}}">
     <view class="phone-modal-header"><text class="phone-modal-title">{{phoneBound ? '修改手机号' : '绑定手机号'}}</text><text class="phone-modal-close" bindtap="closePhoneModal">×</text></view>
     <input class="phone-modal-input" type="number" maxlength="11" placeholder="请输入11位手机号" placeholder-class="phone-modal-placeholder" value="{{phoneInput}}" bindinput="onPhoneInput" />
     <view class="phone-modal-tip">手机号仅用于认证通过后的接单联系</view>

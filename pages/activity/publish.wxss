@@ -213,13 +213,13 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: opacity 0.16s ease, transform 0.16s ease;
+  transition: opacity 0.16s ease, transform 0.35s cubic-bezier(0.34, 1.42, 0.6, 1), box-shadow 0.35s cubic-bezier(0.34, 1.42, 0.6, 1);
 }
 
 .submit-btn--hover {
   opacity: 0.86;
-  transform: scale(0.99);
-}
+  transform: scale(0.96);
+ box-shadow: inset 0 2rpx 6rpx rgba(16, 32, 64, 0.16), inset 0 -1rpx 2rpx rgba(255, 255, 255, 0.08); }
 
 /* ===== 校区选择器（与群聊/活动列表页 campus-bar 同款） ===== */
 .campus-bar {
@@ -236,7 +236,7 @@
 
 .campus-bar--hover {
   background: #f7f9fc;
-}
+ transform: scale(0.96); box-shadow: inset 0 2rpx 6rpx rgba(16, 32, 64, 0.16), inset 0 -1rpx 2rpx rgba(255, 255, 255, 0.08); }
 
 .campus-bar-label {
   font-size: 24rpx;
@@ -314,3 +314,16 @@
   color: #9aa3b2;
   text-align: center;
 }
+
+/* ===== 订阅消息提醒弹窗（活动发布成功后） ===== */
+.sub-mask { position: fixed; z-index: 100; inset: 0; background: rgba(0, 0, 0, .58); }
+.sub-dialog { position: fixed; z-index: 101; top: 50%; left: 50%; width: 600rpx; transform: translate(-50%, -50%); padding: 40rpx 32rpx 32rpx; border-radius: 28rpx; background: #ffffff; box-sizing: border-box; }
+.sub-title { display: block; color: #15233a; font-size: 36rpx; font-weight: 700; text-align: center; }
+.sub-desc { display: block; margin: 14rpx 0 6rpx; color: #8a94a6; font-size: 25rpx; text-align: center; }
+.sub-row { display: flex; align-items: center; justify-content: space-between; min-height: 104rpx; border-bottom: 1rpx solid #f0f2f5; }
+.sub-row-label { display: block; color: #10213a; font-size: 30rpx; }
+.sub-row-hint { display: block; margin-top: 4rpx; color: #8a94a6; font-size: 22rpx; }
+.sub-actions { display: flex; margin-top: 32rpx; }
+.sub-btn-skip, .sub-btn-confirm { display: flex; align-items: center; justify-content: center; height: 88rpx; border-radius: 44rpx; font-size: 30rpx; }
+.sub-btn-skip { flex: 1; margin-right: 20rpx; background: #f6f7f9; color: #5a6572; }
+.sub-btn-confirm { flex: 1.6; background: #3478f6; color: #ffffff; font-weight: 600; }

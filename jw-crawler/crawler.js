@@ -628,10 +628,18 @@ class JwCrawler {
       return true;
     }
 
-    // HTTP 429 / 503 / 502
+    // HTTP 429 / 500 / 502 / 503 / 504
+    // 注：教务系统前置 SLB 源站超时时会返回 504（实测间歇出现），
+    // 漏掉 504 会导致这类「可重试」的临时故障被直接抛出，同步整条链路失败。
     if (err.response) {
       const status = err.response.status;
-      return status === 429 || status === 503 || status === 502;
+      return (
+        status === 429 ||
+        status === 500 ||
+        status === 502 ||
+        status === 503 ||
+        status === 504
+      );
     }
 
     return false;
@@ -1062,16 +1070,26 @@ class JwCrawler {
         : "";
 
       if (!randomCode && useOcr) {
-        const ocrResult = await this.recognizeCaptcha(challenge.captchaBuffer);
-        const confidenceOk =
-          !ocrResult.minConfidence ||
-          !Number.isFinite(ocrResult.confidence) ||
-          ocrResult.confidence >= ocrResult.minConfidence;
-        if (ocrResult.valid && confidenceOk) {
-          randomCode = ocrResult.text;
-          console.log(`[验证码] OCR 识别结果：${randomCode}`);
-        } else {
-          console.warn("[验证码] OCR 未得到可信的 4 位结果");
+        try {
+          const ocrResult = await this.recognizeCaptcha(challenge.captchaBuffer);
+          const confidenceOk =
+            !ocrResult.minConfidence ||
+            !Number.isFinite(ocrResult.confidence) ||
+            ocrResult.confidence >= ocrResult.minConfidence;
+          if (ocrResult.valid && confidenceOk) {
+            randomCode = ocrResult.text;
+            console.log(`[验证码] OCR 识别结果：${randomCode}`);
+          } else {
+            console.warn("[验证码] OCR 未得到可信的 4 位结果");
+          }
+        } catch (ocrError) {
+          // 学校抖动时 verifycode.servlet 可能返回 HTML 错误页而不是图片，
+          // sharp 会抛「unsupported image format」。这里必须按「识别失败」降级：
+          // 让 randomCode 保持为空，由下面的校验抛出验证码类错误 → 上层转人工验证码。
+          // 若让异常冒泡，会以 500 + 英文技术报错结束整次同步。
+          console.warn(
+            `[验证码] OCR 失败（按识别失败处理，转人工验证码）: ${ocrError.message}`,
+          );
         }
       }
 
@@ -1133,16 +1151,24 @@ class JwCrawler {
         : "";
 
       if (!randomCode && useOcr) {
-        const ocrResult = await this.recognizeCaptcha(captchaBuffer);
-        const confidenceOk =
-          !ocrResult.minConfidence ||
-          !Number.isFinite(ocrResult.confidence) ||
-          ocrResult.confidence >= ocrResult.minConfidence;
-        if (ocrResult.valid && confidenceOk) {
-          randomCode = ocrResult.text;
-          console.log(`[验证码] OCR 识别结果：${randomCode}`);
-        } else {
-          console.warn("[验证码] OCR 未得到可信的 4 位结果");
+        try {
+          const ocrResult = await this.recognizeCaptcha(captchaBuffer);
+          const confidenceOk =
+            !ocrResult.minConfidence ||
+            !Number.isFinite(ocrResult.confidence) ||
+            ocrResult.confidence >= ocrResult.minConfidence;
+          if (ocrResult.valid && confidenceOk) {
+            randomCode = ocrResult.text;
+            console.log(`[验证码] OCR 识别结果：${randomCode}`);
+          } else {
+            console.warn("[验证码] OCR 未得到可信的 4 位结果");
+          }
+        } catch (ocrError) {
+          // 同 loginWithCaptcha：OCR 异常按「识别失败」降级到人工验证码，
+          // 不让 sharp 的 unsupported image format 冒泡成 500。
+          console.warn(
+            `[验证码] OCR 失败（按识别失败处理，转人工验证码）: ${ocrError.message}`,
+          );
         }
       }
 
@@ -1862,13 +1888,13 @@ function printUsage() {
   JW_OCR_MIN_CONFIDENCE OCR 最低置信度，默认 0
   JW_RECORD_NETWORK=1  保存完整网络日志
   JW_NETWORK_LOG      网络日志保存路径，默认 .logs/jw-network-<timestamp>.json
-  JW_SEMESTER_START   学期第一周周一，默认 2026-03-02
-  JW_TOTAL_WEEKS      抓取周数，默认 19
+  JW_SEMESTER_START   学期第一周周一，默认 2026-09-07
+  JW_TOTAL_WEEKS      抓取周数，默认 20
 
 常用参数：
   --date 2026-07-03          只抓取指定日期所在周
-  --semester-start 2026-03-02
-  --weeks 19
+  --semester-start 2026-09-07
+  --weeks 20
   --output schedule.json
   --captcha-path captcha.png
   --captcha-attempts 3
@@ -1988,8 +2014,8 @@ if (require.main === module) {
         : JwCrawler.generateWeekDates(
           args["semester-start"] ||
           process.env.JW_SEMESTER_START ||
-          "2026-03-02",
-          Number(args.weeks || process.env.JW_TOTAL_WEEKS || 19),
+          "2026-09-07",
+          Number(args.weeks || process.env.JW_TOTAL_WEEKS || 20),
         );
 
       const output = args.output || process.env.JW_OUTPUT || "schedule.json";

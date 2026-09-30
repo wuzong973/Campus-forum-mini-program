@@ -2,7 +2,7 @@
   <view wx:if="{{loading}}" class="page-state">服务加载中...</view>
   <view wx:elif="{{loadError}}" class="page-state retry" bindtap="loadServices">服务加载失败，点击重试</view>
   <view wx:elif="{{!sections.length}}" class="page-state">暂无可用服务</view>
-  <view class="section card" wx:for="{{sections}}" wx:key="title">
+  <view class="section card anim-stagger" style="--i: {{index < 6 ? index : 0}};" wx:for="{{sections}}" wx:key="title">
     <view class="section-title">{{item.title}}</view>
     <service-grid services="{{item.items}}" columns="{{5}}" layout="scroll" bind:tap="onServiceTap" />
   </view>

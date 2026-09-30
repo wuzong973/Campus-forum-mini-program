@@ -6,6 +6,20 @@
   </view>
 
   <view class="content">
+    <!-- 顶部订阅入口：点击直接拉起「活动报名结果通知」等原生订阅授权弹窗（与原「报名」触发一致）；
+         订阅生效后整行隐藏，在设置页关闭「活动结果通知」后重新出现 -->
+    <view class="sub-notice-card" wx:if="{{showActivitySignupSubscribeEntry}}">
+      <view class="sub-notice-main" bindtap="onActivitySignupSubscribeTap">
+        <text class="sub-notice-title">订阅活动结果提醒</text>
+        <text class="sub-notice-desc">报名结果与活动开始时间第一时间通知你</text>
+      </view>
+      <switch class="sub-notice-switch" checked="{{activitySignupSubscribeChecked}}" color="#00bc19" bindchange="onActivitySignupSubscribeTap"></switch>
+    </view>
+    <!-- 审核状态提示（仅创建者可见） -->
+    <view class="card audit-tip-card" wx:if="{{auditTip}}">
+      <view class="audit-tip">{{auditTip}}</view>
+      <view class="audit-note" wx:if="{{auditNote}}">驳回原因：{{auditNote}}</view>
+    </view>
     <!-- 标题与信息 -->
     <view class="card">
       <view class="act-title">{{activity.title}}</view>
@@ -37,18 +51,32 @@
       </view>
     </view>
 
-    <!-- 报名卡（图四：标题 + 内容 + 图片） -->
-    <view class="card signup-card" wx:if="{{activity.signupContent || activity.signupImage}}">
+    <!-- 报名卡（标题 + 内容 + 图片，最多 5 张） -->
+    <view class="card signup-card" wx:if="{{activity.signupContent || signupImages.length}}">
       <view class="card-title">{{activity.signupTitle || '立即报名'}}</view>
       <text class="signup-content" wx:if="{{activity.signupContent}}">{{activity.signupContent}}</text>
-      <view class="signup-img-wrap" wx:if="{{activity.signupImage}}" bindtap="onPreviewSignupImage">
-        <image class="signup-img" src="{{activity.signupImage}}" mode="widthFix"/>
+      <view class="signup-img-wrap" wx:for="{{signupImages}}" wx:key="index" wx:for-item="img" bindtap="onPreviewSignupImage" data-url="{{img}}">
+        <image class="signup-img" src="{{img}}" mode="widthFix"/>
+      </view>
+    </view>
+
+    <!-- 活动发起人（头像/昵称/手机号） -->
+    <view class="card initiator-card" wx:if="{{initiator && (initiator.nickName || initiator.phone)}}">
+      <view class="card-title">发起人</view>
+      <view class="initiator-row">
+        <image wx:if="{{initiator.avatarUrl}}" class="initiator-avatar" src="{{initiator.avatarUrl}}" mode="aspectFill"/>
+        <view wx:else class="initiator-avatar initiator-avatar--fallback"><text>{{initiatorChar}}</text></view>
+        <view class="initiator-info">
+          <text class="initiator-name">{{initiator.nickName || '未命名用户'}}</text>
+          <text class="initiator-phone">手机号：{{initiator.phone || '未绑定'}}</text>
+        </view>
+        <text class="initiator-tag">发起人</text>
       </view>
     </view>
 
     <!-- 报名按钮 -->
     <view
-      class="signup-btn {{signupDisabled ? 'signup-btn--disabled' : ''}}"
+      class="signup-btn {{signupDisabled ? 'signup-btn--disabled' : ''}} spring-btn"
       hover-class="{{signupDisabled ? '' : 'signup-btn--hover'}}"
       hover-stay-time="100"
       bindtap="onSignup"

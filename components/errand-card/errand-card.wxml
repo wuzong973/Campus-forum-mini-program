@@ -44,11 +44,11 @@
       <text class="user-name">{{order.publisherName}}</text>
     </view>
     <view class="footer-actions">
-      <button class="action-btn accept-btn" size="mini" catchtap="onPay" wx:if="{{order.status === 'unpaid' && order.role === 'publisher'}}">去支付</button>
-      <button class="action-btn accept-btn" size="mini" catchtap="onAccept" wx:if="{{order.status === 'pending' && order.role !== 'publisher'}}">接单</button>
-      <button class="action-btn finish-btn" size="mini" catchtap="onFinish" wx:if="{{order.status === 'accepted' && order.role === 'accepter'}}">完成</button>
-      <button class="action-btn cancel-btn" size="mini" catchtap="onCancel" wx:if="{{showCancel}}">取消订单</button>
-      <button class="action-btn contact-btn" size="mini" catchtap="onContact" wx:if="{{order.role && order.status !== 'done'}}">联系</button>
+      <button hover-class="press-spring" class="action-btn accept-btn spring-btn" size="mini" catchtap="onPay" wx:if="{{order.status === 'unpaid' && order.role === 'publisher'}}" hover-stay-time="120">去支付</button>
+      <button hover-class="press-spring" class="action-btn accept-btn spring-btn" size="mini" catchtap="onAccept" wx:if="{{order.status === 'pending' && order.role !== 'publisher'}}" hover-stay-time="120">接单</button>
+      <button hover-class="press-spring" class="action-btn finish-btn spring-btn" size="mini" catchtap="onFinish" wx:if="{{order.status === 'accepted' && order.role === 'accepter'}}" hover-stay-time="120">完成</button>
+      <button hover-class="press-spring" class="action-btn cancel-btn spring-btn" size="mini" catchtap="onCancel" wx:if="{{showCancel}}" hover-stay-time="120">取消订单</button>
+      <button hover-class="press-spring" class="action-btn contact-btn spring-btn" size="mini" catchtap="onContact" wx:if="{{order.role && order.status !== 'done'}}" hover-stay-time="120">联系</button>
       <text class="done-tag" wx:if="{{order.status === 'done'}}">已完成</text>
     </view>
   </view>

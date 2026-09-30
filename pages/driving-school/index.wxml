@@ -1,0 +1,184 @@
+<view class="page page-enter">
+  <!-- 校区分类（仅广州校区 / 佛山校区）+ 搜索 -->
+  <view class="search-row">
+    <view class="campus-tabs">
+      <view
+        class="campus-tab {{campus === item ? 'campus-tab--active' : ''}}"
+        wx:for="{{campusOptions}}"
+        wx:key="*this"
+        data-index="{{index}}"
+        bindtap="onCampusTap"
+      >{{item}}</view>
+    </view>
+    <view class="search-box">
+      <text class="search-icon">🔍</text>
+      <input
+        class="search-input"
+        value="{{keyword}}"
+        placeholder="搜索您感兴趣的驾校"
+        placeholder-class="search-placeholder"
+        confirm-type="search"
+        bindinput="onKeywordInput"
+      />
+      <text class="search-clear" wx:if="{{keyword}}" bindtap="onClearKeyword">×</text>
+    </view>
+  </view>
+
+  <!-- 排序 / 筛选 -->
+  <view class="toolbar">
+    <picker class="tool-picker" mode="selector" range="{{sortLabels}}" value="{{sortIndex}}" bindchange="onSortChange">
+      <view class="tool {{sortLabel ? 'tool--on' : ''}}">
+        <text>排序</text>
+        <text class="tool-value" wx:if="{{sortLabel}}">{{sortLabel}}</text>
+        <text class="tool-arrow">▾</text>
+      </view>
+    </picker>
+    <view class="tool {{activeTags.length ? 'tool--on' : ''}}" bindtap="onToggleFilter">
+      <text>筛选</text>
+      <text class="tool-value" wx:if="{{activeTags.length}}">{{activeTags.length}} 项</text>
+      <text class="tool-arrow">{{showFilter ? '▴' : '▾'}}</text>
+    </view>
+    <view class="tool-count">共 {{totalCount}} 家</view>
+  </view>
+
+  <!-- 筛选面板：通过率下限 + 推荐等级 + 服务保障多选 -->
+  <view class="filter-panel" wx:if="{{showFilter}}">
+    <view class="filter-label">通过率</view>
+    <view class="filter-tags">
+      <view
+        class="filter-tag {{item.selected ? 'filter-tag--on' : ''}}"
+        wx:for="{{passOptions}}"
+        wx:key="key"
+        data-key="{{item.key}}"
+        bindtap="onPickPassRate"
+      >{{item.label}}</view>
+    </view>
+    <view class="filter-label">推荐等级</view>
+    <view class="filter-tags">
+      <view
+        class="filter-tag {{item.selected ? 'filter-tag--on' : ''}}"
+        wx:for="{{levelOptions}}"
+        wx:key="name"
+        data-name="{{item.name}}"
+        bindtap="onToggleLevel"
+      >{{item.name}} 级</view>
+    </view>
+    <!-- 标签池由后台维护；清空后这一组整体不显示 -->
+    <block wx:if="{{tagOptions.length}}">
+      <view class="filter-label">服务保障（需同时满足）</view>
+      <view class="filter-tags">
+        <view
+          class="filter-tag {{item.selected ? 'filter-tag--on' : ''}}"
+          wx:for="{{tagOptions}}"
+          wx:key="name"
+          data-tag="{{item.name}}"
+          bindtap="onToggleTag"
+        >{{item.name}}</view>
+      </view>
+    </block>
+    <view class="filter-actions">
+      <view class="filter-btn filter-btn--plain" bindtap="onResetFilter">重置</view>
+      <view class="filter-btn filter-btn--primary" bindtap="onCloseFilter">完成</view>
+    </view>
+  </view>
+
+  <!-- 运营横幅 → 学车指南（文案与背景图在后台「物品 → 驾校运营横幅」维护）
+       接 styles/card-fx.wxss：旋转描边 + 呼吸背光。背光单独放在 .fx-stage 里（卡容器要
+       overflow:hidden 才裁得住描边方块，背光放进去会被整层切掉，见 §2.5）；
+       下方 .school-list 的 margin-top 是 24rpx，刚好够下溢的落脚空隙。
+       卡高继续由「标题 / 副标题 / 按钮 / 右侧标签」自己撑：.fx-body 改为随流，
+       描边位由卡片 padding 出（§2.6，副标题与标签都由后台配置，条数不定，不能写死高度）。
+       fx-off 挂在承载背光的 .fx-stage 上：只停自转与呼吸，静态描边和静态背光保留。 -->
+  <view class="promo-stage fx-stage {{fxOff ? 'fx-off' : ''}}">
+    <view class="fx-glow-layer">
+      <view class="fx-glow is-on"><view class="fx-glow-pulse"></view></view>
+    </view>
+    <view class="promo fx-card is-live spring-btn" hover-class="promo--hover press-spring" hover-stay-time="80" bindtap="goGuide">
+      <view class="fx-ring"><view class="fx-ring-spin"></view></view>
+      <view class="fx-body">
+        <image wx:if="{{promo.image}}" class="promo-bg" src="{{promo.image}}" mode="aspectFill"></image>
+        <view wx:if="{{promo.image}}" class="promo-bg-mask"></view>
+        <view class="promo-main">
+          <text class="promo-title">{{promo.title}}</text>
+          <text class="promo-sub" wx:if="{{promo.sub}}">{{promo.sub}}</text>
+          <view class="promo-btn">{{promo.btnText}}<text class="promo-btn-arrow">›</text></view>
+        </view>
+        <view class="promo-side" wx:if="{{promo.tags.length}}">
+          <text class="promo-tag" wx:for="{{promo.tags}}" wx:key="*this">{{item}}</text>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 驾校列表 -->
+  <view class="school-list" wx:if="{{schools.length}}">
+    <!-- 驾校卡片是 wx:for 列表项：按 §2.7 只上静态渐变描边 —— 列表项一律不开自转（共享层的
+         animation 只挂在自转标记上，N 个无限自转合成层同时滚动比首页单卡严重一个量级），
+         也不上背光（卡片之间只有 20rpx 间距，常驻动画正是列表要避开的）。fx-off 仍然挂上：
+         本页降级时静态描边保留、不留空白。 -->
+    <view
+      class="school-card fx-card anim-stagger {{index < 6 ? 'is-entry' : ''}} {{fxOff ? 'fx-off' : ''}} spring-btn"
+      style="--i: {{index < 6 ? index : 0}};"
+      wx:for="{{schools}}"
+      wx:key="id"
+      data-id="{{item.id}}"
+      hover-class="school-card--hover press-spring"
+      hover-stay-time="80"
+      bindtap="onSchoolTap"
+    >
+      <view class="fx-ring"><view class="fx-ring-spin"></view></view>
+      <!-- fx-body = 内容层，封面与文字列整体搬进来，描边由卡片 padding 让出 -->
+      <view class="fx-body">
+      <view class="school-cover" style="background:{{item.coverTheme}};">
+        <image wx:if="{{item.cover}}" class="school-cover-img" src="{{item.cover}}" mode="aspectFill" lazy-load></image>
+        <text wx:else class="school-cover-char">{{item.firstChar}}</text>
+      </view>
+
+      <view class="school-main">
+        <view class="school-head">
+          <text class="school-name">{{item.name}}</text>
+          <view class="school-geo">
+            <text class="school-region">{{item.campus}}</text>
+            <text class="school-distance" wx:if="{{item.distanceKm}}">{{item.distanceText}}</text>
+          </view>
+        </view>
+
+        <text class="school-intro">{{item.intro}}</text>
+
+        <view class="school-metrics">
+          <text class="metric-label">通过率</text>
+          <text class="metric-value">{{item.passRateText}}</text>
+          <text class="metric-help" catchtap="onMetricHelp">?</text>
+          <text class="metric-label metric-label--gap">推荐等级</text>
+          <text class="metric-value">{{item.levelText}}</text>
+        </view>
+
+        <view class="school-fields" wx:if="{{item.carTypesText || item.priceText}}">
+          <text class="field-chip" wx:if="{{item.carTypesText}}">班型 {{item.carTypesText}}</text>
+          <text class="field-chip field-chip--price" wx:if="{{item.priceText}}">{{item.priceText}}</text>
+        </view>
+
+        <view class="school-lines" wx:if="{{item.addressText || item.phoneText}}">
+          <text class="school-line" wx:if="{{item.addressText}}">📍 {{item.addressText}}</text>
+          <text class="school-line" wx:if="{{item.phoneText}}">📞 {{item.phoneText}}</text>
+        </view>
+
+        <view class="school-tags" wx:if="{{item.cardTags.length}}">
+          <text class="school-tag" wx:for="{{item.cardTags}}" wx:for-item="tag" wx:key="*this">{{tag}}</text>
+          <text class="school-tag school-tag--more" wx:if="{{item.cardTagMore}}">+{{item.cardTagMore}}</text>
+        </view>
+      </view>
+      <!-- /fx-body -->
+      </view>
+    </view>
+  </view>
+
+  <!-- 空状态 -->
+  <view class="empty" wx:elif="{{!loading}}">
+    <view class="empty-icon"><text class="empty-q">?</text></view>
+    <text class="empty-text">没有找到匹配的驾校</text>
+    <view class="empty-btn spring-btn" hover-stay-time="80" hover-class="empty-btn--hover press-spring" bindtap="onResetFilter">重置筛选条件</view>
+  </view>
+
+  <view class="page-foot">驾校信息由平台核实后发布，报名前请实地确认并签订书面合同</view>
+</view>

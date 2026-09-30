@@ -1,0 +1,8 @@
+{
+  "navigationBarTitleText": "校园服务",
+  "navigationBarBackgroundColor": "#D7EFFF",
+  "navigationBarTextStyle": "black",
+  "usingComponents": {
+    "contact-admin": "/components/contact-admin/contact-admin"
+  }
+}

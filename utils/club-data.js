@@ -364,10 +364,16 @@ function mapServerCategory(row) {
     features: Array.isArray(row.features) ? row.features : [],
     contact: row.contact || '',
     clubs: (Array.isArray(row.clubs) ? row.clubs : []).map((club) => ({
+      // id = 社团唯一标识：分类页跳转社团详情页就靠它匹配，绝不能丢
+      // （丢了就会出现「点击社团提示暂不可用」）
+      id: club.id === undefined || club.id === null ? null : club.id,
       name: club.name || '',
       tags: club.tags || '',
       intro: club.intro || '',
-      recruit: club.recruit || ''
+      recruit: club.recruit || '',
+      campus: club.campus || '',
+      // 申请单头像：分类页「代表社团」列表据此展示申请人上传的社团头像
+      avatarUrl: club.avatarUrl || ''
     }))
   }
 }

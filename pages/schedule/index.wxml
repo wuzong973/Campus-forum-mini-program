@@ -15,7 +15,7 @@
         <view class="nav-btn-wrap" bindtap="onRefresh">
           <image class="nav-icon-img refresh-icon" src="/assets/icons/refresh.png" mode="aspectFit"></image>
         </view>
-        <text class="week-text">第{{currentWeek}}周</text>
+        <text class="week-text" bindtap="onWeekTextTap">第{{currentWeek}}周<text class="week-caret">▾</text></text>
       </view>
       <view class="nav-right"></view>
     </view>
@@ -23,25 +23,26 @@
   <view class="nav-placeholder" style="height: {{statusBarHeight + navBarHeight}}px;"></view>
 
   <!-- 周次信息条 -->
-  <view class="week-info-bar" wx:if="{{courses.length > 0}}">
+  <view class="week-info-bar" wx:if="{{semesterCourseCount > 0}}">
     <view class="week-info-left">
       <text class="week-label">本周课表</text>
       <text class="week-date">{{currentWeekText}}</text>
     </view>
     <view class="week-info-right">
-      <text class="course-count">共 {{courses.length}} 门</text>
+      <text class="course-count">本周 {{courses.length}} 门</text>
     </view>
   </view>
 
-  <!-- 周次导航栏 -->
-  <view class="week-nav-bar" wx:if="{{courses.length > 0}}">
+  <!-- 周次导航栏：不受「本周有没有课」影响，否则本周恰好没课时用户根本切不到有课的周 -->
+  <view class="week-nav-bar">
     <view class="week-nav-btn {{currentWeek <= 1 ? 'disabled' : ''}}" bindtap="onPrevWeek">
       <text class="week-nav-icon">‹</text>
       <text class="week-nav-text">上一周</text>
     </view>
-    <view class="week-nav-center">
+    <view class="week-nav-center" bindtap="onWeekTextTap">
       <text class="week-nav-current">第 {{currentWeek}} 周</text>
       <text class="week-nav-total">/ {{totalWeeks}} 周</text>
+      <text class="week-caret">▾</text>
     </view>
     <view class="week-nav-btn {{currentWeek >= totalWeeks ? 'disabled' : ''}}" bindtap="onNextWeek">
       <text class="week-nav-text">下一周</text>
@@ -49,8 +50,8 @@
     </view>
   </view>
 
-  <!-- 学期课表按钮 -->
-  <view class="semester-btn-wrap" wx:if="{{courses.length > 0}}">
+  <!-- 学期课表按钮：只要本学期有课就给入口，方便从「本周无课」直接看到全学期分布 -->
+  <view class="semester-btn-wrap" wx:if="{{semesterCourseCount > 0}}">
     <view class="semester-btn" bindtap="toggleSemesterView">
       <text class="semester-btn-icon">📅</text>
       <text class="semester-btn-text">{{showSemesterView ? '返回周课表' : '本学期课表'}}</text>
@@ -58,7 +59,7 @@
   </view>
 
   <!-- 学期课表视图 -->
-  <view class="semester-view" wx:if="{{showSemesterView && courses.length > 0}}">
+  <view class="semester-view" wx:if="{{showSemesterView && semesterCourseCount > 0}}">
     <view class="semester-header">
       <text class="semester-title">本学期课表</text>
       <text class="semester-subtitle">点击周次查看详细课表</text>
@@ -90,7 +91,7 @@
     </view>
     <text class="expired-title">课表已过期</text>
     <text class="expired-desc">当前学期已结束，请更新开学时间获取最新课表</text>
-    <button class="modify-btn" bindtap="goSetDate">去修改日期</button>
+    <button hover-class="press-spring" class="modify-btn spring-btn" bindtap="goSetDate" hover-stay-time="120">去修改日期</button>
   </view>
 
   <!-- 课程表表格 -->
@@ -100,20 +101,22 @@
         <block wx:for="{{gridItems}}" wx:key="id" wx:for-item="item">
           <view
             class="grid-item type-{{item.type}}"
-            style="grid-row-start: {{item.rowStart}}; grid-row-end: {{item.rowEnd}}; grid-column: {{item.col}}; {{item.emptyStyle || ''}}; {{item.courseBg || ''}}"
+            style="grid-row-start: {{item.rowStart}}; grid-row-end: {{item.rowEnd}}; grid-column: {{item.col}}; {{item.emptyStyle || ''}}; {{item.cellStyle || ''}}; {{item.courseBg || ''}}"
           >
             <text wx:if="{{item.type === 'header-date'}}" class="cell-text header-date-text">{{item.text}}</text>
             <text wx:if="{{item.type === 'header'}}" class="cell-text">{{item.text}}</text>
             <text wx:if="{{item.type === 'period'}}" class="cell-text period-text">{{item.text}}</text>
             <text wx:if="{{item.type === 'section'}}" class="cell-text section-text">{{item.text}}</text>
             <view wx:if="{{item.type === 'time'}}" class="time-cell">
-              <text class="time-text">{{item.text}}</text>
+              <text class="time-section">{{item.text}}</text>
+              <text class="time-range">{{item.sub}}</text>
             </view>
-            <view wx:if="{{item.type === 'course'}}" class="course-content" style="{{item.courseStyle}}">
+            <view wx:if="{{item.type === 'course'}}" class="course-content{{item.narrow ? ' compact' : ''}}" style="{{item.courseStyle}}">
               <text class="course-name" style="color: {{item.course.courseColorText || '#22304d'}};">{{item.course.name}}</text>
               <view class="course-info-divider"></view>
               <text class="course-teacher" wx:if="{{item.course.teacher}}" style="color: {{item.course.courseColorText || '#49566f'}};">{{item.course.teacher}}</text>
               <text class="course-location {{item.locationClass}}" wx:if="{{item.course.location}}">{{item.course.location}}</text>
+              <text class="course-time">{{item.course.startTime}}-{{item.course.endTime}}</text>
             </view>
           </view>
         </block>
@@ -126,8 +129,24 @@
     <view class="empty-icon-wrap">
       <text class="empty-icon">📋</text>
     </view>
-    <text class="empty-text">暂无课程</text>
-    <text class="empty-desc">可手动添加、AI 识别，或从教务系统同步当前学期课表</text>
+    <!-- 本学期有课、只是本周没课：必须说清楚，否则用户会以为课表压根没导入成功 -->
+    <block wx:if="{{semesterCourseCount > 0}}">
+      <text class="empty-text">第 {{currentWeek}} 周暂无课程</text>
+      <text class="empty-desc">你的课表共 {{semesterCourseCount}} 门课，最早从第 {{firstCourseWeek}} 周开始上课</text>
+      <view class="empty-actions">
+        <view
+          class="empty-action-btn primary"
+          wx:if="{{firstCourseWeek && firstCourseWeek !== currentWeek}}"
+          bindtap="onJumpToFirstCourseWeek"
+        >跳到第 {{firstCourseWeek}} 周</view>
+        <view class="empty-action-btn" bindtap="toggleSemesterView">看本学期课表</view>
+      </view>
+      <text class="empty-hint">也可以点上方「上一周 / 下一周」切换查看</text>
+    </block>
+    <block wx:else>
+      <text class="empty-text">暂无课程</text>
+      <text class="empty-desc">可手动添加、AI 识别，或从左上角的教务系统同步当前学期课表</text>
+    </block>
   </view>
 
   <!-- 图例说明 -->

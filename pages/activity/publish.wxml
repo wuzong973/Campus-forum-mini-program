@@ -1,16 +1,26 @@
 <view class="page page-enter">
   <view class="topbar" style="padding-top: {{statusBarHeight}}px;">
-    <view class="back-pill" hover-class="back-pill-hover" hover-stay-time="80" bindtap="goBack"><text class="back-pill-icon">‹</text><text>返回</text></view>
+    <view class="back-pill spring-btn" hover-class="back-pill-hover press-spring" hover-stay-time="80" bindtap="goBack"><text class="back-pill-icon">‹</text><text>返回</text></view>
   </view>
 
   <view class="content">
     <view class="page-title">发起活动</view>
-    <view class="page-sub">填写活动信息，发布后全校可见</view>
+    <view class="page-sub">填写活动信息，审核通过后全校可见</view>
+
+    <!-- 顶部订阅入口：点击直接拉起「活动审核通知」原生订阅授权弹窗（与原「发布活动」触发一致）；
+         订阅生效后整行隐藏，在设置页关闭该渠道后重新出现 -->
+    <view class="sub-notice-card" wx:if="{{showActivityPublishSubscribeEntry}}">
+      <view class="sub-notice-main" bindtap="onActivityPublishSubscribeTap">
+        <text class="sub-notice-title">订阅活动审核提醒</text>
+        <text class="sub-notice-desc">活动审核结果第一时间通知你</text>
+      </view>
+      <switch class="sub-notice-switch" checked="{{activityPublishSubscribeChecked}}" color="#00bc19" bindchange="onActivityPublishSubscribeTap"></switch>
+    </view>
 
     <!-- 校区选择（发布后活动归属所选校区） -->
-    <view class="campus-bar" hover-class="campus-bar--hover" hover-stay-time="80" bindtap="onToggleCampus">
+    <view class="campus-bar spring-btn" hover-class="campus-bar--hover press-spring" hover-stay-time="80" bindtap="onToggleCampus">
       <text class="campus-bar-label">校区</text>
-      <text class="campus-bar-value">{{campus}}</text>
+      <text class="campus-bar-value">{{campus || '全部校区'}}</text>
       <text class="campus-bar-arrow">{{showCampusPanel ? '▴' : '▾'}}</text>
     </view>
 
@@ -91,13 +101,13 @@
         <view wx:else class="upload-add">＋ 上传封面图片</view>
         <text wx:if="{{cover}}" class="upload-clear" catchtap="onClearCover">×</text>
       </view>
-      <view class="form-label-block">详细图片（选填，最多 9 张）</view>
+      <view class="form-label-block">详细图片（选填）</view>
       <view class="img-grid">
         <view class="img-item" wx:for="{{images}}" wx:key="index">
           <image class="img-thumb" src="{{item}}" mode="aspectFill" data-url="{{item}}" bindtap="onPreviewImage"/>
           <text class="img-remove" data-index="{{index}}" catchtap="onRemoveImage">×</text>
         </view>
-        <view wx:if="{{images.length < 9}}" class="upload-add upload-add--grid" bindtap="onAddImage">＋</view>
+        <view wx:if="{{images.length < 5}}" class="upload-add upload-add--grid" bindtap="onAddImage">＋</view>
       </view>
     </view>
 
@@ -126,14 +136,16 @@
         <textarea class="form-textarea form-textarea--short" value="{{signupContent}}" maxlength="200" placeholder="报名成功后向参与者展示的提示（选填）" bindinput="onSignupContentInput"/>
       </view>
       <view class="form-label-block">报名图片（选填，如群二维码）</view>
-      <view class="upload-row" bindtap="onUploadSignupImage">
-        <image wx:if="{{signupImage}}" class="upload-thumb" src="{{signupImage}}" mode="aspectFill"/>
-        <view wx:else class="upload-add">＋ 上传图片</view>
-        <text wx:if="{{signupImage}}" class="upload-clear" catchtap="onClearSignupImage">×</text>
+      <view class="img-grid">
+        <view class="img-item" wx:for="{{signupImages}}" wx:key="index">
+          <image class="img-thumb" src="{{item}}" mode="aspectFill" data-url="{{item}}" bindtap="onPreviewSignupImage"/>
+          <text class="img-remove" data-index="{{index}}" catchtap="onRemoveSignupImage">×</text>
+        </view>
+        <view wx:if="{{signupImages.length < 5}}" class="upload-add upload-add--grid" bindtap="onAddSignupImage">＋</view>
       </view>
     </view>
 
-    <view class="submit-btn" hover-class="submit-btn--hover" hover-stay-time="100" bindtap="onSubmit">
+    <view class="submit-btn spring-btn" hover-class="submit-btn--hover press-spring" hover-stay-time="100" bindtap="onSubmit">
       {{submitting ? '发布中...' : '发布活动'}}
     </view>
   </view>

@@ -26,8 +26,8 @@
     </view>
   </view>
 
-  <!-- 顶部标签 -->
-  <view class="top-tabs">
+  <!-- 顶部标签（指示条为液态拉伸样式，utils/liquid-tab.js 驱动） -->
+  <view class="top-tabs liquid-tab-track">
     <view
       class="top-tab {{activeTab === index ? 'active' : ''}}"
       wx:for="{{tabs}}"
@@ -35,6 +35,7 @@
       data-index="{{index}}"
       bindtap="onTab"
     >{{item}}</view>
+    <view class="liquid-indicator {{liquidPhase}}" style="{{liquidStyle}}"></view>
   </view>
 
   <!-- 状态筛选 -->
@@ -53,7 +54,7 @@
   <!-- 订单列表（与接单大厅一致的版式：头像+昵称+校区/性别标签+状态胶囊 / 公开描述+红色金额 / 期望完成时间） -->
   <view class="order-list">
     <block wx:for="{{orders}}" wx:key="id">
-      <view class="order-card" data-order="{{item}}" bindtap="onOpenDetail">
+      <view class="order-card anim-stagger" style="--i: {{index < 6 ? index : 0}};" data-order="{{item}}" bindtap="onOpenDetail">
         <view class="card-head">
           <image class="card-avatar" src="{{item.avatarUrl}}" mode="aspectFill"></image>
           <view class="card-user">
@@ -71,12 +72,14 @@
             <text class="card-title">{{item.descText}}</text>
             <text class="amount-price">¥{{item.price}}</text>
           </view>
-          <text class="card-expect">期望完成时间：{{item.expectText}}</text>
+          <text class="card-expect">期望时间：{{item.expectText}}</text>
+          <text class="card-expect" wx:if="{{item.deadlineText}}">截止时间：{{item.deadlineText}}</text>
         </view>
         <view class="card-foot" wx:if="{{item.action}}">
           <view class="foot-actions">
             <view class="card-btn btn-pay" wx:if="{{item.action === 'pay'}}" catchtap="onPay" data-order="{{item}}">去支付</view>
             <view class="card-btn btn-finish" wx:elif="{{item.action === 'finish'}}" catchtap="onFinish" data-order="{{item}}">立即完成</view>
+            <view class="card-btn btn-finish" wx:elif="{{item.action === 'confirm'}}" catchtap="onOpenDetail" data-order="{{item}}">去确认</view>
             <view class="card-btn btn-ghost" wx:elif="{{item.action === 'cancel'}}" catchtap="onCancel" data-order="{{item}}">取消订单</view>
             <view class="card-btn" wx:elif="{{item.action === 'contact'}}" catchtap="onContact" data-order="{{item}}">联系对方</view>
           </view>
@@ -88,20 +91,21 @@
   <!-- 空状态 -->
   <view class="empty-state" wx:if="{{orders.length === 0}}">
     <text class="empty-title">{{emptyText}}</text>
-    <text class="empty-desc">你可以调整标签或状态筛选，也可以下拉刷新再看看。</text>
+    <text class="empty-desc" wx:if="{{!needLogin}}">你可以调整标签或状态筛选，也可以下拉刷新再看看。</text>
+    <view class="empty-publish-btn" wx:if="{{needLogin}}" bindtap="goLogin">去登录</view>
   </view>
 
   <!-- 空状态发布入口 -->
-  <view class="empty-publish" wx:if="{{orders.length === 0}}">
+  <view class="empty-publish" wx:if="{{orders.length === 0 && !needLogin}}">
     <text class="empty-publish-desc">你可以去发布新的需求，或切换其他标签查看历史订单。</text>
     <view class="empty-publish-btn" bindtap="goPublish">去发布需求</view>
   </view>
 
   <!-- 右侧浮动导航（发布/消息/首页，保持在右下角） -->
   <view class="float-nav">
-    <view class="float-item" hover-class="float-item-hover" hover-stay-time="80" bindtap="goPublish"><text class="float-icon">✚</text><text class="float-label">发布</text></view>
-    <view class="float-item" hover-class="float-item-hover" hover-stay-time="80" bindtap="goMessages"><text class="float-icon">✉</text><text class="float-label">消息</text></view>
-    <view class="float-item" hover-class="float-item-hover" hover-stay-time="80" bindtap="goHallHome"><text class="float-icon">⌂</text><text class="float-label">首页</text></view>
+    <view class="float-item spring-btn" hover-class="float-item-hover press-spring" hover-stay-time="80" bindtap="goPublish"><text class="float-icon">✚</text><text class="float-label">发布</text></view>
+    <view class="float-item spring-btn" hover-class="float-item-hover press-spring" hover-stay-time="80" bindtap="goMessages"><text class="float-icon">✉</text><text class="float-label">消息</text></view>
+    <view class="float-item spring-btn" hover-class="float-item-hover press-spring" hover-stay-time="80" bindtap="goHallHome"><text class="float-icon">⌂</text><text class="float-label">首页</text></view>
   </view>
 
 </view>

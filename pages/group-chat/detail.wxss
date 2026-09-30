@@ -123,12 +123,12 @@
   padding: 20rpx;
   border-radius: 16rpx;
   background: #f7f8fa;
-  transition: background 0.15s ease;
+  transition: background 0.15s ease, transform 0.35s cubic-bezier(0.34, 1.42, 0.6, 1), box-shadow 0.35s cubic-bezier(0.34, 1.42, 0.6, 1);
 }
 
 .admin-row--hover {
   background: #eef1f5;
-}
+ transform: scale(0.96); box-shadow: inset 0 2rpx 6rpx rgba(16, 32, 64, 0.16), inset 0 -1rpx 2rpx rgba(255, 255, 255, 0.08); }
 
 .admin-qr {
   width: 96rpx;
@@ -172,12 +172,12 @@
   overflow: hidden;
   background: #f7f8fa;
   border: 1rpx solid #eef0f4;
-  transition: opacity 0.15s ease;
+  transition: opacity 0.15s ease, transform 0.35s cubic-bezier(0.34, 1.42, 0.6, 1), box-shadow 0.35s cubic-bezier(0.34, 1.42, 0.6, 1);
 }
 
 .qr-wrap--hover {
   opacity: 0.88;
-}
+ transform: scale(0.96); box-shadow: inset 0 2rpx 6rpx rgba(16, 32, 64, 0.16), inset 0 -1rpx 2rpx rgba(255, 255, 255, 0.08); }
 
 .qr-img {
   display: block;
@@ -233,4 +233,37 @@
 
 .img-scroll-item:last-child {
   margin-right: 0;
+}
+
+/* ===== 群主 / 群成员规模（后台维护，缺省不渲染） ===== */
+.head-meta {
+  margin-top: 12rpx;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8rpx;
+  font-size: 22rpx;
+  color: #8b93a3;
+}
+
+.head-meta-dot {
+  color: #c0c7d2;
+}
+
+/* ===== 群公告：浅黄底与「群介绍」区分，进群须知一眼能看到 =====
+   公告由后台换行录入，用 pre-wrap 保留原始换行 */
+.notice-card {
+  background: #fffdf5;
+  border-color: #f6ecd2;
+}
+
+.notice-text {
+  display: block;
+  margin-top: 18rpx;
+  font-size: 26rpx;
+  color: #6b5423;
+  line-height: 1.75;
+  text-align: justify;
+  white-space: pre-wrap;
+  word-break: break-word;
 }

@@ -1,11 +1,23 @@
 <view class="page">
-  <view class="topbar" style="padding-top: {{statusBarHeight}}px;"><view class="topbar-inner" style="height: {{navBarHeight}}px;"><view class="back-pill" hover-class="back-pill-hover" hover-stay-time="80" bindtap="goBack"><text class="back-pill-icon">‹</text><text>返回</text></view><text class="nav-title">订单详情</text><view class="topbar-right"></view></view></view>
+  <view class="topbar" style="padding-top: {{statusBarHeight}}px;"><view class="topbar-inner" style="height: {{navBarHeight}}px;"><view class="back-pill spring-btn" hover-class="back-pill-hover press-spring" hover-stay-time="80" bindtap="goBack"><text class="back-pill-icon">‹</text><text>返回</text></view><text class="nav-title">订单详情</text><view class="topbar-right"></view></view></view>
   <view class="nav-space" style="height: {{statusBarHeight + navBarHeight}}px;"></view>
 
   <view wx:if="{{loading && !order}}" class="loading-tip">加载中…</view>
 
   <block wx:if="{{order}}">
     <text class="progress">{{statusText}}</text>
+
+    <!-- 待确认：接单方已提交完成，等待发单人确认；点击「查看」核对提交内容并处理。
+         这是发单人与接单人之间的交接阶段，第三方浏览者不得看到进展与等待时长 -->
+    <view class="wait-banner" wx:if="{{order.status === 'finishing' && order.role !== 'viewer'}}">
+      <text class="wait-text">接单人已提交完成，已等待{{waitText}}</text>
+      <text class="wait-view" bindtap="openSubmitSheet">查看 ›</text>
+    </view>
+
+    <!-- 有异议：等待客服核实裁决（同为交接阶段，仅当事人可见） -->
+    <view class="dispute-banner" wx:if="{{order.status === 'disputed' && order.role !== 'viewer'}}">
+      <text>该订单存在异议，客服正在核实处理，结果将通过消息通知</text>
+    </view>
 
     <!-- 需求信息 -->
     <view class="card order-card">
@@ -18,12 +30,42 @@
         <text class="reward">悬赏佣金 <text class="reward-num">¥{{order.rewardText}}</text></text>
       </view>
       <view class="desc-box"><text>{{order.remark || order.description || order.title}}</text></view>
+      <view class="finish-images" wx:if="{{order.orderImages.length}}">
+        <image wx:for="{{order.orderImages}}" wx:key="*this" src="{{item}}" mode="aspectFill" data-src="{{item}}" data-urls="{{order.orderImages}}" bindtap="previewOrderImage" bindlongpress="onImageQrScan"/>
+      </view>
       <view class="row"><text class="row-label">所在校区</text><text class="row-value">{{order.campus || '不限校区'}}</text></view>
       <view class="row"><text class="row-label">下单时间</text><text class="row-value">{{order.createdText}}</text></view>
-      <view class="row" wx:if="{{order.deadlineText}}"><text class="row-label">截止接单时间</text><text class="row-value">{{order.deadlineText}}</text></view>
+      <view class="row" wx:if="{{order.deadlineText}}"><text class="row-label">截止时间</text><text class="row-value">{{order.deadlineText}}</text></view>
       <view class="row" wx:if="{{order.pickupAddr}}"><text class="row-label">取件地址</text><text class="row-value">{{order.pickupAddr}}</text></view>
       <view class="row" wx:if="{{order.deliveryAddr}}"><text class="row-label">送达地址</text><text class="row-value">{{order.deliveryAddr}}</text></view>
-      <button class="contact" bindtap="onContact"><text class="contact-icon">✆</text>{{order.role === 'publisher' ? '联系接单方' : '联系需求方'}}</button>
+      <button hover-class="press-spring" class="contact spring-btn" bindtap="onContact" hover-stay-time="120"><text class="contact-icon">✆</text>{{order.role === 'publisher' ? '联系接单方' : '联系需求方'}}</button>
+    </view>
+
+    <!-- 接单人（发单人视角：待确认/有异议时展示，便于核对身份并联系） -->
+    <view class="card acceptor-card" wx:if="{{order.role === 'publisher' && (order.status === 'finishing' || order.status === 'disputed')}}">
+      <text class="section-title">接单人</text>
+      <view class="acceptor-head">
+        <image wx:if="{{order.acceptorAvatar}}" class="acceptor-avatar" src="{{order.acceptorAvatar}}" mode="aspectFill"></image>
+        <view wx:else class="acceptor-avatar acceptor-avatar-fallback">👤</view>
+        <view class="acceptor-info">
+          <text class="acceptor-name">{{order.acceptorName || '接单同学'}}</text>
+          <text class="acceptor-time">{{order.acceptedText}} 接单</text>
+        </view>
+        <button hover-class="press-spring" class="acceptor-contact spring-btn" bindtap="onContact" hover-stay-time="120">联系Ta</button>
+      </view>
+    </view>
+
+    <!-- 异议信息：发单人填写的内容与客服处理结果（双方可见） -->
+    <view class="card dispute-card" wx:if="{{order.disputeReason || order.disputeResult}}">
+      <text class="section-title">异议信息</text>
+      <text class="dispute-reason">{{order.disputeReason || '—'}}</text>
+      <view class="row" wx:if="{{order.disputedText}}"><text class="row-label">提出时间</text><text class="row-value">{{order.disputedText}}</text></view>
+      <view class="row" wx:if="{{order.disputeResult}}">
+        <text class="row-label">处理结果</text>
+        <text class="row-value">{{order.disputeResult === 'refunded' ? '异议成立，订单已取消并退款' : '异议不成立，订单已完成'}}</text>
+      </view>
+      <view class="row" wx:if="{{order.disputeNote}}"><text class="row-label">客服备注</text><text class="row-value">{{order.disputeNote}}</text></view>
+      <view class="row" wx:if="{{order.disputeHandledText}}"><text class="row-label">处理时间</text><text class="row-value">{{order.disputeHandledText}}</text></view>
     </view>
 
     <!-- 订单信息 -->
@@ -67,8 +109,8 @@
         <image wx:for="{{cancelRequest.images}}" wx:key="*this" src="{{item}}" mode="aspectFill" data-src="{{item}}" data-urls="{{cancelRequest.images}}" bindtap="previewRequestImage" bindlongpress="onImageQrScan"/>
       </view>
       <view class="request-actions" wx:if="{{canHandleRequest}}">
-        <button class="btn-reject" bindtap="respondRequest" data-approve="0">拒绝</button>
-        <button class="btn-approve" bindtap="respondRequest" data-approve="1">同意取消</button>
+        <button hover-class="press-spring" class="btn-reject spring-btn" bindtap="respondRequest" data-approve="0" hover-stay-time="120">拒绝</button>
+        <button hover-class="press-spring" class="btn-approve spring-btn" bindtap="respondRequest" data-approve="1" hover-stay-time="120">同意取消</button>
       </view>
       <text class="request-tip" wx:else>等待发单人处理，处理结果将通过消息通知</text>
     </view>
@@ -97,28 +139,43 @@
     <!-- 底部操作栏（金额必须用 <text> 嵌套，<em> 在 WXML 中不渲染） -->
     <view class="bottom-bar" wx:if="{{bottomMode === 'acceptor' && !requestPending}}">
       <text class="income">到手佣金 <text class="income-num">¥{{order.rewardText}}</text></text>
-      <button class="btn-cancel" bindtap="openCancel">取消接单</button>
-      <button class="btn-finish" bindtap="openComplete">提交完成</button>
+      <button hover-class="press-spring" class="btn-cancel spring-btn" bindtap="openCancel" hover-stay-time="120">取消接单</button>
+      <button hover-class="press-spring" class="btn-finish spring-btn" bindtap="openComplete" hover-stay-time="120">提交完成</button>
     </view>
     <view class="bottom-bar pending-note" wx:elif="{{bottomMode === 'acceptor' && requestPending}}">
       <text>取消接单申请待发单人处理，请耐心等待或继续完成订单</text>
     </view>
     <view class="bottom-bar" wx:elif="{{bottomMode === 'publisher'}}">
       <text class="income">悬赏佣金 <text class="income-num">¥{{order.rewardText}}</text></text>
-      <button class="btn-cancel" bindtap="onContact">联系接单方</button>
-      <button class="btn-finish" bindtap="openCancelPublisher">取消订单</button>
+      <button hover-class="press-spring" class="btn-cancel spring-btn" bindtap="onContact" hover-stay-time="120">联系接单方</button>
+      <button hover-class="press-spring" class="btn-finish spring-btn" bindtap="openCancelPublisher" hover-stay-time="120">取消订单</button>
+    </view>
+    <!-- 待确认：发单人决定「提出异议」或「确认完成」 -->
+    <view class="bottom-bar" wx:elif="{{bottomMode === 'publisherConfirm'}}">
+      <text class="income">悬赏佣金 <text class="income-num">¥{{order.rewardText}}</text></text>
+      <button hover-class="press-spring" class="btn-dispute spring-btn" bindtap="openSubmitSheet" hover-stay-time="120">提出异议</button>
+      <button hover-class="press-spring" class="btn-finish spring-btn" bindtap="onConfirmComplete" disabled="{{confirming}}" hover-stay-time="120">确认完成</button>
+    </view>
+    <view class="bottom-bar pending-note" wx:elif="{{bottomMode === 'acceptorFinishing'}}">
+      <text>已提交完成，等待发单人确认（超 {{autoConfirmHours}} 小时未处理将自动确认）</text>
+    </view>
+    <view class="bottom-bar pending-note" wx:elif="{{bottomMode === 'disputedPublisher'}}">
+      <text>异议处理中，客服会尽快核实，结果将通过消息通知</text>
+    </view>
+    <view class="bottom-bar pending-note" wx:elif="{{bottomMode === 'disputedAcceptor'}}">
+      <text>发单人提出了异议，客服正在处理，请耐心等待</text>
     </view>
     <view class="bottom-bar" wx:elif="{{bottomMode === 'ownerPending'}}">
       <text class="income">悬赏佣金 <text class="income-num">¥{{order.rewardText}}</text></text>
-      <button class="btn-finish" bindtap="openCancelPublisher">取消订单</button>
+      <button hover-class="press-spring" class="btn-finish spring-btn" bindtap="openCancelPublisher" hover-stay-time="120">取消订单</button>
     </view>
     <view class="bottom-bar" wx:elif="{{bottomMode === 'pending'}}">
       <text class="income">悬赏佣金 <text class="income-num">¥{{order.rewardText}}</text></text>
-      <button class="btn-finish" bindtap="onAccept" disabled="{{accepting}}">立即接单</button>
+      <button hover-class="press-spring" class="btn-finish spring-btn" bindtap="onAccept" disabled="{{accepting}}" hover-stay-time="120">立即接单</button>
     </view>
     <view class="bottom-bar" wx:elif="{{bottomMode === 'finished'}}">
       <text class="income">到手佣金 <text class="income-num">¥{{order.rewardText}}</text></text>
-      <button class="btn-finish" bindtap="openReview">去评价</button>
+      <button hover-class="press-spring" class="btn-finish spring-btn" bindtap="openReview" hover-stay-time="120">去评价</button>
     </view>
   </block>
 
@@ -140,6 +197,60 @@
     </view>
   </view>
 
+  <!-- 接单方提交完成详情弹窗（发单人核对并处理：确认完成 / 拒绝并提出异议 / 联系客服）
+       仅发单人可打开：弹窗内含「确认已完成」按钮，第三方打开会看到一个点了也无效的操作 -->
+  <view class="mask" wx:if="{{showSubmitSheet && order.role === 'publisher'}}" bindtap="closeSubmitSheet">
+    <view class="submit-popup" catchtap="noop">
+      <view class="submit-head">
+        <image wx:if="{{order.acceptorAvatar}}" class="submit-avatar" src="{{order.acceptorAvatar}}" mode="aspectFill"></image>
+        <view wx:else class="submit-avatar submit-avatar-fallback">👤</view>
+        <text class="submit-name">{{order.acceptorName || '接单同学'}}</text>
+        <text class="submit-tag">接单人</text>
+      </view>
+      <text class="submit-status">提交完成</text>
+      <text class="submit-time">{{order.finishSubmittedText}}</text>
+      <scroll-view scroll-y class="submit-body">
+        <text class="submit-desc">{{order.finishDescription || '未填写完成说明'}}</text>
+        <view class="finish-images" wx:if="{{order.finishImages.length}}">
+          <image wx:for="{{order.finishImages}}" wx:key="*this" src="{{item}}" mode="aspectFill" data-src="{{item}}" data-urls="{{order.finishImages}}" bindtap="previewFinishImage" bindlongpress="onImageQrScan"/>
+        </view>
+      </scroll-view>
+      <view class="submit-actions">
+        <button hover-class="press-spring" class="btn-dispute-outline spring-btn" bindtap="openDisputeSheet" disabled="{{confirming}}" hover-stay-time="120">拒绝，并提出异议</button>
+        <button hover-class="press-spring" class="btn-confirm-solid spring-btn" bindtap="onConfirmComplete" disabled="{{confirming}}" hover-stay-time="120">确认已完成</button>
+      </view>
+      <view class="submit-service">如有疑问，请尽快联系客服处理<text class="submit-service-link" bindtap="contactService">联系客服</text></view>
+    </view>
+  </view>
+
+  <!-- 异议填写弹窗：提交后订单转「有异议」并推送管理后台 -->
+  <view class="mask" wx:if="{{showDisputeSheet}}" bindtap="closeDisputeSheet">
+    <view class="dispute-popup" catchtap="noop">
+      <text class="logs-title">填写异议内容</text>
+      <textarea class="dispute-textarea" placeholder="请描述具体问题，例如未收到物品、物品损坏、与描述不符等…" maxlength="500" value="{{disputeContent}}" bindinput="onDisputeInput"/>
+      <text class="dispute-tip">提交后订单进入异议状态，由客服核实处理；核实成立将取消订单并把赏金原路退回你的支付账户。</text>
+      <view class="dispute-actions">
+        <button hover-class="press-spring" class="btn-cancel spring-btn" bindtap="closeDisputeSheet" hover-stay-time="120">取消</button>
+        <button hover-class="press-spring" class="btn-finish spring-btn" bindtap="submitDispute" disabled="{{disputing}}" hover-stay-time="120">提交异议</button>
+      </view>
+    </view>
+  </view>
+
+  <!-- 订单已被他人接走：引导返回接单大厅 -->
+  <view class="mask" wx:if="{{showTakenPopup}}" bindtap="closeTakenPopup">
+    <view class="taken-popup" catchtap="noop">
+      <text class="taken-title">来晚啦！该订单已被其他同学接走</text>
+      <view class="taken-user">
+        <text class="taken-user-label">接单人</text>
+        <image wx:if="{{takenAcceptorAvatar}}" class="taken-avatar" src="{{takenAcceptorAvatar}}" mode="aspectFill"></image>
+        <view wx:else class="taken-avatar taken-avatar-fallback">👤</view>
+        <text class="taken-user-name">{{takenAcceptorName}}</text>
+      </view>
+      <view class="taken-illus">🛸</view>
+      <button hover-class="press-spring" class="taken-btn spring-btn" bindtap="backToHall" hover-stay-time="120">返回接单大厅</button>
+    </view>
+  </view>
+
   <!-- 评价弹窗 -->
   <view class="mask" wx:if="{{showReview}}" bindtap="closeReview">
     <view class="review-popup" catchtap="noop">
@@ -148,7 +259,7 @@
         <text wx:for="{{[1,2,3,4,5]}}" wx:key="*this" class="star {{reviewRating >= item ? 'on' : ''}}" data-rating="{{item}}" bindtap="chooseRating">★</text>
       </view>
       <textarea class="review-text" placeholder="说说这次跑腿体验吧…" maxlength="200" value="{{reviewContent}}" bindinput="onReviewInput"/>
-      <button class="review-submit" bindtap="submitReview" disabled="{{reviewing}}">提交评价</button>
+      <button hover-class="press-spring" class="review-submit spring-btn" bindtap="submitReview" disabled="{{reviewing}}" hover-stay-time="120">提交评价</button>
     </view>
   </view>
 
@@ -156,7 +267,7 @@
   <view class="mask" wx:if="{{showContactSheet}}" bindtap="closeContactSheet">
     <view class="contact-popup" catchtap="noop">
       <text class="contact-popup-title">选择联系方式</text>
-      <view class="contact-option" hover-class="contact-option-hover" hover-stay-time="80" bindtap="onOnlineContact">
+      <view class="contact-option spring-btn" hover-class="contact-option-hover press-spring" hover-stay-time="80" bindtap="onOnlineContact">
         <view class="contact-option-icon online">✉</view>
         <view class="contact-option-body">
           <text class="contact-option-name">在线联系</text>
@@ -164,7 +275,7 @@
         </view>
         <text class="contact-arrow">›</text>
       </view>
-      <view class="contact-option" hover-class="contact-option-hover" hover-stay-time="80" bindtap="onPhoneContact">
+      <view class="contact-option spring-btn" hover-class="contact-option-hover press-spring" hover-stay-time="80" bindtap="onPhoneContact">
         <view class="contact-option-icon phone">✆</view>
         <view class="contact-option-body">
           <text class="contact-option-name">电话联系</text>
@@ -175,4 +286,7 @@
       <view class="contact-cancel" bindtap="closeContactSheet">取消</view>
     </view>
   </view>
+
+  <!-- 联系客服：复用「联系管理员」能力（在线联系微信客服 / 添加管理员微信） -->
+  <contact-admin id="serviceAdmin"></contact-admin>
 </view>

@@ -25,7 +25,7 @@
 
   <!-- 考试列表 -->
   <view class="exam-list" wx:if="{{tab === 'ongoing' && ongoing.length > 0}}">
-    <view class="exam-card" wx:for="{{ongoing}}" wx:key="id">
+    <view class="exam-card anim-stagger" style="--i: {{index < 6 ? index : 0}};" wx:for="{{ongoing}}" wx:key="id">
       <view class="exam-badge" wx:if="{{item.type}}">{{item.type}}</view>
       <view class="exam-name">{{item.name}}</view>
       <view class="exam-info" wx:if="{{item.date || item.time}}">
@@ -48,7 +48,7 @@
   </view>
 
   <view class="exam-list" wx:if="{{tab === 'ended' && ended.length > 0}}">
-    <view class="exam-card ended" wx:for="{{ended}}" wx:key="id">
+    <view class="exam-card ended anim-stagger" style="--i: {{index < 6 ? index : 0}};" wx:for="{{ended}}" wx:key="id">
       <view class="exam-badge gray" wx:if="{{item.type}}">{{item.type}}</view>
       <view class="exam-name">{{item.name}}</view>
       <view class="exam-info" wx:if="{{item.date || item.time}}">

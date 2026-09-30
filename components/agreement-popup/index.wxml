@@ -25,8 +25,8 @@
     </view>
     
     <view class="popup-footer">
-      <button class="btn-reject" bindtap="onReject">拒绝</button>
-      <button class="btn-agree" bindtap="onAgree">同意并继续</button>
+      <button hover-class="press-spring" class="btn-reject spring-btn" bindtap="onReject" hover-stay-time="120">拒绝</button>
+      <button hover-class="press-spring" class="btn-agree spring-btn" bindtap="onAgree" hover-stay-time="120">同意并继续</button>
     </view>
   </view>
 </view>

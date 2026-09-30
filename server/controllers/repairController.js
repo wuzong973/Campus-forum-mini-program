@@ -1,12 +1,13 @@
 const crypto = require('crypto')
 const pool = require('../config/pool')
 const { success, fail } = require('../middleware/auth')
-const { safeMessage } = require('../utils/helpers')
+const { safeMessage, clampPageSize, parseImages } = require('../utils/helpers')
 const wechat = require('../services/wechatService')
 const { createPrivateMessage } = require('./messageController')
 const { TECHNICIANS, findTechnician } = require('../config/repairTechnicians')
 
-const DEFAULT_PRICE = 0.99
+// 义修预约费统一为 0.01 元（前后端一致：下单落库、订单展示、微信实际收款同源此值）
+const DEFAULT_PRICE = 0.01
 
 function makeOrderNo() {
   const date = new Date().toISOString().slice(0, 10).replace(/-/g, '')
@@ -14,30 +15,36 @@ function makeOrderNo() {
 }
 
 exports.create = async (req, res) => {
-  const { deviceType, description, contactName, contactPhone, serviceAddress, appointmentTime, technicianPhone, images = [] } = req.body
-  const technician = findTechnician(technicianPhone)
-  if (!deviceType || !description || !contactName || !/^1\d{10}$/.test(contactPhone || '') || !serviceAddress || !appointmentTime || !technician) {
+  const { deviceType, description, contactName, contactPhone, wechatId = '', expectedTime = '', serviceAddress, technicianPhone, images = [] } = req.body
+  // 维修人员为选填：指定了则校验收单人，未指定则由后台统一分配
+  const technician = technicianPhone ? findTechnician(technicianPhone) : null
+  if (technicianPhone && !technician) return fail(res, '维修人员不存在')
+  if (!deviceType || !description || !contactName || !/^1\d{10}$/.test(contactPhone || '') || !wechatId || !expectedTime || !serviceAddress) {
     return fail(res, '请完整填写预约信息')
   }
-  const appointment = new Date(appointmentTime)
-  if (!Number.isFinite(appointment.getTime()) || appointment.getTime() < Date.now() - 60000) return fail(res, '预约时间无效')
   try {
     const amount = DEFAULT_PRICE
     const orderNo = makeOrderNo()
-    const [staffRows] = await pool.query(
-      'SELECT id FROM sys_user WHERE phone = ? AND status = 1 LIMIT 1',
-      [technician.phone]
-    )
-    const technicianUserId = staffRows.length ? staffRows[0].id : null
+    // 预约时间入口已下线，appointment_time 列（NOT NULL）仅作为下单时间落库
+    const appointment = new Date()
+    const technicianUserId = technician ? await findTechnicianUserId(technician.phone) : null
     const [result] = await pool.query(
-      `INSERT INTO repair_order (order_no,user_id,device_type,fault_type,description,contact_name,contact_phone,technician_name,technician_phone,technician_user_id,service_address,appointment_time,images,amount)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-      [orderNo, req.userId, deviceType, '待检测', String(description).slice(0, 500), contactName, contactPhone, technician.name, technician.phone, technicianUserId, serviceAddress, appointment, JSON.stringify(images.slice(0, 3)), amount],
+      `INSERT INTO repair_order (order_no,user_id,device_type,fault_type,description,contact_name,contact_phone,wechat_id,expected_time,technician_name,technician_phone,technician_user_id,service_address,appointment_time,images,amount)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+      [orderNo, req.userId, deviceType, '待检测', String(description).slice(0, 500), contactName, contactPhone, String(wechatId).slice(0, 64), String(expectedTime).slice(0, 64), technician ? technician.name : '', technician ? technician.phone : '', technicianUserId, serviceAddress, appointment, JSON.stringify(images.slice(0, 3)), amount],
     )
     success(res, { id: result.insertId, orderNo, amount, technicianUserId })
   } catch (e) {
     fail(res, safeMessage(e), 500)
   }
+}
+
+async function findTechnicianUserId(phone) {
+  const [staffRows] = await pool.query(
+    'SELECT id FROM sys_user WHERE phone = ? AND status = 1 LIMIT 1',
+    [phone]
+  )
+  return staffRows.length ? staffRows[0].id : null
 }
 
 exports.listTechnicians = async (req, res) => {
@@ -81,7 +88,7 @@ exports.createPayment = async (req, res) => {
 exports.listMine = async (req, res) => {
   try {
     const [rows] = await pool.query(
-      `SELECT r.id,r.order_no,r.device_type,r.description,r.service_address,r.appointment_time,r.amount,r.status,r.created_at,
+      `SELECT r.id,r.order_no,r.device_type,r.description,r.service_address,r.appointment_time,r.expected_time,r.amount,r.status,r.created_at,
         r.technician_name AS technicianName,r.technician_phone AS technicianPhone,
         COALESCE(r.technician_user_id, staff.id) AS technicianUserId
        FROM repair_order r
@@ -90,6 +97,65 @@ exports.listMine = async (req, res) => {
       [req.userId],
     )
     success(res, rows)
+  } catch (e) {
+    fail(res, safeMessage(e), 500)
+  }
+}
+
+// ===== 管理端：维修预约记录 =====
+// 用户端提交的预约维修只写进 repair_order，管理员此前没有任何入口能看到，
+// 只能在用户端「我的订单」里看自己下的单。这里把预约单与提交人资料一并返回。
+const REPAIR_STATUSES = ['unpaid', 'paid', 'accepted', 'repairing', 'finished', 'cancelled']
+
+function pageParams(query) {
+  const page = Math.max(parseInt(query.page, 10) || 1, 1)
+  const pageSize = clampPageSize(query.pageSize, 20)
+  return { page, pageSize, offset: (page - 1) * pageSize }
+}
+
+exports.adminListOrders = async (req, res) => {
+  const { page, pageSize, offset } = pageParams(req.query)
+  const status = String(req.query.status || '').trim()
+  const keyword = String(req.query.keyword || '').trim().slice(0, 64)
+  let where = 'WHERE 1 = 1'
+  const params = []
+  if (REPAIR_STATUSES.includes(status)) { where += ' AND r.status = ?'; params.push(status) }
+  if (keyword) {
+    // 管理员最常见的搜法：按联系人/手机号/宿舍地址找回那条预约
+    where += ' AND (r.order_no LIKE ? OR r.contact_name LIKE ? OR r.contact_phone LIKE ?'
+      + ' OR r.service_address LIKE ? OR u.nick_name LIKE ?'
+      + (/^\d+$/.test(keyword) ? ' OR r.id = ?' : '') + ')'
+    const q = '%' + keyword + '%'
+    params.push(q, q, q, q, q)
+    if (/^\d+$/.test(keyword)) params.push(Number(keyword))
+  }
+  try {
+    const [countRes, listRes] = await Promise.all([
+      pool.query(`SELECT COUNT(*) total FROM repair_order r LEFT JOIN sys_user u ON u.id = r.user_id ${where}`, params),
+      // 头像字段必须叫 avatarUrl：success() 里的 normalizeAvatars 只按 AVATAR_KEYS
+      // 白名单修正历史头像路径（/assets/avatar2/1 (9).jpg → avatar_09.jpg），
+      // 换成自造的键名会绕过修正，老用户头像显示灰圆。
+      pool.query(
+        `SELECT r.id, r.order_no orderNo, r.user_id userId, r.device_type deviceType, r.fault_type faultType,
+                r.description, r.contact_name contactName, r.contact_phone contactPhone, r.wechat_id wechatId,
+                r.expected_time expectedTime, r.service_address serviceAddress, r.images, r.amount, r.status,
+                r.technician_name technicianName, r.technician_phone technicianPhone,
+                r.paid_at paidAt, r.created_at createdAt,
+                u.nick_name nickName, u.avatar_url avatarUrl, u.phone userPhone
+         FROM repair_order r LEFT JOIN sys_user u ON u.id = r.user_id
+         ${where} ORDER BY r.id DESC LIMIT ? OFFSET ?`,
+        params.concat([pageSize, offset])
+      )
+    ])
+    const total = Number((((countRes[0] || [])[0]) || {}).total || 0)
+    const list = listRes[0] || []
+    success(res, {
+      // images 是 JSON 列，mysql2 可能给出数组/对象/字符串三种形态，统一归一化
+      list: list.map((row) => Object.assign({}, row, { images: parseImages(row.images) })),
+      total,
+      page,
+      hasMore: offset + list.length < total
+    })
   } catch (e) {
     fail(res, safeMessage(e), 500)
   }
@@ -133,18 +199,19 @@ exports.paymentNotify = async (req, res) => {
 }
 
 async function notifyTechnician(order) {
+  // 未指定维修人员（由后台分配）时无需通知
+  if (!order.technician_phone) return
   const [staffRows] = await pool.query(
     'SELECT id, openid FROM sys_user WHERE phone = ? AND status = 1 LIMIT 1',
     [order.technician_phone]
   )
   const staff = staffRows[0]
-  const appointmentTime = new Date(order.appointment_time).toLocaleString('zh-CN', { hour12: false })
   if (staff) {
     try {
       await createPrivateMessage(
         order.user_id,
         staff.id,
-        `新的维修预约：${order.device_type}，预约时间 ${appointmentTime}，地址：${order.service_address}。`
+        `新的维修预约：${order.description}，期望上门时间 ${order.expected_time || '未填写'}，地址：${order.service_address}。联系电话：${order.contact_phone}${order.wechat_id ? '，微信：' + order.wechat_id : ''}`
       )
     } catch (error) {
       // 站内信发送失败（如黑名单拦截）不影响维修预约流程

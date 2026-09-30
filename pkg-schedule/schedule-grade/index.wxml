@@ -51,7 +51,7 @@
 
   <!-- 成绩列表 -->
   <view class="grade-list" wx:if="{{filtered.length > 0}}">
-    <view class="grade-card" wx:for="{{filtered}}" wx:key="id">
+    <view class="grade-card anim-stagger" style="--i: {{index < 6 ? index : 0}};" wx:for="{{filtered}}" wx:key="id">
       <view class="grade-score {{item.pass === false ? 'fail' : ''}}">
         <text class="score-num">{{item.score || '—'}}</text>
       </view>

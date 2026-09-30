@@ -25,7 +25,8 @@ const DEFAULT_SEMESTER_START =
   "2026-09-07";
 const DEFAULT_TOTAL_WEEKS = clampNumber(
   process.env.SCHEDULE_TOTAL_WEEKS || process.env.JW_TOTAL_WEEKS,
-  19,
+  // 与校历/前端一致：一学期 20 周（此前默认 19 会漏抓第 20 周课程）
+  20,
   1,
   30,
 );
@@ -55,6 +56,13 @@ const FAST_SEMESTER_CONCURRENCY = clampNumber(
   6,
   1,
   10,
+);
+// 自动提交比“识别出 4 位”更严格：低置信度只预填，让用户确认后再提交。
+const OCR_AUTO_FILL_CONFIDENCE = clampNumber(
+  process.env.JW_OCR_AUTO_FILL_CONFIDENCE,
+  65,
+  0,
+  100,
 );
 
 const lastSyncByUser = new Map();
@@ -154,11 +162,36 @@ function normalizeDate(value) {
   return /^\d{4}-\d{2}-\d{2}$/.test(text) ? text : "";
 }
 
+// 校定作息表（兜底用）：唯一口径见小程序 utils/schedule.js 的 CLASS_PERIODS，
+// 官方教务课表按两节一行：1-2 08:30-09:55 / 3-4 10:15-11:40 / 5-6 14:00-15:25 /
+// 7-8 15:45-17:10 / 9-10 18:30-19:55 / 11-12 20:00-21:25。
+// 仅在教务页面未给出时间区间、只给出节次号时按此回填。
+const SECTION_TIME = {
+  1: ["08:30", "09:10"],
+  2: ["09:15", "09:55"],
+  3: ["10:15", "10:55"],
+  4: ["11:00", "11:40"],
+  5: ["14:00", "14:40"],
+  6: ["14:45", "15:25"],
+  7: ["15:45", "16:25"],
+  8: ["16:30", "17:10"],
+  9: ["18:30", "19:10"],
+  10: ["19:15", "19:55"],
+  11: ["20:00", "20:40"],
+  12: ["20:45", "21:25"],
+};
+
+function sectionTime(section, which) {
+  const row = SECTION_TIME[Number(section) || 0];
+  if (!row) return "";
+  return which === "endTime" ? row[1] : row[0];
+}
+
 function inferCourseColor(name, location, startTime) {
   const text = String(name || "") + " " + String(location || "");
   if (/军体|体育|操场/.test(text)) return "#52C41A";
   if (/实验|第四实训楼|B\d{3}|制图/.test(text)) return "#FA8C16";
-  if (/晚训|晚自习/.test(text) || /^1[89]:/.test(startTime || ""))
+  if (/晚训|晚自习/.test(text) || /^(1[89]|2[0-9]):/.test(startTime || ""))
     return "#EB2F96";
   if (/班会|活动|讲座/.test(text)) return "#13C2C2";
   return "#4A7AFF";
@@ -239,8 +272,10 @@ function normalizeRemoteCourse(course, weekNumber) {
     weekDay,
     startSection,
     endSection,
-    startTime: String(course.startTime || "").trim(),
-    endTime: String(course.endTime || "").trim(),
+    startTime:
+      String(course.startTime || "").trim() || sectionTime(startSection, "startTime"),
+    endTime:
+      String(course.endTime || "").trim() || sectionTime(endSection, "endTime"),
     weekNumber,
   };
 }
@@ -407,10 +442,54 @@ function serializeCaptchaChallenge(challenge) {
     challengeId: challenge.id,
     expiresAt: new Date(challenge.expiresAt).toISOString(),
     captcha: {
-      mime: "image/png",
-      dataUrl: `data:image/png;base64,${challenge.captchaBuffer.toString("base64")}`,
+      mime: detectImageMime(challenge.captchaBuffer),
+      dataUrl: `data:${detectImageMime(challenge.captchaBuffer)};base64,${challenge.captchaBuffer.toString("base64")}`,
+      ocr: challenge.ocr || null,
     },
   };
+}
+
+// 挑战流程里的验证码仍先给前端展示；这里同步做一次 OCR，把可信结果随挑战下发。
+// 识别异常不应阻断人工输入，因此只记录日志并返回 null。
+async function recognizeChallengeCaptcha(challenge) {
+  if (!USE_SERVER_OCR || !challenge.captchaBuffer || !challenge.crawler) {
+    return null;
+  }
+  try {
+    const result = await challenge.crawler.recognizeCaptcha(challenge.captchaBuffer);
+    const confidence = Math.max(0, Math.min(100, Number(result.confidence) || 0));
+    return {
+      text: String(result.text || ""),
+      confidence: Math.round(confidence * 10) / 10,
+      valid: !!result.valid,
+      autoFill: !!result.valid && confidence >= OCR_AUTO_FILL_CONFIDENCE,
+    };
+  } catch (e) {
+    console.warn("[jw] 验证码 OCR 失败:", e.message);
+    return null;
+  }
+}
+
+// 教务验证码接口实际返回 JPEG（verifycode.servlet），早期固定写成 image/png，
+// 与真实字节不符：部分端会因 MIME 不匹配而拒绝渲染，这里按魔数嗅探真实类型
+function detectImageMime(buffer) {
+  const b = buffer || Buffer.alloc(0);
+  if (b.length > 3 && b[0] === 0xff && b[1] === 0xd8) return "image/jpeg";
+  if (b.length > 8 && b[0] === 0x89 && b[1] === 0x50) return "image/png";
+  if (b.length > 6 && b[0] === 0x47 && b[1] === 0x49) return "image/gif";
+  return "image/png";
+}
+
+// 是否真的是图片字节（JPEG/PNG/GIF/BMP）：用于拦截学校抖动期返回的 HTML 错误页，
+// 避免把 HTML 当作验证码下发给用户（客户端只会显示破图）
+function isImageBuffer(buffer) {
+  const b = buffer || Buffer.alloc(0);
+  if (b.length < 8) return false;
+  if (b[0] === 0xff && b[1] === 0xd8) return true; // JPEG
+  if (b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4e) return true; // PNG
+  if (b[0] === 0x47 && b[1] === 0x49 && b[2] === 0x46) return true; // GIF
+  if (b[0] === 0x42 && b[1] === 0x4d) return true; // BMP
+  return false;
 }
 
 async function createCaptchaChallenge({
@@ -427,13 +506,30 @@ async function createCaptchaChallenge({
   let captchaBuffer;
   let factor = "";
 
-  if (mode === "unified") {
-    const challenge = await crawler.createLoginChallenge({ captchaPath: null });
-    captchaBuffer = challenge.captchaBuffer;
-    factor = challenge.factor || "";
-  } else {
-    await crawler.initJsxsdLoginPage();
-    captchaBuffer = await crawler.getJsxsdCaptcha(null);
+  // 学校抖动时 verifycode.servlet / 登录页可能返回 HTML 错误页（实测 504/502 期间常见），
+  // 若把 HTML 当验证码下发，客户端只会显示破图、用户无从下手。
+  // 这里校验图片魔数，非图片则重抓一次；仍失败按「教务系统暂时不可用」抛出。
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    if (mode === "unified") {
+      const challenge = await crawler.createLoginChallenge({ captchaPath: null });
+      captchaBuffer = challenge.captchaBuffer;
+      factor = challenge.factor || "";
+    } else {
+      await crawler.initJsxsdLoginPage();
+      captchaBuffer = await crawler.getJsxsdCaptcha(null);
+    }
+    if (isImageBuffer(captchaBuffer)) break;
+    console.warn(
+      `[jw] 验证码接口第 ${attempt} 次返回非图片内容（${(captchaBuffer || []).length} 字节），${attempt < 2 ? "重试" : "放弃"}`,
+    );
+    captchaBuffer = null;
+    factor = "";
+  }
+  if (!captchaBuffer) {
+    const error = new Error("教务系统暂时不可用，请稍后重试");
+    error.status = 502;
+    error.code = "JW_CAPTCHA_NOT_IMAGE";
+    throw error;
   }
 
   const id = require("crypto").randomUUID();
@@ -450,6 +546,7 @@ async function createCaptchaChallenge({
     createdAt: Date.now(),
     expiresAt: Date.now() + CHALLENGE_TTL_MS,
   };
+  challenge.ocr = await recognizeChallengeCaptcha(challenge);
   captchaChallenges.set(id, challenge);
   // pm2 cluster 多实例部署：挑战必须落库共享，否则提交验证码的请求
   // 被负载均衡到另一个实例时会因内存无挑战而误报 410 验证码已过期
@@ -472,7 +569,10 @@ async function persistCaptchaChallenge(challenge) {
     `INSERT INTO jw_captcha_challenge
       (id, user_id, username, password_enc, schedule_start_date, mode, factor, captcha_data, cookie_jar, expires_at)
      VALUES (?,?,?,?,?,?,?,?,?,?)
-     ON DUPLICATE KEY UPDATE expires_at = VALUES(expires_at)`,
+     ON DUPLICATE KEY UPDATE
+      captcha_data = VALUES(captcha_data),
+      cookie_jar = VALUES(cookie_jar),
+      expires_at = VALUES(expires_at)`,
     [
       challenge.id,
       challenge.userId,
@@ -549,6 +649,48 @@ async function loadCaptchaChallengeFromDb(challengeId) {
   };
 }
 
+// 「换一张验证码」：复用挑战内已保存的凭据与登录会话重新抓一张验证码，
+// 这样即使用户还没在本页输入学号密码（例如从「教务系统」页带挑战过来），也能刷新验证码。
+async function refreshCaptchaChallenge({ userId, challengeId }) {
+  pruneCaptchaChallenges();
+
+  const key = String(challengeId || "");
+  let challenge = captchaChallenges.get(key);
+  if (!challenge) {
+    challenge = await loadCaptchaChallengeFromDb(key);
+    if (challenge) captchaChallenges.set(key, challenge);
+  }
+  if (!challenge) {
+    const error = new Error("验证码已过期，请重新同步");
+    error.status = 410;
+    error.code = "CAPTCHA_EXPIRED";
+    throw error;
+  }
+  if (String(challenge.userId) !== String(userId)) {
+    const error = new Error("验证码挑战不属于当前用户");
+    error.status = 403;
+    error.code = "CAPTCHA_FORBIDDEN";
+    throw error;
+  }
+
+  if (challenge.mode === "unified") {
+    const next = await challenge.crawler.createLoginChallenge({
+      captchaPath: null,
+    });
+    challenge.captchaBuffer = next.captchaBuffer;
+    challenge.factor = next.factor || "";
+  } else {
+    await challenge.crawler.initJsxsdLoginPage();
+    challenge.captchaBuffer = await challenge.crawler.getJsxsdCaptcha(null);
+  }
+
+  challenge.ocr = await recognizeChallengeCaptcha(challenge);
+  await persistCaptchaChallenge(challenge).catch((e) => {
+    console.error("[jw] 验证码挑战更新失败:", e.message);
+  });
+  return serializeCaptchaChallenge(challenge);
+}
+
 async function submitChallengeLogin(challenge, code) {
   if (challenge.mode === "unified") {
     return challenge.crawler.submitLogin(
@@ -566,35 +708,6 @@ async function submitChallengeLogin(challenge, code) {
   );
 }
 
-async function crawlSemesterWithCrawler(crawler, semesterStart, totalWeeks) {
-  const dates = JwCrawler.generateWeekDates(semesterStart, totalWeeks);
-  const weeklyResults = [];
-
-  for (let index = 0; index < dates.length; index += 1) {
-    const date = dates[index];
-    const html = await crawler.getScheduleRaw(date);
-    const courses = crawler.parseSchedule(html);
-    weeklyResults.push({
-      weekNumber: index + 1,
-      date,
-      courses,
-    });
-  }
-
-  const courses = aggregateWeeklyCourses(weeklyResults);
-  return {
-    courses,
-    meta: {
-      semesterStart,
-      totalWeeks,
-      rawWeekCount: weeklyResults.length,
-      rawCourseCount: weeklyResults.reduce(
-        (sum, item) => sum + (item.courses || []).length,
-        0,
-      ),
-    },
-  };
-}
 
 async function mapWithConcurrency(items, limit, mapper) {
   const results = new Array(items.length);
@@ -620,38 +733,67 @@ async function crawlSemesterFastWithCrawler(crawler, semesterStart, totalWeeks) 
     throw new Error("无法从课表主页提取 sjmsValue，可能未登录或登录已过期");
   }
 
-  const weeklyResults = await mapWithConcurrency(
+  // 每周独立抓取并 try/catch：个别周失败不再拖垮整学期
+  // （此前 Promise.all 任一周失败即整体抛出、整份课表不落库）。
+  const weekly = await mapWithConcurrency(
     dates,
     FAST_SEMESTER_CONCURRENCY,
     async (date, index) => {
       const params = { rq: date, sjmsValue };
-      const res = await crawler.requestWithRetry(
-        () =>
-          crawler.instance.post(
-            "/jsxsd/framework/main_index_loadkb.jsp",
-            qs.stringify(params),
-            {
-              headers: {
-                "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
-                Referer: `${crawler.options.baseURL}/jsxsd/framework/xsMain_new.jsp?t1=1`,
-                "X-Requested-With": "XMLHttpRequest",
+      try {
+        const res = await crawler.requestWithRetry(
+          () =>
+            crawler.instance.post(
+              "/jsxsd/framework/main_index_loadkb.jsp",
+              qs.stringify(params),
+              {
+                headers: {
+                  "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+                  Referer: `${crawler.options.baseURL}/jsxsd/framework/xsMain_new.jsp?t1=1`,
+                  "X-Requested-With": "XMLHttpRequest",
+                },
               },
-            },
-          ),
-        `课表数据 ${date}`,
-      );
-
-      return {
-        weekNumber: index + 1,
-        date,
-        courses: crawler.parseSchedule(res.data),
-      };
+            ),
+          `课表数据 ${date}`,
+        );
+        return {
+          weekNumber: index + 1,
+          date,
+          courses: crawler.parseSchedule(res.data),
+        };
+      } catch (weekError) {
+        return {
+          weekNumber: index + 1,
+          date,
+          error: String((weekError && weekError.message) || weekError),
+        };
+      }
     },
   );
 
+  const weeklyResults = weekly.filter((item) => !item.error);
+  const failedWeeks = weekly.filter((item) => item.error);
+
+  // 全部周都失败：视为整体失败，抛出以保持原有错误归一化语义（不落库）。
+  if (!weeklyResults.length) {
+    const first = failedWeeks[0];
+    throw new Error((first && first.error) || "整学期课表抓取失败");
+  }
+
   const courses = aggregateWeeklyCourses(weeklyResults);
+  const warnings = failedWeeks.length
+    ? [
+        failedWeeks.length +
+          " 周课程抓取失败，已保存其余 " +
+          weeklyResults.length +
+          " 周（失败周次：第 " +
+          failedWeeks.map((item) => item.weekNumber).join("、") +
+          " 周）",
+      ]
+    : [];
   return {
     courses,
+    warnings,
     meta: {
       semesterStart,
       totalWeeks,
@@ -662,6 +804,10 @@ async function crawlSemesterFastWithCrawler(crawler, semesterStart, totalWeeks) 
       ),
       fast: true,
       concurrency: FAST_SEMESTER_CONCURRENCY,
+      // partial：部分周成功即落库并标记，前端据此提示「部分同步」
+      partial: failedWeeks.length > 0,
+      currentWeek: getCurrentWeekNumber(semesterStart, totalWeeks),
+      failedWeekCount: failedWeeks.length,
     },
   };
 }
@@ -675,41 +821,6 @@ function getCurrentWeekNumber(semesterStart, totalWeeks) {
   return Math.min(Math.max(week, 1), totalWeeks);
 }
 
-async function crawlInitialWeeksWithCrawler(crawler, semesterStart, totalWeeks) {
-  const dates = JwCrawler.generateWeekDates(semesterStart, totalWeeks);
-  const currentWeek = getCurrentWeekNumber(semesterStart, totalWeeks);
-  const startIndex = Math.max(0, currentWeek - 1);
-  const selected = dates
-    .map((date, index) => ({ date, weekNumber: index + 1 }))
-    .slice(startIndex, startIndex + INITIAL_SYNC_WEEKS);
-  const weeklyResults = [];
-
-  for (const item of selected) {
-    const html = await crawler.getScheduleRaw(item.date);
-    const courses = crawler.parseSchedule(html);
-    weeklyResults.push({
-      weekNumber: item.weekNumber,
-      date: item.date,
-      courses,
-    });
-  }
-
-  const courses = aggregateWeeklyCourses(weeklyResults);
-  return {
-    courses,
-    meta: {
-      semesterStart,
-      totalWeeks,
-      rawWeekCount: weeklyResults.length,
-      rawCourseCount: weeklyResults.reduce(
-        (sum, item) => sum + (item.courses || []).length,
-        0,
-      ),
-      partial: true,
-      currentWeek,
-    },
-  };
-}
 
 function normalizeSyncError(error) {
   const message = String((error && error.message) || "");
@@ -728,15 +839,50 @@ function normalizeSyncError(error) {
     return result;
   }
 
+  // 教务系统前置 SLB / 源站超时（实测学校侧间歇返回 504、少量 502）：
+  // 属于临时故障、可稍后重试。这里给出明确文案，避免把 axios 原文
+  // 「Request failed with status code 504」直接抛给用户。
+  // 注意不能用 503：小程序请求层把 503 视为「功能已停用」而静默不提示。
+  if (
+    /status code 50\d|Bad Gateway|Gateway Time-?out|Service Temporarily Unavailable/i.test(
+      message,
+    )
+  ) {
+    const result = new Error("教务系统暂时无法连接（学校服务器响应超时），请稍后重试");
+    result.status = 502;
+    result.code = "JW_UPSTREAM_UNAVAILABLE";
+    return result;
+  }
+
+  // 教务系统明确回「验证码错误」：这是可重试的输入错误，不能与「账号密码错误」混为一谈。
+  // 单独给出 CAPTCHA_INVALID，调用方据此直接换一张验证码继续，而不是弹死路提示。
+  if (/验证码错误|验证码不正确|验证码有误|randomcode/i.test(message)) {
+    const result = new Error("验证码不正确，请重新输入");
+    result.status = 422;
+    result.code = "CAPTCHA_INVALID";
+    return result;
+  }
+
   if (/验证码|captcha|OCR/i.test(message)) {
     const result = new Error("验证码识别失败，请稍后重试");
     result.status = 422;
     return result;
   }
 
+  // 教务账号校验失败属于业务失败，不能使用 HTTP 401。
+  // 小程序全局请求层把 401 视为主应用登录过期并清空 token/userInfo，
+  // 这里返回 400 可让用户停留在教务绑定页重新输入账号密码。
   if (/登录失败|账号|密码|请先登录系统/i.test(message)) {
-    const result = new Error("教务系统登录失败，请检查账号或密码");
-    result.status = 401;
+    // 把教务系统自己的原话透出来（如「用户名或密码错误」），
+    // 否则用户只看到「登录失败」，无法判断到底是账号、密码还是网络问题
+    const raw = message.replace(/^教务子系统登录失败[:：]?\s*/, "").trim();
+    const detail =
+      raw && raw !== message
+        ? "教务系统返回「" + raw + "」，请核对教务账号密码后重试"
+        : "教务系统提示账号或密码错误，请核对后重试";
+    const result = new Error(detail);
+    result.status = 400;
+    result.code = "JW_CREDENTIAL_INVALID";
     return result;
   }
 
@@ -898,7 +1044,7 @@ async function syncScheduleFromJw({
       ...result,
       exams: extras.exams,
       grades: extras.grades,
-      warnings: extras.warnings,
+      warnings: [...(result.warnings || []), ...extras.warnings],
     };
   } catch (error) {
     throw normalizeSyncError(error);
@@ -964,7 +1110,7 @@ async function refreshFromJw({ userId, scheduleStartDate }) {
       ...result,
       exams: extras.exams,
       grades: extras.grades,
-      warnings: extras.warnings,
+      warnings: [...(result.warnings || []), ...extras.warnings],
       username: credential.username,
     };
   } catch (error) {
@@ -1027,12 +1173,28 @@ async function submitScheduleCaptcha({ userId, challengeId, code }) {
       ...result,
       exams: extras.exams,
       grades: extras.grades,
-      warnings: extras.warnings,
+      warnings: [...(result.warnings || []), ...extras.warnings],
     };
   } catch (error) {
     captchaChallenges.delete(challenge.id);
     removeCaptchaChallengeRow(challenge.id).catch(() => {});
-    throw normalizeSyncError(error);
+    const normalized = normalizeSyncError(error);
+    // 验证码输错：直接换一张新的验证码继续本次同步（凭据仍保存在挑战里，
+    // 用户不需要重新输入学号密码），也避免把可重试的输入错误弹成「同步失败」
+    if (normalized.code === "CAPTCHA_INVALID") {
+      const next = await createCaptchaChallenge({
+        userId,
+        username: challenge.username,
+        password: challenge.password,
+        scheduleStartDate: challenge.scheduleStartDate,
+      }).catch(() => null);
+      if (next) {
+        const retry = makeCaptchaRequiredError(next);
+        retry.message = "验证码不正确，请重新输入";
+        throw retry;
+      }
+    }
+    throw normalized;
   } finally {
     activeSyncUsers.delete(userId);
   }
@@ -1044,6 +1206,7 @@ module.exports = {
   syncScheduleFromJw,
   refreshFromJw,
   submitScheduleCaptcha,
+  refreshCaptchaChallenge,
   verifyJwAccount,
   getJwBinding,
 };

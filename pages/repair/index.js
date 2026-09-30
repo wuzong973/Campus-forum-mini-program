@@ -1,26 +1,36 @@
 const request = require('../../utils/request')
+const auth = require('../../utils/auth')
 const { runPullDownRefresh } = require('../../utils/refresh')
 
-function today(offset) {
-  const date = new Date(Date.now() + (offset || 0) * 86400000)
-  const pad = (value) => String(value).padStart(2, '0')
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
-}
+// 「使用上次」保存的联系方式（与跑腿发布页同样的键名约定）
+const LAST_CONTACT_KEY = 'repair_last_contact'
 
 Page({
   data: {
     tab: 'book',
-    deviceTypes: ['数码电子', '家具家电', '日常器物', '其他设备'],
-    deviceType: '数码电子',
-    price: '0.99',
     contactName: '', contactPhone: '', serviceAddress: '', description: '',
-    date: today(1), minDate: today(0), time: '14:00',
+    wechatId: '', useLastContact: false, expectedTime: '',
     technicians: [], selectedTechnician: null, selectedTechnicianPhone: '',
     images: [], orders: [], loadingOrders: false, submitting: false,
     statusText: { unpaid: '待支付', paid: '待接单', accepted: '已接单', repairing: '维修中', finished: '已完成', cancelled: '已取消' }
   },
 
   onLoad() {
+    // 未登录：弹窗引导去登录（取消则退回），登录后回到本页在 onShow 补初始化
+    if (!auth.guardPage('报修服务需要先登录')) return
+    this._initialized = true
+    this.initRepair()
+  },
+
+  onShow() {
+    // 从登录页返回时补执行初始化（首次进入已在 onLoad 完成）
+    if (this._initialized) return
+    if (!auth.isLoggedIn()) return
+    this._initialized = true
+    this.initRepair()
+  },
+
+  initRepair() {
     const profile = wx.getStorageSync('userInfo') || {}
     this.setData({ contactName: profile.realName || profile.nickName || '', contactPhone: profile.phone || '' })
     this.loadTechnicians()
@@ -36,16 +46,33 @@ Page({
     if (tab === 'orders') this.loadOrders()
   },
 
-  onSelect(e) {
-    const field = e.currentTarget.dataset.field
-    const value = e.currentTarget.dataset.value
-    this.setData({ [field]: value })
-  },
-
   onSelectTechnician(e) {
     const phone = e.currentTarget.dataset.phone
+    // 再次点击已选中的维修人员 = 取消选择（不指定，由平台分配）
+    if (this.data.selectedTechnicianPhone === phone) {
+      this.setData({ selectedTechnician: null, selectedTechnicianPhone: '' })
+      return
+    }
     const selectedTechnician = this.data.technicians.find((item) => item.phone === phone)
     if (selectedTechnician) this.setData({ selectedTechnician, selectedTechnicianPhone: phone })
+  },
+
+  // 列表内的「复制」：把该维修人员的手机号写入系统剪贴板
+  onCopyTechnicianPhone(e) {
+    const phone = String(e.currentTarget.dataset.phone || '').trim()
+    if (!phone) {
+      wx.showToast({ title: '暂无可复制的手机号', icon: 'none' })
+      return
+    }
+    wx.setClipboardData({
+      data: phone,
+      success: () => {
+        // setClipboardData 成功后微信会自动弹「内容已复制」，无需再弹，避免重复提示
+      },
+      fail: () => {
+        wx.showToast({ title: '复制失败，请重试', icon: 'none' })
+      }
+    })
   },
 
   onChatTechnician(e) {
@@ -63,8 +90,32 @@ Page({
   },
 
   onInput(e) { this.setData({ [e.currentTarget.dataset.field]: e.detail.value }) },
-  onDateChange(e) { this.setData({ date: e.detail.value }) },
-  onTimeChange(e) { this.setData({ time: e.detail.value }) },
+
+  // ===== 使用上次：开关打开时，读取本地保存的上次联系方式填入 =====
+  onToggleLastContact(e) {
+    const on = !!e.detail.value
+    this.setData({ useLastContact: on })
+    if (!on) return
+    const last = wx.getStorageSync(LAST_CONTACT_KEY) || null
+    if (!last || (!last.wechatId && !last.contactPhone)) {
+      wx.showToast({ title: '暂无上次的联系方式', icon: 'none' })
+      this.setData({ useLastContact: false })
+      return
+    }
+    this.setData({
+      wechatId: last.wechatId || '',
+      contactPhone: last.contactPhone || '',
+      contactName: this.data.contactName || last.contactName || ''
+    })
+  },
+
+  saveLastContact() {
+    wx.setStorageSync(LAST_CONTACT_KEY, {
+      wechatId: this.data.wechatId.trim(),
+      contactPhone: this.data.contactPhone.trim(),
+      contactName: this.data.contactName.trim()
+    })
+  },
 
   onChooseLocation() {
     wx.chooseLocation({ success: (res) => this.setData({ serviceAddress: res.name || res.address }) })
@@ -97,9 +148,10 @@ Page({
   validate() {
     if (!this.data.contactName.trim()) return '请填写联系人'
     if (!/^1\d{10}$/.test(this.data.contactPhone)) return '请填写正确的手机号'
+    if (!this.data.wechatId.trim()) return '请填写微信号'
     if (!this.data.serviceAddress.trim()) return '请填写上门地址'
     if (!this.data.description.trim()) return '请描述故障问题'
-    if (!this.data.selectedTechnician) return '请选择要预约的维修人员'
+    if (!this.data.expectedTime.trim()) return '请填写期望上门时间'
     return ''
   },
 
@@ -126,15 +178,20 @@ Page({
     if (error) return wx.showToast({ title: error, icon: 'none' })
     if (this.data.submitting) return
     this.setData({ submitting: true })
+    // 维修人员为选填：未选择时不带该字段，由后台统一分配
+    const technician = this.data.selectedTechnician || null
     const payload = {
-      deviceType: this.data.deviceType,
+      deviceType: this.data.description.trim().slice(0, 20) || '维修设备',
       contactName: this.data.contactName.trim(), contactPhone: this.data.contactPhone,
+      wechatId: this.data.wechatId.trim(),
+      expectedTime: this.data.expectedTime.trim(),
       serviceAddress: this.data.serviceAddress.trim(), description: this.data.description.trim(),
-      appointmentTime: `${this.data.date}T${this.data.time}:00+08:00`,
-      technicianPhone: this.data.selectedTechnician.phone,
-      technicianName: this.data.selectedTechnician.name,
-      technicianUserId: this.data.selectedTechnician.userId || null,
       images: []
+    }
+    if (technician) {
+      payload.technicianPhone = technician.phone
+      payload.technicianName = technician.name
+      payload.technicianUserId = technician.userId || null
     }
     try {
       payload.images = await this.uploadImages()
@@ -142,8 +199,9 @@ Page({
       const payment = await request.post(`/repair/orders/${order.id}/pay`, {}, true, { idempotencyKey: `repair_pay_${order.id}` })
       await new Promise((resolve, reject) => wx.requestPayment({ ...payment, success: resolve, fail: reject }))
       await this.waitForPaymentStatus(order.id)
+      this.saveLastContact()
       wx.showToast({ title: '预约支付成功', icon: 'success' })
-      this.setData({ tab: 'orders', description: '', images: [] })
+      this.setData({ tab: 'orders', description: '', expectedTime: '', images: [] })
       this.loadOrders()
     } catch (e) {
       if (!e || String(e.errMsg || e.message).indexOf('cancel') === -1) wx.showToast({ title: '支付未完成', icon: 'none' })

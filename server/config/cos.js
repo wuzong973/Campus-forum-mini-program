@@ -23,8 +23,26 @@ function putObject({ Key, Body, ContentType }) {
   })
 }
 
+// 内容安全检测判违规后删除对象（媒体检查异步回调使用）。
+// 对象不存在时 COS 返回 404，同样视为删除成功，避免重复回调报错。
+function deleteObject(Key) {
+  return new Promise((resolve, reject) => {
+    cos.deleteObject({
+      Bucket: BUCKET,
+      Region: REGION,
+      Key
+    }, (err, data) => {
+      if (err) {
+        if (Number(err.statusCode) === 404) return resolve(true)
+        return reject(err)
+      }
+      resolve(data)
+    })
+  })
+}
+
 function getPublicUrl(Key) {
   return `https://${BUCKET}.cos.${REGION}.myqcloud.com/${Key}`
 }
 
-module.exports = { cos, putObject, getPublicUrl, BUCKET, REGION }
+module.exports = { cos, putObject, deleteObject, getPublicUrl, BUCKET, REGION }

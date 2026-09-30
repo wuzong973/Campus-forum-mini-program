@@ -1,4 +1,13 @@
 <view class="page">
+  <!-- 顶部订阅入口：点击直接拉起「新活动提醒」等原生订阅授权弹窗（与原「报名中」tab 触发一致）；
+       订阅生效后整行隐藏，在设置页关闭「活动订阅」后重新出现 -->
+  <view class="sub-notice-card" wx:if="{{showActivityIndexSubscribeEntry}}">
+    <view class="sub-notice-main" bindtap="onActivityIndexSubscribeTap">
+      <text class="sub-notice-title">订阅活动消息提醒</text>
+      <text class="sub-notice-desc">有新活动发布或报名状态变化时通知你</text>
+    </view>
+    <switch class="sub-notice-switch" checked="{{activityIndexSubscribeChecked}}" color="#00bc19" bindchange="onActivityIndexSubscribeTap"></switch>
+  </view>
   <!-- 筛选 tab（图三：灰色圆角轨道 + 选中白卡） -->
   <view class="tab-track">
     <view
@@ -13,27 +22,35 @@
   <!-- 活动列表（图二：封面左图 + 状态徽标 + 标题/时间/地点/名额 + 查看） -->
   <view class="act-list" wx:if="{{list.length}}">
     <view
-      class="act-card"
+      class="act-card fx-card anim-stagger {{index < 6 ? 'is-entry' : ''}} {{fxOff ? 'fx-off' : ''}} spring-btn"
+      style="--i: {{index < 6 ? index : 0}};"
       wx:for="{{list}}"
       wx:key="id"
-      hover-class="act-card--hover"
+      hover-class="act-card--hover press-spring"
       hover-stay-time="80"
       data-id="{{item.id}}"
       bindtap="onActivityTap"
     >
-      <view wx:if="{{item.campus}}" class="act-campus-chip">{{item.campus}}</view>
-      <view class="act-cover-wrap">
-        <image wx:if="{{item.coverUrl}}" class="act-cover" src="{{item.coverUrl}}" mode="aspectFill" lazy-load="{{true}}" />
-        <view wx:else class="act-cover act-cover--fallback"><text>活动</text></view>
-        <view wx:if="{{item.badgeText}}" class="act-badge badge-{{item.badge}}">{{item.badgeText}}</view>
-      </view>
-      <view class="act-body">
-        <view class="act-title">{{item.title}}</view>
-        <view class="act-meta"><text class="meta-icon">📅</text><text class="meta-text">{{item.dateText}}</text></view>
-        <view class="act-meta"><text class="meta-icon">📍</text><text class="meta-text">{{item.placeText}}</text></view>
-        <view class="act-foot">
-          <text class="act-quota">{{item.quotaText}}</text>
-          <view class="act-view-btn" hover-class="act-view-btn--hover" hover-stay-time="80">查看</view>
+      <!-- 静态旋转描边（styles/card-fx.wxss）：列表项不开自转，见设计文档 §2.7。
+           内容整体搬进内容层，卡自身的 18rpx padding 移到内容层上：
+           描边环是绝对定位的，留在卡上会把整圈描边推进去不贴卡边；
+           .act-campus-chip 也跟着进内容层，它相对内容层的 padding box 定位，位置与原来一致 -->
+      <view class="fx-ring"><view class="fx-ring-spin"></view></view>
+      <view class="fx-body">
+        <view class="act-campus-chip">{{item.campusText}}</view>
+        <view class="act-cover-wrap">
+          <image wx:if="{{item.coverUrl}}" class="act-cover" src="{{item.coverUrl}}" mode="aspectFill" lazy-load="{{true}}" />
+          <view wx:else class="act-cover act-cover--fallback"><text>活动</text></view>
+          <view wx:if="{{item.badgeText}}" class="act-badge badge-{{item.badge}}">{{item.badgeText}}</view>
+        </view>
+        <view class="act-body">
+          <view class="act-title">{{item.title}}</view>
+          <view class="act-meta"><text class="meta-icon">📅</text><text class="meta-text">{{item.dateText}}</text></view>
+          <view class="act-meta"><text class="meta-icon">📍</text><text class="meta-text">{{item.placeText}}</text></view>
+          <view class="act-foot">
+            <text class="act-quota">{{item.quotaText}}</text>
+            <view class="act-view-btn spring-btn" hover-class="act-view-btn--hover press-spring" hover-stay-time="80">查看</view>
+          </view>
         </view>
       </view>
     </view>
@@ -46,10 +63,27 @@
   </view>
 
   <!-- 右下角：发起活动 -->
-  <view class="create-fab" hover-class="create-fab--hover" hover-stay-time="120" bindtap="onCreate">
+  <view class="create-fab spring-btn" hover-class="create-fab--hover press-spring" hover-stay-time="120" bindtap="onCreate">
     <text class="create-fab-plus">＋</text>
     <text class="create-fab-text">发起活动</text>
   </view>
 </view>
-
-<!-- 校区选择弹层（fixed 元素放在带动画容器外） -->
+<!-- 发起活动：首次入驻引导弹窗（每次点「发起活动」弹出，样式参照图五） -->
+<view wx:if="{{showModal}}" class="modal-mask anim-fade" bindtap="onCloseModal">
+  <view class="modal-dialog anim-slide-up" catchtap="noop">
+    <view class="modal-head">
+      <text class="modal-title">首次入驻广轻校园圈</text>
+      <text class="modal-close" catchtap="onCloseModal">关闭</text>
+    </view>
+    <view class="modal-body">
+      <text class="modal-intro">欢迎首次入驻广轻校园圈，建议加入意见群。在群内可以互相交流，提交功能建议，接收版本更新通知，助力你的活动和群聊更好曝光。</text>
+      <view class="modal-label">微信意见群</view>
+      <view class="modal-tip">使用企业微信群插件，群码不会过期，需要授权一下</view>
+      <view class="modal-join-btn spring-btn" hover-class="modal-join-btn--hover press-spring" hover-stay-time="100" bindtap="onJoinOpinionGroup">点击加入微信意见群</view>
+    </view>
+    <view class="modal-foot">
+      <view class="modal-btn modal-btn-plain spring-btn" hover-class="modal-btn-plain--hover press-spring" hover-stay-time="100" catchtap="onLater">稍后再说</view>
+      <view class="modal-btn modal-btn-dark spring-btn" hover-class="modal-btn-dark--hover press-spring" hover-stay-time="100" catchtap="onGoPublish">我已知晓，去发起活动</view>
+    </view>
+  </view>
+</view>

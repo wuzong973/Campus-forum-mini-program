@@ -1,5 +1,10 @@
+/* 卡片视觉共享层（旋转描边 / 呼吸背光）。@import 必须在其他规则之前。 */
+@import "../../styles/card-fx.wxss";
+
 .page {
-  min-height: 100vh;
+  /* 高度锁死为 100vh：内部 = 导航占位 + (100vh - 导航高度) 的 scroll-view，
+     页面本体不再产生滚动，避免下拉时手势链式滚动把整页内容（含导航）顶出屏幕 */
+  height: 100vh;
   background:
     radial-gradient(ellipse at 14% -6%, rgba(137, 202, 255, 0.28) 0%, rgba(137, 202, 255, 0) 48%),
     linear-gradient(180deg, #d7efff 0%, #eaf6ff 18%, #f5f9fd 46%, #f7f8fb 72%, #f4f6fa 100%);
@@ -23,6 +28,8 @@
   position: relative;
   z-index: 1;
   height: 100vh;
+  /* --nav-h 由 index.wxml 内联注入（statusBarHeight + navBarHeight） */
+  height: calc(100vh - var(--nav-h, 0px));
   padding-bottom: 24rpx;
 }
 
@@ -32,6 +39,15 @@
   left: 0;
   right: 0;
   z-index: 100;
+  /* 随滚动方向展开/收起（transform 只作用于导航自身，不影响自身的 fixed 定位） */
+  transform: translateY(0);
+  transition: transform 0.26s cubic-bezier(0.22, 0.61, 0.36, 1), opacity 0.22s ease-out;
+}
+
+/* 向下滚动：整条导航（含状态栏占位高度）移出屏幕顶部 */
+.custom-nav.nav-hidden {
+  transform: translateY(-100%);
+  opacity: 0;
 }
 
 .nav-content {
@@ -49,13 +65,13 @@
   background: rgba(255, 255, 255, 0.94);
   border-radius: 999rpx;
   box-shadow: 0 8rpx 22rpx rgba(69, 126, 177, 0.18), 0 2rpx 5rpx rgba(55, 93, 132, 0.08);
-  transition: var(--transition);
+  transition: var(--transition), transform 0.35s cubic-bezier(0.34, 1.42, 0.6, 1), box-shadow 0.35s cubic-bezier(0.34, 1.42, 0.6, 1);
 }
 
 .nav-brand-pressed {
-  transform: translateY(-3rpx) scale(0.98);
+  transform: scale(0.96);
   box-shadow: 0 12rpx 28rpx rgba(69, 126, 177, 0.24), 0 3rpx 8rpx rgba(55, 93, 132, 0.12);
-}
+ box-shadow: inset 0 2rpx 6rpx rgba(16, 32, 64, 0.16), inset 0 -1rpx 2rpx rgba(255, 255, 255, 0.08); }
 
 .nav-logo {
   width: 56rpx;
@@ -70,10 +86,26 @@
   font-weight: 700;
 }
 
-.banner-swiper {
+/* ===== 轮播视觉增强：弥散背光 / 旋转描边 / 触点流光 ===== */
+
+/* stage 只是承载背光的定位上下文：swiper 有 overflow:hidden，
+   背光必须做 swiper 的兄弟节点才能向下溢出，所以挂在 stage 上而不是卡里。
+   stage 高度仍等于 swiper（背光绝对定位不撑高），.banner-indicator 的负 margin 不受影响。
+   背光本体（.fx-glow-layer / .fx-glow / .fx-glow-pulse）与呼吸关键帧在 styles/card-fx.wxss。 */
+.banner-stage {
+  position: relative;
   margin: 20rpx 20rpx 0;
-  height: 258rpx;
-  border-radius: 20rpx;
+}
+
+.banner-swiper {
+  position: relative;
+  z-index: 1;
+  margin: 0;
+  /* 258 是卡面内容高度；描边从四周各扣 4rpx，这 8rpx 由 swiper 买单，
+     不能让 .fx-body 出 —— 否则文字块顶到裁切线，「校园社区」标签会被切掉 */
+  height: 266rpx;
+  /* 圆角与 .banner-item 对齐：之前 swiper 20rpx / 卡片 28rpx，外圈会把描边的四个角切掉 */
+  border-radius: 28rpx;
   overflow: hidden;
   box-shadow: 0 22rpx 50rpx rgba(37, 56, 110, 0.18);
 }
@@ -84,7 +116,9 @@
   align-items: center;
   gap: 8rpx;
   height: 30rpx;
-  margin: -40rpx 0 18rpx;
+  /* 下边距 18→44：卡片下沿到公告条原本只留 26rpx，弥散背光没有落脚的地方。
+     指示点自身 z-index:2，仍然压在背光之上 */
+  margin: -40rpx 0 44rpx;
   position: relative;
   z-index: 2;
   pointer-events: none;
@@ -108,6 +142,71 @@
   height: 100%;
   border-radius: 28rpx;
   overflow: hidden;
+  /* 松手回弹：带一点过冲的曲线，收尾时轻微弹一下再停稳 */
+  transition: transform 0.46s cubic-bezier(0.34, 1.56, 0.64, 1);
+  will-change: transform;
+  /* 共享层 token：轮播卡比默认圆角大一圈，描边宽度用默认 4rpx。
+     .fx-body 的圆角由 calc(--fx-r - --fx-w) 推出，这里不用另填。
+     主色 --fx-accent 逐张由 wxml 内联下发（后台可配 accent）。 */
+  --fx-r: 28rpx;
+}
+
+/* 按下要更跟手：覆盖成短促的 ease-out，回弹时随 class 移除自动换回上面的长曲线 */
+.banner-item.banner-pressing {
+  transition-duration: 0.16s;
+  transition-timing-function: cubic-bezier(0.22, 0.68, 0.32, 1);
+}
+
+/* 描边环与卡面（.fx-ring / .fx-ring-spin / .fx-body）全部在 styles/card-fx.wxss。
+   方块边长由 padding-bottom 百分比推导，不再写死 820rpx —— 那个值只对轮播的尺寸成立。 */
+
+/* 触点光斑：radial-gradient 的圆心由内联 --spot-x/--spot-y 控制，
+   按下时从 1.45 缩到 1，读起来像背后的光被吸到手指下面 */
+.banner-spot {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  opacity: 0;
+  transform: scale(1.45);
+  background: radial-gradient(circle at var(--spot-x, 50%) var(--spot-y, 50%),
+    rgba(255, 255, 255, 0.34) 0%, rgba(255, 255, 255, 0.10) 26%, rgba(255, 255, 255, 0) 58%);
+  transition: opacity 0.18s ease-out, transform 0.46s cubic-bezier(0.34, 1.56, 0.64, 1);
+  pointer-events: none;
+}
+
+.banner-pressing .banner-spot {
+  opacity: 1;
+  transform: scale(1);
+}
+
+/* 触点流光：一条斜向高光带，横向位移直接由触点变量 --spot-x 换算出来，
+   纯 CSS 跟手，不需要为它单独下发 style。位移比触点放大约 5 倍，
+   轻微倾斜就能让反光扫过卡面，读起来像釉面在动。 */
+.banner-shine {
+  position: absolute;
+  left: -40%;
+  top: -30%;
+  width: 46%;
+  height: 160%;
+  opacity: 0;
+  transform: translateX(calc((var(--spot-x, 50%) - 50%) * 5)) skewX(-14deg);
+  background: linear-gradient(90deg,
+    rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 0.26) 50%, rgba(255, 255, 255, 0) 100%);
+  transition: opacity 0.2s ease-out, transform 0.12s linear;
+  pointer-events: none;
+}
+
+.banner-pressing .banner-shine {
+  opacity: 1;
+}
+
+/* 滚动期间暂停常驻动画：首页是主滚动面，描边自转和背光呼吸让路给滚动。
+   共享层只提供 .fx-off（降级=静态但保留），"滚动临时暂停"是首页自己的策略，留在这里。 */
+.banner-stage.fx-paused .fx-ring-spin,
+.banner-stage.fx-paused .fx-glow-pulse {
+  animation-play-state: paused;
 }
 
 .banner-img {
@@ -190,6 +289,11 @@
 }
 
 .notice-bar {
+  /* banner 的背光下溢会够到公告条上沿：.fx-glow-layer 是 z-index:0 的定位元素，
+     而 .banner-stage 没有 stacking context，会画在本应盖住它的普通流元素之上。
+     这里显式抬一层，而不是把背光压到 z-index:-1（那会连页面底色一起垫到下面去）。 */
+  position: relative;
+  z-index: 1;
   margin: 18rpx 20rpx;
   background: rgba(255, 250, 232, 0.92);
   border-radius: 18rpx;
@@ -418,7 +522,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  transition: transform 0.35s cubic-bezier(0.34, 1.42, 0.6, 1), box-shadow 0.35s cubic-bezier(0.34, 1.42, 0.6, 1);
 }
 
 .search-refresh-icon {
@@ -431,9 +535,9 @@
 }
 
 .fab-pressed {
-  transform: scale(0.92);
+  transform: scale(0.96);
   box-shadow: 0 4rpx 12rpx rgba(49, 92, 255, 0.28);
-}
+ box-shadow: inset 0 2rpx 6rpx rgba(16, 32, 64, 0.16), inset 0 -1rpx 2rpx rgba(255, 255, 255, 0.08); }
 
 @keyframes fabSpin {
   from { transform: rotate(0deg); }
@@ -495,6 +599,16 @@
   font-weight: 700;
 }
 
+/* 分类说明：仅在切到「二手闲置」时出现（该分类帖子不进「最新」列表）。
+   与分类栏左内边距对齐，做成一行轻量说明，不抢列表视觉。 */
+.category-note {
+  margin: 0 0 16rpx;
+  padding: 0 24rpx;
+  color: #f08220;
+  font-size: 23rpx;
+  line-height: 1.5;
+}
+
 .category-item.active::after {
   content: "";
   position: absolute;
@@ -533,6 +647,7 @@
 }
 
 .float-btn {
+  position: relative; /* 私信未读角标的定位基准：不加的话 absolute 角标会以 .float-actions 容器定位，跑到热榜图标右上角 */
   width: 84rpx;
   height: 84rpx;
   background: #ffffff;
@@ -541,13 +656,13 @@
   align-items: center;
   justify-content: center;
   box-shadow: 0 6rpx 20rpx rgba(31, 44, 75, 0.14);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  transition: transform 0.35s cubic-bezier(0.34, 1.42, 0.6, 1), box-shadow 0.35s cubic-bezier(0.34, 1.42, 0.6, 1);
 }
 
 .float-btn-pressed {
-  transform: scale(0.92);
+  transform: scale(0.96);
   box-shadow: 0 3rpx 10rpx rgba(31, 44, 75, 0.1);
-}
+ box-shadow: inset 0 2rpx 6rpx rgba(16, 32, 64, 0.16), inset 0 -1rpx 2rpx rgba(255, 255, 255, 0.08); }
 
 /* 图标配色（iconfont 字体图标） */
 .float-icon {
@@ -563,15 +678,31 @@
   color: #4a90f8;
 }
 
+/* 私信未读数徽章：与 tabBar / 「我的」页角标同一样式，右上角悬浮 */
+.float-badge {
+  position: absolute;
+  top: -6rpx;
+  right: -12rpx;
+  min-width: 30rpx;
+  height: 30rpx;
+  padding: 0 7rpx;
+  border: 2rpx solid #ffffff;
+  border-radius: 18rpx;
+  background: #ff5a5f;
+  color: #ffffff;
+  font-size: 18rpx;
+  line-height: 26rpx;
+  text-align: center;
+  box-sizing: border-box;
+}
+
 /* 回到顶部：随容器顶起而淡入滑出。
    隐藏态占位保留（transform 不影响布局，前两个按钮位置由容器统一控制），不可交互 */
 .float-btn-top {
   opacity: 0;
   pointer-events: none;
   transform: translateY(28rpx);
-  transition:
-    transform 0.32s cubic-bezier(0.22, 0.61, 0.36, 1),
-    opacity 0.26s ease-out;
+  transition: opacity 0.26s ease-out, transform 0.35s cubic-bezier(0.34, 1.42, 0.6, 1), box-shadow 0.35s cubic-bezier(0.34, 1.42, 0.6, 1);
 }
 
 .float-btn-top.show {
@@ -582,8 +713,8 @@
 
 /* 显示态下保留按压缩放反馈（.show 优先级高于 hover-class，需显式覆盖） */
 .float-btn-top.show.float-btn-pressed {
-  transform: translateY(0) scale(0.92);
-}
+  transform: scale(0.96);
+ box-shadow: inset 0 2rpx 6rpx rgba(16, 32, 64, 0.16), inset 0 -1rpx 2rpx rgba(255, 255, 255, 0.08); }
 
 /* 回到顶部图标颜色：深灰箭头 */
 .float-btn-top .float-icon {
@@ -720,85 +851,39 @@
   font-size: 26rpx;
 }
 
-.sheet-comment {
-  display: flex;
-  align-items: flex-start;
-  gap: 18rpx;
-  padding: 24rpx 0;
-}
-
-.sheet-comment-avatar {
-  width: 64rpx;
-  height: 64rpx;
-  border-radius: 50%;
-  background: #eef2f8;
-  flex-shrink: 0;
-}
-
-.sheet-comment-main {
-  flex: 1;
-  min-width: 0;
-}
-
-.sheet-comment-meta {
-  display: flex;
-  align-items: center;
-  gap: 14rpx;
-  margin-bottom: 8rpx;
-}
-
-.sheet-comment-name {
-  font-size: 27rpx;
-  font-weight: 700;
-  color: #5e6675;
-}
-
-.sheet-comment-time {
-  font-size: 23rpx;
-  color: #a6adbb;
-}
-
-.sheet-comment-content {
-  display: block;
-  font-size: 31rpx;
-  line-height: 1.58;
-  color: #1f2329;
-  word-break: break-word;
-}
-
-.sheet-comment-images {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10rpx;
-  margin-top: 12rpx;
-}
-
-.sheet-comment-image {
-  width: 144rpx;
-  height: 144rpx;
-  border-radius: 16rpx;
-  background: #eef2f8;
-}
-
-.sheet-comment-like {
-  min-width: 76rpx;
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  gap: 4rpx;
-  color: #9aa3b2;
-  white-space: nowrap;
-}
-
-.sheet-like-icon {
-  width: 36rpx;
-  height: 36rpx;
-  opacity: 0.76;
-}
-
-.sheet-like-count {
-  font-size: 22rpx;
-}
+/* ===== 评论弹层：与帖子详情页评论区同一套结构/缩进/层级/排版（.comment-sheet 作用域隔离） ===== */
+.comment-sheet .comment-item { display: flex; align-items: flex-start; gap: 14rpx; padding: 22rpx 0; border-bottom: 1rpx solid #f0f2f5; }
+.comment-sheet .comment-avatar { width: 60rpx; height: 60rpx; border-radius: 50%; background: #edf1f6; flex: 0 0 auto; }
+.comment-sheet .comment-content-wrap { flex: 1; min-width: 0; }
+.comment-sheet .comment-head { display: flex; align-items: center; }
+.comment-sheet .comment-head .comment-meta { flex: 1; min-width: 0; }
+.comment-sheet .comment-meta { display: flex; align-items: center; gap: 12rpx; }
+.comment-sheet .comment-nick { color: #203147; font-size: 27rpx; font-weight: 700; }
+.comment-sheet .comment-time { color: #a1aab6; font-size: 21rpx; }
+.comment-sheet .author-comment-label { display: inline-flex; align-items: center; justify-content: center; overflow: hidden; height: 34rpx; flex: 0 0 auto; padding: 0 11rpx; border: 0; border-radius: 9rpx; background: #f34e72; color: #fff; font-size: 22rpx; font-weight: 700; line-height: 1; }
+.comment-sheet .comment-body { display: flex; align-items: center; margin-top: 5rpx; }
+.comment-sheet .comment-text-wrap { flex: 1; min-width: 0; }
+.comment-sheet .comment-reply-to { color: #3478f6; font-size: 25rpx; }
+.comment-sheet .comment-text { display: block; margin-top: 6rpx; color: #27394f; font-size: 26rpx; line-height: 1.5; word-break: break-word; }
+.comment-sheet .comment-image-list { display: flex; flex-wrap: wrap; gap: 8rpx; margin-top: 10rpx; }
+.comment-sheet .comment-image { width: 130rpx; height: 130rpx; border-radius: 8rpx; background: #edf1f6; }
+.comment-sheet .comment-video { width: 100%; height: 340rpx; margin-top: 2rpx; border-radius: 12rpx; background: #000; }
+.comment-sheet .comment-like { display: flex; align-items: center; gap: 6rpx; flex: 0 0 auto; margin-left: 16rpx; color: #99a4b1; font-size: 21rpx; white-space: nowrap; }
+.comment-sheet .comment-like .pa-icon { width: 40rpx; height: 40rpx; opacity: .8; }
+.comment-sheet .comment-like .pa-icon.on { opacity: 1; }
+.comment-sheet .comment-like .like-count { font-size: 22rpx; line-height: 1.2; }
+.comment-sheet .like-hover { opacity: 0.6;  transform: scale(0.96); box-shadow: inset 0 2rpx 6rpx rgba(16, 32, 64, 0.16), inset 0 -1rpx 2rpx rgba(255, 255, 255, 0.08); }
+.comment-sheet .pa-icon { width: 38rpx; height: 38rpx; background-size: 100% 100%; background-repeat: no-repeat; opacity: .74; flex: 0 0 auto; }
+.comment-sheet .pa-heart { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%238995a3' d='M16.5 3c-1.74 0-3.41.81-4.5 2.09C10.91 3.81 9.24 3 7.5 3 4.42 3 2 5.42 2 8.5c0 3.78 3.4 6.86 8.55 11.54L12 21.35l1.45-1.32C18.6 15.36 22 12.28 22 8.5 22 5.42 19.58 3 16.5 3zm-4.4 15.55l-.1.1-.1-.1C7.14 14.24 4 11.39 4 8.5 4 6.5 5.5 5 7.5 5c1.54 0 3.04.99 3.57 2.36h1.87C13.46 5.99 14.96 5 16.5 5c2 0 3.5 1.5 3.5 3.5 0 2.89-3.14 5.74-7.9 10.05z'/%3E%3C/svg%3E"); }
+.comment-sheet .pa-heart.on { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23e55b69' d='M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z'/%3E%3C/svg%3E"); }
+.comment-sheet .reply-list { margin-top: 20rpx; padding: 4rpx 0 0 18rpx; border-left: 2rpx solid #e8edf3; }
+.comment-sheet .reply-item { display: flex; align-items: flex-start; gap: 12rpx; padding: 14rpx 0; }
+.comment-sheet .reply-avatar { width: 46rpx; height: 46rpx; flex: 0 0 auto; border-radius: 50%; background: #edf1f6; }
+.comment-sheet .reply-content { flex: 1; min-width: 0; }
+.comment-sheet .reply-item .comment-nick { font-size: 25rpx; }
+.comment-sheet .reply-item .comment-text { font-size: 25rpx; }
+.comment-sheet .reply-toggle { display: flex; align-items: center; gap: 12rpx; min-height: 54rpx; margin-top: 2rpx; color: #3478f6; font-size: 24rpx; font-weight: 600; }
+.comment-sheet .reply-toggle-line { width: 34rpx; height: 1rpx; background: #cfd8e3; }
 
 .sheet-preview-images {
   display: flex;
@@ -956,9 +1041,9 @@
 .hot-rank-nick-row { display: flex; align-items: center; gap: 8rpx; min-width: 0; }
 .hot-rank-nick { overflow: hidden; color: #24364c; font-size: 27rpx; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
 /* 与帖子卡片一致的「帖子/AN」标识 */
-.hot-rank-post-label { display: inline-flex; align-items: stretch; overflow: hidden; height: 30rpx; flex: 0 0 auto; border-radius: 4rpx; background: #f34e72; color: #fff; font-size: 18rpx; font-weight: 700; line-height: 30rpx; }
-.post-label-main { padding: 0 8rpx; }
-.post-label-an { padding: 0 5rpx; background: #f6d84a; color: #4c5b22; font-size: 15rpx; line-height: 30rpx; }
+.hot-rank-post-label { display: inline-flex; align-items: center; overflow: hidden; height: 34rpx; flex: 0 0 auto; border-radius: 9rpx; background: #f34e72; color: #fff; font-size: 22rpx; font-weight: 700; line-height: 1; }
+.post-label-main { display: inline-flex; align-items: center; height: 100%; padding: 0 11rpx; }
+.post-label-an { display: inline-flex; align-items: center; height: 100%; padding: 0 6rpx; background: #f6d84a; color: #4c5b22; font-size: 16rpx; line-height: 1; }
 /* 元信息行：话题分类 · 时间 · 浏览量 */
 .hot-rank-meta { display: flex; align-items: center; gap: 9rpx; overflow: hidden; color: #9ea9b7; font-size: 21rpx; }
 .hot-meta-category { flex: 0 1 auto; max-width: 168rpx; overflow: hidden; padding: 2rpx 10rpx; border-radius: 6rpx; background: #f0edff; color: #7268b8; font-size: 20rpx; text-overflow: ellipsis; white-space: nowrap; }
@@ -1012,3 +1097,6 @@
     opacity: 1;
   }
 }
+
+/* 评论弹层加载更多提示 */
+.sheet-load-more{text-align:center;padding:16rpx 0 24rpx;font-size:24rpx;color:#9aa4b2}

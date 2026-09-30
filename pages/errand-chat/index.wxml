@@ -2,7 +2,7 @@
   <!-- 自定义导航栏（绿色系与跑腿主题一致，标题与私信聊天区分） -->
   <view class="custom-nav" style="padding-top: {{statusBarHeight}}px;">
     <view class="nav-content" style="height: {{navBarHeight}}px;">
-      <view class="back-pill" hover-class="back-pill-hover" hover-stay-time="80" bindtap="onNavBack"><text class="back-pill-icon">‹</text><text>返回</text></view>
+      <view class="back-pill spring-btn" hover-class="back-pill-hover press-spring" hover-stay-time="80" bindtap="onNavBack"><text class="back-pill-icon">‹</text><text>返回</text></view>
       <view class="nav-title-wrap"><text class="nav-title">跑腿聊天</text></view>
       <view class="nav-right">
         <text class="order-status" wx:if="{{statusText}}">{{statusText}}</text>
@@ -11,7 +11,7 @@
   </view>
 
   <!-- 订单概要条：点击查看订单详情 -->
-  <view class="order-bar" wx:if="{{order}}" hover-class="order-bar-hover" hover-stay-time="80" bindtap="openOrder">
+  <view class="order-bar spring-btn" wx:if="{{order}}" hover-class="order-bar-hover press-spring" hover-stay-time="80" bindtap="openOrder">
     <text class="order-bar-desc">{{order.remark || order.title}}</text>
     <text class="order-bar-reward">¥{{order.rewardText}}</text>
     <text class="order-bar-arrow">›</text>
@@ -63,18 +63,18 @@
 
     <!-- ＋ 功能面板：照片 / 视频 -->
     <view class="tool-panel" wx:if="{{activePanel === 'tools'}}">
-      <view class="tool-panel-item" hover-class="tool-item-hover" hover-stay-time="80" bindtap="onChooseImage">
+      <view class="tool-panel-item spring-btn" hover-class="tool-item-hover press-spring" hover-stay-time="80" bindtap="onChooseImage">
         <view class="tool-tile"><view class="tool-icon-photo"></view></view>
         <text class="tool-panel-label">照片</text>
       </view>
-      <view class="tool-panel-item" hover-class="tool-item-hover" hover-stay-time="80" bindtap="onChooseVideo">
+      <view class="tool-panel-item spring-btn" hover-class="tool-item-hover press-spring" hover-stay-time="80" bindtap="onChooseVideo">
         <view class="tool-tile"><view class="tool-icon-video"></view></view>
         <text class="tool-panel-label">视频</text>
       </view>
     </view>
 
     <view class="input-toolbar">
-      <view class="tool-btn" hover-class="tool-btn-hover" hover-stay-time="80" bindtap="onToggleVoice">
+      <view class="tool-btn spring-btn" hover-class="tool-btn-hover press-spring" hover-stay-time="80" bindtap="onToggleVoice">
         <view class="icon-voice {{voiceMode ? 'is-keyboard' : ''}}"></view>
       </view>
       <input
@@ -88,14 +88,14 @@
         confirm-type="send"
         focus="{{inputFocus}}"
       />
-      <view class="voice-input" wx:else hover-class="voice-hover" bindtouchstart="onVoiceHint">按住 说话</view>
-      <view class="tool-btn" hover-class="tool-btn-hover" hover-stay-time="80" bindtap="onToggleEmoji">
+      <view class="voice-input spring-btn" wx:else hover-stay-time="80" hover-class="voice-hover press-spring" bindtouchstart="onVoiceHint">按住 说话</view>
+      <view class="tool-btn spring-btn" hover-class="tool-btn-hover press-spring" hover-stay-time="80" bindtap="onToggleEmoji">
         <view class="icon-emoji"></view>
       </view>
-      <view class="tool-btn" wx:if="{{!inputValue}}" hover-class="tool-btn-hover" hover-stay-time="80" bindtap="onToggleTools">
+      <view class="tool-btn spring-btn" wx:if="{{!inputValue}}" hover-class="tool-btn-hover press-spring" hover-stay-time="80" bindtap="onToggleTools">
         <view class="icon-plus"></view>
       </view>
-      <view class="send-btn" wx:else hover-class="send-btn-hover" hover-stay-time="80" bindtap="onSend">发送</view>
+      <view class="send-btn spring-btn" wx:else hover-class="send-btn-hover press-spring" hover-stay-time="80" bindtap="onSend">发送</view>
     </view>
   </view>
 </view>

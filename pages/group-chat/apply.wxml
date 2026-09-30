@@ -1,6 +1,6 @@
 <view class="page page-enter">
   <view class="topbar" style="padding-top: {{statusBarHeight}}px;">
-    <view class="back-pill" hover-class="back-pill-hover" hover-stay-time="80" bindtap="goBack"><text class="back-pill-icon">‹</text><text>返回</text></view>
+    <view class="back-pill spring-btn" hover-class="back-pill-hover press-spring" hover-stay-time="80" bindtap="goBack"><text class="back-pill-icon">‹</text><text>返回</text></view>
   </view>
 
   <view class="content">
@@ -16,7 +16,7 @@
       </view>
       <view class="seg-tip">当前仅支持申请创建微信群</view>
 
-      <view class="campus-bar" hover-class="campus-bar--hover" hover-stay-time="80" bindtap="onToggleCampus">
+      <view class="campus-bar spring-btn" hover-class="campus-bar--hover press-spring" hover-stay-time="80" bindtap="onToggleCampus">
         <text class="campus-bar-label">校区</text>
         <text class="campus-bar-value">{{campus || '全部校区'}}</text>
         <text class="campus-bar-arrow">{{showCampusPanel ? '▴' : '▾'}}</text>
@@ -25,7 +25,7 @@
       <view class="row row-line">
         <text class="row-label">类别</text>
         <picker range="{{categories}}" value="{{categoryIndex}}" bindchange="onPickCategory">
-          <view class="picker-value" hover-class="picker-value--hover">
+          <view class="picker-value spring-btn" hover-stay-time="80" hover-class="picker-value--hover press-spring">
             <text class="{{categoryIndex > -1 ? 'set' : ''}}">{{categoryIndex > -1 ? categories[categoryIndex] : '未选择'}}</text>
             <text class="chev">›</text>
           </view>
@@ -43,7 +43,7 @@
           <image class="thumb" src="{{adminQr}}" mode="aspectFill" data-url="{{adminQr}}" bindtap="onPreviewImage" />
           <text class="thumb-x" catchtap="onClearAdmin">×</text>
         </view>
-        <view class="upload-btn" hover-class="upload-btn--hover" hover-stay-time="100" bindtap="onUploadAdmin">上传</view>
+        <view class="upload-btn spring-btn" hover-class="upload-btn--hover press-spring" hover-stay-time="100" bindtap="onUploadAdmin">上传</view>
       </view>
     </view>
 
@@ -54,7 +54,7 @@
           <image class="thumb" src="{{avatar}}" mode="aspectFill" data-url="{{avatar}}" bindtap="onPreviewImage" />
           <text class="thumb-x" catchtap="onClearAvatar">×</text>
         </view>
-        <view class="upload-btn" hover-class="upload-btn--hover" hover-stay-time="100" bindtap="onUploadAvatar">上传</view>
+        <view class="upload-btn spring-btn" hover-class="upload-btn--hover press-spring" hover-stay-time="100" bindtap="onUploadAvatar">上传</view>
       </view>
       <view class="row row-line">
         <text class="row-label">群二维码</text>
@@ -62,7 +62,7 @@
           <image class="thumb" src="{{qrcode}}" mode="aspectFill" data-url="{{qrcode}}" bindtap="onPreviewImage" />
           <text class="thumb-x" catchtap="onClearQrcode">×</text>
         </view>
-        <view class="upload-btn" hover-class="upload-btn--hover" hover-stay-time="100" bindtap="onUploadQrcode">上传</view>
+        <view class="upload-btn spring-btn" hover-class="upload-btn--hover press-spring" hover-stay-time="100" bindtap="onUploadQrcode">上传</view>
       </view>
       <view class="row">
         <text class="row-label">公众号二维码(选填)</text>
@@ -70,7 +70,7 @@
           <image class="thumb" src="{{gzhQr}}" mode="aspectFill" data-url="{{gzhQr}}" bindtap="onPreviewImage" />
           <text class="thumb-x" catchtap="onClearGzh">×</text>
         </view>
-        <view class="upload-btn" hover-class="upload-btn--hover" hover-stay-time="100" bindtap="onUploadGzh">上传</view>
+        <view class="upload-btn spring-btn" hover-class="upload-btn--hover press-spring" hover-stay-time="100" bindtap="onUploadGzh">上传</view>
       </view>
     </view>
 
@@ -86,13 +86,13 @@
           <image class="img" src="{{item}}" mode="aspectFill" data-url="{{item}}" bindtap="onPreviewImage" />
           <text class="img-x" catchtap="onRemoveIntroImage" data-index="{{index}}">×</text>
         </view>
-        <view class="img-cell img-add" wx:if="{{images.length < 4}}" hover-class="img-add--hover" hover-stay-time="100" bindtap="onAddIntroImage">
+        <view class="img-cell img-add spring-btn" wx:if="{{images.length < 5}}" hover-class="img-add--hover press-spring" hover-stay-time="100" bindtap="onAddIntroImage">
           <text class="img-add-plus">+</text>
         </view>
       </view>
     </view>
 
-    <button class="submit" loading="{{submitting}}" disabled="{{submitting}}" bindtap="onSubmit">提交申请</button>
+    <button hover-class="press-spring" class="submit spring-btn" loading="{{submitting}}" disabled="{{submitting}}" bindtap="onSubmit" hover-stay-time="120">提交申请</button>
   </view>
 </view>
 

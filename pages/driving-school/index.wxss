@@ -1,0 +1,608 @@
+/* 卡片动效共享层：运营横幅（旋转描边 + 呼吸背光）与驾校卡片（只静态描边）。
+   见 docs/2026-09-30_卡片动效共享层与全站铺开设计.md。必须在文件首行，
+   本文件后面那些覆盖 --fx-* token 的规则才生效。 */
+@import "../../styles/card-fx.wxss";
+
+.page {
+  min-height: 100vh;
+  padding: 20rpx 24rpx 60rpx;
+  box-sizing: border-box;
+  background: #f4f6fa;
+}
+
+/* ============ 区域 + 搜索 ============ */
+.search-row {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+}
+
+.campus-tabs {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+  padding: 6rpx;
+  border-radius: 999rpx;
+  background: #eef1f7;
+}
+
+.campus-tab {
+  height: 64rpx;
+  line-height: 64rpx;
+  padding: 0 26rpx;
+  border-radius: 999rpx;
+  font-size: 26rpx;
+  font-weight: 600;
+  color: #5b6472;
+}
+
+.campus-tab--active {
+  background: #ffffff;
+  color: #315cff;
+  box-shadow: 0 2rpx 8rpx rgba(49, 92, 255, 0.16);
+}
+
+.search-box {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  height: 76rpx;
+  padding: 0 22rpx;
+  border-radius: 999rpx;
+  background: #ffffff;
+  border: 1rpx solid #e4e9f2;
+}
+
+.search-icon {
+  flex: none;
+  font-size: 24rpx;
+  margin-right: 12rpx;
+}
+
+.search-input {
+  flex: 1;
+  min-width: 0;
+  font-size: 26rpx;
+  color: #1f2a44;
+}
+
+.search-placeholder {
+  color: #b3bac7;
+}
+
+.search-clear {
+  flex: none;
+  width: 40rpx;
+  height: 40rpx;
+  margin-left: 8rpx;
+  border-radius: 50%;
+  background: #eef1f5;
+  color: #8b93a3;
+  font-size: 26rpx;
+  line-height: 40rpx;
+  text-align: center;
+}
+
+/* ============ 排序 / 筛选 ============ */
+.toolbar {
+  display: flex;
+  align-items: center;
+  margin-top: 20rpx;
+  padding: 0 4rpx;
+}
+
+.tool-picker {
+  flex: none;
+}
+
+.tool {
+  display: flex;
+  align-items: center;
+  margin-right: 36rpx;
+  font-size: 26rpx;
+  color: #4a5468;
+}
+
+.tool--on {
+  color: #315cff;
+  font-weight: 600;
+}
+
+.tool-value {
+  margin-left: 8rpx;
+  font-size: 24rpx;
+}
+
+.tool-arrow {
+  margin-left: 6rpx;
+  font-size: 20rpx;
+  color: #98a2b3;
+}
+
+.tool--on .tool-arrow {
+  color: #315cff;
+}
+
+.tool-count {
+  flex: 1;
+  text-align: right;
+  font-size: 23rpx;
+  color: #98a2b3;
+}
+
+/* ============ 筛选面板 ============ */
+.filter-panel {
+  margin-top: 18rpx;
+  padding: 24rpx;
+  border-radius: 20rpx;
+  background: #ffffff;
+  border: 1rpx solid #e9edf5;
+  box-shadow: 0 8rpx 24rpx rgba(31, 42, 68, 0.05);
+}
+
+.filter-label {
+  font-size: 24rpx;
+  color: #6b7891;
+}
+
+/* 面板里有多组条件（通过率 / 推荐等级 / 服务保障），组与组之间要留间距 */
+.filter-tags + .filter-label {
+  margin-top: 28rpx;
+}
+
+.filter-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16rpx;
+  margin-top: 18rpx;
+}
+
+.filter-tag {
+  padding: 12rpx 24rpx;
+  border-radius: 999rpx;
+  background: #f4f6fa;
+  border: 1rpx solid #e9edf5;
+  font-size: 24rpx;
+  color: #4a5468;
+}
+
+.filter-tag--on {
+  background: #eef4ff;
+  border-color: #315cff;
+  color: #315cff;
+  font-weight: 600;
+}
+
+.filter-actions {
+  display: flex;
+  gap: 20rpx;
+  margin-top: 26rpx;
+}
+
+.filter-btn {
+  flex: 1;
+  height: 76rpx;
+  border-radius: 999rpx;
+  font-size: 26rpx;
+  line-height: 76rpx;
+  text-align: center;
+}
+
+.filter-btn--plain {
+  background: #f4f6fa;
+  color: #4a5468;
+}
+
+.filter-btn--primary {
+  background: #315cff;
+  color: #ffffff;
+  font-weight: 600;
+}
+
+/* ============ 运营横幅 ============ */
+/* 主色复用横幅渐变里的深蓝 #2e6bff（本页按钮/标签同一支），不走共享层默认蓝。
+   .fx-stage 与 .fx-card 都各自重新声明了 --fx-accent 默认值，所以承载背光的
+   .promo-stage 与卡片本体都要覆盖：只写卡片的话背光拿不到色。 */
+.promo-stage,
+.promo {
+  --fx-accent: #2e6bff;
+}
+
+.promo {
+  /* 几何不变式核对（§2.3）：卡宽 702rpx（750 - 页面左右各 24），横幅高约 217rpx
+     （标题 + 副标题 + 按钮一列，右侧标签列更矮），217 ≤ 702 × 1.375，
+     170% 方块边长 1193rpx 盖得住对角线 734rpx，不需要 --fx-side 显式给边长。 */
+  position: relative;
+  margin-top: 22rpx;
+  /* 描边占位由卡片 padding 出，四周各留 --fx-w；弹性布局与内边距整体搬到下面的 .fx-body，
+     卡高继续由后台配置的文案自己撑（§2.6：副标题与标签条数不定，写死高度会静默裁字）。
+     hover-class="promo--hover" 与 bindtap 仍留在这一层，按压时整卡（含描边）一起变暗。 */
+  padding: var(--fx-w);
+  border-radius: 24rpx;
+  overflow: hidden;
+  box-shadow: 0 14rpx 30rpx rgba(46, 107, 255, 0.24);
+}
+
+/* 共享层默认把 .fx-body 做成四边内缩的绝对定位，那要求父级有确定高度；这里改回随流，
+   内缩已由卡片 padding 提供，视觉效果一致但不会把内容高度扣掉。
+   横幅底色也从 .promo 挪到这里 —— 描边环不透明，背景留在外层等于被整圈盖住；
+   挪进来后 .promo-bg / .promo-bg-mask 的百分比定位改以内容层为基准，正好避开四角描边。 */
+.promo .fx-body {
+  position: relative;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  display: flex;
+  align-items: center;
+  padding: 28rpx 26rpx;
+  background:
+    radial-gradient(circle at 88% 10%, rgba(255, 255, 255, 0.34) 0, rgba(255, 255, 255, 0) 220rpx),
+    linear-gradient(135deg, #5b8def 0%, #2e6bff 100%);
+}
+
+.promo--hover {
+  opacity: 0.92;
+ transform: scale(0.96); box-shadow: inset 0 2rpx 6rpx rgba(16, 32, 64, 0.16), inset 0 -1rpx 2rpx rgba(255, 255, 255, 0.08); }
+
+/* 后台上传了背景图时铺满整条横幅，再压一层同色渐变保证白字可读 */
+.promo-bg {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.promo-bg-mask {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, rgba(30, 62, 140, 0.52) 0%, rgba(46, 107, 255, 0.18) 100%);
+}
+
+.promo-main {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.promo-title {
+  font-size: 36rpx;
+  font-weight: 800;
+  color: #ffffff;
+  letter-spacing: 2rpx;
+}
+
+.promo-sub {
+  margin-top: 8rpx;
+  font-size: 23rpx;
+  color: rgba(255, 255, 255, 0.86);
+}
+
+.promo-btn {
+  align-self: flex-start;
+  margin-top: 20rpx;
+  padding: 12rpx 28rpx;
+  border-radius: 999rpx;
+  background: #ffffff;
+  color: #2e6bff;
+  font-size: 25rpx;
+  font-weight: 700;
+}
+
+.promo-btn-arrow {
+  margin-left: 6rpx;
+}
+
+.promo-side {
+  position: relative;
+  z-index: 1;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 12rpx;
+}
+
+.promo-tag {
+  padding: 8rpx 20rpx;
+  border-radius: 999rpx;
+  font-size: 22rpx;
+  font-weight: 600;
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.26);
+}
+
+/* ============ 驾校卡片 ============ */
+.school-list {
+  /* 横幅的背光下溢 56rpx，够到本列表上沿：.fx-glow-layer 是 z-index:0 的定位元素，
+     而 .fx-stage 不构成 stacking context，会画在本应盖住它的普通流元素之上。
+     这里抬一层接住（§2.5，首页 .notice-bar 同样处理），不要压背光到 z-index:-1。 */
+  position: relative;
+  z-index: 1;
+  margin-top: 24rpx;
+  display: flex;
+  flex-direction: column;
+}
+
+.school-card {
+  /* 列表项只拿静态描边：这一层不挂 is-live，.fx-ring-spin 就不挂 animation（§2.7）。
+     几何核对（§2.3）：卡宽 702rpx，卡高由封面 168 + 上下 padding 48 = 216rpx 起步，
+     文字列长时到 ~430rpx，都远小于 702 × 1.375，方块盖得住对角线，不用 --fx-side。
+     主色沿用本页品牌蓝 #2e6bff（与标签/按钮同支）。 */
+  --fx-r: 22rpx;
+  --fx-accent: #2e6bff;
+  /* 描边占位由卡片 padding 出；封面 + 文字列的弹性布局整体搬到 .fx-body，
+     卡高继续由每条驾校自己的文案撑（服务端数据，行数是变量，§2.6 不允许写死）。 */
+  padding: var(--fx-w);
+  border-radius: 22rpx;
+  box-shadow: 0 8rpx 22rpx rgba(31, 42, 68, 0.05);
+  transition: opacity 0.16s ease, transform 0.35s cubic-bezier(0.34, 1.42, 0.6, 1), box-shadow 0.35s cubic-bezier(0.34, 1.42, 0.6, 1);
+}
+
+/* .fx-body 由共享层的四边内缩绝对定位改回随流（内缩已由上面的 padding 提供），
+   否则内容不进流、卡片会塌成只有 8rpx 高。底色与 1rpx 细边一并挪进来：
+   描边环不透明，留在外层会被整圈盖住。hover-class 仍在这一层（卡片根），
+   按压缩放连描边一起缩，不会出现边与面错位。 */
+.school-card .fx-body {
+  position: relative;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  display: flex;
+  align-items: stretch;
+  gap: 22rpx;
+  padding: 24rpx;
+  background: #ffffff;
+  border: 1rpx solid #eef1f6;
+}
+
+.school-card + .school-card {
+  margin-top: 20rpx;
+}
+
+.school-card--hover {
+  transform: scale(0.96);
+  opacity: 0.94;
+ box-shadow: inset 0 2rpx 6rpx rgba(16, 32, 64, 0.16), inset 0 -1rpx 2rpx rgba(255, 255, 255, 0.08); }
+
+.school-cover {
+  position: relative;
+  flex: none;
+  width: 168rpx;
+  height: 168rpx;
+  border-radius: 18rpx;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.school-cover-img {
+  width: 100%;
+  height: 100%;
+}
+
+.school-cover-char {
+  font-size: 60rpx;
+  font-weight: 800;
+  color: rgba(255, 255, 255, 0.94);
+  line-height: 1;
+}
+
+.school-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.school-head {
+  display: flex;
+  align-items: flex-start;
+}
+
+.school-name {
+  flex: 1;
+  min-width: 0;
+  font-size: 30rpx;
+  font-weight: 700;
+  color: #1f2a44;
+  line-height: 1.35;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.school-geo {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  margin-left: 14rpx;
+}
+
+.school-region {
+  font-size: 22rpx;
+  color: #8b93a3;
+}
+
+.school-distance {
+  margin-top: 4rpx;
+  font-size: 22rpx;
+  color: #8b93a3;
+}
+
+.school-intro {
+  margin-top: 10rpx;
+  font-size: 24rpx;
+  color: #6b7891;
+  line-height: 1.5;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.school-metrics {
+  display: flex;
+  align-items: center;
+  margin-top: 14rpx;
+}
+
+.metric-label {
+  font-size: 22rpx;
+  color: #8b93a3;
+}
+
+.metric-label--gap {
+  margin-left: 24rpx;
+}
+
+.metric-value {
+  margin-left: 8rpx;
+  font-size: 24rpx;
+  font-weight: 700;
+  color: #f5a70a;
+}
+
+.metric-help {
+  width: 30rpx;
+  height: 30rpx;
+  margin-left: 8rpx;
+  border-radius: 50%;
+  background: #eef1f5;
+  color: #98a2b3;
+  font-size: 20rpx;
+  line-height: 30rpx;
+  text-align: center;
+}
+
+.school-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10rpx;
+  margin-top: 16rpx;
+}
+
+.school-tag {
+  padding: 6rpx 16rpx;
+  border-radius: 8rpx;
+  background: #eef4ff;
+  color: #2e6bff;
+  font-size: 21rpx;
+  line-height: 1.4;
+  /* 长标签（整句话）压成单行省略，避免把卡片撑到三行 */
+  max-width: 240rpx;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.school-tag--more {
+  background: #f2f4f8;
+  color: #8b93a3;
+}
+
+/* 班型 / 价格 chips */
+.school-fields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12rpx;
+  margin-top: 14rpx;
+}
+
+.field-chip {
+  padding: 6rpx 16rpx;
+  border-radius: 8rpx;
+  background: #f2f4f8;
+  color: #3a4356;
+  font-size: 22rpx;
+  line-height: 1.4;
+}
+
+.field-chip--price {
+  background: #fff4e6;
+  color: #e08a1e;
+  font-weight: 600;
+}
+
+/* 地址 / 联系方式 */
+.school-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 6rpx;
+  margin-top: 14rpx;
+}
+
+.school-line {
+  font-size: 22rpx;
+  color: #8a94a6;
+  line-height: 1.5;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ============ 空状态 ============ */
+.empty {
+  margin-top: 120rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.empty-icon {
+  width: 120rpx;
+  height: 120rpx;
+  border-radius: 50%;
+  background: #eef1f5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.empty-q {
+  font-size: 56rpx;
+  font-weight: 700;
+  color: #b3bac7;
+  line-height: 1;
+}
+
+.empty-text {
+  margin-top: 24rpx;
+  font-size: 26rpx;
+  color: #8b93a3;
+}
+
+.empty-btn {
+  margin-top: 28rpx;
+  padding: 16rpx 44rpx;
+  border-radius: 999rpx;
+  background: #eef4ff;
+  color: #315cff;
+  font-size: 26rpx;
+  font-weight: 600;
+}
+
+.empty-btn--hover {
+  opacity: 0.85;
+ transform: scale(0.96); box-shadow: inset 0 2rpx 6rpx rgba(16, 32, 64, 0.16), inset 0 -1rpx 2rpx rgba(255, 255, 255, 0.08); }
+
+.page-foot {
+  margin: 36rpx 12rpx 0;
+  font-size: 21rpx;
+  color: #b3bac7;
+  line-height: 1.7;
+  text-align: center;
+}

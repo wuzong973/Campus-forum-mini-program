@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>校区边界校验（腾讯地图）</title>
+<style>
+  html, body { margin: 0; padding: 0; height: 100%; font-family: -apple-system, "PingFang SC", sans-serif; }
+  #map { width: 100%; height: 100vh; }
+  .panel { position: absolute; top: 12px; left: 12px; background: rgba(255,255,255,.94); border-radius: 10px;
+           padding: 10px 14px; font-size: 13px; color: #1f2a44; box-shadow: 0 4px 14px rgba(0,0,0,.12); line-height: 1.8; }
+  .panel b { font-size: 14px; }
+  .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; }
+  .tabs { margin-top: 6px; display: flex; gap: 8px; }
+  .tab { padding: 4px 12px; border-radius: 14px; background: #eef2ff; color: #2B5FD9; cursor: pointer; font-size: 12px; }
+  .tab.on { background: #2B5FD9; color: #fff; }
+  .hint { color: #667; font-size: 12px; }
+</style>
+</head>
+<body>
+<div id="map"></div>
+<div class="panel">
+  <b id="title">佛山校区（南海校区北区）</b>
+  <div class="tabs">
+    <div class="tab on" data-key="foshan">佛山校区</div>
+    <div class="tab" data-key="guangzhou">广州新港校区</div>
+  </div>
+  <div style="margin-top:6px">
+    <span class="dot" style="background:#2B5FD9"></span>小程序围栏（腾讯 AOI 实描）<br>
+    <span class="dot" style="background:#F5A623"></span>校门标记（佛山为腾讯官方坐标）<br>
+    <span class="hint">拖动/缩放对照腾讯底图，确认轮廓贴合校区</span>
+  </div>
+</div>
+<script>
+  // 默认场景：走 WorkBuddy 本地代理，前端不出现任何 key
+  window._TMapSecurityConfig = {
+    serviceHost: 'http://127.0.0.1:__WB_HTTP_PORT__/_TMapService/_wbt/__WB_TMAP_SECRET__',
+  };
+</script>
+<script src="https://map.qq.com/api/gljs?v=1.exp"></script>
+<script>
+  const CAMPUSES = {
+    foshan: {
+      title: '佛山校区（南海校区北区）',
+      center: { lat: 23.159443, lng: 113.035028 },
+      zoom: 15,
+      paths: [
+      { lat: 23.160025, lng: 113.034852 },
+      { lat: 23.160687, lng: 113.035694 },
+      { lat: 23.162002, lng: 113.035653 },
+      { lat: 23.162447, lng: 113.035872 },
+      { lat: 23.162968, lng: 113.035818 },
+      { lat: 23.164267, lng: 113.035006 },
+      { lat: 23.164809, lng: 113.034815 },
+      { lat: 23.165084, lng: 113.034923 },
+      { lat: 23.165142, lng: 113.035232 },
+      { lat: 23.165111, lng: 113.0364 },
+      { lat: 23.164937, lng: 113.036698 },
+      { lat: 23.163531, lng: 113.038113 },
+      { lat: 23.163023, lng: 113.038125 },
+      { lat: 23.162159, lng: 113.039195 },
+      { lat: 23.161878, lng: 113.03935 },
+      { lat: 23.161183, lng: 113.040243 },
+      { lat: 23.160985, lng: 113.040335 },
+      { lat: 23.160767, lng: 113.04026 },
+      { lat: 23.160189, lng: 113.039694 },
+      { lat: 23.15936, lng: 113.039314 },
+      { lat: 23.159299, lng: 113.038918 },
+      { lat: 23.158783, lng: 113.038498 },
+      { lat: 23.158446, lng: 113.038407 },
+      { lat: 23.158438, lng: 113.037639 },
+      { lat: 23.158663, lng: 113.037367 },
+      { lat: 23.158677, lng: 113.037039 },
+      { lat: 23.158095, lng: 113.037024 },
+      { lat: 23.157825, lng: 113.03638 },
+      { lat: 23.156651, lng: 113.036274 },
+      { lat: 23.155626, lng: 113.036259 },
+      { lat: 23.15494, lng: 113.036624 },
+      { lat: 23.154276, lng: 113.035755 },
+      { lat: 23.153812, lng: 113.035389 },
+      { lat: 23.153743, lng: 113.035 },
+      { lat: 23.153952, lng: 113.034833 },
+      { lat: 23.155006, lng: 113.035013 },
+      { lat: 23.15511, lng: 113.034414 },
+      { lat: 23.154535, lng: 113.034347 },
+      { lat: 23.154272, lng: 113.032749 },
+      { lat: 23.155882, lng: 113.032221 },
+      { lat: 23.156095, lng: 113.031615 },
+      { lat: 23.157277, lng: 113.031201 },
+      { lat: 23.157934, lng: 113.030156 },
+      { lat: 23.15942, lng: 113.029751 },
+      { lat: 23.15961, lng: 113.02972 },
+      { lat: 23.160352, lng: 113.029824 },
+      { lat: 23.160372, lng: 113.030497 },
+      { lat: 23.160327, lng: 113.031235 },
+      { lat: 23.160139, lng: 113.031863 },
+      { lat: 23.160412, lng: 113.032417 },
+      { lat: 23.160572, lng: 113.032584 },
+      { lat: 23.161095, lng: 113.032275 },
+      { lat: 23.161454, lng: 113.032341 },
+      { lat: 23.162458, lng: 113.033165 },
+      { lat: 23.162405, lng: 113.033588 },
+      { lat: 23.162082, lng: 113.033771 },
+      { lat: 23.161362, lng: 113.033935 },
+      { lat: 23.160545, lng: 113.033795 }
+      ],
+      gates: [
+        { name: '1号门', lat: 23.15728, lng: 113.031209 },
+        { name: '2号门', lat: 23.155882, lng: 113.032223 },
+        { name: '3号门', lat: 23.15768, lng: 113.03638 },
+        { name: '4号门', lat: 23.160352, lng: 113.029824 },
+        { name: '学校主体', lat: 23.158393, lng: 113.034639 },
+      ],
+    },
+    guangzhou: {
+      title: '广州新港校区（东校区）',
+      center: { lat: 23.091902, lng: 113.307005 },
+      zoom: 16,
+      paths: [
+      { lat: 23.091303, lng: 113.303624 },
+      { lat: 23.089477, lng: 113.304524 },
+      { lat: 23.08877, lng: 113.304914 },
+      { lat: 23.088726, lng: 113.305122 },
+      { lat: 23.088747, lng: 113.305357 },
+      { lat: 23.08932, lng: 113.310386 },
+      { lat: 23.095078, lng: 113.310101 },
+      { lat: 23.094773, lng: 113.304594 },
+      { lat: 23.095012, lng: 113.304353 },
+      { lat: 23.095012, lng: 113.304112 }
+      ],
+      gates: [],
+    },
+  };
+
+  const map = new TMap.Map('map', {
+    center: new TMap.LatLng(CAMPUSES.foshan.center.lat, CAMPUSES.foshan.center.lng),
+    zoom: CAMPUSES.foshan.zoom,
+  });
+
+  const polyLayer = new TMap.MultiPolygon({
+    map,
+    styles: {
+      campus: new TMap.PolygonStyle({
+        color: 'rgba(43,95,217,0.10)',
+        showBorder: true,
+        borderColor: '#2B5FD9',
+        borderWidth: 3,
+      }),
+    },
+    geometries: [],
+  });
+
+  const markerLayer = new TMap.MultiMarker({
+    map,
+    styles: { gate: new TMap.MarkerStyle({ width: 22, height: 30, anchor: { x: 0.5, y: 1 } }) },
+    geometries: [],
+  });
+
+  const labelLayer = new TMap.MultiLabel({
+    map,
+    styles: {
+      label: new TMap.LabelStyle({
+        color: '#1F2A44',
+        size: 12,
+        offset: { x: 0, y: -34 },
+        alignment: 'center',
+        background: { color: '#FFFFFF', borderWidth: 1, borderColor: '#D6E0FF', padding: [4, 8, 4, 8], borderRadius: 6 },
+      }),
+    },
+    geometries: [],
+  });
+
+  function render(key) {
+    const c = CAMPUSES[key];
+    document.getElementById('title').textContent = c.title;
+    document.querySelectorAll('.tab').forEach((el) => el.classList.toggle('on', el.dataset.key === key));
+    polyLayer.setGeometries([{ id: 'campus', styleId: 'campus', paths: c.paths }]);
+    markerLayer.setGeometries(c.gates.map((g, i) => ({
+      id: 'g' + i, styleId: 'gate', position: new TMap.LatLng(g.lat, g.lng),
+    })));
+    labelLayer.setGeometries(c.gates.map((g, i) => ({
+      id: 'l' + i, styleId: 'label', position: new TMap.LatLng(g.lat, g.lng), content: g.name,
+    })));
+    map.setCenter(new TMap.LatLng(c.center.lat, c.center.lng));
+    map.setZoom(c.zoom);
+  }
+
+  document.querySelectorAll('.tab').forEach((el) => {
+    el.addEventListener('click', () => render(el.dataset.key));
+  });
+  render('foshan');
+</script>
+</body>
+</html>

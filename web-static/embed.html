@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>360VR 全景</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; background: #0e1420; overflow: hidden; }
+  #frame { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+  /* 加载遮罩：iframe onload 后隐藏 */
+  #loading {
+    position: absolute; inset: 0; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 12px;
+    color: #8fa3c0; font: 14px/1.6 -apple-system, BlinkMacSystemFont, "PingFang SC", sans-serif;
+    background: #0e1420; z-index: 2; transition: opacity .3s;
+  }
+  #loading.hide { opacity: 0; pointer-events: none; }
+  .spinner {
+    width: 34px; height: 34px; border-radius: 50%;
+    border: 3px solid rgba(143, 163, 192, .25); border-top-color: #4d8ff0;
+    animation: spin .9s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  /* 兜底：iframe 被拦或加载失败时展示 */
+  #fallback { display: none; }
+  #fallback.show { display: flex; }
+  #fallback .box {
+    text-align: center; color: #dbe6f5; font: 15px/1.8 -apple-system, BlinkMacSystemFont, "PingFang SC", sans-serif;
+    padding: 0 24px;
+  }
+  #fallback button {
+    margin-top: 16px; padding: 10px 22px; border: 0; border-radius: 20px;
+    background: #4d8ff0; color: #fff; font-size: 14px;
+  }
+</style>
+</head>
+<body>
+  <div id="loading"><div class="spinner"></div><div>全景加载中…</div></div>
+  <iframe id="frame" allow="fullscreen; gyroscope; accelerometer" allowfullscreen referrerpolicy="no-referrer-when-downgrade"></iframe>
+  <div id="fallback">
+    <div class="box">
+      <p>加载失败</p>
+      <p style="font-size:12px;color:#8fa3c0">可复制链接到浏览器打开</p>
+      <button id="copyBtn">复制链接</button>
+    </div>
+  </div>
+<script>
+  // 只允许嵌入白名单域名的链接，防止本页被当作任意网页跳板：
+  // 720yun 全景（校园地图）。
+  // 注：教务系统 jw.gdipu.edu.cn 已从白名单移除——其响应头带
+  // `X-Frame-Options: SAMEORIGIN`，iframe 会被浏览器直接拒绝；该入口现已改为
+  // 本站同源反代（https://payun01.cn/jsxsd/ → 学校官网）由 web-view 直接打开，
+  // 见 pkg-schedule/schedule-home/index.js 的 JW_WEBSITE_PROXY_URL。
+  var ALLOWED_PREFIXES = [
+    'https://www.720yun.com/'
+  ];
+  var match = location.search.match(/[?&]src=([^&]+)/);
+  var src = match ? decodeURIComponent(match[1]) : '';
+  var frame = document.getElementById('frame');
+  var loading = document.getElementById('loading');
+  var fallback = document.getElementById('fallback');
+
+  var allowed = ALLOWED_PREFIXES.some(function (prefix) { return src.indexOf(prefix) === 0 });
+  if (allowed) {
+    // 加载超时兜底：12 秒仍未触发 onload（可能被 X-Frame-Options 拦截）则显示复制按钮
+    var timeout = setTimeout(function () { fallback.classList.add('show'); loading.classList.add('hide'); }, 12000);
+    frame.onload = function () { clearTimeout(timeout); loading.classList.add('hide'); };
+    frame.src = src;
+  } else {
+    fallback.classList.add('show');
+    loading.classList.add('hide');
+  }
+
+  document.getElementById('copyBtn').onclick = function () {
+    var text = src || 'https://www.720yun.com/t/32c23qigylw?scene_id=982404';
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(function () { alert('链接已复制'); }, fallbackCopy);
+    } else { fallbackCopy(); }
+    function fallbackCopy() {
+      var ta = document.createElement('textarea');
+      ta.value = text; document.body.appendChild(ta); ta.select();
+      try { document.execCommand('copy'); alert('链接已复制'); } catch (e) {}
+      document.body.removeChild(ta);
+    }
+  };
+</script>
+</body>
+</html>

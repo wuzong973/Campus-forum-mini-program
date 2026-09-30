@@ -41,6 +41,7 @@ Page({
   refreshProfile() {
     const defaults = avatar.getDefaultProfile()
     const userInfo = Object.assign({}, defaults, getApp().globalData.userInfo || wx.getStorageSync('userInfo') || {})
+    userInfo.avatarUrl = avatar.normalizeLegacyAvatar(userInfo.avatarUrl)
     if (!avatar.isStoredAvatar(userInfo.avatarUrl)) userInfo.avatarUrl = defaults.avatarUrl
     if (avatar.isDefaultName(userInfo.nickName)) userInfo.nickName = defaults.nickName
     this.setData({
@@ -54,6 +55,7 @@ Page({
   openProfileModal() {
     const defaults = avatar.getDefaultProfile()
     const userInfo = Object.assign({}, defaults, getApp().globalData.userInfo || wx.getStorageSync('userInfo') || {})
+    userInfo.avatarUrl = avatar.normalizeLegacyAvatar(userInfo.avatarUrl)
     if (!avatar.isStoredAvatar(userInfo.avatarUrl)) userInfo.avatarUrl = defaults.avatarUrl
     if (avatar.isDefaultName(userInfo.nickName)) userInfo.nickName = defaults.nickName
     const editCampusGroup = this.getCampusGroup(userInfo.campus)

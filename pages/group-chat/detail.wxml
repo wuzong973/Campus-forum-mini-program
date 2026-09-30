@@ -1,14 +1,14 @@
 <view class="page page-enter">
   <view class="topbar" style="padding-top: {{statusBarHeight}}px;">
-    <view class="back-pill" hover-class="back-pill-hover" hover-stay-time="80" bindtap="goBack"><text class="back-pill-icon">‹</text><text>返回</text></view>
+    <view class="back-pill spring-btn" hover-class="back-pill-hover press-spring" hover-stay-time="80" bindtap="goBack"><text class="back-pill-icon">‹</text><text>返回</text></view>
   </view>
 
   <view class="content" wx:if="{{group}}">
     <!-- 头部：头像 + 群名 + 类型/官方徽标 -->
     <view class="head-card">
       <image wx:if="{{group.avatarUrl}}" class="head-avatar" src="{{group.avatarUrl}}" mode="aspectFill" />
-      <view wx:else class="head-avatar head-avatar-fallback">
-        <text>{{group.name[0]}}</text>
+      <view wx:else class="head-avatar head-avatar-fallback" style="background:{{group.fallbackBg}};">
+        <text>{{group.firstChar}}</text>
       </view>
       <view class="head-info">
         <view class="head-name">{{group.name}}</view>
@@ -17,13 +17,25 @@
           <text wx:if="{{group.isOfficial}}" class="official-badge">官方</text>
           <text wx:if="{{group.customTag}}" class="custom-badge">{{group.customTag}}</text>
         </view>
+        <!-- 群主与成员规模：后台手工维护，两者都没有时整行不出现 -->
+        <view class="head-meta" wx:if="{{group.ownerName || group.memberCount}}">
+          <text wx:if="{{group.ownerName}}">群主 {{group.ownerName}}</text>
+          <text class="head-meta-dot" wx:if="{{group.ownerName && group.memberCount}}">·</text>
+          <text wx:if="{{group.memberCount}}">群成员 {{group.memberCount}} 人</text>
+        </view>
       </view>
+    </view>
+
+    <!-- 群公告：后台维护的进群须知，用浅黄底与正文区分 -->
+    <view class="sec-card notice-card" wx:if="{{group.notice}}">
+      <view class="sec-title">群公告</view>
+      <text class="notice-text" user-select>{{group.notice}}</text>
     </view>
 
     <!-- 群管理：管理员微信二维码 -->
     <view class="sec-card" wx:if="{{adminQrcodeUrl || gzhQrcodeUrl}}">
       <view class="sec-title">群管理</view>
-      <view class="admin-row" hover-class="admin-row--hover" bindtap="onPreviewAdmin">
+      <view class="admin-row spring-btn" hover-stay-time="80" hover-class="admin-row--hover press-spring" bindtap="onPreviewAdmin">
         <image class="admin-qr" src="{{adminQrcodeUrl}}" mode="aspectFill" />
         <view class="admin-info">
           <text class="admin-name">管理员微信</text>
@@ -31,7 +43,7 @@
         </view>
         <text class="row-arrow">›</text>
       </view>
-      <view class="admin-row" hover-class="admin-row--hover" bindtap="onPreviewGzh" wx:if="{{gzhQrcodeUrl}}">
+      <view class="admin-row spring-btn" hover-stay-time="80" hover-class="admin-row--hover press-spring" bindtap="onPreviewGzh" wx:if="{{gzhQrcodeUrl}}">
         <image class="admin-qr" src="{{gzhQrcodeUrl}}" mode="aspectFill" />
         <view class="admin-info">
           <text class="admin-name">公众号二维码</text>
@@ -41,13 +53,13 @@
       </view>
     </view>
 
-    <!-- 加入方式：群二维码大图 -->
-    <view class="sec-card" wx:if="{{group.qrcodeUrl}}">
+    <!-- 加入方式：群二维码大图 + 进群规则提示（方式与是否需审核由后台配置） -->
+    <view class="sec-card" wx:if="{{group.qrcodeUrl || joinModeTip}}">
       <view class="sec-title">加入方式</view>
-      <view class="qr-wrap" hover-class="qr-wrap--hover" bindtap="onPreviewQr">
+      <view class="qr-wrap spring-btn" wx:if="{{group.qrcodeUrl}}" hover-stay-time="80" hover-class="qr-wrap--hover press-spring" bindtap="onPreviewQr">
         <image class="qr-img" src="{{group.qrcodeUrl}}" mode="widthFix" />
       </view>
-      <view class="qr-tip">点击二维码可放大保存 · 微信扫码进群</view>
+      <view class="qr-tip" wx:if="{{joinModeTip}}">{{joinModeTip}}</view>
     </view>
 
     <!-- 群介绍 -->

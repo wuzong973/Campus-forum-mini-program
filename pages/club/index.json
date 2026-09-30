@@ -1,7 +1,6 @@
 {
-  "navigationBarTitleText": "社团&组织",
-  "navigationBarBackgroundColor": "#D7EFFF",
-  "navigationBarTextStyle": "black",
+  "navigationStyle": "custom",
+  "backgroundColor": "#F2F3F5",
   "enablePullDownRefresh": true,
   "backgroundTextStyle": "dark",
   "usingComponents": {

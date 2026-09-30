@@ -1,29 +1,35 @@
 <view class="page page-enter">
   <view class="topbar" style="padding-top: {{statusBarHeight}}px;">
-    <view class="back-pill" hover-class="back-pill-hover" hover-stay-time="80" bindtap="goBack"><text class="back-pill-icon">‹</text><text>返回</text></view>
+    <view class="back-pill spring-btn" hover-class="back-pill-hover press-spring" hover-stay-time="80" bindtap="goBack"><text class="back-pill-icon">‹</text><text>返回</text></view>
   </view>
 
   <view class="content">
     <view class="page-title">{{categoryName}}</view>
     <view class="page-sub">查看该类别下的群聊列表</view>
 
-    <view class="campus-bar" hover-class="campus-bar--hover" hover-stay-time="80" bindtap="onToggleCampus">
+    <view class="campus-bar spring-btn" hover-class="campus-bar--hover press-spring" hover-stay-time="80" bindtap="onToggleCampus">
       <text class="campus-bar-label">校区</text>
-      <text class="campus-bar-value">{{campus}}</text>
+      <text class="campus-bar-value">{{campus || '全部校区'}}</text>
       <text class="campus-bar-arrow">{{showCampusPanel ? '▴' : '▾'}}</text>
     </view>
 
-    <view class="empty" wx:if="{{loaded && !groups.length}}">
+    <view class="empty" wx:if="{{loaded && loadError}}" bindtap="retryLoad">
+      <view class="empty-icon"><text class="empty-q">!</text></view>
+      <text class="empty-text">群聊加载失败，点击重试</text>
+    </view>
+
+    <view class="empty" wx:elif="{{loaded && !groups.length}}">
       <view class="empty-icon"><text class="empty-q">?</text></view>
       <text class="empty-text">该分类下暂无群聊</text>
     </view>
 
     <view class="group-panel" wx:if="{{groups.length}}">
       <view
-        class="group-row"
+        class="group-row anim-stagger spring-btn"
+        style="--i: {{index < 6 ? index : 0}};"
         wx:for="{{groups}}"
         wx:key="id"
-        hover-class="group-row--hover"
+        hover-class="group-row--hover press-spring"
         hover-stay-time="80"
         data-id="{{item.id}}"
         bindtap="onGroupTap"

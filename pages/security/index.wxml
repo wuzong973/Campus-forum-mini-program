@@ -18,9 +18,9 @@
     <view class="delete-btn-wrap">
       <block wx:if="{{deletionRequest && deletionRequest.status === 'pending'}}">
         <text class="request-status">注销申请已提交，处理时间：{{deletionRequest.scheduledFor}}</text>
-        <button class="delete-btn cancel-btn" loading="{{loading}}" bindtap="onCancelDeletion">撤销注销申请</button>
+        <button hover-class="press-spring" class="delete-btn cancel-btn spring-btn" loading="{{loading}}" bindtap="onCancelDeletion" hover-stay-time="120">撤销注销申请</button>
       </block>
-      <button wx:else class="delete-btn" loading="{{loading}}" bindtap="onDeleteAccount">申请注销账号</button>
+      <button hover-class="press-spring" wx:else class="delete-btn spring-btn" loading="{{loading}}" bindtap="onDeleteAccount" hover-stay-time="120">申请注销账号</button>
     </view>
   </view>
 </view>

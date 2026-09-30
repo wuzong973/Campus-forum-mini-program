@@ -44,6 +44,14 @@ __pycache__/
 # Crawler captures and local test artifacts
 jw-crawler/.logs/
 jw-crawler/captcha.png
+jw-crawler/captcha-samples/
 jw-crawler/schedule.json
 jw-crawler/schedule_raw/
 jw-crawler/login_debug/
+
+# 数据库备份：含用户手机号 / openid / 真实姓名等个人信息，禁止提交到仓库
+# （备份统一落在 db-backup/；不要在这里用 `*.sql` 通配，
+#   否则会误伤 server/sql/init.sql 这类必须版本化的建表脚本）
+db-backup/
+db-backup-*.sql
+*.sql.bak-*

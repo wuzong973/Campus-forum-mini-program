@@ -22,6 +22,7 @@
 
 /* 白色圆角卡片底座：包裹 tab 图标，边框 + 靠近边框的柔和投影 */
 .tab-icon-wrap {
+  position: relative;
   display: flex;
   width: 60rpx;
   height: 60rpx;
@@ -36,6 +37,23 @@
   box-sizing: border-box;
 }
 .tab-icon { width: 36rpx; height: 36rpx; }
+.tab-badge {
+  position: absolute;
+  top: -12rpx;
+  right: -16rpx;
+  min-width: 30rpx;
+  height: 30rpx;
+  padding: 0 8rpx;
+  box-sizing: border-box;
+  border-radius: 16rpx;
+  background: #fa5151;
+  border: 2rpx solid #ffffff;
+  color: #ffffff;
+  font-size: 20rpx;
+  line-height: 26rpx;
+  font-weight: 600;
+  text-align: center;
+}
 .tab-text, .publish-text { margin-top: 4rpx; font-size: 20rpx; line-height: 28rpx; }
 .publish-text { color: #646b78; }
 

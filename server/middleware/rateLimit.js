@@ -21,14 +21,14 @@ const memoryLimiter = rateLimitExpress({
 })
 
 function rateLimit(options = {}) {
-  const { windowMs = 60000, max = 60, keyPrefix = 'rl:' } = options
+  const { windowMs = 60000, max = 60, keyPrefix = 'rl:', message = '请求过于频繁' } = options
   return async (req, res, next) => {
     if (!redis) return memoryLimiter(req, res, next)
     const key = keyPrefix + (req.userId || req.ip)
     try {
       const count = await redis.incr(key)
       if (count === 1) await redis.pexpire(key, windowMs)
-      if (count > max) return fail(res, '请求过于频繁', 429)
+      if (count > max) return fail(res, message, 429)
       next()
     } catch (e) {
       memoryLimiter(req, res, next)

@@ -1,7 +1,8 @@
 const { runPullDownRefresh } = require('../../utils/refresh')
 
 const ALLOWED_HOSTS = new Set([
-  'jw.gdipu.edu.cn',
+  // 教务系统 jw.gdipu.edu.cn 已改为服务端抓取 + 原生渲染（pkg-schedule/schedule-home），
+  // 不再通过 web-view 打开，故从白名单移除
   'mobilelib.wx.chaoxing.com',
   'www.720yun.com',
   'payun01.cn'

@@ -1,0 +1,365 @@
+.page {
+  min-height: 100vh;
+  padding: 24rpx 24rpx 60rpx;
+  box-sizing: border-box;
+  background: #f5f7fa;
+}
+
+/* ===== 状态卡 ===== */
+.status-card {
+  padding: 36rpx 32rpx 32rpx;
+  border-radius: 20rpx;
+  margin-bottom: 24rpx;
+  transition: background 0.3s;
+}
+
+/* 学期中：蓝紫渐变 */
+.status-semester {
+  background: linear-gradient(135deg, #4a72f5 0%, #6b4ef0 100%);
+  box-shadow: 0 8rpx 24rpx rgba(74, 114, 245, 0.28);
+}
+
+/* 假期中：橙红渐变 */
+.status-vacation {
+  background: linear-gradient(135deg, #ff8a4c 0%, #f5606d 100%);
+  box-shadow: 0 8rpx 24rpx rgba(245, 96, 109, 0.26);
+}
+
+/* 超出校历范围：中性灰 */
+.status-unknown {
+  background: linear-gradient(135deg, #8b96a8 0%, #6b7688 100%);
+  box-shadow: 0 8rpx 24rpx rgba(107, 118, 136, 0.24);
+}
+
+.status-top {
+  display: flex;
+  align-items: baseline;
+  gap: 12rpx;
+  margin-bottom: 18rpx;
+}
+
+.status-month {
+  color: #fff;
+  font-size: 40rpx;
+  font-weight: 700;
+  letter-spacing: 1rpx;
+}
+
+.status-weekday {
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 26rpx;
+}
+
+.status-label {
+  display: block;
+  color: #fff;
+  font-size: 44rpx;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.status-sub {
+  display: block;
+  margin-top: 10rpx;
+  color: rgba(255, 255, 255, 0.82);
+  font-size: 26rpx;
+}
+
+.status-note {
+  display: block;
+  margin-top: 16rpx;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 25rpx;
+}
+
+.progress-track {
+  height: 12rpx;
+  margin-top: 28rpx;
+  border-radius: 6rpx;
+  background: rgba(255, 255, 255, 0.28);
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  border-radius: 6rpx;
+  background: #fff;
+  transition: width 0.4s ease;
+}
+
+.progress-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 16rpx;
+}
+
+.progress-text {
+  color: rgba(255, 255, 255, 0.92);
+  font-size: 25rpx;
+}
+
+.progress-tag {
+  padding: 4rpx 16rpx;
+  border-radius: 999rpx;
+  background: rgba(255, 255, 255, 0.95);
+  color: #4a72f5;
+  font-size: 22rpx;
+  font-weight: 600;
+}
+
+.progress-tag.rest {
+  color: #f5606d;
+}
+
+.progress-tag.normal {
+  color: #2f9e6e;
+}
+
+/* ===== 通用卡片 ===== */
+.card {
+  padding: 30rpx 30rpx 26rpx;
+  border-radius: 18rpx;
+  margin-bottom: 24rpx;
+  background: #fff;
+  box-shadow: 0 3rpx 16rpx rgba(32, 48, 76, 0.06);
+}
+
+.card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 22rpx;
+}
+
+.card-title {
+  display: block;
+  color: #27364a;
+  font-size: 32rpx;
+  font-weight: 700;
+}
+
+.card-head .card-title {
+  margin-bottom: 0;
+}
+
+.card-action {
+  color: #347ff2;
+  font-size: 26rpx;
+}
+
+.card-tip {
+  display: block;
+  margin-top: 18rpx;
+  color: #98a2b3;
+  font-size: 23rpx;
+}
+
+/* ===== 学期条目 ===== */
+.sem-item {
+  padding: 22rpx 22rpx 18rpx;
+  border-radius: 14rpx;
+  margin-bottom: 18rpx;
+  background: #f7f8fa;
+  border: 2rpx solid transparent;
+}
+
+.sem-item:last-child {
+  margin-bottom: 0;
+}
+
+.sem-active {
+  background: #eef3ff;
+  border-color: #cfdcff;
+}
+
+.sem-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12rpx;
+}
+
+.sem-name-box {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+}
+
+.sem-name {
+  color: #27364a;
+  font-size: 29rpx;
+  font-weight: 700;
+}
+
+.sem-badge {
+  padding: 3rpx 14rpx;
+  border-radius: 999rpx;
+  background: #e6e9ef;
+  color: #8b96a8;
+  font-size: 21rpx;
+}
+
+.sem-badge.on {
+  background: #4a72f5;
+  color: #fff;
+}
+
+.sem-note {
+  color: #98a2b3;
+  font-size: 23rpx;
+}
+
+.sem-range {
+  display: block;
+  color: #5a6a7f;
+  font-size: 25rpx;
+  margin-bottom: 14rpx;
+}
+
+.sem-track {
+  height: 8rpx;
+  border-radius: 4rpx;
+  background: #e6e9ef;
+  overflow: hidden;
+}
+
+.sem-fill {
+  height: 100%;
+  border-radius: 4rpx;
+  background: linear-gradient(90deg, #4a72f5, #6b4ef0);
+  transition: width 0.4s ease;
+}
+
+/* ===== 校历图 ===== */
+.image-box {
+  position: relative;
+  border-radius: 14rpx;
+  overflow: hidden;
+  background: #f7f8fa;
+}
+
+.calendar-image {
+  display: block;
+  width: 100%;
+}
+
+.image-mask {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 16rpx 0;
+  text-align: center;
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0.55) 100%);
+}
+
+.image-mask-text {
+  color: #fff;
+  font-size: 23rpx;
+}
+
+/* ===== 关键日期 ===== */
+.date-list {
+  margin-top: 6rpx;
+}
+
+.date-item {
+  display: flex;
+  align-items: center;
+  padding: 20rpx 0;
+  border-bottom: 1rpx solid #f0f2f6;
+}
+
+.date-item:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.date-left {
+  width: 132rpx;
+  flex-shrink: 0;
+}
+
+.date-md {
+  display: block;
+  color: #27364a;
+  font-size: 27rpx;
+  font-weight: 600;
+}
+
+.date-type {
+  display: block;
+  margin-top: 4rpx;
+  color: #98a2b3;
+  font-size: 21rpx;
+}
+
+.date-right {
+  flex: 1;
+  min-width: 0;
+}
+
+.date-title {
+  color: #4a5a6f;
+  font-size: 26rpx;
+  line-height: 1.5;
+}
+
+.date-flag {
+  flex-shrink: 0;
+  margin-left: 12rpx;
+  padding: 3rpx 14rpx;
+  border-radius: 999rpx;
+  background: #4a72f5;
+  color: #fff;
+  font-size: 21rpx;
+}
+
+.date-flag.soon {
+  background: #ff9d4c;
+}
+
+/* 已过去：弱化 */
+.date-item.past .date-md,
+.date-item.past .date-title {
+  color: #a9b2c0;
+}
+
+/* 今天：高亮行 */
+.date-item.today {
+  background: #eef3ff;
+  border-radius: 12rpx;
+  padding-left: 16rpx;
+  padding-right: 16rpx;
+  border-bottom-color: transparent;
+}
+
+.date-item.today .date-md,
+.date-item.today .date-title {
+  color: #2c56e0;
+  font-weight: 600;
+}
+
+/* ===== 说明 ===== */
+.tips {
+  padding: 28rpx 30rpx;
+  border-radius: 18rpx;
+  background: #fff;
+  box-shadow: 0 3rpx 16rpx rgba(32, 48, 76, 0.06);
+}
+
+.tips-title {
+  display: block;
+  color: #27364a;
+  font-size: 28rpx;
+  font-weight: 600;
+  margin-bottom: 14rpx;
+}
+
+.tips-text {
+  display: block;
+  color: #98a2b3;
+  font-size: 24rpx;
+  line-height: 1.7;
+}

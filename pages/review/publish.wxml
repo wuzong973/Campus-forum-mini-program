@@ -1,0 +1,72 @@
+<view class="page page-enter">
+  <view class="content">
+    <view class="form-card">
+      <!-- 头像（可以不填） -->
+      <view class="form-label">头像（可以不填）</view>
+      <view class="avatar-box">
+        <view wx:if="{{!avatarUrl}}" class="avatar-upload spring-btn" bindtap="onChooseAvatar" hover-class="avatar-upload--hover press-spring" hover-stay-time="80">
+          <text class="avatar-plus">+</text>
+          <text class="avatar-upload-text">上传头像</text>
+        </view>
+        <view wx:else class="avatar-preview">
+          <image class="avatar-img" src="{{avatarUrl}}" mode="aspectFill" />
+          <view class="avatar-remove" catchtap="onRemoveAvatar">×</view>
+        </view>
+      </view>
+
+      <!-- 名称 -->
+      <view class="form-label">名称<text class="required">*</text></view>
+      <view class="name-input-wrap">
+        <input
+          class="name-input"
+          placeholder="请输入评分对象名称"
+          placeholder-class="name-placeholder"
+          maxlength="20"
+          value="{{name}}"
+          bindinput="onNameInput"
+        />
+        <text class="name-count">{{nameCount}}/20</text>
+      </view>
+
+      <!-- 所属分类 -->
+      <view class="form-label">所属分类</view>
+      <view wx:if="{{mode === 'course'}}" class="chip-row">
+        <view
+          wx:for="{{gradeOptions}}"
+          wx:key="*this"
+          class="chip {{selectedGrade === item ? 'chip--active' : ''}}"
+          data-grade="{{item}}"
+          bindtap="onGradeTap"
+        >{{item}}</view>
+      </view>
+      <!-- 校区选择（仅广州校区 / 佛山校区两个主校区） -->
+      <view wx:elif="{{mode === 'root'}}" class="chip-row">
+        <view
+          wx:for="{{campusOptions}}"
+          wx:key="*this"
+          class="chip chip--main {{selectedCampus === item ? 'chip--active' : ''}}"
+          data-campus="{{item}}"
+          bindtap="onCampusTap"
+        >{{item}}</view>
+      </view>
+      <view wx:else class="chip-row">
+        <view wx:if="{{parentName}}" class="chip chip--fixed">{{parentName}}</view>
+        <view
+          wx:for="{{floorOptions}}"
+          wx:key="*this"
+          class="chip {{selectedFloor === item ? 'chip--active' : ''}}"
+          data-floor="{{item}}"
+          bindtap="onFloorTap"
+        >{{item}}</view>
+      </view>
+    </view>
+
+    <!-- 发布 -->
+    <view
+      class="submit-btn {{name && !submitting ? 'submit-btn--on' : ''}} spring-btn"
+      bindtap="onSubmit"
+      hover-class="submit-btn--hover press-spring"
+      hover-stay-time="80"
+    >{{submitting ? '发布中...' : '发布'}}</view>
+  </view>
+</view>

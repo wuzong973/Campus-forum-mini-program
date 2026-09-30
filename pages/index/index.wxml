@@ -1,13 +1,17 @@
-<view class="page page-enter">
-  <!-- 自定义导航栏 -->
-  <view class="custom-nav gradient-nav" style="padding-top: {{statusBarHeight}}px;">
-    <view class="nav-content" style="height: {{navBarHeight}}px;">
-      <view class="nav-brand" hover-class="nav-brand-pressed" hover-stay-time="120">
-        <image class="nav-logo" src="/assets/icons/campus-logo.png" mode="aspectFill"></image>
-        <text class="nav-brand-text">广轻校园圈</text>
-      </view>
+<!-- 自定义导航栏必须放在 .page 之外（与 .float-actions 同层）：
+     祖先一旦带 transform，position:fixed 的包含块就会被劫持到该祖先，导航栏会随
+     页面本体的滚动被顶出屏幕且无法复位。详见 app.wxss 中 .page-enter 的说明。 -->
+<view class="custom-nav gradient-nav {{navVisible ? '' : 'nav-hidden'}}" style="padding-top: {{statusBarHeight}}px;">
+  <view class="nav-content" style="height: {{navBarHeight}}px;">
+    <view class="nav-brand spring-btn" hover-class="nav-brand-pressed press-spring" hover-stay-time="120">
+      <image class="nav-logo" src="/assets/icons/campus-logo.png" mode="aspectFill"></image>
+      <text class="nav-brand-text">广轻校园圈</text>
     </view>
   </view>
+</view>
+
+<view class="page page-enter" style="--nav-h: {{statusBarHeight + navBarHeight}}px;">
+  <!-- 导航栏占位：scroll-view 高度 = 100vh - 导航高度，保证页面本体不产生滚动 -->
   <view class="nav-placeholder" style="height: {{statusBarHeight + navBarHeight}}px;"></view>
 
   <scroll-view
@@ -28,23 +32,60 @@
     show-scrollbar="{{false}}"
   >
     <!-- 轮播图 -->
-    <swiper class="banner-swiper" autoplay circular interval="{{bannerInterval}}" duration="{{bannerDuration}}" bindchange="onBannerChange">
-      <swiper-item wx:for="{{banners}}" wx:key="id">
-        <view class="banner-item pressable" data-link="{{item.link}}" bindtap="onBannerTap">
-          <image class="banner-img" src="{{item.image}}" mode="aspectFill" lazy-load></image>
-          <view class="banner-mask"></view>
-          <view class="banner-accent" style="background: {{item.accent}};"></view>
-          <view class="banner-text">
-            <text class="banner-tag" wx:if="{{item.tag}}">{{item.tag}}</text>
-            <text class="banner-title">{{item.title}}</text>
-            <text class="banner-subtitle">{{item.subtitle}}</text>
-            <view class="banner-cta">
-              <text class="banner-cta-text">立即查看</text>
+    <!-- banner-stage 只为承载弥散背光：swiper 自带 overflow:hidden，背光放进去会被整层裁掉，
+         所以它必须是 swiper 的兄弟节点并向下溢出 stage。滚动时挂 fx-paused 暂停常驻动画。
+         fx-stage 提供共享层 token 默认值；fx-off 由「设置 → 显示 → 卡片动效」或低端机命中。 -->
+    <view class="banner-stage fx-stage {{bannerFxPaused ? 'fx-paused' : ''}} {{fxOff ? 'fx-off' : ''}}">
+      <!-- 一张 banner 一层背光，靠外层 opacity 交叉淡入：避免在 js 里同步「当前那张的 accent」。
+           呼吸放在内层，是为了让淡入淡出走 transition、脉动走 animation，两者不互相覆盖。 -->
+      <view class="fx-glow-layer">
+        <view
+          class="fx-glow {{bannerCurrent === index ? 'is-on' : ''}}"
+          wx:for="{{banners}}"
+          wx:key="id"
+          style="--fx-accent: {{item.accent}};"
+        ><view class="fx-glow-pulse"></view></view>
+      </view>
+      <swiper class="banner-swiper" autoplay circular interval="{{bannerInterval}}" duration="{{bannerDuration}}" bindchange="onBannerChange">
+        <swiper-item wx:for="{{banners}}" wx:key="id">
+          <view
+            class="banner-item fx-card fx-card--fill {{bannerPressedIndex === index ? 'banner-pressing' : ''}} {{bannerCurrent === index ? 'is-live' : ''}}"
+            id="banner-{{index}}"
+            style="{{bannerTiltStyle}}"
+            data-index="{{index}}"
+            data-link="{{item.link}}"
+            bindtap="onBannerTap"
+            bindtouchstart="onBannerTouchStart"
+            bindtouchmove="onBannerTouchMove"
+            bindtouchend="onBannerTouchEnd"
+            bindtouchcancel="onBannerTouchEnd"
+          >
+            <!-- 描边环与卡面结构见 styles/card-fx.wxss：环自带 overflow:hidden 做圆形裁切，
+                 卡面内缩 --fx-w 露出描边；主色逐张由后台配置的 accent 下发 -->
+            <view class="fx-ring" style="--fx-accent: {{item.accent}};">
+              <view class="fx-ring-spin"></view>
+            </view>
+            <view class="fx-body">
+              <image class="banner-img" src="{{item.image}}" mode="aspectFill" lazy-load></image>
+              <view class="banner-mask"></view>
+              <!-- 光斑：压在图片与文字之间，按下时从略大收缩到触点位置（位置由 --spot-x/y 决定） -->
+              <view class="banner-spot"></view>
+              <!-- 流光：一条斜向高光带，横向位移由 --spot-x 换算，倾斜时像反光扫过卡面 -->
+              <view class="banner-shine"></view>
+              <view class="banner-accent" style="background: {{item.accent}};"></view>
+              <view class="banner-text">
+                <text class="banner-tag" wx:if="{{item.tag}}">{{item.tag}}</text>
+                <text class="banner-title">{{item.title}}</text>
+                <text class="banner-subtitle">{{item.subtitle}}</text>
+                <view class="banner-cta">
+                  <text class="banner-cta-text">立即查看</text>
+                </view>
+              </view>
             </view>
           </view>
-        </view>
-      </swiper-item>
-    </swiper>
+        </swiper-item>
+      </swiper>
+    </view>
     <view class="banner-indicator">
       <view
         class="indicator-dot {{bannerCurrent === index ? 'active' : ''}}"
@@ -64,11 +105,11 @@
       <text class="notice-tail" wx:if="{{noticeTailText}}" bindtap="onNoticeTailTap">{{noticeTailText}}</text>
     </view>
 
-    <!-- 今日热榜预览：两行竖向轮换，点击进入完整榜单 -->
+    <!-- 今日热榜预览：两行竖向轮换，点击进入完整榜单（用户关闭偏好时整体隐藏） -->
     <!-- 触摸落在热榜内时临时禁用下拉刷新，避免误触发（touchstart 决定整个手势周期） -->
     <view
       class="today-hot-card card anim-slide-up"
-      wx:if="{{hotPosts.length}}"
+      wx:if="{{dailyHotVisible && hotPosts.length}}"
       bindtap="onTodayHotTap"
       bindtouchstart="onHotAreaTouchStart"
       bindtouchend="onHotAreaTouchEnd"
@@ -89,7 +130,7 @@
     </view>
     <view
       class="today-hot-card card today-hot-loading"
-      wx:elif="{{hotLoading}}"
+      wx:elif="{{dailyHotVisible && hotLoading}}"
       bindtouchstart="onHotAreaTouchStart"
       bindtouchend="onHotAreaTouchEnd"
       bindtouchcancel="onHotAreaTouchEnd"
@@ -143,7 +184,7 @@
         <image class="search-icon-img icon-xs" src="/assets/icons/search.png" mode="aspectFit"></image>
         <text class="search-placeholder">搜索社区内容...</text>
       </view>
-      <view class="search-refresh {{refreshing ? 'refreshing' : ''}}" hover-class="fab-pressed" bindtap="onRefreshAction">
+      <view class="search-refresh {{refreshing ? 'refreshing' : ''}} spring-btn" hover-stay-time="80" hover-class="fab-pressed press-spring" bindtap="onRefreshAction">
         <image class="search-refresh-icon" src="/assets/icons/refresh.png" mode="aspectFit"></image>
       </view>
     </view>
@@ -161,13 +202,19 @@
       </view>
     </scroll-view>
 
-    <!-- 最热榜单 -->
-    <view id="hot-rank-detail" class="hot-rank" wx:if="{{isHotCategory}}">
+    <!-- 分类说明：仅「二手闲置」分类显示 —— 该分类的帖子不进「最新」列表，避免用户以为帖子丢了 -->
+    <view class="category-note" wx:if="{{categories[activeCategory] === '二手闲置'}}">二手闲置帖子不显示在「最新」页面</view>
+
+    <!-- 最热榜单（用户关闭每日热榜偏好时显示关闭提示） -->
+    <view id="hot-rank-detail" class="hot-rank" wx:if="{{isHotCategory && !dailyHotVisible}}">
+      <view class="hot-rank-empty">每日热榜已在设置中关闭</view>
+    </view>
+    <view id="hot-rank-detail" class="hot-rank" wx:elif="{{isHotCategory}}">
       <view class="hot-rank-heading">
         <image class="hot-rank-banner" src="/assets/banners/hot-rank-banner.jpg" mode="widthFix"></image>
       </view>
       <view class="hot-rank-list" wx:if="{{hotPosts.length}}">
-        <view class="hot-rank-card" wx:for="{{hotPosts}}" wx:key="id" data-id="{{item.id}}" bindtap="onHotPostTap">
+        <view class="hot-rank-card anim-stagger" style="--i: {{index < 6 ? index : 0}};" wx:for="{{hotPosts}}" wx:key="id" data-id="{{item.id}}" bindtap="onHotPostTap">
           <view class="hot-rank-card-header">
             <image class="hot-rank-avatar" src="{{item.avatarUrl || '/assets/icons/avatar.png'}}" mode="aspectFill" lazy-load></image>
             <view class="hot-rank-author">
@@ -185,7 +232,7 @@
             </view>
             <view class="hot-rank-badge {{index < 3 ? 'top' : ''}}"><text>TOP</text><text>{{index + 1}}</text></view>
           </view>
-          <text class="hot-rank-post-title">{{item.title || item.content}}</text>
+          <text class="hot-rank-post-title" user-select>{{item.title || item.content}}</text>
           <view class="hot-rank-media" wx:if="{{item.hotImages.length || item.hasVideo}}">
             <image wx:for="{{item.hotImages}}" wx:for-item="img" wx:key="*this" class="hot-media" src="{{img}}" mode="aspectFill" lazy-load></image>
             <view wx:if="{{item.hasVideo}}" class="hot-media hot-media-video"><text class="hot-video-play">▶</text></view>
@@ -233,31 +280,52 @@
   </scroll-view>
 
   <view class="comment-sheet-mask" wx:if="{{commentSheetVisible}}" bindtap="closeCommentSheet"></view>
-  <view class="comment-sheet" wx:if="{{commentSheetVisible}}" catchtap="noop">
+  <view class="comment-sheet" wx:if="{{commentSheetVisible}}" catchtap="noop" style="bottom: {{commentSheetKeyboardHeight}}px;">
     <view class="comment-sheet-handle"></view>
     <view class="comment-sheet-header">
-      <text class="comment-sheet-title">评论 {{commentSheetComments.length || (commentSheetPost.commentCount || 0)}}</text>
+      <text class="comment-sheet-title">评论 {{commentSheetTotal || (commentSheetPost.commentCount || 0)}}</text>
       <text class="comment-sheet-close" bindtap="closeCommentSheet">×</text>
     </view>
 
-    <scroll-view class="comment-sheet-list" scroll-y enhanced show-scrollbar="{{false}}">
+    <scroll-view class="comment-sheet-list" scroll-y enhanced show-scrollbar="{{false}}" bindscrolltolower="loadMoreSheetComments">
       <view class="comment-sheet-loading" wx:if="{{commentSheetLoading}}">评论加载中...</view>
-      <view class="sheet-comment" wx:for="{{commentSheetComments}}" wx:key="id">
-        <image class="sheet-comment-avatar" src="{{item.avatarUrl || '/assets/icons/avatar.png'}}" mode="aspectFill" lazy-load data-userid="{{item.userId}}" catchtap="onCommentAvatarTap"></image>
-        <view class="sheet-comment-main">
-          <view class="sheet-comment-meta">
-            <text class="sheet-comment-name">{{item.nickName}}</text>
-            <text class="sheet-comment-time">{{item.timeText}}</text>
+      <view class="comment-item" wx:for="{{commentSheetComments}}" wx:key="id">
+        <image class="comment-avatar" src="{{item.avatarUrl || '/assets/icons/avatar.png'}}" mode="aspectFill" lazy-load data-userid="{{item.userId}}" catchtap="onCommentAvatarTap"></image>
+        <view class="comment-content-wrap">
+          <view class="comment-head">
+            <view class="comment-meta"><text class="comment-nick">{{item.nickName}}</text><view class="author-comment-label" wx:if="{{item.isAuthor}}">作者</view><text class="comment-time">{{item.timeText}}</text></view>
           </view>
-          <text class="sheet-comment-content">{{item.content}}</text>
-          <view class="sheet-comment-images" wx:if="{{item.images && item.images.length}}">
-            <image class="sheet-comment-image" wx:for="{{item.images}}" wx:for-item="img" wx:key="*this" src="{{img}}" mode="aspectFill" lazy-load></image>
+          <view class="comment-body">
+            <view class="comment-text-wrap"><text class="comment-reply-to" wx:if="{{item.replyToNick}}">回复 {{item.replyToNick}}：</text><text class="comment-text" user-select>{{item.content}}</text></view>
+            <view class="comment-like spring-btn" hover-class="like-hover press-spring" hover-stay-time="80" catchtap="onSheetLikeComment" data-id="{{item.id}}"><view class="pa-icon pa-heart {{item.isLiked ? 'on' : ''}}"></view><text class="like-count" wx:if="{{item.likeCount > 0}}">{{item.likeCount}}</text></view>
+          </view>
+          <view class="comment-image-list" wx:if="{{item.images.length || item.videos.length}}">
+            <image class="comment-image" wx:for="{{item.images}}" wx:for-item="img" wx:key="*this" src="{{img}}" mode="aspectFill" lazy-load></image>
+            <video wx:for="{{item.videos}}" wx:for-item="vid" wx:key="*this" class="comment-video" src="{{vid}}" object-fit="contain" controls></video>
+          </view>
+          <view class="reply-list" wx:if="{{item.replies.length}}">
+            <view class="reply-item" wx:for="{{item.expanded ? item.replies : item.recentReplies}}" wx:for-item="reply" wx:key="id">
+              <image class="reply-avatar" src="{{reply.avatarUrl || '/assets/icons/avatar.png'}}" mode="aspectFill" lazy-load data-userid="{{reply.userId}}" catchtap="onCommentAvatarTap"></image>
+              <view class="reply-content">
+                <view class="comment-head">
+                  <view class="comment-meta"><text class="comment-nick">{{reply.nickName}}</text><view class="author-comment-label" wx:if="{{reply.isAuthor}}">作者</view><text class="comment-time">{{reply.timeText}}</text></view>
+                </view>
+                <view class="comment-body">
+                  <view class="comment-text-wrap"><text class="comment-reply-to" wx:if="{{reply.replyToNick}}">回复 {{reply.replyToNick}}：</text><text class="comment-text" user-select>{{reply.content}}</text></view>
+                  <view class="comment-like spring-btn" hover-class="like-hover press-spring" hover-stay-time="80" catchtap="onSheetLikeComment" data-id="{{reply.id}}"><view class="pa-icon pa-heart {{reply.isLiked ? 'on' : ''}}"></view><text class="like-count" wx:if="{{reply.likeCount > 0}}">{{reply.likeCount}}</text></view>
+                </view>
+                <view class="comment-image-list" wx:if="{{reply.images.length || reply.videos.length}}">
+                  <image class="comment-image" wx:for="{{reply.images}}" wx:for-item="image" wx:key="*this" src="{{image}}" mode="aspectFill" lazy-load></image>
+                  <video wx:for="{{reply.videos}}" wx:for-item="vid" wx:key="*this" class="comment-video" src="{{vid}}" object-fit="contain" controls></video>
+                </view>
+              </view>
+            </view>
+            <view class="reply-toggle" wx:if="{{item.hasHiddenReplies}}" catchtap="toggleSheetCommentReplies" data-id="{{item.id}}"><text class="reply-toggle-line"></text><text>{{item.expanded ? '收起回复' : '展开 ' + item.hiddenReplyCount + ' 条回复'}}</text></view>
           </view>
         </view>
-        <view class="sheet-comment-like">
-          <image class="sheet-like-icon" src="/assets/icons/heart-outline.png" mode="aspectFit"></image>
-          <text class="sheet-like-count">点赞{{item.likeCount ? ' ' + item.likeCount : ''}}</text>
-        </view>
+      </view>
+      <view class="sheet-load-more" wx:if="{{!commentSheetLoading && commentSheetComments.length && commentSheetHasMore}}">
+        <text>上滑加载更多</text>
       </view>
       <view class="comment-sheet-empty" wx:if="{{!commentSheetLoading && commentSheetComments.length === 0}}">
         <text>还没有评论，来坐第一排</text>
@@ -280,6 +348,7 @@
         cursor-spacing="24"
         adjust-position="{{false}}"
         bindinput="onSheetCommentInput"
+        bindkeyboardheightchange="onSheetKeyboardChange"
       />
       <view class="sheet-send {{commentSheetText || commentSheetImages.length ? 'active' : ''}}" bindtap="onSheetSendComment">发送</view>
       <view class="sheet-tool" catchtap="toggleSheetEmojiPanel">😊</view>
@@ -294,13 +363,23 @@
 
 <!-- 浮动操作按钮：放在 .page 外部，避免祖先 transform 导致 fixed 失效 -->
 <view class="float-actions {{showTopBtn ? 'rise' : ''}}">
-  <view class="float-btn" hover-class="float-btn-pressed" hover-stay-time="120" aria-label="每日热榜" bindtap="onTodayHotTap">
+  <view class="float-btn spring-btn" wx:if="{{dailyHotVisible}}" hover-class="float-btn-pressed press-spring" hover-stay-time="120" aria-label="每日热榜" bindtap="onTodayHotTap">
     <text class="iconfont float-icon icon-remen float-icon-hot"></text>
   </view>
-  <view class="float-btn" hover-class="float-btn-pressed" hover-stay-time="120" aria-label="私信" bindtap="goMessages">
+  <view class="float-btn spring-btn" hover-class="float-btn-pressed press-spring" hover-stay-time="120" aria-label="消息通知" bindtap="goMessages">
     <text class="iconfont float-icon icon-xiaoxi1 float-icon-msg"></text>
+    <view class="float-badge" wx:if="{{unreadCount > 0}}">{{unreadCount > 99 ? '99+' : unreadCount}}</view>
   </view>
-  <view class="float-btn float-btn-top {{showTopBtn ? 'show' : ''}}" hover-class="float-btn-pressed" hover-stay-time="120" aria-label="回到顶部" bindtap="onScrollToTop">
+  <view class="float-btn float-btn-top {{showTopBtn ? 'show' : ''}} spring-btn" hover-class="float-btn-pressed press-spring" hover-stay-time="120" aria-label="回到顶部" bindtap="onScrollToTop">
     <text class="iconfont float-icon icon-zhiding"></text>
   </view>
 </view>
+
+<update-dialog
+  visible="{{updateDialogVisible}}"
+  latest-version="{{updateLatestVersion}}"
+  local-version="{{updateLocalVersion}}"
+  updating="{{updateDialogUpdating}}"
+  bindconfirm="onVersionUpdateConfirm"
+  bindcancel="onVersionUpdateCancel"
+></update-dialog>

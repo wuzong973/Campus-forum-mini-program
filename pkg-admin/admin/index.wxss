@@ -1,5 +1,18 @@
+/* 卡片动效共享层：旋转描边（本页横幅不上背光，理由见 wxml 注释）。
+   必须在首行，本文件后面覆盖 --fx-* token 的规则才生效。 */
+@import "../../styles/card-fx.wxss";
+
 .page { min-height: 100vh; padding: 0 24rpx 48rpx; background: var(--bg); }
-.hero { margin: 0 -24rpx; padding: 34rpx 32rpx 28rpx; background: #315cff; color: #fff; }
+/* 几何不变式核对（§2.3）：横幅通栏 750rpx 宽、高约 161rpx（两行文字 + 上下 padding），
+   170% 方块边长 1275rpx 远大于对角线 767rpx，不需要 --fx-side。
+   主色复用本页品牌蓝 #315cff（= app.wxss --primary），描边不走共享层默认蓝。
+   padding 只留描边位（--fx-w），原 34/32/28 内边距移到 .fx-body：
+   这样卡高仍由内容自己撑（§2.6），角色名不是「超级管理员」而是长串英文时换行也不会被裁掉。 */
+.hero { --fx-r: 8rpx; --fx-accent: #315cff; margin: 0 -24rpx; padding: var(--fx-w); color: #fff; }
+/* .fx-body 共享层默认是四边内缩的绝对定位（要求父级有确定高度），这里改为随流：
+   内缩已由上面卡片的 padding 提供，视觉效果一致，但不会把内容高度扣掉。
+   横幅底色也从 .hero 挪到这里 —— 描边环是不透明的，底色留在卡片上会被整圈盖住。 */
+.hero .fx-body { position: relative; top: 0; right: 0; bottom: 0; left: 0; padding: 34rpx 32rpx 28rpx; background: #315cff; }
 .hero-title { display: block; font-size: 38rpx; font-weight: 600; }
 .hero-subtitle { display: block; margin-top: 6rpx; font-size: 24rpx; opacity: .82; }
 .tabs { margin: 20rpx -24rpx 24rpx; white-space: nowrap; background: #fff; }
@@ -88,14 +101,18 @@
 
 /* ===== 日志 tab：跑腿订单流程 ===== */
 .errand-log-card { display: block; }
-.errand-card-hover { opacity: .75; }
+.errand-card-hover { opacity: .75;  transform: scale(0.96); box-shadow: inset 0 2rpx 6rpx rgba(16, 32, 64, 0.16), inset 0 -1rpx 2rpx rgba(255, 255, 255, 0.08); }
 .errand-log-head { display: flex; align-items: center; justify-content: space-between; gap: 12rpx; }
 .errand-flow { display: block; margin-top: 10rpx; color: var(--text-secondary); font-size: 25rpx; line-height: 1.5; }
 .errand-status { flex: 0 0 auto; padding: 3rpx 10rpx; border-radius: 6rpx; color: #fff; font-size: 20rpx; }
 .st-pending { background: #faad14; }
 .st-accepted { background: #315cff; }
+.st-finishing { background: #fa8c16; }
 .st-finished { background: #52c41a; }
 .st-cancelled { background: #969799; }
+.st-disputed { background: #f2635f; }
+/* 命中节流：与「发送失败」区分开（那不是失败，是本地弹窗次数用尽），用紫色 */
+.st-throttled { background: #722ed1; }
 
 /* 订单流程详情弹窗 */
 .errand-detail-users { display: flex; gap: 16rpx; margin: 8rpx 0 16rpx; }
@@ -115,6 +132,14 @@
 .errand-timeline-text { color: var(--text-primary); font-size: 25rpx; line-height: 1.5; }
 .errand-timeline-sub { color: var(--text-tertiary); font-size: 22rpx; line-height: 1.5; }
 .errand-timeline-time { color: var(--text-tertiary); font-size: 21rpx; }
+/* 接单方提交内容 / 异议内容（有异议订单的裁决依据） */
+.errand-submit-box, .errand-dispute-box { display: flex; flex-direction: column; gap: 8rpx; margin-top: 16rpx; padding: 16rpx; background: #f7f9fc; border-radius: 12rpx; }
+.errand-dispute-box { background: #fff6f5; border: 1rpx solid #ffdcd8; }
+.errand-box-label { color: var(--text-primary); font-size: 25rpx; font-weight: 600; }
+.errand-dispute-text { color: var(--text-secondary); font-size: 24rpx; line-height: 1.6; word-break: break-all; }
+.errand-dispute-time { color: var(--text-tertiary); font-size: 22rpx; }
+.errand-submit-images { display: flex; flex-wrap: wrap; gap: 12rpx; margin-top: 6rpx; }
+.dispute-buttons { gap: 16rpx; }
 
 /* ===== 群聊管理 tab ===== */
 .chat-apply-row { flex-direction: column; align-items: stretch; gap: 8rpx; }
@@ -131,6 +156,33 @@
 .club-admin-char { width: 76rpx; height: 76rpx; border-radius: 20rpx; color: #ffffff; font-size: 34rpx; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .club-admin-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6rpx; }
 .club-admin-arrow { color: var(--text-tertiary); font-size: 23rpx; flex-shrink: 0; }
+/* 区块折叠：标题右侧「展开 ▼／收起 ▲」，与已有操作按钮同排 */
+.section-head-side { display: flex; align-items: center; gap: 20rpx; flex-shrink: 0; }
+.section-toggle { padding: 8rpx 4rpx; color: var(--text-tertiary); font-size: 23rpx; flex-shrink: 0; }
+.section-toggle:active { opacity: 0.6; }
+/* 评分对象治理的两排筛选（分类 / 删除状态），与下方搜索框留出间距 */
+.filter-tabs { margin-bottom: 16rpx; }
+
+/* ===== 驾校筛选标签 chip 编辑器 =====
+   点 × 时先播「缩成圆点」的动画，动画里同时收 max-width 与 margin，
+   后面的标签才会平滑补位、容器高度也跟着收缩（transform 本身不占位，只靠它不会补位） */
+.tag-editor { display: flex; flex-wrap: wrap; align-items: center; min-height: 96rpx; margin-bottom: 16rpx; padding: 14rpx 14rpx 2rpx; border: 1rpx solid #e4e9f2; border-radius: 12rpx; background: #f8fafc; box-sizing: border-box; }
+.tag-chip { display: flex; align-items: center; max-width: 260rpx; height: 56rpx; margin: 0 12rpx 12rpx 0; padding: 0 10rpx 0 20rpx; border-radius: 999rpx; background: #eef4ff; color: #2e6bff; font-size: 24rpx; line-height: 1; }
+.tag-chip-text { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.tag-chip-x { flex: none; width: 36rpx; height: 36rpx; margin-left: 8rpx; border-radius: 50%; background: rgba(46, 107, 255, .14); color: #2e6bff; font-size: 26rpx; line-height: 36rpx; text-align: center; }
+.tag-chip-x:active { opacity: .55; }
+.tag-chip--removing { animation: tag-collapse .24s cubic-bezier(.4, 0, .2, 1) forwards; pointer-events: none; }
+@keyframes tag-collapse {
+  0% { transform: scale(1); opacity: 1; }
+  45% { transform: scale(.4); opacity: .9; }
+  100% { transform: scale(.05); opacity: 0; max-width: 0; margin-right: 0; padding-left: 0; padding-right: 0; }
+}
+.tag-input { flex: 1; min-width: 200rpx; height: 56rpx; margin-bottom: 12rpx; padding: 0 20rpx; border: 1rpx dashed #cdd8ea; border-radius: 999rpx; background: #fff; color: var(--text-primary); font-size: 24rpx; box-sizing: border-box; }
+/* 两级钻入：进入某个食堂/商圈后，顶部显示「返回全部 + 父条目名」 */
+.review-crumb { display: flex; align-items: center; gap: 22rpx; margin-bottom: 16rpx; }
+.review-crumb-back { color: var(--primary); font-size: 25rpx; }
+.review-crumb-name { font-size: 27rpx; font-weight: 600; }
+.row-sub.review-child { color: var(--primary); }
 .club-admin-body { margin-top: 18rpx; padding-top: 18rpx; border-top: 1rpx solid var(--border-color, #eef1f5); }
 .club-admin-slogan { margin-bottom: 12rpx; }
 .club-admin-actions { margin-bottom: 14rpx; }
@@ -165,9 +217,109 @@
 .act-admin-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6rpx; }
 .act-admin-actions { flex-direction: column; justify-content: center; align-items: flex-end; gap: 10rpx; }
 
+/* 活动审核详情弹窗 */
+.audit-detail-cover { width: 100%; border-radius: 12rpx; margin-bottom: 16rpx; background: #f2f4f8; }
+.audit-detail-line { display: block; color: var(--text-secondary, #667085); font-size: 24rpx; line-height: 1.7; word-break: break-all; }
+.form-actions { display: flex; align-items: center; gap: 16rpx; margin-top: 8rpx; }
+.form-actions button { flex: 1; margin: 0; }
+.danger-mini { margin: 0; line-height: 56rpx; font-size: 24rpx; color: #e34d4d; background: rgba(240, 68, 56, 0.08); }
+.danger-mini::after { border: none; }
+
+/* 多图网格（图片介绍） */
+.img-grid { display: flex; flex-wrap: wrap; gap: 14rpx; margin-bottom: 16rpx; }
+.img-item { position: relative; width: 150rpx; height: 150rpx; }
+.img-thumb { width: 100%; height: 100%; border-radius: 10rpx; background: #f2f4f8; }
+.img-remove { position: absolute; top: -12rpx; right: -12rpx; width: 36rpx; height: 36rpx; display: flex; align-items: center; justify-content: center; border-radius: 50%; background: rgba(0, 0, 0, 0.55); color: #fff; font-size: 26rpx; line-height: 1; }
+.upload-add--grid { width: 150rpx; height: 150rpx; font-size: 40rpx; }
+
 /* 活动发起人信息（头像/昵称/手机号） */
 .act-initiator { margin-top: 10rpx; display: flex; align-items: center; gap: 14rpx; padding: 12rpx 16rpx; background: #f7f9fc; border-radius: 12rpx; }
 .act-initiator-avatar { width: 64rpx; height: 64rpx; border-radius: 50%; background: #e3ecff; color: #315cff; font-size: 26rpx; font-weight: 600; display: flex; align-items: center; justify-content: center; flex-shrink: 0; overflow: hidden; }
 .act-initiator-avatar--fallback { background: linear-gradient(135deg, #5ba8ff 0%, #315cff 100%); color: #ffffff; }
 .act-initiator-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2rpx; }
 .act-initiator-name { color: var(--text-primary, #1a1a1a); font-size: 24rpx; font-weight: 600; }
+
+/* ===== 活动详情入口 + 报名名单弹窗（仅管理员可见） ===== */
+.act-detail-btn { padding: 3rpx 14rpx; border-radius: 999rpx; color: #315cff; background: rgba(49, 92, 255, 0.10); font-size: 22rpx; font-weight: 600; }
+.signup-count-tag { margin-left: 12rpx; padding: 3rpx 10rpx; border-radius: 8rpx; color: #315cff; background: rgba(49, 92, 255, 0.10); font-size: 20rpx; font-weight: 600; vertical-align: middle; }
+.signup-search { display: flex; align-items: center; gap: 16rpx; height: 76rpx; margin-bottom: 16rpx; padding: 0 20rpx; border: 1rpx solid #e4e9f2; border-radius: 12rpx; background: #f8fafc; box-sizing: border-box; }
+.signup-search input { flex: 1; min-width: 0; height: 100%; margin: 0; padding: 0; border: none; background: transparent; font-size: 26rpx; }
+.signup-search text { flex-shrink: 0; color: var(--primary); font-size: 26rpx; }
+.signup-row { display: flex; align-items: center; gap: 16rpx; padding: 16rpx 0; border-bottom: 1rpx solid var(--divider); }
+.signup-avatar { display: flex; align-items: center; justify-content: center; flex-shrink: 0; width: 72rpx; height: 72rpx; overflow: hidden; border-radius: 50%; background: #e3ecff; color: #315cff; font-size: 26rpx; font-weight: 600; }
+.signup-avatar--fallback { background: linear-gradient(135deg, #5ba8ff 0%, #315cff 100%); color: #ffffff; }
+.signup-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2rpx; }
+.signup-name { color: var(--text-primary, #1a1a1a); font-size: 26rpx; font-weight: 600; word-break: break-all; }
+.signup-phone { color: #315cff; font-size: 24rpx; }
+.signup-sub { color: var(--text-tertiary, #98a2b3); font-size: 22rpx; }
+.signup-more { padding: 20rpx 0 6rpx; color: var(--primary); font-size: 24rpx; text-align: center; }
+
+/* ===== 社团模块：功能区分段（社团分类管理 / 社团审核） ===== */
+.club-view-switch { display: flex; gap: 16rpx; margin-bottom: 20rpx; }
+.club-view-item { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4rpx; padding: 20rpx 22rpx; border: 2rpx solid var(--border); border-radius: 14rpx; background: #fff; }
+.club-view-item.active { border-color: var(--primary); background: #f5f8ff; }
+.club-view-name { color: var(--text-primary); font-size: 28rpx; font-weight: 600; }
+.club-view-item.active .club-view-name { color: var(--primary); }
+.club-view-sub { color: var(--text-tertiary); font-size: 22rpx; }
+
+/* ===== 社团审核：列表与详情 ===== */
+.club-audit-row { align-items: flex-start; }
+.club-audit-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6rpx; }
+/* 申请材料缩略图（群聊审核与社团审核共用；此前缺失样式导致原图尺寸溢出） */
+.rider-verify-images { display: flex; flex-wrap: wrap; gap: 14rpx; margin-top: 10rpx; }
+.verify-img { width: 150rpx; height: 150rpx; border-radius: 12rpx; background: #f2f4f8; }
+
+/* ===== 群聊模块三级切换：群聊信息 / 群聊审核 =====
+   位于「群聊 / 社团」二级 tab（白色描边块）之下，因此改用分段控件（灰色底槽 + 白底选中块）
+   与二级 tab 区分层级，避免两级 tab 长得一样、看不出从属关系。 */
+.view-tabs { display: flex; padding: 6rpx; margin-bottom: 20rpx; background: #eef1f5; border-radius: 999rpx; }
+.view-tab { flex: 1; padding: 14rpx 0; color: var(--text-secondary); font-size: 26rpx; text-align: center; border-radius: 999rpx; transition: background-color .15s ease, color .15s ease; }
+.view-tab.active { background: #fff; color: var(--primary); font-weight: 600; }
+
+/* ===== 群聊编辑等长表单：分组标题 / 辅助信息 / 图片清除 =====
+   群聊表单字段较多，按「基础信息 / 群成员与进群权限 / 展示素材 / 展示与状态」分组，
+   组标题用左侧色条与正文区分层级，避免整屏字段连成一片看不出结构。 */
+.form-group-title { margin: 34rpx 0 18rpx; padding-left: 18rpx; border-left: 6rpx solid #315cff; color: #1f2a44; font-size: 27rpx; font-weight: 700; line-height: 1.4; }
+.form-config-hint { margin: -4rpx 0 18rpx; padding: 12rpx 18rpx; border-radius: 10rpx; background: #f5f7fb; color: #6b7891; font-size: 22rpx; line-height: 1.55; }
+/* 字数统计：右浮动贴在标签行右侧，标签换行时仍停在第一行 */
+.form-counter { float: right; margin-left: 12rpx; color: #98a2b3; font-size: 22rpx; font-weight: 400; }
+/* 单图清除：与上传区并列的独立按钮，避免与「点击上传」手势冲突 */
+.upload-clear { display: inline-block; margin: -4rpx 0 6rpx; padding: 8rpx 24rpx; border-radius: 999rpx; background: #fff1f1; color: #d9483b; font-size: 22rpx; }
+/* 二维码建议上传方形图，缩略图改方形避免二维码被拉扁扫不出来 */
+.upload-thumb--qr, .upload-add--qr { width: 240rpx; height: 240rpx; }
+.upload-tip { margin-top: 10rpx; padding: 12rpx 18rpx; border-radius: 10rpx; background: #fff8e8; color: #a2732a; font-size: 22rpx; line-height: 1.55; }
+/* 校区选项固定三项（全部/广州/佛山），用三列网格铺满一行，避免 2 列时最后一项单独占半行 */
+.campus-grid--triple { grid-template-columns: repeat(3, 1fr); }
+/* 群聊列表行内的数据质量提醒（如「扫码进群」却没传二维码） */
+.row-warn { display: block; margin-top: 6rpx; color: #d9483b; font-size: 22rpx; line-height: 1.5; }
+
+/* ===== 日志 tab 内部分段（跑腿订单流程 / 订阅消息） ===== */
+.scope-tabs { display: flex; margin: 0 0 16rpx; padding: 6rpx; background: #eceef2; border-radius: 12rpx; }
+.scope-tab { flex: 1; padding: 14rpx 0; text-align: center; font-size: 26rpx; color: var(--text-secondary); border-radius: 10rpx; }
+.scope-tab.selected { background: #fff; color: var(--primary); font-weight: 600; }
+.sub-hint { margin-bottom: 14rpx; padding: 16rpx 18rpx; background: #fff; border-radius: 12rpx; }
+.sub-hint .row-sub { display: block; font-size: 22rpx; line-height: 1.6; }
+.sub-quota { margin-bottom: 14rpx; padding: 16rpx 18rpx; background: #fff; border-radius: 12rpx; }
+.sub-quota .row-sub { display: block; font-size: 22rpx; line-height: 1.7; }
+/* 额度看板：中文标签为主，英文模板键作浅色小字保留（便于与 .env / 微信后台对照） */
+.sub-quota-row { margin-top: 10rpx; }
+.sub-quota-row + .sub-quota-row { margin-top: 14rpx; padding-top: 14rpx; border-top: 1rpx solid var(--divider); }
+.sub-quota-head { display: flex; align-items: baseline; flex-wrap: wrap; gap: 10rpx; }
+.sub-quota-name { color: var(--text-primary); font-size: 24rpx; font-weight: 600; }
+.sub-quota-key { color: var(--text-tertiary); font-size: 20rpx; }
+.sub-quota-stat { display: block; margin-top: 4rpx; color: var(--text-secondary); font-size: 22rpx; line-height: 1.6; }
+/* 日志卡片标题：中文标签 + 英文键同行，标题过长时自动换行不挤压状态角标 */
+.log-title-wrap { display: flex; flex: 1; min-width: 0; align-items: baseline; flex-wrap: wrap; gap: 10rpx; }
+/* 错误码的中文解释：比微信英文原文更靠前、更醒目一点 */
+.err-hint { color: var(--primary); }
+
+/* ===== 日志 tab：维修信息（用户提交的预约维修）===== */
+/* 列表卡片头部：左侧头像+昵称+手机号，右侧状态胶囊（复用 .errand-status / .st-xx 配色） */
+.repair-user { display: flex; flex: 1; min-width: 0; align-items: center; gap: 14rpx; }
+.repair-user-copy { display: flex; flex-direction: column; min-width: 0; }
+.repair-user-copy .row-title { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 26rpx; }
+.repair-user-copy .row-sub { margin-top: 0; }
+/* 服务内容（故障描述）是这张卡片的主体信息，用主色文字压过其它辅助行 */
+.repair-service { display: block; margin-top: 10rpx; color: var(--text-primary); font-size: 25rpx; line-height: 1.5; word-break: break-word; }
+.repair-foot { display: flex; align-items: center; justify-content: space-between; margin-top: 10rpx; }
+.repair-amount { color: #f2635f; font-size: 27rpx; font-weight: 600; }

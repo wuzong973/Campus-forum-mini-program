@@ -21,7 +21,7 @@
 
   <!-- 课程列表 -->
   <view class="course-list" wx:if="{{courses.length > 0}}">
-    <view class="course-item" wx:for="{{courses}}" wx:key="id">
+    <view class="course-item anim-stagger" style="--i: {{index < 6 ? index : 0}};" wx:for="{{courses}}" wx:key="id">
       <view class="course-color-bar" style="background: {{item.color || '#4A7AFF'}};"></view>
       <view class="course-info">
         <text class="course-name">{{item.name}}</text>
@@ -102,8 +102,8 @@
     </view>
 
     <view class="form-footer">
-      <button class="cancel-btn" bindtap="onCancel">取消</button>
-      <button class="save-btn btn-primary" bindtap="onSave">保存</button>
+      <button hover-class="press-spring" class="cancel-btn spring-btn" bindtap="onCancel" hover-stay-time="120">取消</button>
+      <button hover-class="press-spring" class="save-btn btn-primary spring-btn" bindtap="onSave" hover-stay-time="120">保存</button>
     </view>
   </view>
 </view>

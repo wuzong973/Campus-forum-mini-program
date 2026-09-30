@@ -2,7 +2,7 @@
   <!-- 自定义导航栏：白色圆角胶囊返回 + 居中标题 -->
   <view class="custom-nav" style="padding-top: {{statusBarHeight}}px;">
     <view class="nav-inner">
-      <view class="back-pill" hover-class="back-pill-hover" hover-stay-time="80" bindtap="goBack"><text class="back-pill-icon">‹</text><text>返回</text></view>
+      <view class="back-pill spring-btn" hover-class="back-pill-hover press-spring" hover-stay-time="80" bindtap="goBack"><text class="back-pill-icon">‹</text><text>返回</text></view>
       <text class="nav-title">个人中心</text>
     </view>
   </view>
@@ -10,11 +10,11 @@
 
   <!-- 用户信息卡 -->
   <view class="card user-card">
-    <view class="avatar-wrap" hover-class="avatar-hover" hover-stay-time="120" bindtap="onUploadAvatar">
+    <view class="avatar-wrap spring-btn" hover-class="avatar-hover press-spring" hover-stay-time="120" bindtap="onUploadAvatar">
       <image class="user-avatar" src="{{avatarUrl || '/assets/avatar2/1.jpg'}}" mode="aspectFill"></image>
       <view class="avatar-badge"><image class="badge-icon" src="/assets/icons/ic-edit-blue.png" mode="aspectFit"></image></view>
     </view>
-    <view class="user-mid" hover-class="row-pressed" bindtap="openNickEdit">
+    <view class="user-mid spring-btn" hover-stay-time="80" hover-class="row-pressed press-spring" bindtap="openNickEdit">
       <view class="nick-row">
         <text class="nick">{{nickName || '未设置昵称'}}</text>
         <image class="pencil" src="/assets/icons/ic-edit-blue.png" mode="aspectFit"></image>
@@ -27,12 +27,12 @@
   <view class="card sig-card">
     <view class="sig-head">
       <text class="card-title">个人简介</text>
-      <view class="row-right" hover-class="link-pressed" catchtap="goProfile">
+      <view class="row-right spring-btn" hover-stay-time="80" hover-class="link-pressed press-spring" catchtap="goProfile">
         <text class="row-link">进入主页</text>
         <text class="link-arrow">→</text>
       </view>
     </view>
-    <view class="action-row sig-row" hover-class="row-pressed" bindtap="openSignatureEdit">
+    <view class="action-row sig-row spring-btn" hover-stay-time="80" hover-class="row-pressed press-spring" bindtap="openSignatureEdit">
       <image class="action-icon" src="/assets/icons/ic-edit-blue.png" mode="aspectFit"></image>
       <text class="action-text">个人简介</text>
       <text class="chev">›</text>
@@ -42,7 +42,7 @@
   <!-- 头像设置卡 -->
   <view class="card section-card">
     <view class="card-header"><text class="card-title">头像设置</text></view>
-    <view class="action-row" hover-class="row-pressed" bindtap="onChangeDefaultAvatar">
+    <view class="action-row spring-btn" hover-stay-time="80" hover-class="row-pressed press-spring" bindtap="onChangeDefaultAvatar">
       <image class="action-icon" src="/assets/icons/ic-user-blue.png" mode="aspectFit"></image>
       <text class="action-text">更换默认头像</text>
       <text class="chev">›</text>
@@ -52,7 +52,7 @@
   <!-- 黑名单管理卡 -->
   <view class="card section-card">
     <view class="card-header"><text class="card-title">黑名单管理</text></view>
-    <view class="action-row" hover-class="row-pressed" bindtap="goBlacklist">
+    <view class="action-row spring-btn" hover-stay-time="80" hover-class="row-pressed press-spring" bindtap="goBlacklist">
       <image class="action-icon icon-dark" src="/assets/icons/ic-lock-purple.png" mode="aspectFit"></image>
       <text class="action-text">黑名单管理</text>
       <text class="chev">›</text>
@@ -62,7 +62,7 @@
   <!-- 账号安全卡 -->
   <view class="card section-card">
     <view class="card-header"><text class="card-title">账号安全</text></view>
-    <view class="phone-cell" hover-class="row-pressed" hover-stay-time="80">
+    <view class="phone-cell spring-btn" hover-class="row-pressed press-spring" hover-stay-time="80">
       <view class="phone-row-ui">
         <image class="action-icon" src="/assets/icons/ic-phone-green.png" mode="aspectFit"></image>
         <text class="action-text">{{phoneMasked ? '修改手机号' : '绑定手机'}}</text>
@@ -70,7 +70,7 @@
         <text class="chev">›</text>
       </view>
       <!-- 透明按钮铺满整行承接 open-type，避免原生 button 默认样式破坏 flex 排版 -->
-      <button class="phone-hit" open-type="getPhoneNumber" bindgetphonenumber="onGetPhoneNumber" aria-label="绑定手机"></button>
+      <button hover-class="press-spring" class="phone-hit spring-btn" open-type="getPhoneNumber" bindgetphonenumber="onGetPhoneNumber" aria-label="绑定手机" hover-stay-time="120"></button>
     </view>
   </view>
 
@@ -81,14 +81,14 @@
   <view class="sheet" wx:if="{{showSheet === 'signature'}}" catchtap="noop">
     <view class="sheet-header"><text class="sheet-title">编辑个人简介</text><text class="sheet-count">{{signatureDraft.length}}/80</text></view>
     <textarea class="sheet-textarea" value="{{signatureDraft}}" maxlength="80" bindinput="onSignatureInput" placeholder="介绍一下自己吧（80字以内）"></textarea>
-    <button class="sheet-confirm" hover-class="btn-hover" bindtap="saveSignature">保存</button>
+    <button class="sheet-confirm spring-btn" hover-stay-time="80" hover-class="btn-hover press-spring" bindtap="saveSignature">保存</button>
   </view>
 
   <!-- 昵称编辑弹层 -->
   <view class="sheet" wx:if="{{showSheet === 'nick'}}" catchtap="noop">
     <view class="sheet-header"><text class="sheet-title">修改昵称</text></view>
     <input class="sheet-input" value="{{nickDraft}}" maxlength="20" bindinput="onNickInput" placeholder="请输入新昵称（20字以内）"></input>
-    <button class="sheet-confirm" hover-class="btn-hover" bindtap="saveNick">保存</button>
+    <button class="sheet-confirm spring-btn" hover-stay-time="80" hover-class="btn-hover press-spring" bindtap="saveNick">保存</button>
   </view>
 
   <!-- 头像选择弹层（自选模式） -->
@@ -104,8 +104,8 @@
       </view>
     </scroll-view>
     <view class="avatar-actions">
-      <button class="sheet-cancel" hover-class="btn-hover" bindtap="closeSheet">取消</button>
-      <button class="sheet-confirm avatar-confirm {{pickedIndex < 0 ? 'disabled' : ''}}" hover-class="btn-hover" bindtap="confirmAvatar">使用该头像</button>
+      <button class="sheet-cancel spring-btn" hover-stay-time="80" hover-class="btn-hover press-spring" bindtap="closeSheet">取消</button>
+      <button class="sheet-confirm avatar-confirm {{pickedIndex < 0 ? 'disabled' : ''}} spring-btn" hover-stay-time="80" hover-class="btn-hover press-spring" bindtap="confirmAvatar">使用该头像</button>
     </view>
   </view>
 </view>

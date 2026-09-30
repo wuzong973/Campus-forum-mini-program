@@ -1,10 +1,12 @@
 const pool = require('../config/pool')
-const { success, fail } = require('../middleware/auth')
+const { success, fail, hasPermission } = require('../middleware/auth')
 const { clampPageSize, safeMessage } = require('../utils/helpers')
 const { writeAdminAudit } = require('../utils/adminAudit')
+const subscribeService = require('../services/subscribeService')
 
 const HTTPS_URL = /^https:\/\/\S{1,500}$/i
-const MAX_IMAGES = 9
+const MAX_IMAGES = 5
+const MAX_SIGNUP_IMAGES = 5
 // 'YYYY-MM-DD HH:mm' 或带秒
 const DT_RE = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}(:\d{2})?$/
 // 校区两级结构（与用户端 utils/campus.js 保持一致）；'' = 全部校区
@@ -48,6 +50,15 @@ function parseMaybeJson(value, fallback) {
   }
 }
 
+// 订阅消息 time 字段要求 'YYYY-MM-DD HH:mm' 格式
+function formatActivityTime(value) {
+  if (!value) return '待定'
+  const date = value instanceof Date ? value : new Date(value)
+  if (Number.isNaN(date.getTime())) return '待定'
+  const pad = (n) => String(n).padStart(2, '0')
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`
+}
+
 async function audit(req, action, targetType, targetId, detail) {
   try {
     await writeAdminAudit(req, action, targetType, targetId, detail)
@@ -75,6 +86,10 @@ function mapActivityRow(row) {
     signupTitle: row.signup_title || '立即报名',
     signupContent: row.signup_content || '',
     signupImage: row.signup_image || '',
+    signupImages: parseMaybeJson(row.signup_images, []),
+    auditStatus: row.audit_status || 'approved',
+    auditNote: row.audit_note || '',
+    auditTime: row.audit_time || null,
     capacity: Number(row.capacity || 0),
     status: Number(row.status),
     createdAt: row.created_at
@@ -205,6 +220,12 @@ function validateActivityPayload(body, { partial, requireCover } = {}) {
     if (signupImage === null) return { error: '报名图片地址不合法' }
     data.signup_image = signupImage
   }
+  if (body.signupImages !== undefined) {
+    const signupImages = parseMaybeJson(body.signupImages, [])
+    const valid = Array.isArray(signupImages) && signupImages.every((url) => typeof url === 'string' && HTTPS_URL.test(url))
+    if (!valid) return { error: '报名图片地址不合法' }
+    data.signup_images = signupImages.length ? JSON.stringify(signupImages.slice(0, MAX_SIGNUP_IMAGES)) : null
+  }
   if (body.capacity !== undefined) {
     const capacity = Number(body.capacity)
     if (!Number.isInteger(capacity) || capacity < 0 || capacity > 100000) return { error: '报名名额需为 0-100000 的整数（0 为不限）' }
@@ -223,7 +244,7 @@ exports.list = async (req, res) => {
     ? String(req.query.tab || 'all') : 'all'
   try {
     let joinSql = ''
-    let where = 'WHERE a.deleted = 0 AND a.status = 1'
+    let where = 'WHERE a.deleted = 0 AND a.status = 1 AND a.audit_status = \'approved\''
     // 注意：SQL 中 JOIN 占位符先于 WHERE 占位符，参数必须按 joinParams → whereParams 顺序拼接
     const joinParams = []
     const whereParams = []
@@ -275,9 +296,12 @@ exports.detail = async (req, res) => {
   const id = intId(req.params.id)
   if (!id) return fail(res, 'Invalid activity id')
   try {
+    // 审核未通过的活动仅发起人本人可预览（普通列表已过滤）
     const [rows] = await pool.query(
-      'SELECT * FROM campus_activity WHERE id = ? AND deleted = 0 AND status = 1 LIMIT 1',
-      [id]
+      `SELECT a.*, u.nick_name, u.avatar_url, u.phone FROM campus_activity a
+       LEFT JOIN sys_user u ON u.id = a.user_id
+       WHERE a.id = ? AND a.deleted = 0 AND a.status = 1 AND (a.audit_status = 'approved' OR a.user_id = ?) LIMIT 1`,
+      [id, req.userId || 0]
     )
     if (!rows.length) return fail(res, '活动不存在或已下架', 404)
     const countMap = await countSignups([id])
@@ -291,26 +315,123 @@ exports.detail = async (req, res) => {
     }
     const activity = decorate(rows[0], countMap, joined)
     activity.isOwner = !!req.userId && Number(rows[0].user_id) === Number(req.userId)
+    // 发起人信息（头像/昵称/手机号，详情页底部展示）
+    activity.initiator = {
+      userId: rows[0].user_id,
+      nickName: rows[0].nick_name || '',
+      avatarUrl: rows[0].avatar_url || '',
+      phone: rows[0].phone || ''
+    }
     success(res, { activity })
   } catch (e) { fail(res, safeMessage(e), 500) }
 }
 
-// 发布活动（需登录）
+// 发布活动（需登录）：普通用户需审核，管理员直接发布
 exports.create = async (req, res) => {
   const { data, error } = validateActivityPayload(req.body || {}, { requireCover: true })
   if (error) return fail(res, error)
+  // 拥有内容管理权限的管理员发布免审；普通用户提交进入待审核
+  const isModerator = !!req.user && hasPermission(req.user.role, 'content.manage')
+  const auditStatus = isModerator ? 'approved' : 'pending'
   try {
     const [result] = await pool.query(
       `INSERT INTO campus_activity
         (user_id, title, signup_start, signup_end, activity_start, activity_end, location, address, campus,
-         cover_url, images, detail_title, detail_content, signup_title, signup_content, signup_image, capacity, status)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`,
+         cover_url, images, detail_title, detail_content, signup_title, signup_content, signup_image, signup_images, capacity, status, audit_status, audit_time)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)`,
       [req.userId, data.title, data.signup_start || null, data.signup_end || null,
        data.activity_start || null, data.activity_end || null, data.location || '', data.address || '', data.campus || '',
        data.cover_url || '', data.images || null, data.detail_title || '', data.detail_content || '',
-       data.signup_title || '立即报名', data.signup_content || '', data.signup_image || '', data.capacity || 0]
+       data.signup_title || '立即报名', data.signup_content || '', data.signup_image || '', data.signup_images || null, data.capacity || 0,
+       auditStatus, auditStatus === 'approved' ? new Date() : null]
     )
-    success(res, { id: result.insertId })
+    success(res, { id: result.insertId, auditStatus })
+  } catch (e) { fail(res, safeMessage(e), 500) }
+}
+
+// ===== 活动审核（管理端，需 content.manage 权限） =====
+
+const AUDIT_STATUS_TEXT = { pending: '待审核', approved: '已通过', rejected: '已驳回' }
+
+// 审核列表：status 筛选（''=全部 / pending / approved / rejected），keyword 搜标题/发起人
+exports.adminAuditList = async (req, res) => {
+  const { page, pageSize, offset } = pageParams(req.query)
+  const status = String(req.query.status || '').trim()
+  const keyword = String(req.query.keyword || '').trim().slice(0, 64)
+  if (['', 'pending', 'approved', 'rejected'].indexOf(status) < 0) return fail(res, 'Invalid audit status')
+  let where = 'WHERE a.deleted = 0'
+  const params = []
+  if (status) { where += ' AND a.audit_status = ?'; params.push(status) }
+  if (keyword) { where += ' AND (a.title LIKE ? OR u.nick_name LIKE ?)'; const q = '%' + keyword + '%'; params.push(q, q) }
+  try {
+    const [[count], [rows]] = await Promise.all([
+      pool.query(`SELECT COUNT(*) total FROM campus_activity a LEFT JOIN sys_user u ON u.id = a.user_id ${where}`, params),
+      pool.query(
+        `SELECT a.*, u.nick_name, u.avatar_url, u.phone FROM campus_activity a
+         LEFT JOIN sys_user u ON u.id = a.user_id ${where}
+         ORDER BY FIELD(a.audit_status, 'pending', 'approved', 'rejected'), a.created_at DESC
+         LIMIT ? OFFSET ?`,
+        params.concat([pageSize, offset])
+      )
+    ])
+    const total = Number(count[0].total || 0)
+    const list = rows.map((row) => {
+      const item = decorate(row, {}, false)
+      item.nickName = row.nick_name || ''
+      // 发起人信息（审核列表展示用）：头像、昵称、手机号
+      item.initiator = {
+        userId: row.user_id,
+        nickName: row.nick_name || '',
+        avatarUrl: row.avatar_url || '',
+        phone: row.phone || ''
+      }
+      item.auditStatusText = AUDIT_STATUS_TEXT[item.auditStatus] || item.auditStatus
+      item.createdAtText = row.created_at
+      return item
+    })
+    success(res, { list, total, page, hasMore: offset + rows.length < total })
+  } catch (e) { fail(res, safeMessage(e), 500) }
+}
+
+// 审核操作：action = approve / reject（驳回必填意见），支持改判
+exports.adminAudit = async (req, res) => {
+  const id = intId(req.params.id)
+  const body = req.body || {}
+  const action = String(body.action || '').trim()
+  const note = optionalText(body.note, 255)
+  if (!id || ['approve', 'reject'].indexOf(action) < 0) return fail(res, 'Invalid audit action')
+  if (action === 'reject' && !note) return fail(res, '驳回时请填写审核意见')
+  try {
+    const [rows] = await pool.query('SELECT id, user_id, title, audit_status, activity_start, signup_start, location, status FROM campus_activity WHERE id = ? AND deleted = 0 LIMIT 1', [id])
+    if (!rows.length) return fail(res, '活动不存在', 404)
+    const auditStatus = action === 'approve' ? 'approved' : 'rejected'
+    await pool.query(
+      'UPDATE campus_activity SET audit_status = ?, audit_note = ?, audit_time = NOW() WHERE id = ?',
+      [auditStatus, note || '', id]
+    )
+    await audit(req, action === 'approve' ? 'activity.audit.approve' : 'activity.audit.reject', 'campus_activity', id,
+      Object.assign({ note: note || '' }, rows[0].title ? { name: rows[0].title } : {}))
+    // 活动审核结果订阅提醒（发起人在发布活动时授权；失败不影响审核结果）
+    subscribeService.pushActivityAudit(rows[0].user_id, {
+      activityTitle: rows[0].title,
+      activityStart: rows[0].activity_start,
+      auditResult: auditStatus === 'approved' ? '通过' : '未通过',
+      note,
+      activityId: id
+    }).catch(() => {})
+    // 审核通过且已上架时，向订阅了「新活动提醒/活动报名通知」的用户广播（增强能力，不阻塞审核响应）
+    if (auditStatus === 'approved' && Number(rows[0].status) === 1) {
+      const broadcastData = {
+        activityTitle: rows[0].title,
+        activityTime: rows[0].activity_start,
+        signupStart: rows[0].signup_start,
+        location: rows[0].location,
+        activityId: id
+      }
+      subscribeService.pushBroadcast('activityNew', broadcastData)
+      subscribeService.pushBroadcast('activitySignupNotice', broadcastData)
+    }
+    success(res, { id, auditStatus })
   } catch (e) { fail(res, safeMessage(e), 500) }
 }
 
@@ -320,7 +441,7 @@ exports.signup = async (req, res) => {
   if (!id) return fail(res, 'Invalid activity id')
   try {
     const [rows] = await pool.query(
-      'SELECT * FROM campus_activity WHERE id = ? AND deleted = 0 AND status = 1 LIMIT 1',
+      'SELECT * FROM campus_activity WHERE id = ? AND deleted = 0 AND status = 1 AND audit_status = \'approved\' LIMIT 1',
       [id]
     )
     if (!rows.length) return fail(res, '活动不存在或已下架', 404)
@@ -334,16 +455,52 @@ exports.signup = async (req, res) => {
     )
     if (signed.length) return fail(res, '你已报名该活动')
     if (Number(activity.capacity) > 0) {
-      const countMap = await countSignups([id])
-      if ((countMap[id] || 0) >= Number(activity.capacity)) return fail(res, '名额已满')
+      // 条件插入：容量校验与写入在一条语句内完成，避免并发报名超员
+      const [result] = await pool.query(
+        `INSERT IGNORE INTO activity_signup (activity_id, user_id)
+         SELECT ?, ? FROM DUAL
+         WHERE (SELECT COUNT(*) FROM activity_signup WHERE activity_id = ?) < ?`,
+        [id, req.userId, id, Number(activity.capacity)]
+      )
+      if (!result.affectedRows) {
+        const [again] = await pool.query(
+          'SELECT id FROM activity_signup WHERE activity_id = ? AND user_id = ? LIMIT 1',
+          [id, req.userId]
+        )
+        return fail(res, again.length ? '你已报名该活动' : '名额已满')
+      }
+    } else {
+      const [result] = await pool.query(
+        'INSERT IGNORE INTO activity_signup (activity_id, user_id) VALUES (?, ?)',
+        [id, req.userId]
+      )
+      if (!result.affectedRows) return fail(res, '你已报名该活动')
     }
-    const [result] = await pool.query(
-      'INSERT IGNORE INTO activity_signup (activity_id, user_id) VALUES (?, ?)',
-      [id, req.userId]
-    )
-    if (!result.affectedRows) return fail(res, '你已报名该活动')
     const countMap = await countSignups([id])
     const signupCount = countMap[id] || 0
+    // 报名成功通知活动发起人（订阅消息为增强能力，失败不影响报名结果）
+    subscribeService.pushActivitySignup(activity.user_id, {
+      activityTitle: activity.title,
+      activityTime: activity.activity_start,
+      activityLocation: activity.location,
+      activityCategory: activity.category,
+      signupCount,
+      activityId: activity.id
+    }).catch(() => {})
+    // 报名结果 / 参与成功通知报名人本人
+    subscribeService.pushActivitySignupResult(req.userId, {
+      activityTitle: activity.title,
+      signupCount,
+      activityTime: activity.activity_start,
+      resultText: '报名成功',
+      activityId: activity.id
+    }).catch(() => {})
+    subscribeService.pushActivityJoined(req.userId, {
+      activityTitle: activity.title,
+      activityTime: activity.activity_start,
+      note: activity.location || '',
+      activityId: activity.id
+    }).catch(() => {})
     success(res, {
       joined: true,
       signupCount,
@@ -385,6 +542,66 @@ exports.adminList = async (req, res) => {
       return item
     })
     success(res, { list, total, page, hasMore: offset + rows.length < total })
+  } catch (e) { fail(res, safeMessage(e), 500) }
+}
+
+// 报名名单（管理端）：活动概要 + 报名用户列表（头像/昵称/手机号/校区/报名时间）
+// 权限：路由侧 requireAdmin('content.manage')，仅管理员可见；用户端接口不返回他人手机号
+exports.adminSignups = async (req, res) => {
+  const id = intId(req.params.id)
+  if (!id) return fail(res, 'Invalid activity id')
+  const { page, pageSize, offset } = pageParams(req.query)
+  const keyword = String(req.query.keyword || '').trim().slice(0, 64)
+  try {
+    const [acts] = await pool.query(
+      `SELECT a.*, u.nick_name AS owner_nick_name FROM campus_activity a
+       LEFT JOIN sys_user u ON u.id = a.user_id
+       WHERE a.id = ? AND a.deleted = 0 LIMIT 1`,
+      [id]
+    )
+    if (!acts.length) return fail(res, '活动不存在', 404)
+    const row = acts[0]
+    // 名单筛选：关键词匹配昵称或手机号（仅影响返回的列表，不影响报名总数）
+    const where = ['s.activity_id = ?']
+    const params = [id]
+    if (keyword) {
+      where.push('(u.nick_name LIKE ? OR u.phone LIKE ?)')
+      const q = '%' + keyword + '%'
+      params.push(q, q)
+    }
+    const whereSql = 'WHERE ' + where.join(' AND ')
+    const [[count], [rows], countMap] = await Promise.all([
+      pool.query(`SELECT COUNT(*) total FROM activity_signup s LEFT JOIN sys_user u ON u.id = s.user_id ${whereSql}`, params),
+      pool.query(
+        `SELECT s.id, s.user_id, s.created_at, u.nick_name, u.avatar_url, u.phone, u.campus, u.status AS account_status
+         FROM activity_signup s LEFT JOIN sys_user u ON u.id = s.user_id
+         ${whereSql} ORDER BY s.created_at ASC, s.id ASC LIMIT ? OFFSET ?`,
+        params.concat([pageSize, offset])
+      ),
+      countSignups([id])
+    ])
+    const total = Number(count[0].total || 0)
+    const list = rows.map((r) => ({
+      id: r.id,
+      userId: r.user_id,
+      nickName: r.nick_name || '',
+      avatarUrl: r.avatar_url || '',
+      phone: r.phone || '',
+      campus: r.campus || '',
+      accountDisabled: Number(r.account_status) === 0,
+      signedAt: r.created_at
+    }))
+    const activity = mapActivityRow(row)
+    const signupCount = countMap[id] || 0
+    success(res, {
+      activity: Object.assign(activity, {
+        ownerNickName: row.owner_nick_name || '',
+        badge: computeBadge(row),
+        signupCount,
+        remaining: activity.capacity > 0 ? Math.max(activity.capacity - signupCount, 0) : null
+      }),
+      list, total, page, hasMore: offset + rows.length < total
+    })
   } catch (e) { fail(res, safeMessage(e), 500) }
 }
 

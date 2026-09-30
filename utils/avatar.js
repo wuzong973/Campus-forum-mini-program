@@ -1,19 +1,19 @@
 // Keep the bundled defaults in one place so login and profile editing use the
-// same asset set. The filenames are URL encoded because several contain spaces.
-const DEFAULT_AVATARS = [
-  '1 (1).jpg', '1 (2).jpg', '1 (3).jpg', '1 (4).jpg', '1 (5).jpg',
-  '1 (6).jpg', '1 (7).jpg', '1 (8).jpg', '1 (9).jpg', '1 (10).jpg',
-  '1 (11).jpg', '1 (12).jpg', '1 (13).jpg', '1 (14).jpg', '1 (15).jpg',
-  '1 (16).jpg', '1 (17).jpg', '1 (18).jpg', '1 (19).jpg', '1 (20).jpg',
-  '1 (21).jpg', '1 (22).jpg', '1 (23).jpg', '1 (24).jpg', '1 (25).jpg',
-  '1 (26).jpg', '1 (27).jpg', '1 (28).jpg', '1 (29).jpg', '1 (30).jpg',
-  '1 (31).jpg', '1 (32).jpg', '1 (33).jpg', '1 (34).jpg', '1 (35).jpg',
-  '1 (36).jpg', '1 (37).jpg', '1 (38).jpg', '1 (39).jpg', '1 (40).jpg',
-  '1 (41).jpg', '1 (42).jpg', '1 (43).jpg', '1 (44).jpg', '1 (45).jpg',
-  '1 (46).jpg', '1 (47).jpg', '1 (48).jpg', '1 (49).jpg', '1 (50).jpg',
-  '1 (51).jpg', '1 (52).jpg', '1 (53).jpg', '1 (54).jpg', '1 (55).jpg',
-  '1.jpg'
-]
+// same asset set. Filenames are plain ASCII on purpose: real devices resolve
+// spaces and parentheses in bundled asset paths inconsistently, which made
+// avatars silently fail to render (see avatar_01.jpg ... avatar_55.jpg).
+//
+// NOTE: assets/avatar2/ 曾混入非头像图片（校历.jpg，291KB 零引用，已于 2026-09-12 移除）。
+// 管理员微信.png). This list is an explicit allowlist on purpose — never
+// enumerate the directory, or those files get handed out as user avatars.
+const DEFAULT_AVATARS = (function () {
+  const list = []
+  for (let i = 1; i <= 55; i += 1) {
+    list.push('avatar_' + String(i).padStart(2, '0') + '.jpg')
+  }
+  list.push('1.jpg')
+  return list
+})()
 
 // Bundled from assets/avatar2/name.txt because mini-program code cannot read files
 // from the project directory at runtime.
@@ -49,9 +49,77 @@ const DEFAULT_NAMES = [
 
 const DEFAULT_PROFILE_KEY = 'default_guest_profile'
 
+// Legacy avatars were stored as `/assets/avatar2/1%20(9).jpg` (space encoded,
+// parentheses left raw). Real devices failed to render those paths, so the
+// files were renamed to `avatar_09.jpg`. This maps the old URLs that are still
+// persisted in sys_user.avatar_url / local storage onto the new filenames.
+function normalizeLegacyAvatar(value) {
+  const url = String(value || '').trim()
+  if (!url) return ''
+  const match = url.match(/^\/assets\/avatar2\/(?:1|1)[\s%20]*\((\d+)\)\.jpg$/i)
+  if (match) return '/assets/avatar2/avatar_' + String(Number(match[1])).padStart(2, '0') + '.jpg'
+  if (/^\/assets\/avatar2\/1\.jpg$/i.test(url)) return '/assets/avatar2/1.jpg'
+  // 匿名形象（avatar1）同样有旧名存量：`考拉 (2).jpg` 这类含空格与半角括号的
+  // 路径在真机上渲染失败，文件已重命名为 `考拉2.jpg`。
+  if (url.indexOf('/assets/avatar1/') === 0) return normalizeAnonymousAvatar(url)
+  return url
+}
+
+// 匿名形象素材池：与小程序包内 assets/avatar1/ 逐一对齐，并与服务端
+// utils/defaultProfile.js 的 ANONYMOUS_AVATARS 同源，三处必须同步。
+const ANONYMOUS_AVATARS = [
+  '/assets/avatar1/鹰.jpg', '/assets/avatar1/鳄鱼.jpg', '/assets/avatar1/鲸鱼.jpg', '/assets/avatar1/骆驼.jpg',
+  '/assets/avatar1/青蛙.jpg', '/assets/avatar1/长颈鹿.jpg', '/assets/avatar1/袋鼠.jpg', '/assets/avatar1/蟾蜍.jpg',
+  '/assets/avatar1/蝴蝶.jpg', '/assets/avatar1/蜜蜂.jpg', '/assets/avatar1/蛇.jpg', '/assets/avatar1/考拉.jpg',
+  '/assets/avatar1/考拉2.jpg', '/assets/avatar1/老虎.jpg', '/assets/avatar1/老虎2.jpg', '/assets/avatar1/羊驼.jpg',
+  '/assets/avatar1/猴子.jpg', '/assets/avatar1/猫头鹰.jpg', '/assets/avatar1/狼.jpg', '/assets/avatar1/狮子.jpg',
+  '/assets/avatar1/狐狸.jpg', '/assets/avatar1/犀牛.jpg', '/assets/avatar1/熊猫.jpg', '/assets/avatar1/海豹.jpg',
+  '/assets/avatar1/海狮.jpg', '/assets/avatar1/河马.jpg', '/assets/avatar1/松鼠.jpg', '/assets/avatar1/斑马.jpg',
+  '/assets/avatar1/孔雀.jpg', '/assets/avatar1/大象.jpg', '/assets/avatar1/土拨鼠.jpg', '/assets/avatar1/喜鹊.jpg',
+  '/assets/avatar1/北极熊.jpg', '/assets/avatar1/刺猬.jpg', '/assets/avatar1/八哥.jpg', '/assets/avatar1/兔子.jpg',
+  '/assets/avatar1/乌龟.jpg', '/assets/avatar1/七星瓢虫.jpg'
+]
+
+// 匿名形象旧名 → 新名：`/assets/avatar1/考拉 (2).jpg`（含 %20 形式）→ `/assets/avatar1/考拉2.jpg`
+function normalizeAnonymousAvatar(value) {
+  const url = String(value || '').trim()
+  if (!url) return ''
+  const match = url.match(/^\/assets\/avatar1\/(.+?)[\s%20]*\((\d+)\)\.(jpg|jpeg|png)$/i)
+  if (match) {
+    const renamed = '/assets/avatar1/' + match[1].trim() + String(Number(match[2])) + '.' + match[3]
+    if (ANONYMOUS_AVATARS.indexOf(renamed) > -1) return renamed
+  }
+  return url
+}
+
+function isAnonymousAvatar(value) {
+  return ANONYMOUS_AVATARS.indexOf(String(value || '').trim()) > -1
+}
+
+// 未知匿名路径 → 稳定映射到池内素材（与服务端 pickAnonymousAvatar 同算法）。
+// 用种子（通常是昵称）保证同一身份每次映射到同一形象，避免"每次刷新换一张脸"。
+function pickAnonymousAvatar(seed) {
+  const text = String(seed || '')
+  let hash = 0
+  for (let i = 0; i < text.length; i += 1) {
+    hash = (hash * 31 + text.charCodeAt(i)) % 100000
+  }
+  return ANONYMOUS_AVATARS[hash % ANONYMOUS_AVATARS.length]
+}
+
+// 是否「匿名形象」路径（含历史脏数据）：用于判断能否展示对方真实主页 ——
+// 只要头像是匿名素材池里的形象，无论会话是否标记为匿名，都不应提供主页入口
+function looksAnonymousAvatar(value) {
+  const url = String(value || '').trim()
+  if (!url) return false
+  return url.indexOf('/assets/avatar1/') === 0 || isAnonymousAvatar(url)
+}
+
 function getRandomAvatar() {
   const filename = DEFAULT_AVATARS[Math.floor(Math.random() * DEFAULT_AVATARS.length)]
-  return '/assets/avatar2/' + encodeURIComponent(filename)
+  // Filenames are plain ASCII now, so no URL encoding is needed (and encoding
+  // is what used to leave raw parentheses in the path on real devices).
+  return '/assets/avatar2/' + filename
 }
 
 function getRandomName() {
@@ -60,7 +128,15 @@ function getRandomName() {
 
 function getDefaultProfile() {
   const cached = wx.getStorageSync(DEFAULT_PROFILE_KEY)
-  if (cached && cached.avatarUrl && cached.nickName) return cached
+  if (cached && cached.avatarUrl && cached.nickName) {
+    // Heal profiles cached before the avatar files were renamed.
+    const fixed = normalizeLegacyAvatar(cached.avatarUrl)
+    if (fixed !== cached.avatarUrl) {
+      cached.avatarUrl = fixed
+      wx.setStorageSync(DEFAULT_PROFILE_KEY, cached)
+    }
+    return cached
+  }
   const profile = { avatarUrl: getRandomAvatar(), nickName: getRandomName() }
   wx.setStorageSync(DEFAULT_PROFILE_KEY, profile)
   return profile
@@ -82,4 +158,19 @@ function isStoredAvatar(value) {
   return /^https:\/\//i.test(url) || url.indexOf('/assets/') === 0
 }
 
-module.exports = { DEFAULT_AVATARS, DEFAULT_NAMES, getRandomAvatar, getRandomName, getDefaultProfile, isDefaultName, isTemporaryAvatar, isStoredAvatar }
+module.exports = {
+  DEFAULT_AVATARS,
+  DEFAULT_NAMES,
+  ANONYMOUS_AVATARS,
+  getRandomAvatar,
+  getRandomName,
+  getDefaultProfile,
+  isDefaultName,
+  isTemporaryAvatar,
+  isStoredAvatar,
+  normalizeLegacyAvatar,
+  normalizeAnonymousAvatar,
+  isAnonymousAvatar,
+  looksAnonymousAvatar,
+  pickAnonymousAvatar,
+}

@@ -25,7 +25,8 @@
 .thumb-delete{position:absolute;top:0;right:0;width:44rpx;height:44rpx;background:rgba(20,30,45,.55);color:#fff;font-size:32rpx;display:flex;align-items:center;justify-content:center;border-bottom-left-radius:12rpx}
 .warm-tip{font-size:24rpx;line-height:1.5;color:#7f8da0;padding:20rpx 12rpx 0}
 .tip-line{color:#7f8da0}
-.tip-link{color:#347ff2}
+/* 「举报领奖」：可点击入口，下划线作为视觉提示（underline 跟随文字宽度，不撑满整行） */
+.tip-link{color:#347ff2;text-decoration:underline;padding:0 4rpx}
 .bottom-actions{position:fixed;left:16rpx;right:16rpx;bottom:calc(24rpx + env(safe-area-inset-bottom));display:flex;gap:20rpx}
 .bottom-actions button{flex:1;height:88rpx;line-height:88rpx;border-radius:44rpx;font-size:30rpx}
 .bottom-actions button::after{border:0}

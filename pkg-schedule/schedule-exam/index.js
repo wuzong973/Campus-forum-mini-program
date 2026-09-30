@@ -1,4 +1,5 @@
 const api = require("../../utils/api");
+const auth = require("../../utils/auth");
 const { runPullDownRefresh } = require("../../utils/refresh");
 
 function parseExamDate(text) {
@@ -54,6 +55,8 @@ Page({
   },
 
   onShow() {
+    // 未登录：弹窗引导去登录（取消则退回上一页）
+    if (!auth.guardPage("该功能需要登录后使用")) return;
     this.loadData();
   },
 

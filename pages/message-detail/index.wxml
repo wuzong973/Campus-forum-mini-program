@@ -2,12 +2,12 @@
   <!-- 评论者信息区：圆形头像 + 加粗昵称 + 评论内容（保留原始排版）；真实用户头像可进主页，匿名不可点击 -->
   <view class="actor-card">
     <view
-      class="actor-head {{canViewProfile ? 'actor-link' : ''}}"
+      class="actor-head {{canViewProfile ? 'actor-link' : ''}} spring-btn"
       bindtap="onActorProfile"
       hover-class="{{canViewProfile ? 'actor-head-hover' : ''}}"
       hover-stay-time="80"
     >
-      <image class="actor-avatar" src="{{actorAvatar || '/assets/icons/avatar.png'}}" mode="aspectFill"></image>
+      <image class="actor-avatar" src="{{actorAvatar || '/assets/icons/avatar.png'}}" mode="aspectFill" binderror="onAvatarError"></image>
       <view class="actor-info">
         <text class="actor-nick">{{actorNick || '校园同学'}}</text>
         <text class="actor-sub">{{actionTitle}}</text>
@@ -43,7 +43,12 @@
 
   <!-- 原帖信息区：背景色 + 边框与评论区分 -->
   <view class="section-label">原帖</view>
-  <view class="post-card" bindtap="viewOriginalPost" hover-class="post-card-hover" hover-stay-time="80">
+  <view
+    class="post-card {{postMissing ? 'is-missing' : ''}} spring-btn"
+    bindtap="viewOriginalPost"
+    hover-class="{{postMissing ? '' : 'post-card-hover'}}"
+    hover-stay-time="80"
+  >
     <block wx:if="{{post}}">
       <text class="post-title" wx:if="{{post.title}}">{{post.title}}</text>
       <text class="post-content">{{post.content}}</text>
@@ -63,9 +68,14 @@
     </block>
     <block wx:else>
       <text class="post-title">{{postTitle || '原帖'}}</text>
-      <text class="post-fallback">{{loading ? '原帖信息加载中…' : '原帖内容暂无法查看，点击尝试打开'}}</text>
+      <text class="post-fallback">{{postMissing ? postMissingText : (loading ? '原帖信息加载中…' : '原帖内容暂无法查看，点击尝试打开')}}</text>
     </block>
   </view>
 
-  <view class="view-post-btn" bindtap="viewOriginalPost" hover-class="btn-hover" hover-stay-time="80">查看原帖</view>
+  <view
+    class="view-post-btn {{postMissing ? 'is-disabled' : ''}} spring-btn"
+    bindtap="viewOriginalPost"
+    hover-class="{{postMissing ? '' : 'btn-hover'}}"
+    hover-stay-time="80"
+  >{{postMissing ? '原帖已无法打开' : '查看原帖'}}</view>
 </view>

@@ -2,9 +2,10 @@ const express = require('express')
 const router = express.Router()
 const messageController = require('../controllers/messageController')
 const { auth } = require('../middleware/auth')
-const contentSecurity = require('../middleware/contentSecurity')
+const { messageTextSecurity } = require('../middleware/contentSecurity')
 
-router.post('/send', auth, contentSecurity, messageController.send)
+// P09：文本消息过内容安全检测，图片/视频消息按类型跳过（媒体在上传时已检）
+router.post('/send', auth, messageTextSecurity, messageController.send)
 router.post('/:id/recall', auth, messageController.recall)
 router.get('/history', auth, messageController.history)
 router.get('/conversations', auth, messageController.conversations)

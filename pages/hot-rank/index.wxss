@@ -1,3 +1,7 @@
+/* 卡片动效共享层：旋转描边（本页海报不上背光，理由见 wxml 注释）。
+   必须在文件首行，本文件后面覆盖 --fx-* token 的规则才生效。 */
+@import "../../styles/card-fx.wxss";
+
 .page {
   min-height: 100vh;
   padding-bottom: 60rpx;
@@ -55,9 +59,29 @@
 
 .hot-poster-wrap {
   position: relative;
+  /* 几何不变式核对（§2.3）：卡宽 702rpx（750 - 左右各 24），海报原图 560×289，
+     widthFix 下内容层宽 694rpx → 卡高约 358rpx。358 ≤ 702 × 1.375，
+     170% 方块边长 1193rpx 远大于对角线 790rpx，不需要 --fx-side 显式给边长。
+     主色取热榜这一支红（首页 .hot-rank-post-label / .today-hot-more 同色），不走共享层默认蓝。 */
+  --fx-accent: #ff3d62;
   margin: 8rpx 24rpx 8rpx;
+  /* 描边占位：四周各留 --fx-w，由卡片 padding 出，卡高继续由图片自己决定（§2.6） */
+  padding: var(--fx-w);
   overflow: hidden;
   border-radius: 24rpx;
+}
+
+/* 共享层默认把 .fx-body 做成四边内缩的绝对定位，那要求父级有确定高度；
+   海报高度是数据决定的（换图就变），写死数值会静默裁画面，所以这里改回随流：
+   内缩已由上面的 padding 提供，视觉等效，但高度不由外层规定。
+   底色跟页面背景一致，否则图片加载完成前会露出共享层默认的淡蓝底。 */
+.hot-poster-wrap .fx-body {
+  position: relative;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  background: #f5f6f8;
 }
 
 .hot-poster {

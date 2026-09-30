@@ -15,7 +15,7 @@
         <view class="contact-admin-close" catchtap="closeMenu">×</view>
       </view>
       <view class="contact-admin-options">
-        <button class="contact-admin-option online" open-type="contact" bindcontact="onCustomerServiceContact">
+        <button hover-class="press-spring" class="contact-admin-option online spring-btn" open-type="contact" bindcontact="onCustomerServiceContact" hover-stay-time="120">
           <text class="contact-admin-option-icon">◉</text>
           <view class="contact-admin-option-copy">
             <text class="contact-admin-option-title">在线联系</text>
@@ -47,7 +47,7 @@
         <view class="contact-admin-close" catchtap="closeQr">×</view>
       </view>
       <image class="contact-admin-qr" src="{{qrImage}}" mode="widthFix" show-menu-by-longpress="{{true}}"></image>
-      <button class="contact-admin-qr-btn" bindtap="openQrPage">点击此处即可跳转</button>
+      <button hover-class="press-spring" class="contact-admin-qr-btn spring-btn" bindtap="openQrPage" hover-stay-time="120">点击此处即可跳转</button>
       <view class="contact-admin-qr-tip">如果是二维码的话长按图片即可识别</view>
     </view>
   </root-portal>

@@ -1,0 +1,14 @@
+<view wx:if="{{visible}}" class="update-mask" catchtouchmove="stopPropagation">
+  <view class="update-dialog" catchtap="stopPropagation">
+    <text class="update-title">版本更新</text>
+    <view class="update-body">
+      <text class="update-message">新版本已准备就绪，是否立即重启</text>
+      <text class="update-version" wx:if="{{latestVersion && latestVersion !== 'package'}}">最新版本 {{latestVersion}}</text>
+      <text class="update-version" wx:if="{{localVersion}}">当前版本 {{localVersion}}</text>
+    </view>
+    <view class="update-actions">
+      <button hover-class="press-spring" class="update-btn ghost {{updating ? 'is-disabled' : ''}} spring-btn" disabled="{{updating}}" bindtap="onCancel" hover-stay-time="120">稍后</button>
+      <button hover-class="press-spring" class="update-btn primary {{updating ? 'is-disabled' : ''}} spring-btn" loading="{{updating}}" disabled="{{updating}}" bindtap="onConfirm" hover-stay-time="120">立即重启</button>
+    </view>
+  </view>
+</view>

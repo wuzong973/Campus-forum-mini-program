@@ -2,6 +2,7 @@ const auth = require('../../utils/auth')
 const wechat = require('../../utils/wechat')
 const request = require('../../utils/request')
 const qr = require('../../utils/qr')
+const subscribe = require('../../utils/subscribe')
 const { runPullDownRefresh } = require('../../utils/refresh')
 
 const VERIFY_KEY = 'runner_verification'
@@ -25,7 +26,11 @@ Page({
     phoneInput: '',
     savingPhone: false,
     overviewSteps: [],
-    formSteps: []
+    formSteps: [],
+    // 顶部「订阅审核结果提醒」入口：订阅生效（偏好开 + 微信侧已授权）后隐藏，
+    // 在设置页关闭「审核结果通知」后重新出现（见 refreshRiderVerifySubscribeEntry）
+    showRiderVerifySubscribeEntry: false,
+    riderVerifySubscribeChecked: false
   },
 
   // 步骤条：① 校园认证 → ② 认证审核 → ③ 完成认证 → ④ 成为骑手
@@ -57,9 +62,44 @@ Page({
   },
 
   onShow() {
+    // 未登录：弹窗引导去登录（取消则退回上一页）
+    if (!auth.guardPage('骑手认证需要先登录')) return
     this.refreshVerification()
     this.loadServerVerification()
+    this.refreshRiderVerifySubscribeEntry()
   },
+
+  // ===== 顶部「订阅审核结果提醒」入口 =====
+  // 与原「立即验证」/「提交认证」按钮走同一个 riderVerify 触发组（auditCert + audit + auditPass），
+  // 逻辑复用 utils/subscribe.js 的统一封装，原有逻辑一概不动。
+  // 显隐口径 entryVisible('riderVerify')：偏好已开且微信侧已授权才隐藏，
+  // 因此在设置页关闭「审核结果通知」后入口会自动重新出现。
+  refreshRiderVerifySubscribeEntry() {
+    // 本地判定为「需要引导」时直接显示（不发额外请求）；
+    // 本地认为「已订阅」时再复核一次服务端额度 —— 额度是「点一次允许发一条」，
+    // 高频场景（评论/私信）极易用尽；用尽后必须让入口重新出现，否则用户无从重新订阅。
+    if (typeof subscribe.entryVisibleAsync === 'function') {
+      subscribe.entryVisibleAsync('riderVerify')
+        .then((need) => this.setData({ showRiderVerifySubscribeEntry: !!need, riderVerifySubscribeChecked: false }))
+        .catch(() => {})
+      return
+    }
+    const visible = typeof subscribe.entryVisible === 'function' ? subscribe.entryVisible('riderVerify') : false
+    this.setData({ showRiderVerifySubscribeEntry: !!visible, riderVerifySubscribeChecked: false })
+  },
+  // 点击整行（左半区）与拨动开关走同一条路径
+  onRiderVerifySubscribeTap(e) {
+    // 开关被拨到「关」时不申请授权，只回正视觉状态（入口在订阅生效后本就会整体隐藏）
+    if (e && e.detail && e.detail.value === false) { this.setData({ riderVerifySubscribeChecked: false }); return }
+    this.setData({ riderVerifySubscribeChecked: true })
+    if (typeof subscribe.requestEntryByTap !== 'function') { this.refreshRiderVerifySubscribeEntry(); return }
+    // 必须在 tap 同步链内进入原生 API；requestEntryByTap = requestTriggerByTap + 允许后写偏好
+    subscribe.requestEntryByTap('riderVerify')
+      .then(() => this.refreshRiderVerifySubscribeEntry())
+      .catch(() => this.refreshRiderVerifySubscribeEntry())
+  },
+
+  // 审核结果订阅授权的真实用户手势入口：「立即验证」/「提交认证」按钮（见 submitJw / submitCampus）
 
   onPullDownRefresh() {
     runPullDownRefresh(this, () => this.loadServerVerification())
@@ -177,10 +217,11 @@ Page({
   checkStudentId() {
     const studentId = String(this.data.studentId || '').trim()
     if (!studentId) {
-      wx.showToast({ title: '请输入学号', icon: 'none' })
+      // 与输入框 placeholder 的措辞保持一致（教务系统登录页本身也叫「账号」）
+      wx.showToast({ title: '请输入账号', icon: 'none' })
       return ''
     }
-    // 学号位数不限制，填多少位都可以
+    // 账号位数不限制，填多少位都可以
     return studentId
   },
 
@@ -195,6 +236,8 @@ Page({
     }
     if (!this.checkCommonPreflight()) return
 
+    // 「立即验证」是审核结果通知的真实用户点击入口。
+    if (typeof subscribe.requestTriggerByTap === 'function') subscribe.requestTriggerByTap('riderVerify')
     this.setData({ submitting: true })
 
     const userInfo = getApp().globalData.userInfo || wx.getStorageSync('userInfo') || {}
@@ -229,21 +272,18 @@ Page({
     wx.showToast({ title: (data && data.message) || '验证通过，你已成为骑手', icon: 'success' })
   },
 
-  // 认证方式二：上传证件人工审核
+  // 认证方式二：上传证件人工审核（学号选填）
   submitCampus() {
     const { studentId, campusCredential } = this.data
     const trimmedStudentId = String(studentId || '').trim()
-    if (!trimmedStudentId) {
-      wx.showToast({ title: '请输入学号', icon: 'none' })
-      return
-    }
-    // 学号位数不限制，填多少位都可以
     if (!campusCredential) {
       wx.showToast({ title: '请上传学生证或校园卡', icon: 'none' })
       return
     }
     if (!this.checkCommonPreflight()) return
 
+    // 「提交认证」是审核结果通知的真实用户点击入口。
+    if (typeof subscribe.requestTriggerByTap === 'function') subscribe.requestTriggerByTap('riderVerify')
     this.setData({ submitting: true })
     const submit = (credential) => {
       const userInfo = getApp().globalData.userInfo || wx.getStorageSync('userInfo') || {}

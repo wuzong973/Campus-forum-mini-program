@@ -28,6 +28,14 @@
         "type": "folder"
       },
       {
+        "value": ".workbuddy-ai",
+        "type": "folder"
+      },
+      {
+        "value": ".claude",
+        "type": "folder"
+      },
+      {
         "value": ".git",
         "type": "folder"
       },
@@ -97,6 +105,34 @@
       },
       {
         "value": "%SystemDrive%",
+        "type": "folder"
+      },
+      {
+        "value": "shot1.png",
+        "type": "file"
+      },
+      {
+        "value": "shot2.png",
+        "type": "file"
+      },
+      {
+        "value": "shot3.png",
+        "type": "file"
+      },
+      {
+        "value": "shot4.png",
+        "type": "file"
+      },
+      {
+        "value": "ocr_result.txt",
+        "type": "file"
+      },
+      {
+        "value": "db-backup",
+        "type": "folder"
+      },
+      {
+        "value": "__pycache__",
         "type": "folder"
       }
     ],

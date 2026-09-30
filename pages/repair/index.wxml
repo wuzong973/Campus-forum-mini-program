@@ -1,7 +1,8 @@
 <view class="page">
   <view class="hero">
     <image class="hero-icon" src="/assets/icons/repair-logo.jpg" mode="aspectFit" />
-    <view class="hero-copy"><text class="hero-title">校园广轻维修</text><text class="hero-sub">预约上门 · 包括数码电子、宿舍家具、小型家电、代步单车、日常器物等，只要你能想到的，我们都能修！！
+    <view class="hero-copy"><text class="hero-title">广轻义修</text><text class="hero-sub">隶属学院团委学生会，为校园师生提供各种志愿服务
+囊括数码电子、宿舍家具、小型家电、代步单车，日常器物，只要你能想到的，我们都能修
 注：零件需付费或自行采购</text></view>
   </view>
 
@@ -12,22 +13,21 @@
 
   <block wx:if="{{tab === 'book'}}">
     <view class="section card">
-      <text class="section-title">设备与故障</text>
-      <text class="label">设备类型</text>
-      <view class="option-grid"><view class="option {{deviceType === item ? 'active' : ''}}" wx:for="{{deviceTypes}}" wx:key="*this" data-field="deviceType" data-value="{{item}}" bindtap="onSelect">{{item}}</view></view>
-      <text class="label label-gap">故障问题</text>
+      <text class="section-title">故障描述</text>
+      <text class="label">故障问题</text>
       <textarea class="textarea" maxlength="500" placeholder="请描述故障现象，例如无法开机、频繁蓝屏等 *（必填）" data-field="description" value="{{description}}" bindinput="onInput" />
       <view class="upload" bindtap="onChooseImage" wx:if="{{images.length < 3}}"><text class="upload-plus">+</text><text>添加故障照片（选填）</text></view>
       <view class="images"><view class="image-wrap" wx:for="{{images}}" wx:key="*this"><image class="image" src="{{item}}" mode="aspectFill"/><text class="remove" data-index="{{index}}" bindtap="onRemoveImage">×</text></view></view>
     </view>
 
     <view class="section card">
-      <text class="section-title">选择维修人员</text>
+      <text class="section-title">预约前可咨询</text>
+      <text class="label">维修人员（选填，不选则由平台统一分配）</text>
       <view class="technician-list">
         <view class="technician {{selectedTechnicianPhone === item.phone ? 'active' : ''}}" wx:for="{{technicians}}" wx:key="phone" data-phone="{{item.phone}}" bindtap="onSelectTechnician">
           <image class="technician-avatar" src="/assets/icons/repair-logo.jpg" mode="aspectFill" />
           <view class="technician-info"><text class="technician-name">{{item.name}}</text><text class="technician-phone">{{item.phone}}</text></view>
-          <text class="technician-chat" data-phone="{{item.phone}}" catchtap="onChatTechnician">聊天</text>
+          <text class="technician-copy" data-phone="{{item.phone}}" catchtap="onCopyTechnicianPhone">复制</text>
           <text class="selected-mark" wx:if="{{selectedTechnicianPhone === item.phone}}">已选</text>
         </view>
       </view>
@@ -35,18 +35,31 @@
 
     <view class="section card">
       <text class="section-title">上门信息</text>
-      <input class="input" placeholder="联系人 *" data-field="contactName" value="{{contactName}}" bindinput="onInput" />
-      <input class="input" type="number" maxlength="11" placeholder="联系电话 *" data-field="contactPhone" value="{{contactPhone}}" bindinput="onInput" />
-      <view class="address-row"><input class="input address-input" placeholder="宿舍楼、房间号或详细地址" data-field="serviceAddress" value="{{serviceAddress}}" bindinput="onInput"/><text class="location" bindtap="onFillCommonAddr">填入常用地址</text><text class="location" bindtap="onChooseLocation">定位</text></view>
-      <view class="picker-row"><picker mode="date" value="{{date}}" start="{{minDate}}" bindchange="onDateChange"><view class="picker">{{date}}</view></picker><picker mode="time" value="{{time}}" bindchange="onTimeChange"><view class="picker">{{time}}</view></picker></view>
+
+      <text class="sub-label sub-label-first">联系人 <text class="required">*</text></text>
+      <input class="soft-input" placeholder="请输入联系人姓名" data-field="contactName" value="{{contactName}}" bindinput="onInput" />
+
+      <text class="sub-label">上门地址 <text class="required">*</text></text>
+      <view class="address-row"><input class="soft-input" placeholder="宿舍楼、房间号或详细地址" data-field="serviceAddress" value="{{serviceAddress}}" bindinput="onInput"/><text class="location" bindtap="onFillCommonAddr">填入常用地址</text><text class="location" bindtap="onChooseLocation">定位</text></view>
+
+      <view class="sub-block">
+        <view class="field-head"><text class="field-title">联系方式 <text class="required">*</text></text><view class="use-last"><text class="use-last-text">使用上次</text><switch checked="{{useLastContact}}" color="#4388ff" bindchange="onToggleLastContact"/></view></view>
+        <view class="contact-input"><text class="contact-icon">●</text><input placeholder="请输入微信号" data-field="wechatId" bindinput="onInput" value="{{wechatId}}" /></view>
+        <view class="contact-input"><text class="contact-icon phone">⌕</text><input type="number" maxlength="11" placeholder="请输入手机号" data-field="contactPhone" bindinput="onInput" value="{{contactPhone}}" /></view>
+      </view>
     </view>
 
-    <view class="price-bar"><view><text class="price-label">检测预约费</text><text class="price-note">最终维修费用由工程师检测后确认</text></view><text class="price">¥{{price}}</text></view>
-    <button class="submit btn-primary" loading="{{submitting}}" bindtap="onSubmit">预约并支付</button>
+    <view class="section card compact-card">
+      <text class="field-title">预约上门时间 <text class="required">*</text></text>
+      <text class="hint">例如：今天下午3点前，明天上午等</text>
+      <input class="soft-input" maxlength="30" placeholder="请填写预约上门时间" data-field="expectedTime" bindinput="onInput" value="{{expectedTime}}" />
+    </view>
+
+    <button hover-class="press-spring" class="submit btn-primary spring-btn" loading="{{submitting}}" bindtap="onSubmit" hover-stay-time="120">提交预约信息</button>
   </block>
 
   <view wx:else class="orders">
-    <view class="order card" wx:for="{{orders}}" wx:key="id"><view class="order-head"><text class="order-type">{{item.device_type || item.deviceType}}</text><text class="status status-{{item.status}}">{{statusText[item.status]}}</text></view><text class="order-line">预约：{{item.appointment_time}}</text><text class="order-line">维修人员：{{item.technicianName || item.technician_name || item.technicianName || '待分配'}}</text><text class="order-line">地址：{{item.service_address || item.serviceAddress}}</text><text class="order-line">故障描述：{{item.description}}</text><view class="order-foot"><text class="order-no">{{item.order_no}}</text><view class="order-actions"><text class="order-chat" wx:if="{{item.technicianUserId}}" data-phone="{{item.technicianPhone || item.technician_phone}}" bindtap="onChatTechnician">联系师傅</text><text class="order-price">¥{{item.amount}}</text></view></view></view>
+    <view class="order card anim-stagger" style="--i: {{index < 6 ? index : 0}};" wx:for="{{orders}}" wx:key="id"><view class="order-head"><text class="order-type">维修预约</text><text class="status status-{{item.status}}">{{statusText[item.status]}}</text></view><text class="order-line">期望上门：{{item.expected_time || item.expectedTime || '未填写'}}</text><text class="order-line">维修人员：{{item.technicianName || item.technician_name || '待分配'}}</text><text class="order-line">地址：{{item.service_address || item.serviceAddress}}</text><text class="order-line">故障描述：{{item.description}}</text><view class="order-foot"><text class="order-no">{{item.order_no}}</text><view class="order-actions"><text class="order-chat" wx:if="{{item.technicianUserId}}" data-phone="{{item.technicianPhone || item.technician_phone}}" bindtap="onChatTechnician">联系师傅</text><text class="order-price">¥{{item.amount}}</text></view></view></view>
     <view class="empty" wx:if="{{!loadingOrders && orders.length === 0}}">暂无维修订单</view>
     <view class="empty" wx:if="{{loadingOrders}}">正在加载...</view>
   </view>

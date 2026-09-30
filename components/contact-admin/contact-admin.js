@@ -2,6 +2,7 @@
 const QR_PAGE_URL = 'https://payun01.cn/wechat-qr.html';
 
 const request = require("../../utils/request");
+const subscribe = require("../../utils/subscribe");
 
 // 管理员微信二维码与标题：优先使用管理后台「公告-链接图片/公告文字」配置（/config/home），
 // 未配置时回退到内置图片与默认标题。缓存仅用于打开弹窗时的即时展示，每次打开都会重新拉取。
@@ -19,6 +20,16 @@ Component({
       type: Boolean,
       value: false,
     },
+    // 局部覆盖：驾校详情页这类入口要弹自己机构的二维码，而不是全站管理员微信。
+    // 传了 overrideImage 就不再拉取后台「公告」配置，否则会被全站默认值盖掉。
+    overrideImage: {
+      type: String,
+      value: "",
+    },
+    overrideTitle: {
+      type: String,
+      value: "",
+    },
   },
 
   data: {
@@ -31,6 +42,11 @@ Component({
 
   methods: {
     openMenu() {
+      // 新增触发点：小程序内**每一处「联系客服」**都复用本组件，因此在这里统一收口，
+      // 点击时同步申请「审核结果通知」订阅授权（与骑手认证页提交认证共用 riderVerify 组）。
+      // 为什么联系客服挂审核组：用户找客服的绝大多数场景就是问认证/审核进度，
+      // 而审核结果正是 auditCert / audit / auditPass 三个模板负责触达的。
+      if (typeof subscribe.requestTriggerByTap === "function") subscribe.requestTriggerByTap("riderVerify");
       if (this.data.direct) {
         this.openQr();
         return;
@@ -44,6 +60,13 @@ Component({
 
     openQr() {
       this.setData({ showMenu: false, showQr: true });
+      if (this.data.overrideImage) {
+        // 本入口固定用机构自己的二维码：直接应用覆盖值，不再拉全站「公告」配置
+        const patch = { qrImage: this.data.overrideImage };
+        if (this.data.overrideTitle) patch.qrTitle = this.data.overrideTitle;
+        this.setData(patch);
+        return;
+      }
       this.refreshQrImage();
     },
 

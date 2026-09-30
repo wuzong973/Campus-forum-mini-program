@@ -59,12 +59,12 @@
   padding: 14rpx 24rpx;
   background: #eef3fb;
   border-bottom: 1rpx solid #dce6f5;
-  transition: background-color 0.2s ease;
+  transition: background-color 0.2s ease, transform 0.35s cubic-bezier(0.34, 1.42, 0.6, 1), box-shadow 0.35s cubic-bezier(0.34, 1.42, 0.6, 1);
 }
 
 .order-bar-hover {
   background: #dfe9f8;
-}
+ transform: scale(0.96); box-shadow: inset 0 2rpx 6rpx rgba(16, 32, 64, 0.16), inset 0 -1rpx 2rpx rgba(255, 255, 255, 0.08); }
 
 .order-bar-desc {
   flex: 1;
@@ -238,10 +238,10 @@
   flex-shrink: 0;
   border-radius: 10rpx;
   color: #1a1a1a;
-  transition: opacity 0.15s ease, transform 0.15s ease;
+  transition: opacity 0.15s ease, transform 0.35s cubic-bezier(0.34, 1.42, 0.6, 1), box-shadow 0.35s cubic-bezier(0.34, 1.42, 0.6, 1);
 }
 
-.tool-btn-hover { opacity: 0.55; transform: scale(0.92); }
+.tool-btn-hover { opacity: 0.55; transform: scale(0.96);  box-shadow: inset 0 2rpx 6rpx rgba(16, 32, 64, 0.16), inset 0 -1rpx 2rpx rgba(255, 255, 255, 0.08); }
 
 /* 麦克风图标 */
 .icon-voice {
@@ -355,7 +355,7 @@
   font-weight: 500;
 }
 
-.voice-hover { background: #ececec; }
+.voice-hover { background: #ececec;  transform: scale(0.96); box-shadow: inset 0 2rpx 6rpx rgba(16, 32, 64, 0.16), inset 0 -1rpx 2rpx rgba(255, 255, 255, 0.08); }
 
 .message-input {
   flex: 1;
@@ -381,10 +381,10 @@
   font-size: 27rpx;
   font-weight: 500;
   flex-shrink: 0;
-  transition: transform 0.15s ease, background-color 0.15s ease;
+  transition: background-color 0.15s ease, transform 0.35s cubic-bezier(0.34, 1.42, 0.6, 1), box-shadow 0.35s cubic-bezier(0.34, 1.42, 0.6, 1);
 }
 
-.send-btn-hover { background: #06ad56; transform: scale(0.96); }
+.send-btn-hover { background: #06ad56; transform: scale(0.96);  box-shadow: inset 0 2rpx 6rpx rgba(16, 32, 64, 0.16), inset 0 -1rpx 2rpx rgba(255, 255, 255, 0.08); }
 
 /* ＋ 功能面板（照片/视频） */
 .tool-panel {
@@ -403,10 +403,10 @@
   flex-direction: column;
   align-items: center;
   gap: 12rpx;
-  transition: transform 0.15s ease, opacity 0.15s ease;
+  transition: opacity 0.15s ease, transform 0.35s cubic-bezier(0.34, 1.42, 0.6, 1), box-shadow 0.35s cubic-bezier(0.34, 1.42, 0.6, 1);
 }
 
-.tool-item-hover { opacity: 0.6; transform: scale(0.95); }
+.tool-item-hover { opacity: 0.6; transform: scale(0.96);  box-shadow: inset 0 2rpx 6rpx rgba(16, 32, 64, 0.16), inset 0 -1rpx 2rpx rgba(255, 255, 255, 0.08); }
 
 .tool-tile {
   width: 108rpx;

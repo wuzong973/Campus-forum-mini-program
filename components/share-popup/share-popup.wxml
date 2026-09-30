@@ -2,7 +2,7 @@
   <view class="share-popup-mask show" catchtap="onMaskTap"></view>
   <view class="share-popup show">
     <view class="share-list">
-      <button class="share-list-item share-wechat-btn" open-type="share">
+      <button hover-class="press-spring" class="share-list-item share-wechat-btn spring-btn" open-type="share" hover-stay-time="120">
         <image class="share-wechat-icon" src="/assets/icons/wechat.jpg" mode="aspectFit"></image>
         <text class="share-list-label">分享微信好友</text>
       </button>

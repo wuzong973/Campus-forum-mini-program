@@ -50,3 +50,6 @@
 .phone-modal-input { width: 100%; height: 84rpx; margin-top: 30rpx; padding: 0 24rpx; box-sizing: border-box; border: 1rpx solid #e3e9f2; border-radius: 14rpx; background: #f6f8fc; color: #1f2d46; font-size: 30rpx; }.phone-modal-placeholder { color: #a5aebd; }
 .phone-modal-tip { margin-top: 14rpx; color: #98a2b3; font-size: 22rpx; }
 .phone-modal-actions { display: flex; gap: 20rpx; margin-top: 36rpx; }.phone-modal-btn { flex: 1; height: 80rpx; border-radius: 40rpx; font-size: 29rpx; line-height: 80rpx; text-align: center; }.phone-modal-btn.cancel { background: #f2f4f8; color: #66718a; }.phone-modal-btn.confirm { background: #327df2; color: #fff; font-weight: 600; }.phone-modal-btn.confirm.disabled { opacity: 0.6; }
+
+/* 顶部通知入口：.scroll 容器本身没有水平内边距，这里单独补外边距 */
+.scroll .sub-notice-card { margin: 24rpx 24rpx 20rpx; }

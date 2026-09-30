@@ -1,0 +1,434 @@
+.page {
+  min-height: 100vh;
+  padding-bottom: 180rpx;
+  box-sizing: border-box;
+  background: #f4f6fa;
+}
+
+/* ============ 顶部实景 ============ */
+.hero {
+  position: relative;
+  width: 100%;
+  height: 420rpx;
+  overflow: hidden;
+}
+
+.hero-img {
+  width: 100%;
+  height: 100%;
+}
+
+.hero-fallback {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.hero-char {
+  font-size: 140rpx;
+  font-weight: 800;
+  color: rgba(255, 255, 255, 0.92);
+  line-height: 1;
+}
+
+.hero-mask {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 220rpx;
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0.55) 100%);
+}
+
+.hero-title {
+  position: absolute;
+  left: 32rpx;
+  right: 32rpx;
+  bottom: 28rpx;
+  display: flex;
+  flex-direction: column;
+}
+
+.hero-name {
+  font-size: 38rpx;
+  font-weight: 800;
+  color: #ffffff;
+  line-height: 1.35;
+}
+
+.hero-badges {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  margin-top: 14rpx;
+}
+
+.hero-badge {
+  padding: 4rpx 16rpx;
+  border-radius: 8rpx;
+  background: rgba(255, 255, 255, 0.22);
+  border: 1rpx solid rgba(255, 255, 255, 0.5);
+  color: #ffffff;
+  font-size: 21rpx;
+  font-weight: 600;
+}
+
+/* ============ 通用卡片 ============ */
+.card {
+  margin: 0 24rpx 24rpx;
+  padding: 28rpx;
+  border-radius: 24rpx;
+  background: #ffffff;
+  border: 1rpx solid #eef1f6;
+  box-shadow: 0 10rpx 26rpx rgba(31, 42, 68, 0.05);
+}
+
+/* 信息卡与顶部实景衔接：上移压住实景底部，形成卡片浮起效果 */
+.info-card {
+  position: relative;
+  margin-top: -36rpx;
+}
+
+.sec-title {
+  font-size: 30rpx;
+  font-weight: 700;
+  color: #1f2a44;
+}
+
+/* ============ 信息卡 ============ */
+
+
+.info-geo {
+  display: flex;
+  align-items: center;
+  gap: 10rpx;
+  margin-top: 12rpx;
+  font-size: 24rpx;
+  color: #8b93a3;
+}
+
+/* 可报名班型/车型 + 价格 */
+.info-fields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12rpx;
+  margin-top: 14rpx;
+}
+
+.info-field {
+  padding: 8rpx 18rpx;
+  border-radius: 10rpx;
+  background: #f2f4f8;
+  color: #3a4356;
+  font-size: 23rpx;
+  line-height: 1.4;
+}
+
+.info-field--price {
+  background: #fff4e6;
+  color: #e08a1e;
+  font-weight: 600;
+}
+
+.dot {
+  color: #c8cedb;
+}
+
+.info-metrics {
+  display: flex;
+  align-items: center;
+  margin-top: 24rpx;
+  padding: 20rpx 0;
+  border-radius: 18rpx;
+  background: #f7f9fd;
+}
+
+.metric-box {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.metric-num {
+  font-size: 36rpx;
+  font-weight: 800;
+  color: #f5a70a;
+  line-height: 1.2;
+}
+
+.metric-label {
+  margin-top: 8rpx;
+  font-size: 22rpx;
+  color: #8b93a3;
+}
+
+.metric-divider {
+  width: 1rpx;
+  height: 56rpx;
+  background: #e6ebf3;
+}
+
+.info-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12rpx;
+  margin-top: 22rpx;
+}
+
+.info-tag {
+  padding: 8rpx 20rpx;
+  border-radius: 8rpx;
+  background: #eef4ff;
+  color: #2e6bff;
+  font-size: 22rpx;
+  line-height: 1.4;
+}
+
+/* ============ 报名流程 ============ */
+.steps {
+  display: flex;
+  align-items: flex-start;
+  margin-top: 30rpx;
+}
+
+.step {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.step-track {
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.step-line {
+  flex: 1;
+  height: 2rpx;
+  background: #e6ebf3;
+}
+
+.step-line--hide {
+  background: transparent;
+}
+
+.step-no {
+  flex: none;
+  width: 52rpx;
+  height: 52rpx;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 2rpx solid #d5dce8;
+  color: #8b93a3;
+  font-size: 24rpx;
+  font-weight: 700;
+  line-height: 48rpx;
+  text-align: center;
+  box-sizing: border-box;
+}
+
+.step--active .step-no {
+  background: #2e6bff;
+  border-color: #2e6bff;
+  color: #ffffff;
+}
+
+.step-label {
+  margin-top: 14rpx;
+  font-size: 22rpx;
+  color: #6b7891;
+  text-align: center;
+  line-height: 1.3;
+}
+
+.step--active .step-label {
+  color: #2e6bff;
+  font-weight: 700;
+}
+
+.step-tip {
+  margin-top: 26rpx;
+  padding: 18rpx 22rpx;
+  border-radius: 16rpx;
+  background: #f7f9fd;
+  color: #5b6b85;
+  font-size: 23rpx;
+  line-height: 1.6;
+}
+
+/* ============ 场地展示 ============ */
+.gallery {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16rpx;
+  margin-top: 22rpx;
+}
+
+.gallery-img {
+  width: calc((100% - 16rpx) / 2);
+  height: 240rpx;
+  border-radius: 16rpx;
+  background: #eef1f5;
+}
+
+/* ============ 驾校简介 ============ */
+.intro-text {
+  display: block;
+  margin-top: 18rpx;
+  font-size: 26rpx;
+  color: #3a4356;
+  line-height: 1.75;
+  text-align: justify;
+}
+
+.address-row {
+  display: flex;
+  align-items: flex-start;
+  margin-top: 20rpx;
+  padding-top: 20rpx;
+  border-top: 1rpx dashed #e6ebf3;
+}
+
+.address-label {
+  flex: none;
+  width: 140rpx;
+  font-size: 24rpx;
+  color: #8b93a3;
+}
+
+.address-text {
+  flex: 1;
+  min-width: 0;
+  font-size: 24rpx;
+  color: #3a4356;
+  line-height: 1.6;
+}
+
+/* 地址行右侧的地图入口：只在有坐标时出现 */
+.address-map {
+  flex: none;
+  margin-left: 16rpx;
+  padding: 6rpx 16rpx;
+  border-radius: 999rpx;
+  background: #eef4ff;
+  color: #2e6bff;
+  font-size: 22rpx;
+  line-height: 1.5;
+}
+
+.address-map--hover {
+  opacity: 0.75;
+}
+
+/* ============ 服务保障 ============ */
+.ensure-list {
+  display: flex;
+  flex-wrap: wrap;
+  margin-top: 20rpx;
+}
+
+.ensure-item {
+  width: 50%;
+  display: flex;
+  align-items: center;
+  padding: 12rpx 0;
+}
+
+.ensure-check {
+  flex: none;
+  width: 32rpx;
+  height: 32rpx;
+  margin-right: 12rpx;
+  border-radius: 50%;
+  background: #e9fbf8;
+  color: #12a88c;
+  font-size: 20rpx;
+  font-weight: 700;
+  line-height: 32rpx;
+  text-align: center;
+}
+
+.ensure-text {
+  flex: 1;
+  min-width: 0;
+  font-size: 24rpx;
+  color: #3a4356;
+}
+
+.ensure-note {
+  display: block;
+  margin-top: 20rpx;
+  font-size: 22rpx;
+  color: #98a2b3;
+  line-height: 1.6;
+}
+
+.page-foot {
+  margin: 8rpx 36rpx 0;
+  font-size: 21rpx;
+  color: #b3bac7;
+  line-height: 1.7;
+  text-align: center;
+}
+
+/* ============ 底部固定操作条 ============ */
+.foot-bar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+  padding: 18rpx 24rpx calc(18rpx + env(safe-area-inset-bottom));
+  background: #ffffff;
+  border-top: 1rpx solid #eef1f6;
+  box-shadow: 0 -8rpx 24rpx rgba(31, 42, 68, 0.06);
+}
+
+.foot-ghost {
+  flex: none;
+  padding: 0 36rpx;
+  height: 84rpx;
+  border-radius: 999rpx;
+  background: #f2f5fb;
+  color: #2e6bff;
+  font-size: 27rpx;
+  font-weight: 600;
+  line-height: 84rpx;
+  text-align: center;
+}
+
+.foot-ghost--hover {
+  opacity: 0.85;
+ transform: scale(0.96); box-shadow: inset 0 2rpx 6rpx rgba(16, 32, 64, 0.16), inset 0 -1rpx 2rpx rgba(255, 255, 255, 0.08); }
+
+/* contact-admin 组件作为 flex 子项，靠这层拿满剩余宽度 */
+.foot-main-wrap {
+  flex: 1;
+  min-width: 0;
+}
+
+.foot-main {
+  width: 100%;
+  height: 84rpx;
+  border-radius: 999rpx;
+  background: linear-gradient(135deg, #5b8def 0%, #2e6bff 100%);
+  color: #ffffff;
+  font-size: 29rpx;
+  font-weight: 700;
+  line-height: 84rpx;
+  text-align: center;
+  box-shadow: 0 12rpx 26rpx rgba(46, 107, 255, 0.26);
+}
+
+.foot-main:active {
+  opacity: 0.9;
+}

@@ -3,7 +3,7 @@
     <image class="hero-cover" src="{{profile.coverUrl || '/assets/banners/profile-cover.jpg'}}" mode="aspectFill"></image>
     <view class="hero-mask"></view>
     <view class="nav-bar" style="height: {{navBarHeight}}px;">
-      <view class="back-pill" hover-class="back-pill-hover" hover-stay-time="80" bindtap="onBack"><text class="back-pill-icon">‹</text><text>返回</text></view>
+      <view class="back-pill spring-btn" hover-class="back-pill-hover press-spring" hover-stay-time="80" bindtap="onBack"><text class="back-pill-icon">‹</text><text>返回</text></view>
       <text class="nav-title">校园主页</text>
       <view class="nav-placeholder"></view>
     </view>
@@ -12,8 +12,8 @@
 
   <view class="profile-panel">
     <view class="profile-main">
-      <image class="profile-avatar {{isSelf ? 'profile-avatar-editable' : ''}}" src="{{profile.avatarUrl || '/assets/icons/avatar.png'}}" mode="aspectFill" bindtap="onSelfAvatarTap"></image>
-      <button class="message-btn" wx:if="{{!isSelf}}" bindtap="onSendMessage">
+      <image class="profile-avatar {{isSelf ? 'profile-avatar-editable' : ''}}" src="{{profile.avatarUrl || '/assets/icons/avatar.png'}}" mode="aspectFill" bindtap="onSelfAvatarTap" binderror="onAvatarError"></image>
+      <button hover-class="press-spring" class="message-btn spring-btn" wx:if="{{!isSelf}}" bindtap="onSendMessage" hover-stay-time="120">
         <text class="message-btn-text">私信</text>
       </button>
     </view>
@@ -30,7 +30,7 @@
         <text class="stat-num">{{profile.likeReceived || 0}}</text>
         <text class="stat-label">获赞</text>
       </view>
-      <view class="stat-item">
+      <view class="stat-item" wx:if="{{!hideProfilePosts}}">
         <text class="stat-num">{{profile.postCount || 0}}</text>
         <text class="stat-label">帖子</text>
       </view>
@@ -38,23 +38,33 @@
   </view>
 
   <view class="content-section">
-    <view class="profile-tabbar">
+    <view class="profile-tabbar liquid-tab-track">
       <view
         class="profile-tab {{activeTab === index ? 'active' : ''}}"
         wx:for="{{tabs}}"
         wx:key="*this"
+        wx:if="{{index === 0 ? !hideProfilePosts : true}}"
         data-index="{{index}}"
         bindtap="onTab"
       >
         <text>{{item}}{{index === 0 ? ' ' + posts.length : ''}}</text>
       </view>
+      <!-- 液态指示条（utils/liquid-tab.js）：首个 tab 隐藏时数据序与渲染序差 1，见 js 的 liquidPos -->
+      <view class="liquid-indicator {{liquidPhase}}" style="{{liquidStyle}}"></view>
     </view>
 
-    <view wx:if="{{activeTab === 0}}" wx:for="{{posts}}" wx:key="id">
+    <view wx:if="{{activeTab === 0 && !hideProfilePosts}}" wx:for="{{posts}}" wx:key="id" class="feed-item anim-stagger" style="--i: {{index < 6 ? index : 0}};">
       <post-card post="{{item}}" showFooter="{{false}}" />
     </view>
 
-    <empty-state wx:if="{{!loading && activeTab === 0 && posts.length === 0}}" text="还没有发布帖子" />
+    <empty-state wx:if="{{!loading && activeTab === 0 && !hideProfilePosts && posts.length === 0}}" text="还没有发布帖子" />
     <empty-state wx:if="{{activeTab === 1}}" text="收藏内容暂未公开" />
+    <empty-state wx:if="{{hideProfilePosts && activeTab === 0}}" text="已开启「隐藏主页帖子」" />
   </view>
+</view>
+
+<!-- 加载失败兜底：整页 wx:if="{{profile}}" 在上述情况下会直接白屏，这里给出原因与重试入口 -->
+<view class="load-state" wx:if="{{!profile}}">
+  <text class="load-state-text">{{loading ? '资料加载中…' : (loadErrorText || '资料加载失败')}}</text>
+  <view class="load-state-btn spring-btn" wx:if="{{!loading}}" bindtap="onRetryLoad" hover-class="load-state-btn-hover press-spring" hover-stay-time="80">重新加载</view>
 </view>

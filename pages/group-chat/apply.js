@@ -39,6 +39,27 @@ Page({
       ? wx.getWindowInfo()
       : wx.getSystemInfoSync()
     this.setData({ statusBarHeight: info.statusBarHeight || 20, campus: getDefaultCampus() })
+    this.loadCategories()
+  },
+
+  onShow() {
+    // 未登录：弹窗引导去登录（取消则退回上一页），登录后回到本页自动放行
+    if (!auth.guardPage('申请创建群聊需要先登录')) return
+    // 从设置页/登录页返回时同步所选校区；用户手动改过校区时尊重其选择
+    if (!this._campusTouched) {
+      const def = getDefaultCampus()
+      if (def !== this.data.campus) this.setData({ campus: def })
+    }
+  },
+
+  // 类别选择器数据源：优先读服务端（管理后台「群聊类别编辑」维护），失败回退内置分类
+  loadCategories() {
+    api.getGroupChatCategories().then((res) => {
+      const names = ((res && res.list) || [])
+        .filter((c) => c && c.name && c.status !== 0)
+        .map((c) => c.name)
+      if (names.length) this.setData({ categories: names })
+    }).catch(() => {})
   },
 
   noop() {},
@@ -54,6 +75,7 @@ Page({
   // 校区选择器组件回调（仅主校区层级：全部校区/广州校区/佛山校区）
   onCampusChange(e) {
     const campus = e.detail.value
+    this._campusTouched = true
     this.setData({ campus, showCampusPanel: false })
   },
 
@@ -127,15 +149,15 @@ Page({
   },
 
   async onAddIntroImage() {
-    const remain = 4 - this.data.images.length
-    if (remain <= 0) return
+    const remain = 5 - this.data.images.length
+    if (remain <= 0) { this.toast('最多上传 5 张图片'); return }
     wx.chooseMedia({
       count: remain,
       mediaType: ['image'],
       sourceType: ['album', 'camera'],
       success: (res) => {
         const paths = (res.tempFiles || []).map((f) => f.tempFilePath)
-        this.setData({ images: this.data.images.concat(paths).slice(0, 4) })
+        this.setData({ images: this.data.images.concat(paths).slice(0, 5) })
       }
     })
   },
@@ -160,8 +182,10 @@ Page({
   onSubmit() {
     if (this.data.submitting) return
     const d = this.data
+    // 类别取实际展示列表的选中项（服务端类别加载后与内置 CATEGORIES 顺序可能不同）
+    const category = d.categories[d.categoryIndex] || ''
     if (!d.name.trim()) return this.toast('请填写群名')
-    if (d.categoryIndex < 0) return this.toast('请选择群类别')
+    if (!category) return this.toast('请选择群类别')
     if (!d.avatar) return this.toast('请上传群头像')
     if (!d.qrcode) return this.toast('请上传群二维码')
     if (!d.adminQr) return this.toast('请上传管理员微信二维码')
@@ -170,15 +194,15 @@ Page({
 
     // 已登录 → 图片上传服务器换 https 地址后提交服务端，由管理员统一审核
     if (auth.isLoggedIn()) {
-      this.submitToServer()
+      this.submitToServer(category)
       return
     }
     // 未登录 → 保持原有本地暂存流程
-    this.saveLocal()
+    this.saveLocal(category)
     this.finishSubmit('提交成功，等待管理员审核')
   },
 
-  submitToServer() {
+  submitToServer(category) {
     const d = this.data
     const singleDefs = [
       { key: 'avatarUrl', path: d.avatar },
@@ -194,7 +218,7 @@ Page({
       const introUrls = urls.slice(singleDefs.length)
       return api.submitGroupChatApply({
         groupType: '微信群',
-        category: CATEGORIES[d.categoryIndex],
+        category: category,
         campus: d.campus,
         name: d.name.trim(),
         intro: d.intro.trim(),
@@ -208,13 +232,13 @@ Page({
       this.finishSubmit('提交成功，等待管理员审核')
     }).catch(() => {
       // 上传/提交失败 → 回退本地暂存，不丢用户填写内容
-      this.saveLocal()
+      this.saveLocal(category)
       this.finishSubmit('网络异常，已暂存本地')
     })
   },
 
   // 本地暂存（服务端不可达或未登录时的兜底）
-  saveLocal() {
+  saveLocal(category) {
     const d = this.data
     let list = []
     try {
@@ -225,7 +249,7 @@ Page({
     list.unshift({
       id: 'gc' + Date.now(),
       type: '微信群',
-      category: CATEGORIES[d.categoryIndex],
+      category: category,
       campus: d.campus,
       name: d.name.trim(),
       avatar: d.avatar,

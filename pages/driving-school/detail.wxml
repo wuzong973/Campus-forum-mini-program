@@ -1,0 +1,139 @@
+<view class="page page-enter" wx:if="{{school}}">
+  <!-- 顶部实景：与列表卡片同源（封面优先，其次首张场地照），都没有才用配色兜底 -->
+  <view class="hero">
+    <image wx:if="{{heroSrc}}" class="hero-img" src="{{heroSrc}}" mode="aspectFill"></image>
+    <view wx:else class="hero-fallback" style="background:{{school.coverTheme}};">
+      <text class="hero-char">{{school.firstChar}}</text>
+    </view>
+    <view class="hero-mask"></view>
+    <view class="hero-title">
+      <text class="hero-name">{{school.name}}</text>
+      <view class="hero-badges">
+        <text class="hero-badge">推荐 {{school.levelText}} 级</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 驾校信息卡（名称已在顶部实景展示，这里不再重复一次） -->
+  <view class="card info-card">
+    <view class="info-geo">
+      <text>{{school.campus}}</text>
+      <text class="dot" wx:if="{{school.region}}">·</text>
+      <text wx:if="{{school.region}}">{{school.region}}</text>
+      <text class="dot" wx:if="{{school.distanceKm}}">·</text>
+      <text wx:if="{{school.distanceKm}}">距校 {{school.distanceText}}</text>
+    </view>
+
+    <view class="info-fields" wx:if="{{school.carTypesText || school.priceText}}">
+      <text class="info-field" wx:if="{{school.carTypesText}}">可报名班型/车型：{{school.carTypesText}}</text>
+      <text class="info-field info-field--price" wx:if="{{school.priceText}}">价格：{{school.priceText}}</text>
+    </view>
+
+    <view class="info-metrics">
+      <view class="metric-box">
+        <text class="metric-num">{{school.passRateText}}</text>
+        <text class="metric-label">通过率</text>
+      </view>
+      <view class="metric-divider"></view>
+      <view class="metric-box">
+        <text class="metric-num">{{school.levelText}}</text>
+        <text class="metric-label">推荐等级</text>
+      </view>
+    </view>
+
+    <view class="info-tags" wx:if="{{school.tagList.length}}">
+      <text class="info-tag" wx:for="{{school.tagList}}" wx:key="*this">{{item}}</text>
+    </view>
+  </view>
+
+  <!-- 报名流程 -->
+  <view class="card">
+    <view class="sec-title">报名流程</view>
+    <view class="steps">
+      <view
+        class="step {{index === activeStep ? 'step--active' : ''}}"
+        wx:for="{{steps}}"
+        wx:key="*this"
+        data-index="{{index}}"
+        bindtap="onStepTap"
+      >
+        <view class="step-track">
+          <view class="step-line {{index === 0 ? 'step-line--hide' : ''}}"></view>
+          <view class="step-no">{{index + 1}}</view>
+          <view class="step-line {{index === steps.length - 1 ? 'step-line--hide' : ''}}"></view>
+        </view>
+        <text class="step-label">{{item}}</text>
+      </view>
+    </view>
+    <view class="step-tip">{{stepTip}}</view>
+  </view>
+
+  <!-- 场地展示：没有实拍图时整块不渲染，避免出现空占位 -->
+  <view class="card" wx:if="{{images.length}}">
+    <view class="sec-title">场地展示</view>
+    <view class="gallery">
+      <image
+        class="gallery-img"
+        wx:for="{{images}}"
+        wx:key="*this"
+        src="{{item}}"
+        mode="aspectFill"
+        data-url="{{item}}"
+        bindtap="onPreviewImage"
+        lazy-load
+      ></image>
+    </view>
+  </view>
+
+  <!-- 驾校简介（后台填了「驾校概况」优先展示长文，否则用一句话简介） -->
+  <view class="card">
+    <view class="sec-title">驾校概况</view>
+    <text class="intro-text">{{school.detail || school.intro}}</text>
+    <view class="address-row">
+      <text class="address-label">训练场地址</text>
+      <text class="address-text">{{school.address || '报名后由驾校告知'}}</text>
+      <!-- 坐标由后台保存时按地址解析；没解析出来就不给入口，避免点开是空白或错点 -->
+      <text
+        wx:if="{{school.latitude && school.longitude}}"
+        class="address-map"
+        hover-class="address-map--hover"
+        catchtap="onOpenLocation"
+      >在地图查看 ›</text>
+    </view>
+    <view class="address-row" wx:if="{{school.phoneText}}">
+      <text class="address-label">招生电话</text>
+      <text class="address-text" user-select>{{school.phoneText}}</text>
+    </view>
+  </view>
+
+  <!-- 服务保障 -->
+  <view class="card" wx:if="{{school.tagList.length}}">
+    <view class="sec-title">服务保障</view>
+    <view class="ensure-list">
+      <view class="ensure-item" wx:for="{{school.tagList}}" wx:key="*this">
+        <text class="ensure-check">✓</text>
+        <text class="ensure-text">{{item}}</text>
+      </view>
+    </view>
+    <text class="ensure-note">具体包含项目以驾校书面报价与培训合同为准，请签约前逐项确认。</text>
+  </view>
+
+  <view class="page-foot">本页信息由平台核实后发布，平台不参与驾校招生与收费</view>
+
+  <!-- 底部固定操作条：contact-admin 才是 flex 子项，必须包一层拿宽度，
+       否则按钮只按文字收缩、右侧留空（组件内部的 flex:1 撑不到外层） -->
+  <view class="foot-bar">
+    <view class="foot-ghost spring-btn" hover-stay-time="80" hover-class="foot-ghost--hover press-spring" bindtap="goGuide">学车指南</view>
+    <view class="foot-main-wrap">
+      <!-- 「立即咨询」直接弹二维码，不再经过「联系管理员」菜单：
+           本驾校配了自己的码就弹驾校的，没配则回落到全站管理员微信 -->
+      <contact-admin
+        override-image="{{school.contactQr}}"
+        override-title="{{school.contactName}}"
+        direct="{{true}}"
+      >
+        <view slot="trigger" class="foot-main">立即咨询</view>
+      </contact-admin>
+    </view>
+  </view>
+</view>

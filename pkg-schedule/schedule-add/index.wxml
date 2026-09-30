@@ -69,5 +69,5 @@
       </view>
     </view>
   </view>
-  <button class="save-btn btn-primary" bindtap="onSave">保存</button>
+  <button hover-class="press-spring" class="save-btn btn-primary spring-btn" bindtap="onSave" loading="{{loading}}" disabled="{{loading}}" hover-stay-time="120">保存</button>
 </view>

@@ -1,5 +1,5 @@
 <view class="page">
-  <view class="tabs flex-row">
+  <view class="tabs flex-row liquid-tab-track">
     <view
       class="tab {{activeTab === index ? 'active' : ''}}"
       wx:for="{{tabs}}"
@@ -7,13 +7,27 @@
       data-tab="{{index}}"
       bindtap="onTab"
     >{{item}}<view class="tab-badge" wx:if="{{tabUnread[index] > 0}}">{{tabUnread[index] > 99 ? '99+' : tabUnread[index]}}</view></view>
-    <view class="read-all" bindtap="onReadAll" wx:if="{{activeTab !== 0}}">全部已读</view>
+    <!-- 液态指示条（utils/liquid-tab.js）：read-all 不在 items 选择器内，不参与定位 -->
+    <view class="liquid-indicator {{liquidPhase}}" style="{{liquidStyle}}"></view>
+    <view class="read-all" bindtap="onReadAll" wx:if="{{activeTab !== 0 && activeTab !== 3}}">全部已读</view>
+  </view>
+
+  <!-- 顶部订阅入口：点击直接拉起「聊天信息提醒」原生订阅授权弹窗（与 chat 页「发送」触发同一 message 触发组）；
+       订阅生效后整行隐藏，在设置页关闭「私信通知」后重新出现。
+       只在「私信」tab 下显示 —— 该入口对应的是私信通知，放在评论/点赞等 tab 上方会让人误解。 -->
+  <view class="sub-notice-card" wx:if="{{activeTab === 0 && showMessageSubscribeEntry}}">
+    <view class="sub-notice-main" bindtap="onMessageSubscribeTap">
+      <text class="sub-notice-title">订阅私信消息提醒</text>
+      <text class="sub-notice-desc">对方发来新私信时第一时间通知你</text>
+    </view>
+    <switch class="sub-notice-switch" checked="{{messageSubscribeChecked}}" color="#00bc19" bindchange="onMessageSubscribeTap"></switch>
   </view>
 
   <!-- 私信会话列表 -->
   <view class="conv-list" wx:if="{{activeTab === 0}}">
     <view
-      class="conv-item card"
+      class="conv-item card anim-stagger"
+      style="--i: {{index < 6 ? index : 0}};"
       wx:for="{{conversations}}"
       wx:key="id"
       data-peer="{{item.peerId}}"
@@ -23,7 +37,7 @@
       data-persona="{{item.personaKey}}"
       bindtap="onOpenChat"
     >
-      <image class="conv-avatar" src="{{item.peerAvatar || '/assets/icons/avatar.png'}}" mode="aspectFill"></image>
+      <image class="conv-avatar" src="{{item.peerAvatar || '/assets/icons/avatar.png'}}" mode="aspectFill" data-index="{{index}}" binderror="onConvAvatarError"></image>
       <view class="conv-info">
         <view class="conv-top">
           <text class="conv-nick text-h3">{{item.peerNick}}</text>
@@ -43,18 +57,23 @@
   </view>
 
   <!-- 互动消息列表 -->
-  <view class="msg-list" wx:if="{{activeTab !== 0}}">
-    <view class="msg-item card {{item.read ? '' : 'unread'}}" wx:for="{{messages}}" wx:key="id" data-id="{{item.id}}" bindtap="onOpenNotification">
+  <view class="msg-list" wx:if="{{activeTab !== 0 && activeTab !== 3}}">
+    <view class="msg-item card anim-stagger {{item.read ? '' : 'unread'}}" style="--i: {{index < 6 ? index : 0}};" wx:for="{{messages}}" wx:key="id" data-id="{{item.id}}" bindtap="onOpenNotification">
       <view class="msg-dot" wx:if="{{!item.read}}"></view>
       <view class="msg-row">
-        <image wx:if="{{activeTab === 1 || activeTab === 2}}" class="msg-avatar" src="{{item.actorAvatar || '/assets/icons/avatar.png'}}" mode="aspectFill"></image>
+        <image wx:if="{{activeTab === 1 || activeTab === 2 || activeTab === 4}}" class="msg-avatar" src="{{item.actorAvatar || '/assets/icons/avatar.png'}}" mode="aspectFill" data-index="{{index}}" binderror="onMsgAvatarError"></image>
         <view class="msg-main">
           <view class="msg-head">
-            <text class="msg-title text-h3">{{item.title}}</text>
-            <text class="msg-time text-caption">{{item.time}}</text>
+            <text class="msg-title">{{item.primaryText}}</text>
+            <text class="msg-time text-caption" wx:if="{{!item.actionText}}">{{item.time}}</text>
           </view>
-          <text class="msg-actor" wx:if="{{item.actorNick}}">{{item.actorNick}}</text>
-          <text class="msg-content text-body" wx:if="{{item.content && item.content !== item.postTitle}}">{{item.content}}</text>
+          <view class="msg-action-row" wx:if="{{item.actionText}}">
+            <text class="msg-action">{{item.actionText}}</text>
+            <text class="msg-time">{{item.time}}</text>
+          </view>
+          <view class="msg-content" wx:if="{{item.content && item.content !== item.postTitle}}">
+            <text class="msg-content-text">{{item.content}}</text>
+          </view>
           <view class="msg-post" wx:if="{{item.postTitle}}">
             <text class="msg-post-label">帖子</text>
             <text class="msg-post-title">{{item.postTitle}}</text>
@@ -63,5 +82,40 @@
       </view>
     </view>
     <view class="empty text-caption" wx:if="{{messages.length === 0}}">暂无消息</view>
+  </view>
+
+  <!-- 蹲贴：我蹲过的帖子 + 其他用户蹲过的我的帖子 -->
+  <view class="squat-wrap" wx:if="{{activeTab === 3}}">
+    <view class="squat-tabs flex-row">
+      <view class="squat-tab {{squatTab === 0 ? 'active' : ''}}" data-index="0" bindtap="onSquatTab">我蹲的 {{squatMine.length}}</view>
+      <view class="squat-tab {{squatTab === 1 ? 'active' : ''}}" data-index="1" bindtap="onSquatTab">蹲我的 {{squatTheirs.length}}</view>
+    </view>
+
+    <view class="squat-list">
+      <view
+        class="squat-item card anim-stagger spring-btn"
+        style="--i: {{index < 6 ? index : 0}};"
+        wx:for="{{squatList}}"
+        wx:key="id"
+        data-id="{{item.id}}"
+        bindtap="onOpenSquatPost"
+        hover-class="squat-item-hover press-spring"
+        hover-stay-time="80"
+      >
+        <view class="squat-head">
+          <image class="squat-avatar" src="{{item.avatarUrl}}" mode="aspectFill" data-index="{{index}}" binderror="onSquatAvatarError"></image>
+          <text class="squat-author">{{item.author}}</text>
+          <text class="squat-time">{{item.timeText}}</text>
+        </view>
+        <view class="squat-content">{{item.content}}</view>
+        <view class="squat-foot">
+          <text class="squat-count">{{item.followCount}} 人蹲贴</text>
+          <text class="squat-users" wx:if="{{squatTab === 1 && item.squatUsers.length}}">{{item.squatUsers[0]}} 等 {{item.followCount}} 人蹲过</text>
+        </view>
+      </view>
+      <view class="empty text-caption" wx:if="{{squatList.length === 0}}">
+        <text>{{squatTab === 0 ? '还没有蹲过的帖子，去帖子里点「蹲贴」试试~' : '暂时还没有人蹲你的帖子'}}</text>
+      </view>
+    </view>
   </view>
 </view>

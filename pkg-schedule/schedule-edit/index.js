@@ -114,6 +114,7 @@ Page({
         endTime: c.endTime || '09:55',
         startWeek: c.startWeek || 1,
         endWeek: c.endWeek || 16,
+        weekType: c.weekType || 'all',
         color: c.color || '#4A7AFF'
       }
     })
@@ -122,19 +123,27 @@ Page({
   // 删除课程
   onDelete(e) {
     const idx = e.currentTarget.dataset.index
+    const target = this.data.courses[idx]
+    if (!target) return
     wx.showModal({
       title: '确认删除',
-      content: '确定删除「' + this.data.courses[idx].name + '」？',
+      content: '确定删除「' + target.name + '」？',
       success: (res) => {
         if (!res.confirm) return
-        const courses = this.data.courses.slice()
-        courses.splice(idx, 1)
-        wx.setStorageSync('schedule_courses', courses)
-        api.clearSchedule().then(() => {
-          courses.forEach((c) => request.post('/schedule/add', c, true).catch(() => {}))
+        const removeLocally = () => {
+          const courses = this.data.courses.slice()
+          courses.splice(idx, 1)
+          wx.setStorageSync('schedule_courses', courses)
+          this.setData({ courses, conflictGroups: this.detectConflicts(courses) })
+          wx.showToast({ title: '已删除', icon: 'success' })
+        }
+        if (!target.id) {
+          removeLocally()
+          return
+        }
+        api.deleteScheduleCourse(target.id).then(removeLocally).catch(() => {
+          wx.showToast({ title: '删除失败，请稍后重试', icon: 'none' })
         })
-        this.setData({ courses, conflictGroups: this.detectConflicts(courses) })
-        wx.showToast({ title: '已删除', icon: 'success' })
       }
     })
   },
@@ -170,26 +179,45 @@ Page({
       endTime: f.endTime,
       startWeek: Number(f.startWeek),
       endWeek: Number(f.endWeek),
+      weekType: f.weekType || 'all',
       color: f.color
     })
 
     const courses = this.data.courses.slice()
+    const editingIndex = this.data.editingIndex
+    const editingCourse = editingIndex >= 0 ? courses[editingIndex] : null
 
-    if (this.data.editingIndex >= 0) {
-      // 编辑模式
-      courses[this.data.editingIndex] = Object.assign(courses[this.data.editingIndex], course)
-    } else {
-      // 新增模式
-      course.id = Date.now()
-      courses.push(course)
+    const finishSave = (savedCourse) => {
+      if (editingIndex >= 0) {
+        courses[editingIndex] = Object.assign({}, editingCourse, savedCourse, { id: editingCourse.id })
+      } else {
+        courses.push(Object.assign({}, savedCourse))
+      }
+      wx.setStorageSync('schedule_courses', courses)
+      this.setData({
+        courses,
+        conflictGroups: this.detectConflicts(courses),
+        showForm: false,
+        editingIndex: -1
+      })
+      wx.showToast({ title: editingIndex >= 0 ? '已更新' : '已添加', icon: 'success' })
     }
 
-    wx.setStorageSync('schedule_courses', courses)
+    if (editingCourse && editingCourse.id) {
+      api.updateScheduleCourse(editingCourse.id, course).then(() => finishSave(course)).catch(() => {
+        wx.showToast({ title: '更新失败，请稍后重试', icon: 'none' })
+      })
+      return
+    }
 
-    request.post('/schedule/add', course, true).catch(() => {})
-
-    this.setData({ courses, conflictGroups: this.detectConflicts(courses), showForm: false })
-    wx.showToast({ title: this.data.editingIndex >= 0 ? '已更新' : '已添加', icon: 'success' })
+    request.post('/schedule/add', course, true, {
+      idempotencyKey: `schedule_add_${Date.now()}`
+    }).then((result) => {
+      if (result && result.id) course.id = result.id
+      finishSave(course)
+    }).catch(() => {
+      wx.showToast({ title: '添加失败，请稍后重试', icon: 'none' })
+    })
   },
 
   onExport() {
@@ -261,10 +289,14 @@ Page({
       content: '确定清空全部 ' + this.data.courses.length + ' 门课程？',
       success: (res) => {
         if (!res.confirm) return
-        wx.setStorageSync('schedule_courses', [])
-        api.clearSchedule().catch(() => {})
-        this.setData({ courses: [], conflictGroups: [] })
-        wx.showToast({ title: '已清空', icon: 'success' })
+        // 必须等服务端真删掉再提示成功（同「手动添加」的原则）：
+        // 原先是 fire-and-forget + 立刻提示「已清空」，401/断网时刷新后课程全部回来。
+        api.clearSchedule().then(() => {
+          this.setData({ courses: [], conflictGroups: [] })
+          wx.showToast({ title: '已清空', icon: 'success' })
+        }).catch(() => {
+          // 失败原因由 utils/request.js 统一提示（401 会引导重新登录）
+        })
       }
     })
   }
