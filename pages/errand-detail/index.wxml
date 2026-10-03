@@ -38,7 +38,7 @@
       <view class="row" wx:if="{{order.deadlineText}}"><text class="row-label">截止时间</text><text class="row-value">{{order.deadlineText}}</text></view>
       <view class="row" wx:if="{{order.pickupAddr}}"><text class="row-label">取件地址</text><text class="row-value">{{order.pickupAddr}}</text></view>
       <view class="row" wx:if="{{order.deliveryAddr}}"><text class="row-label">送达地址</text><text class="row-value">{{order.deliveryAddr}}</text></view>
-      <button hover-class="press-spring" class="contact spring-btn" bindtap="onContact" hover-stay-time="120"><text class="contact-icon">✆</text>{{order.role === 'publisher' ? '联系接单方' : '联系需求方'}}</button>
+      <button hover-class="press-spring" class="contact spring-btn" bindtap="onContact" hover-stay-time="120" wx:if="{{canContact}}"><text class="contact-icon">✆</text>{{order.role === 'publisher' ? '联系接单方' : '联系需求方'}}</button>
     </view>
 
     <!-- 接单人（发单人视角：待确认/有异议时展示，便于核对身份并联系） -->
@@ -83,7 +83,7 @@
         <text class="row-label">完成时间</text>
         <text class="row-value">{{order.finishedText}}</text>
       </view>
-      <view class="row" bindtap="openLogs">
+      <view class="row" bindtap="openLogs" wx:if="{{canViewLogs}}">
         <text class="row-label">订单记录</text>
         <view class="row-value-wrap"><text class="row-value link">查看记录</text><text class="arrow">›</text></view>
       </view>

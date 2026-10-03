@@ -18,6 +18,10 @@
 
   <view class="poster-actions" wx:if="{{posterTempPath}}">
     <view class="poster-share-tip">分享至</view>
+    <button hover-class="press-spring" class="save-btn spring-btn" bindtap="onSharePosterImage" hover-stay-time="120">
+      <image class="save-icon-img" src="/assets/icons/wechat.jpg" mode="aspectFit"></image>
+      <text>微信好友</text>
+    </button>
     <button hover-class="press-spring" class="save-btn spring-btn" bindtap="onSaveToAlbum" hover-stay-time="120">
       <text class="save-icon">⬇</text>
       <text>保存到相册</text>

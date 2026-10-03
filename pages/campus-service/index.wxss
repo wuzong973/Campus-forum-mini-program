@@ -479,10 +479,6 @@
 }
 
 /* ===== 校园卡自定义页面（后台可编辑内容） ===== */
-.card-para {
-  margin-top: 16rpx;
-}
-
 .card-image-list {
   margin-top: 24rpx;
 }
@@ -582,3 +578,6 @@
 .card-empty .info-empty-btn {
   margin-top: 28rpx;
 }
+
+/* 校园卡正文：沿用改造前 .para 的字号与颜色 */
+.card-rich { display: block; margin-top: 20rpx; --rt-size: 26rpx; --rt-color: #3a4356; --rt-line: 1.75; text-align: justify; }

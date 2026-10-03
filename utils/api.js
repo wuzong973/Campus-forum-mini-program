@@ -241,6 +241,33 @@ function saveDrivingGuidePage(id, payload) {
   return request.put("/config/driving-guide-page/" + id, payload, true);
 }
 
+// 校园市场四分类自定义页（后台「物品」页维护，每类一张）：
+// category: rental=租赁服务 / digital=校园数码 / housekeeping=校园家政 / diypc=DIY电脑
+function getMarketPage(category) {
+  return request.get("/config/market-page/" + category, {}, true, { silent: true }).then((d) => d || null);
+}
+
+function createMarketPage(category, payload) {
+  return request.post("/config/market-page/" + category, payload, true);
+}
+
+function saveMarketPage(category, id, payload) {
+  return request.put("/config/market-page/" + category + "/" + id, payload, true);
+}
+
+// 校园圈学车落地页（找驾校横幅跳转目标，与学车指南独立，每类一张）
+function getPromoLandingPage() {
+  return request.get("/config/promo-landing-page", {}, true, { silent: true }).then((d) => d || null);
+}
+
+function createPromoLandingPage(payload) {
+  return request.post("/config/promo-landing-page", payload, true);
+}
+
+function savePromoLandingPage(id, payload) {
+  return request.put("/config/promo-landing-page/" + id, payload, true);
+}
+
 // 驾校运营位：列表页顶部横幅（背景图+文案+标签）与筛选标签池。
 // 未配置返回 null，前台用 utils/driving-school.js 里的内置默认兜底，避免首屏空白。
 function getDrivingPromo() {
@@ -346,6 +373,12 @@ function getPostDetail(id) {
   return request
     .get("/post/" + id, {}, true)
     .then((d) => (d ? mapPost(d) : null));
+}
+
+// 分享海报用的小程序码地址：服务端生成「直达帖子详情」的码并返回可访问 URL
+// （对象存储 https 地址；开发环境可能是 data URL）
+function getPostWxacode(postId) {
+  return request.get("/post/wxacode/" + postId, {}, false);
 }
 
 function searchPosts(keyword, page = 1, pageSize = 50) {
@@ -779,6 +812,7 @@ module.exports = {
   getHotPostRank,
   getPublishBanner,
   getPostDetail,
+  getPostWxacode,
   searchPosts,
   getServiceList,
   getClubCategories,
@@ -833,6 +867,12 @@ module.exports = {
   getDrivingGuidePage,
   createDrivingGuidePage,
   saveDrivingGuidePage,
+  getMarketPage,
+  createMarketPage,
+  saveMarketPage,
+  getPromoLandingPage,
+  createPromoLandingPage,
+  savePromoLandingPage,
   getDrivingPromo,
   saveDrivingPromo,
   getDrivingServiceTags,

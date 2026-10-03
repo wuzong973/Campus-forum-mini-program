@@ -1,0 +1,9 @@
+{
+  "navigationBarTitleText": "校园圈学车",
+  "enablePullDownRefresh": true,
+  "backgroundColor": "#F5F7FA",
+  "usingComponents": {
+    "richtext-content": "/components/richtext-content/richtext-content",
+    "page-link-button": "/components/page-link-button/page-link-button"
+  }
+}

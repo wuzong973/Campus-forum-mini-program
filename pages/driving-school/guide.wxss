@@ -24,15 +24,6 @@
   line-height: 1.3;
 }
 
-.para {
-  display: block;
-  margin-top: 20rpx;
-  font-size: 26rpx;
-  color: #3a4356;
-  line-height: 1.75;
-  word-break: break-word;
-}
-
 .image-list {
   margin-top: 24rpx;
 }
@@ -74,3 +65,5 @@
   line-height: 1.6;
   text-align: center;
 }
+
+.guide-rich { display: block; margin-top: 20rpx; --rt-size: 26rpx; --rt-color: #3a4356; --rt-line: 1.75; word-break: break-word; }

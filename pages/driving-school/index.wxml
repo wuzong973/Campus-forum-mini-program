@@ -93,7 +93,7 @@
     <view class="fx-glow-layer">
       <view class="fx-glow is-on"><view class="fx-glow-pulse"></view></view>
     </view>
-    <view class="promo fx-card is-live spring-btn" hover-class="promo--hover press-spring" hover-stay-time="80" bindtap="goGuide">
+    <view class="promo fx-card is-live spring-btn" hover-class="promo--hover press-spring" hover-stay-time="80" bindtap="openPromoLanding">
       <view class="fx-ring"><view class="fx-ring-spin"></view></view>
       <view class="fx-body">
         <image wx:if="{{promo.image}}" class="promo-bg" src="{{promo.image}}" mode="aspectFill"></image>
@@ -143,15 +143,14 @@
           </view>
         </view>
 
-        <text class="school-intro">{{item.intro}}</text>
-
         <view class="school-metrics">
           <text class="metric-label">通过率</text>
           <text class="metric-value">{{item.passRateText}}</text>
-          <text class="metric-help" catchtap="onMetricHelp">?</text>
           <text class="metric-label metric-label--gap">推荐等级</text>
           <text class="metric-value">{{item.levelText}}</text>
         </view>
+
+        <text class="school-intro">{{item.intro}}</text>
 
         <view class="school-fields" wx:if="{{item.carTypesText || item.priceText}}">
           <text class="field-chip" wx:if="{{item.carTypesText}}">班型 {{item.carTypesText}}</text>
@@ -165,7 +164,6 @@
 
         <view class="school-tags" wx:if="{{item.cardTags.length}}">
           <text class="school-tag" wx:for="{{item.cardTags}}" wx:for-item="tag" wx:key="*this">{{tag}}</text>
-          <text class="school-tag school-tag--more" wx:if="{{item.cardTagMore}}">+{{item.cardTagMore}}</text>
         </view>
       </view>
       <!-- /fx-body -->

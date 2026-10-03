@@ -1,10 +1,12 @@
 // 找驾校 · 学车指南：后台可编辑的自定义页面（标题 + 正文 + 图片），与校园卡页同款机制。
 // 内容来自 /config/driving-guide-page，管理入口在管理后台「物品 → 学车指南页面」；
 // 未发布时展示占位空态，普通用户只读。
+const rt = require('../../utils/richtext')
+
 Page({
   data: {
     page: null,
-    paragraphs: [],
+    blocks: [],
     loaded: false
   },
 
@@ -17,7 +19,7 @@ Page({
     const api = require('../../utils/api')
     api.getDrivingGuidePage().then((page) => {
       if (!page) {
-        this.setData({ page: null, paragraphs: [], loaded: true })
+        this.setData({ page: null, blocks: [], loaded: true })
         return
       }
       this.setData({
@@ -25,7 +27,7 @@ Page({
           images: Array.isArray(page.images) ? page.images : [],
           updatedAtText: String(page.updatedAt || '').slice(0, 10)
         }),
-        paragraphs: String(page.content || '').split(/\n+/).map((line) => line.trim()).filter(Boolean),
+        blocks: rt.parseBlocks(page.content),
         loaded: true
       })
       if (page.status && page.title) wx.setNavigationBarTitle({ title: page.title })
@@ -37,6 +39,8 @@ Page({
     if (!page || !page.images.length) return
     wx.previewImage({ urls: page.images, current: e.currentTarget.dataset.url })
   },
+
+
 
   onShareAppMessage() {
     const page = this.data.page || {}

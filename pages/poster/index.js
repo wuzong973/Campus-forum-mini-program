@@ -129,21 +129,19 @@ Page({
       )
     })
 
-    // 小程序码占位图：项目内图片读成 base64，canvas 可直接使用
-    tasks.push(new Promise((resolve) => {
-      wx.getFileSystemManager().readFile({
-        filePath: '/assets/icons/qrcode-placeholder.jpg',
-        encoding: 'base64',
-        success: (res) => {
-          this._qrTempPath = 'data:image/jpeg;base64,' + res.data
-          resolve()
-        },
-        fail: () => {
-          this._qrTempPath = null
-          resolve()
-        },
-      })
-    }))
+    // 小程序码：向服务端请求「直达帖子详情」的真实小程序码（对象存储 URL 或 data URL），
+    // 失败时退回包内占位图（仅样式兜底，扫码不再保证可达帖子）
+    tasks.push(
+      api.getPostWxacode(this.data.postId).then((res) => {
+        const url = res && res.url
+        if (!url) return
+        if (/^data:image\//i.test(url)) {
+          this._qrTempPath = url
+          return
+        }
+        return this.downloadImage(url).then((path) => { if (path) this._qrTempPath = path })
+      }).catch(() => {})
+    )
 
     return Promise.all(tasks)
   },
@@ -176,11 +174,6 @@ Page({
         const canvas = res[0].node
         const dpr = this._dpr
         const W = this.data.canvasWidth
-        const H = this.data.canvasHeight
-        canvas.width = W * dpr
-        canvas.height = H * dpr
-        const ctx = canvas.getContext('2d')
-        ctx.scale(dpr, dpr)
 
         // 先把头像/配图预加载好，再一次性绘制，避免出现「图片还没加载完就导出」
         const mediaPaths = this._mediaPaths || []
@@ -192,7 +185,7 @@ Page({
           const avatarImg = images[0]
           const mediaImgs = images.slice(1, 1 + mediaPaths.length)
           const qrImg = images[images.length - 1]
-          this.drawPoster(ctx, canvas, post, W, H, { avatarImg, mediaImgs, qrImg })
+          this.drawPoster(canvas, post, W, dpr, { avatarImg, mediaImgs, qrImg })
         }).catch((error) => {
           // P12：绘制过程（字体度量/像素比异常）抛错同样收进错误态，不停留在「生成中」
           console.warn('[poster] 绘制失败:', error && error.message)
@@ -201,12 +194,11 @@ Page({
       })
   },
 
-  drawPoster(ctx, canvas, post, W, H, assets) {
-    // === 蓝色背景 ===
-    ctx.fillStyle = '#3B82F6'
-    ctx.fillRect(0, 0, W, H)
-
-    // === 白色卡片 ===
+  drawPoster(canvas, post, W, dpr, assets) {
+    // 卡片高度随内容自适应，画布总高 = 卡片底 + 品牌文案区，
+    // 画布尺寸在量算完成后确定 —— 固定 1.45 比例会让内容少的帖子下方留大片空白
+    const H = this.data.canvasHeight
+    // === 量算内容高度 ===
     const pad = 16
     const cardX = pad
     const cardY = 24
@@ -216,23 +208,35 @@ Page({
     const cx = cardX + ip
     const cw = cardW - ip * 2
     const qrSize = 64
-
-    // 先量算内容高度，让卡片高度自适应（内容短时不留大片空白）
     const titleText = String(post.title || '').trim()
     const contentText = String(post.content || '').trim()
     const mediaList = this._media || []
     const maxLineCount = mediaList.length ? 4 : 7
-    ctx.font = 'bold 16px sans-serif'
-    const measureTitleLines = titleText ? this.wrapText(ctx, titleText, cw).slice(0, 2) : []
-    ctx.font = '15px sans-serif'
-    const measureContentLines = contentText ? this.wrapText(ctx, contentText, cw).slice(0, maxLineCount) : []
+    const measureCtx = canvas.getContext('2d')
+    measureCtx.font = 'bold 16px sans-serif'
+    const measureTitleLines = titleText ? this.wrapText(measureCtx, titleText, cw).slice(0, 2) : []
+    measureCtx.font = '15px sans-serif'
+    const measureContentLines = contentText ? this.wrapText(measureCtx, contentText, cw).slice(0, maxLineCount) : []
     const bodyH =
       18 + 36 + 14 +
       (measureTitleLines.length ? measureTitleLines.length * 23 + 6 : 0) +
       (measureContentLines.length ? measureContentLines.length * 22 + 10 : 0) +
       (mediaList.length ? 72 + 12 : 0)
     const cardH = Math.max(300, Math.min(H - 72, bodyH + 12 + qrSize + 16))
+    const outH = Math.round(cardY + cardH + 46)
+    if (outH !== H) this.setData({ canvasHeight: outH })
 
+    // 画布尺寸确定后再取 context 并缩放（重设 width/height 会清空画布状态）
+    canvas.width = W * dpr
+    canvas.height = outH * dpr
+    const ctx = canvas.getContext('2d')
+    ctx.scale(dpr, dpr)
+
+    // === 蓝色背景 ===
+    ctx.fillStyle = '#3B82F6'
+    ctx.fillRect(0, 0, W, outH)
+
+    // === 白色卡片 ===
     this.roundRect(ctx, cardX, cardY, cardW, cardH, radius)
     ctx.fillStyle = '#FFFFFF'
     ctx.fill()
@@ -409,9 +413,9 @@ Page({
     ctx.textBaseline = 'middle'
     ctx.fillStyle = '#FFFFFF'
     ctx.font = 'bold 12px sans-serif'
-    ctx.fillText('在校论坛@帕云校园', W / 2, cardY + cardH + 22)
+    ctx.fillText('广轻论坛@帕云校园', W / 2, cardY + cardH + 22)
 
-    setTimeout(() => this.exportCanvas(canvas, W, H, this._dpr), 120)
+    setTimeout(() => this.exportCanvas(canvas, W, outH, this._dpr), 120)
   },
 
   drawQrText(ctx, qrX, qrY, qrSize, cw, cx) {
@@ -527,16 +531,34 @@ Page({
     })
   },
 
+  // 分享图片本身而非小程序卡片；wx.showShareImageMenu 需基础库 2.14.0+
+  onSharePosterImage() {
+    if (!wx.showShareImageMenu) {
+      wx.showToast({ title: '微信版本过低，请先保存到相册再分享', icon: 'none' })
+      return
+    }
+    wx.showShareImageMenu({
+      path: this.data.posterTempPath,
+      fail: (e) => {
+        if (String((e && e.errMsg) || '').indexOf('cancel') > -1) return // 面板里主动取消不算失败
+        wx.showToast({ title: '分享失败，可先保存到相册', icon: 'none' })
+      },
+    })
+  },
+
   onBack() {
     wx.navigateBack()
   },
 
   onShareAppMessage() {
     const post = this.data.post
-    return {
+    const share = {
       title: post ? (post.title || post.content || '校园帖子分享') : '校园帖子分享',
       path: '/pages/post-detail/index?id=' + this.data.postId,
     }
+    // 海报页转发的封面就用刚生成的海报，否则卡片只剩一行文字
+    if (this.data.posterTempPath) share.imageUrl = this.data.posterTempPath
+    return share
   },
 
   onPullDownRefresh() {

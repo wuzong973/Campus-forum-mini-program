@@ -57,6 +57,7 @@ const clubRoutes = require("./routes/clubRoutes");
 const groupChatRoutes = require("./routes/groupChatRoutes");
 const activityRoutes = require("./routes/activityRoutes");
 const subscribeRoutes = require("./routes/subscribeRoutes");
+const broadcastRoutes = require("./routes/broadcastRoutes");
 const reviewRoutes = require("./routes/reviewRoutes");
 const powerProxyRoutes = require("./routes/powerProxyRoutes");
 const drivingSchoolRoutes = require("./routes/drivingSchoolRoutes");
@@ -141,6 +142,8 @@ app.use("/api/v1/club", clubRoutes);
 app.use("/api/v1/group-chat", groupChatRoutes);
 app.use("/api/v1/activity", activityRoutes);
 app.use("/api/v1/subscribe", subscribeRoutes);
+// 群播报机器人通道（X-Bot-Token 鉴权，BROADCAST_BOT_TOKEN 未配置即关闭）
+app.use("/api/v1/broadcast", broadcastRoutes);
 app.use("/api/v1/review", reviewRoutes);
 app.use("/api/v1/power", powerProxyRoutes);
 app.use("/api/v1/driving-school", drivingSchoolRoutes);
@@ -178,6 +181,8 @@ async function start() {
   require("./services/mediaCheckService").start();
   // 计数器对账：修正点赞/评论/收藏/蹲贴/转发计数与明细表的双写偏差（P22）
   require("./services/counterReconcileService").start();
+  // 微信群播报（论坛广播）：定时聚合新帖生成「摘要+小程序短链」文案，BROADCAST_ENABLED=1 才开定时
+  require("./services/groupBroadcastService").start();
 }
 
 start().catch((err) => {

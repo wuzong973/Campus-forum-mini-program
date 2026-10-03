@@ -55,8 +55,12 @@ const TAB_ROUTES = {
 // 映射到首页分类的入口（站内已有真实帖子内容）
 const CATEGORY_ROUTES = {
   '失物招领': '失物寻物',
-  '二手闲置': '二手闲置',
-  '校园市场': '二手闲置'
+  '二手闲置': '二手闲置'
+}
+
+// 校园市场：进入市场页（租赁服务 / 校园数码 / 校园家政 / DIY电脑）
+const PAGE_ROUTES = {
+  '校园市场': '/pages/market/index'
 }
 
 // 图书馆：超星 H5（微信内可正常打开）
@@ -68,7 +72,7 @@ function isServiceAvailable(item) {
   if (item.miniAppId) return true
   if (item.link && /^https?:\/\//i.test(item.link)) return true
   if (item.name === '图书馆') return true
-  return !!(SERVICE_ROUTES[item.name] || CATEGORY_ROUTES[item.name])
+  return !!(SERVICE_ROUTES[item.name] || CATEGORY_ROUTES[item.name] || PAGE_ROUTES[item.name])
 }
 
 Page({
@@ -160,12 +164,20 @@ Page({
       return
     }
 
-    // 失物招领 / 二手闲置 / 校园市场：切回首页并定位到对应分类
+    // 失物招领 / 二手闲置：切回首页并定位到对应分类
     const category = CATEGORY_ROUTES[item.name]
     if (category) {
       wx.vibrateShort({ type: 'light' })
       wx.setStorageSync('home_pending_category', category)
       wx.switchTab({ url: '/pages/index/index' })
+      return
+    }
+
+    // 校园市场等站内独立页面
+    const pageRoute = PAGE_ROUTES[item.name]
+    if (pageRoute) {
+      wx.vibrateShort({ type: 'light' })
+      wx.navigateTo({ url: pageRoute })
       return
     }
 

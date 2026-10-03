@@ -56,7 +56,9 @@ Page({
       mediaUrls: mediaItems.filter((m) => !m.video).map((m) => m.url),
       time: payload.time || '',
       actionTitle,
-      postTitle: payload.postTitle || ''
+      postTitle: payload.postTitle || '',
+      // 来源评论 id：查看原帖时直接定位到该条评论/回复
+      commentId: Number(payload.sourceCommentId) || 0
     })
     this.loadPost()
   },
@@ -141,7 +143,8 @@ Page({
       return
     }
     wx.navigateTo({
-      url: '/pages/post-detail/index?id=' + this.data.postId,
+      url: '/pages/post-detail/index?id=' + this.data.postId +
+        (this.data.commentId ? '&commentId=' + this.data.commentId : ''),
       fail: () => wx.showToast({ title: '打开原帖失败，请稍后重试', icon: 'none' })
     })
   }

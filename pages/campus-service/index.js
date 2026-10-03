@@ -6,6 +6,7 @@
 const campusServices = require('../../utils/campus-services')
 // 卡片动效降级开关（低端机 / 用户在设置里关闭）：命中时挂 .fx-off
 const motion = require('../../utils/motion')
+const richtext = require('../../utils/richtext')
 
 // 关键信息行的结构化渲染判定（对齐校历页的卡片时间轴风格）：
 //   时刻行（全部以 HH:MM 开头、以 / 分隔）→ 时间胶囊；
@@ -30,12 +31,13 @@ function decorateInfoItems(items) {
   }))
 }
 
-// 后台可编辑的校园卡页面（可多张）：正文按空行切段，目录行取首段做摘要
+// 后台可编辑的校园卡页面（可多张）：正文走标记语法，目录行取首个可读块剥标记做摘要
 function decorateCardPage(page) {
-  const paragraphs = String(page.content || '').split(/\n+/).map((line) => line.trim()).filter(Boolean)
-  const summary = paragraphs[0] || ''
+  const blocks = richtext.parseBlocks(page.content)
+  const first = blocks.find((block) => block.type !== 'hr' && block.type !== 'img')
+  const summary = first ? richtext.stripMarks(first.runs.map((run) => run.t).join('')) : ''
   return Object.assign({}, page, {
-    paragraphs,
+    blocks,
     summary: summary.length > 46 ? summary.slice(0, 46) + '…' : summary,
     updatedAtText: String(page.updatedAt || '').slice(0, 10)
   })
@@ -48,7 +50,7 @@ Page({
     infoItems: [],
     isCardPage: false,
     servicePage: null,
-    cardParagraphs: [],
+    cardBlocks: [],
     // 后台配置了多张校园卡页面时先展示目录，点条目进入对应页面
     cardPages: [],
     // 动效降级：低端机或用户在「设置 → 显示 → 卡片动效」关闭时为 true，挂 .fx-off
@@ -98,7 +100,7 @@ Page({
       const single = pages.length === 1 ? pages[0] : null
       this.setData({
         servicePage: single,
-        cardParagraphs: single ? single.paragraphs : [],
+        cardBlocks: single ? single.blocks : [],
         cardPages: single ? [] : pages
       })
       if (single && single.status && single.title) wx.setNavigationBarTitle({ title: single.title })

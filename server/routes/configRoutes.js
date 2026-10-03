@@ -28,6 +28,17 @@ router.get('/driving-guide-page', optionalAuth, controller.drivingGuidePage)
 router.post('/driving-guide-page', auth, requireAdmin('config.manage'), controller.createDrivingGuidePage)
 router.put('/driving-guide-page/:id', auth, requireAdmin('config.manage'), controller.saveDrivingGuidePage)
 
+// 校园市场四分类自定义页（校园卡同款，每类一张）：后台「物品」页编辑，普通用户只读
+// category: rental=租赁服务 / digital=校园数码 / housekeeping=校园家政 / diypc=DIY电脑
+router.get('/market-page/:category', optionalAuth, controller.marketPage)
+router.post('/market-page/:category', auth, requireAdmin('config.manage'), controller.createMarketPage)
+router.put('/market-page/:category/:id', auth, requireAdmin('config.manage'), controller.saveMarketPage)
+
+// 校园圈学车落地页（列表页顶部横幅跳转目标；与「学车指南」各自独立编辑）
+router.get('/promo-landing-page', optionalAuth, controller.promoLandingPage)
+router.post('/promo-landing-page', auth, requireAdmin('config.manage'), controller.createPromoLandingPage)
+router.put('/promo-landing-page/:id', auth, requireAdmin('config.manage'), controller.savePromoLandingPage)
+
 // 驾校运营位：列表页顶部横幅（背景图+文案+标签）、筛选面板的服务保障标签池
 router.get('/driving-promo', optionalAuth, controller.drivingPromo)
 router.put('/driving-promo', auth, requireAdmin('config.manage'), controller.saveDrivingPromo)

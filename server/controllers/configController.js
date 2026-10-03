@@ -203,6 +203,11 @@ function parseServicePage(row) {
     id: row.id,
     title: row.title || '',
     content: String(meta.content || ''),
+    guideBtnText: String(meta.guideBtnText || ''),
+    // 页面底部按钮：链接与按钮文字。与学车指南的 guideBtnText（驾校详情页左下角那颗固定按钮）
+    // 是两回事——这一对是「本页面正文下方的跳转按钮」，各页面独立配置。
+    link: String(meta.link || ''),
+    linkText: String(meta.linkText || ''),
     images,
     status: Number(row.status) === 1,
     sortOrder: Number(row.sort_order) || 0,
@@ -248,7 +253,18 @@ function readServicePage(type, req, res) {
 }
 
 // 表单 → 落库字段；校验不通过时返回 null 并已经写出错误响应
-function buildServicePagePayload(req, res) {
+// 只有「学车指南」这一类页面带入口按钮文字（驾校详情页左下角那颗按钮的标题），
+// 其余自定义页面不写这个键，避免既有行的 body 结构被顺手改掉
+//
+// link / linkText 是所有自定义页面共有的「正文下方跳转按钮」：
+// 留空即不显示按钮（老页面没有这两个键，读到空串后自然不渲染）。
+// 链接取值口径与横幅一致：站内 /pages/... 或 http(s)，其余（含 javascript:）一律不落库，
+// 避免管理员误填一个用户端点了没反应的地址。校验放在这里是为了让客户端与旧数据都能被兜住。
+const SERVICE_PAGE_LINK_MAX = 200
+const SERVICE_PAGE_LINK_TEXT_MAX = 20
+const SERVICE_PAGE_LINK_RE = /^(\/pages\/|https?:\/\/)/i
+
+function buildServicePagePayload(req, res, type) {
   const body = req.body || {}
   const title = String(body.title || '').trim()
   if (!title || title.length > 64) { fail(res, '页面标题不能为空且不超过64字'); return null }
@@ -259,12 +275,26 @@ function buildServicePagePayload(req, res) {
     .filter((u) => /^https:\/\//i.test(u))
     .slice(0, 9)
   const status = body.status === false || Number(body.status) === 0 ? 0 : 1
-  const meta = JSON.stringify({ content, images, updatedAt: new Date().toISOString() })
-  return { title, meta, status, sortOrder: Math.max(0, Number(body.sortOrder) || 0) }
+  const meta = { content, images }
+  if (type === DRIVING_GUIDE_TYPE) {
+    const guideBtnText = String(body.guideBtnText || '').trim()
+    if (guideBtnText.length > 12) { fail(res, '入口按钮文字不能超过12字'); return null }
+    meta.guideBtnText = guideBtnText
+  }
+  // 跳转按钮：链接为空时按钮不显示，此时链接文字一并忽略（避免留下孤儿文字）
+  const link = String(body.link || '').trim()
+  if (link.length > SERVICE_PAGE_LINK_MAX) { fail(res, '跳转链接不能超过200字'); return null }
+  if (link && !SERVICE_PAGE_LINK_RE.test(link)) { fail(res, '跳转链接需以 /pages/ 或 https:// 开头'); return null }
+  const rawLinkText = String(body.linkText || '').trim()
+  if (rawLinkText.length > SERVICE_PAGE_LINK_TEXT_MAX) { fail(res, '按钮文字不能超过20字'); return null }
+  meta.link = link
+  meta.linkText = link ? rawLinkText : ''
+  meta.updatedAt = new Date().toISOString()
+  return { title, meta: JSON.stringify(meta), status, sortOrder: Math.max(0, Number(body.sortOrder) || 0) }
 }
 
 function createServicePage(type, req, res) {
-  const payload = buildServicePagePayload(req, res)
+  const payload = buildServicePagePayload(req, res, type)
   if (!payload) return undefined
   pool.query(
     'INSERT INTO system_content (type, title, body, status, sort_order) VALUES (?, ?, ?, ?, ?)',
@@ -275,7 +305,7 @@ function createServicePage(type, req, res) {
 
 function updateServicePage(type, req, res, id) {
   if (!id) return fail(res, '页面 id 不合法')
-  const payload = buildServicePagePayload(req, res)
+  const payload = buildServicePagePayload(req, res, type)
   if (!payload) return undefined
   pool.query(
     'UPDATE system_content SET title = ?, body = ?, status = ? WHERE id = ? AND type = ?',
@@ -310,6 +340,45 @@ const DRIVING_GUIDE_TYPE = 'service_page_driving_guide'
 exports.drivingGuidePage = (req, res) => readServicePage(DRIVING_GUIDE_TYPE, req, res)
 exports.createDrivingGuidePage = (req, res) => createServicePage(DRIVING_GUIDE_TYPE, req, res)
 exports.saveDrivingGuidePage = (req, res) => updateServicePage(DRIVING_GUIDE_TYPE, req, res, Number(req.params.id))
+
+// ===== 校园市场四分类自定义页（管理后台「物品」页维护，普通用户只读） =====
+// 与校园卡/学车指南同款存储：每个分类固定一张（标题 + 正文 + 图片），复用 system_content 单行读取。
+// category: rental=租赁服务 / digital=校园数码 / housekeeping=校园家政 / diypc=DIY电脑
+const MARKET_PAGE_TYPES = {
+  rental: 'service_page_market_rental',
+  digital: 'service_page_market_digital',
+  housekeeping: 'service_page_market_housekeeping',
+  diypc: 'service_page_market_diypc'
+}
+
+function marketPageType(category) {
+  return MARKET_PAGE_TYPES[String(category || '').trim()] || ''
+}
+
+exports.marketPage = (req, res) => {
+  const type = marketPageType(req.params.category)
+  if (!type) return fail(res, '市场分类不存在', 404)
+  return readServicePage(type, req, res)
+}
+
+exports.createMarketPage = (req, res) => {
+  const type = marketPageType(req.params.category)
+  if (!type) return fail(res, '市场分类不存在', 404)
+  return createServicePage(type, req, res)
+}
+
+exports.saveMarketPage = (req, res) => {
+  const type = marketPageType(req.params.category)
+  if (!type) return fail(res, '市场分类不存在', 404)
+  return updateServicePage(type, req, res, Number(req.params.id))
+}
+
+// ===== 校园圈学车落地页（找驾校列表页顶部「校园圈学车」横幅的跳转目标） =====
+// 与「学车指南」完全独立：各自一张自定义页（标题+正文+图片），后台「物品」页分开编辑。
+const PROMO_LANDING_TYPE = 'service_page_promo_landing'
+exports.promoLandingPage = (req, res) => readServicePage(PROMO_LANDING_TYPE, req, res)
+exports.createPromoLandingPage = (req, res) => createServicePage(PROMO_LANDING_TYPE, req, res)
+exports.savePromoLandingPage = (req, res) => updateServicePage(PROMO_LANDING_TYPE, req, res, Number(req.params.id))
 
 // ===== 驾校运营位（管理后台「物品」页维护，普通用户只读） =====
 // 都复用 system_content 单行存储：

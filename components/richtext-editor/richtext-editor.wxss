@@ -1,0 +1,57 @@
+/* 组件样式是隔离的，页面级 wxss 进不来，所以工具栏与输入框的基础样式在这里自带一份，
+   各后台表单接进来时视觉一致，不必再抄一遍。 */
+.rich-toolbar { display: flex; flex-wrap: wrap; gap: 10rpx; padding: 12rpx; border: 1rpx solid #e4e9f2; border-bottom: none; border-radius: 12rpx 12rpx 0 0; background: #eef2f8; }
+.rich-btn { display: flex; min-width: 56rpx; height: 52rpx; padding: 0 14rpx; align-items: center; justify-content: center; border-radius: 8rpx; background: #ffffff; color: #3d4a63; font-size: 24rpx; }
+.rich-btn:active { background: #dfe7f5; }
+.rich-sep { width: 1rpx; align-self: stretch; margin: 4rpx 2rpx; background: #d6deea; }
+.rt-demo-b { font-weight: 700; }
+.rt-demo-i { font-style: italic; }
+.rt-demo-u { text-decoration: underline; }
+.rt-demo-s { text-decoration: line-through; }
+.rt-demo-color { color: #2e6bff; font-weight: 700; }
+
+/* ===== 工具栏图标 =====
+   几何图形一律用 view 画：不引字体（各端字形差异会让 ≡ 这类符号变形/缺字），
+   不引图片资源（漏打进包就是一片空白按钮），缩放清晰，颜色也统一好改。 */
+.rt-ic { display: flex; flex-direction: column; justify-content: center; width: 32rpx; }
+.rt-bar { height: 4rpx; border-radius: 2rpx; background: #3d4a63; }
+
+/* 对齐：三条横线，靠线长与对齐方向区分左/中/右 */
+.rt-ic-align-left, .rt-ic-align-center, .rt-ic-align-right { gap: 4rpx; }
+.rt-ic-align-left .rt-bar { align-self: flex-start; }
+.rt-ic-align-center .rt-bar { align-self: center; }
+.rt-ic-align-right .rt-bar { align-self: flex-end; }
+.rt-ic-align-left .b1, .rt-ic-align-center .b1, .rt-ic-align-right .b1 { width: 32rpx; }
+.rt-ic-align-left .b2, .rt-ic-align-center .b2, .rt-ic-align-right .b2 { width: 18rpx; }
+.rt-ic-align-left .b3, .rt-ic-align-center .b3, .rt-ic-align-right .b3 { width: 32rpx; }
+
+/* 列表：两行「圆点或序号 + 横线」 */
+.rt-ic-list { gap: 7rpx; }
+.rt-li { display: flex; align-items: center; gap: 5rpx; }
+.rt-li-dot { width: 5rpx; height: 5rpx; border-radius: 50%; background: #3d4a63; }
+.rt-li-n { width: 10rpx; color: #3d4a63; font-size: 16rpx; line-height: 12rpx; text-align: center; }
+.rt-li-bar { width: 20rpx; height: 4rpx; border-radius: 2rpx; background: #3d4a63; }
+
+/* 引用：左侧竖线 + 两条文本线 */
+.rt-ic-quote { flex-direction: row; align-items: center; gap: 5rpx; }
+.rt-quote-bar { width: 4rpx; height: 22rpx; border-radius: 2rpx; background: #3d4a63; }
+.rt-quote-lines { display: flex; flex-direction: column; gap: 6rpx; }
+.rt-quote-lines .rt-bar { width: 20rpx; }
+
+/* 分隔线：一条居中横线 */
+.rt-ic-divider { align-items: center; }
+.rt-ic-divider .rt-bar { width: 32rpx; }
+
+/* 字形类图标：←/→/🔗/🖼/👁 */
+.rt-glyph { color: #3d4a63; font-size: 30rpx; line-height: 1; }
+
+/* 开关态按钮（预览）：开启时高亮，否则用户不知道当前是否在预览。
+   预览按钮显示文字，颜色要一起变，只改背景不够显眼。 */
+.rt-on { background: #e5edff; color: #2e6bff; }
+.rt-on .rt-glyph { color: #2e6bff; }
+
+.rich-textarea { width: 100%; min-height: 220rpx; padding: 18rpx 20rpx; border: 1rpx solid #e4e9f2; border-radius: 0 0 12rpx 12rpx; background: #f8fafc; color: #1f2329; font-size: 27rpx; line-height: 1.6; box-sizing: border-box; }
+
+/* 预览区：正文框里必然看得到标记符号，没有这块就只能靠猜 */
+.rich-preview { margin-top: 12rpx; padding: 20rpx; border: 1rpx dashed #cfd9e8; border-radius: 12rpx; background: #ffffff; }
+.rich-preview-tip { margin-bottom: 12rpx; color: #8b93a3; font-size: 21rpx; line-height: 1.5; }

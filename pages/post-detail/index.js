@@ -28,6 +28,8 @@ Page({
     post: null,
     detailImages: [],
     comments: [],
+    // 评论锚点：scroll-into-view 目标（comment-<id> / reply-<id>）
+    commentAnchor: '',
     rawComments: [],
     // 操作按钮动效状态（纯视觉，不参与业务逻辑）：'' | 'anim-pop' | 'anim-unpop'
     likeAnim: "",
@@ -104,7 +106,13 @@ Page({
   },
 
   onLoad(options) {
-    const id = options.id;
+    // 小程序码扫码进入时没有 id 参数，帖子 id 藏在 scene 里（服务端生成码时写入 id=<postId>）
+    let id = options.id;
+    if (!id && options.scene) {
+      const scene = decodeURIComponent(options.scene);
+      const matched = String(scene).match(/(?:^|&)id=(\d+)/);
+      if (matched) id = matched[1];
+    }
     const app = getApp();
     const sysInfo = typeof wx.getWindowInfo === 'function'
       ? wx.getWindowInfo()
@@ -131,6 +139,8 @@ Page({
         this.setData({ commentFocus: true });
       }, 450);
     }
+    // 评论锚点：消息详情/服务通知跳入时携带 commentId，评论加载后直接定位到该条评论/回复
+    this._pendingCommentAnchor = Number(options.commentId) || 0;
   },
 
   // 收起评论输入框键盘：
@@ -371,6 +381,8 @@ Page({
           : followedPostIds.some((item) => Number(item) === Number(post.id));
         post.followCount = Number(post.followCount) || 0;
         this.syncLocalFollowCache(post.id, post.isFollowed);
+        // 投票选项预计算票数占比（进度条样式），WXML 模板无法调用方法
+        post = this.withPollPercent(post);
         const pollSelections = (post.components || []).map((item) => (item.type === 'poll' && Array.isArray(item.selectedOptionIndexes)) ? item.selectedOptionIndexes.slice() : []);
         this.setData({
           post,
@@ -449,15 +461,36 @@ Page({
     })
   },
 
-  onPollChoice(e) {
+  // 为投票组件的每个选项预计算票数占比（0-100，按总票数归一化），进度条渲染用
+  withPollPercent(post) {
+    if (!post || !Array.isArray(post.components)) return post
+    const components = post.components.map((item) => {
+      if (item.type !== 'poll' || !Array.isArray(item.options)) return item
+      const total = item.options.reduce((sum, option) => sum + (Number(option.votes) || 0), 0)
+      const options = item.options.map((option) => Object.assign({}, option, {
+        _pct: total ? Math.round((Number(option.votes) || 0) / total * 100) : 0,
+      }))
+      return Object.assign({}, item, { options })
+    })
+    return Object.assign({}, post, { components })
+  },
+
+  // 点按选项条选择/取消（单选替换、多选切换），与旧 checkbox/radio 交互等价
+  onPollOptionTap(e) {
     const pollIndex = Number(e.currentTarget.dataset.pollIndex || 0)
+    const optionIndex = Number(e.currentTarget.dataset.optionIndex || 0)
     const poll = ((this.data.post || {}).components || [])[pollIndex] || {}
-    // checkbox-group 返回数组，radio-group 返回单个字符串，统一归一化为数组
-    const rawValue = e.detail.value
-    const valueList = Array.isArray(rawValue) ? rawValue : (rawValue === undefined || rawValue === null || rawValue === '' ? [] : [rawValue])
-    let selected = valueList.map(Number)
-    if (poll.mode === 'single' && selected.length > 1) selected = selected.slice(-1)
+    if (poll.selectedOptionIndexes && poll.selectedOptionIndexes.length) return
     const pollSelections = this.data.pollSelections.slice()
+    const current = pollSelections[pollIndex] || []
+    let selected
+    if (poll.mode === 'multiple') {
+      selected = current.indexOf(optionIndex) > -1
+        ? current.filter((i) => i !== optionIndex)
+        : current.concat(optionIndex).sort((a, b) => a - b)
+    } else {
+      selected = current.indexOf(optionIndex) > -1 ? [] : [optionIndex]
+    }
     pollSelections[pollIndex] = selected
     this.setData({ pollSelections, pollChecked: this.buildPollChecked(this.data.post.components || [], pollSelections) })
   },
@@ -469,11 +502,12 @@ Page({
     if (!indexes.length) { wx.showToast({ title: '请选择投票选项', icon: 'none' }); return }
     const post = Object.assign({}, this.data.post)
     const applyComponents = (components) => {
-      const pollSelections = (components || []).map((item) => (item.type === 'poll' && Array.isArray(item.selectedOptionIndexes)) ? item.selectedOptionIndexes.slice() : [])
+      const withPercent = this.withPollPercent({ components }).components
+      const pollSelections = (withPercent || []).map((item) => (item.type === 'poll' && Array.isArray(item.selectedOptionIndexes)) ? item.selectedOptionIndexes.slice() : [])
       this.setData({
-        post: Object.assign(post, { components }),
+        post: Object.assign(post, { components: withPercent }),
         pollSelections,
-        pollChecked: this.buildPollChecked(components || [], pollSelections),
+        pollChecked: this.buildPollChecked(withPercent || [], pollSelections),
         // 投票成功后必须关闭按钮 loading，否则会无限转圈
         submittingVote: false
       })
@@ -535,7 +569,42 @@ Page({
         commentTotal: Math.max(0, (Number(res.total) || list.length) - this._hiddenCommentCount),
         comments: this.buildCommentThreads(rawComments, sort),
       });
+      this.applyPendingCommentAnchor(rawComments);
     });
+  },
+
+  // 评论锚点定位：目标 id 是根评论 → scroll-into-view 到该评论；
+  // 是回复 → 自动展开所属线程的回复列表后定位到该回复（只定位一次，找不到且还有下一页时保留待定）
+  applyPendingCommentAnchor(rawComments) {
+    if (!this._pendingCommentAnchor) return
+    const anchor = this.resolveCommentAnchor(rawComments || [], this._pendingCommentAnchor)
+    if (anchor) {
+      this._pendingCommentAnchor = 0
+      this.setData({ commentAnchor: anchor })
+    }
+  },
+
+  resolveCommentAnchor(rawComments, targetId) {
+    const id = Number(targetId)
+    if (!id) return ''
+    const byId = {}
+    ;(rawComments || []).forEach((c) => { byId[Number(c.id)] = c })
+    const target = byId[id]
+    if (!target) return ''
+    if (!target.parentId) return 'comment-' + id
+    // 回复：向上追溯到根评论，展开该线程的回复列表保证目标可见
+    let current = target
+    const visited = {}
+    while (current.parentId && byId[Number(current.parentId)] && !visited[Number(current.id)]) {
+      visited[Number(current.id)] = true
+      current = byId[Number(current.parentId)]
+    }
+    const rootId = Number(current.id)
+    const expandedReplyIds = Object.assign({}, this.data.expandedReplyIds)
+    expandedReplyIds[rootId] = true
+    this.setData({ expandedReplyIds })
+    this.refreshCommentThreads()
+    return 'reply-' + id
   },
 
   // 上滑加载下一页评论（scroll-view scrolltolower 触发）
@@ -557,6 +626,7 @@ Page({
         commentTotal: Math.max(0, (Number(res.total) || rawComments.length) - this._hiddenCommentCount),
         comments: this.buildCommentThreads(rawComments, this.data.commentSort),
       });
+      this.applyPendingCommentAnchor(rawComments);
     }).catch(() => {
       wx.showToast({ title: '评论加载失败，请重试', icon: 'none' })
     }).then(() => {

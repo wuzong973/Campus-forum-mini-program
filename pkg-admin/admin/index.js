@@ -374,9 +374,17 @@ Page({
     contentFormGuide: '',
     items: [],
     // 区块折叠开关（默认收起，点「展开 ▼」显示内容）：校园卡页面/评分对象管理/找驾校/服务宫格/群聊列表/群聊类别/社团分类/管理员账号
-    sectionCollapsed: { campusCard: true, drivingGuide: true, drivingPromo: true, drivingTags: true, reviewTargets: true, drivingSchools: true, services: true, gcGroups: true, gcCategories: true, clubCategories: true, admins: true },
+    sectionCollapsed: { campusCard: true, market: true, drivingGuide: true, promoLanding: true, drivingPromo: true, drivingTags: true, reviewTargets: true, drivingSchools: true, services: true, gcGroups: true, gcCategories: true, clubCategories: true, admins: true },
     // 校园卡自定义页面列表，可维护多张（编辑跳 pages/banner-detail?scope=campusCard）
     campusCards: [],
+    // 校园市场四分类页面（每类一张，编辑跳 pages/banner-detail?scope=market&category=<key>）
+    marketCategories: [
+      { key: 'rental', name: '租赁服务' },
+      { key: 'digital', name: '校园数码' },
+      { key: 'housekeeping', name: '校园家政' },
+      { key: 'diypc', name: 'DIY电脑' }
+    ],
+    marketPages: [],
     // 找驾校内容管理（「物品」tab，校园卡页面下方）
     drivingSchools: [],
     drivingSchoolCampusOptions: ['广州校区', '佛山校区'],
@@ -405,6 +413,8 @@ Page({
     drivingTagsSaving: false,
     // 学车指南自定义页摘要（编辑跳 pages/banner-detail?scope=drivingGuide）
     drivingGuide: { title: '', status: true, updatedAtText: '' },
+    // 校园圈学车落地页摘要（编辑跳 pages/banner-detail?scope=promoLanding）
+    promoLanding: { title: '', status: true, updatedAtText: '' },
     services: [],
     serviceCategories: [],
     serviceCategoryNames: [],
@@ -562,8 +572,8 @@ Page({
     // 返回本页时重启轮询并立即刷新概览，保证数字尽量新
     if (this.data.ready && this.data.activeTab === 'overview') this.refreshStats(true)
     if (this.data.ready) this.startStatsTimer()
-    // 从校园卡/学车指南编辑器返回时刷新摘要（标题/发布状态/更新时间即时可见）
-    if (this.data.ready && this.data.activeTab === 'items') { this.loadCampusCards(); this.loadDrivingOps() }
+    // 从校园卡/学车指南/校园市场编辑器返回时刷新摘要（标题/发布状态/更新时间即时可见）
+    if (this.data.ready && this.data.activeTab === 'items') { this.loadCampusCards(); this.loadMarketPages(); this.loadDrivingOps() }
   },
 
   onHide() { this.stopStatsTimer() },
@@ -602,6 +612,7 @@ Page({
       if (tab === 'items') {
         this.setData({ items: (await admin.items()).list || [] })
         this.loadCampusCards()
+        this.loadMarketPages()
         this.loadDrivingSchools()
         this.loadReviewTargets(1)
         this.loadDrivingOps()
@@ -892,6 +903,32 @@ Page({
     try { await admin.deleteCampusCardPage(page.id); this.loadCampusCards() } catch (err) {}
   },
 
+  // ===== 校园市场四分类页面（「物品」tab；每类一张，编辑器复用 pages/banner-detail?scope=market） =====
+  // 四行固定渲染：单个分类读取失败（如服务端未更新到新接口）不影响其它行显示
+  async loadMarketPages() {
+    const rows = this.data.marketCategories.map((item) => ({
+      category: item.key,
+      name: item.name,
+      page: null,
+      updatedAtText: ''
+    }))
+    this.setData({ marketPages: rows })
+    await Promise.all(this.data.marketCategories.map((item, index) =>
+      admin.marketPage(item.key).then((page) => {
+        this.setData({
+          ['marketPages[' + index + '].page']: page || null,
+          ['marketPages[' + index + '].updatedAtText']: page && page.updatedAt ? String(page.updatedAt).slice(0, 10) : ''
+        })
+      }).catch(() => { /* 单个分类读取失败：保留「尚未创建」占位 */ })
+    ))
+  },
+  openMarketEditor(e) {
+    wx.navigateTo({
+      url: '/pages/banner-detail/index?scope=market&category=' + e.currentTarget.dataset.category + '&edit=1',
+      fail: () => wx.showToast({ title: '打开编辑器失败，请稍后重试', icon: 'none' })
+    })
+  },
+
   // ===== 找驾校内容管理（「物品」tab；字段与前台卡片一一对应） =====
   async loadDrivingSchools() {
     try { this.setData({ drivingSchools: (await admin.drivingSchools()).list || [] }) } catch (e) { /* 读取失败保留旧列表 */ }
@@ -1095,14 +1132,18 @@ Page({
       this.loadDrivingSchools()
     } catch (err) {}
   },
-  // ===== 驾校运营位（「物品」tab；横幅 / 筛选标签池 / 学车指南自定义页） =====
+  // ===== 驾校运营位（「物品」tab；横幅 / 筛选标签池 / 学车指南自定义页 / 校园圈学车落地页） =====
   async loadDrivingOps() {
     try {
-      const [promo, tags, guide] = await Promise.all([
+      // 用 allSettled 而不是 all：Promise.all 只要一个接口 reject（如某个路由还没部署返回 404），
+      // 整组结果全丢，后台四块内容一起变空白且没有任何提示。
+      const settled = await Promise.allSettled([
         admin.drivingPromo(),
         admin.drivingServiceTags(),
-        admin.drivingGuidePage()
+        admin.drivingGuidePage(),
+        admin.promoLandingPage()
       ])
+      const [promo, tags, guide, promoLanding] = settled.map((r) => (r.status === 'fulfilled' ? r.value : null))
       const patch = {}
       if (promo) {
         patch.promoForm = {
@@ -1115,18 +1156,26 @@ Page({
         }
         patch.promoUpdatedAtText = promo.updatedAt ? String(promo.updatedAt).slice(0, 10) : ''
       }
-      // 与前台 loadTagPool 用同一套口径：未配置/已下线 → 内置池；已保存（哪怕是空）→ 以配置为准。
-      // 预填「当前实际生效」的那一份，否则后台显示空白、用户端却有 8 个标签，看起来像坏了
-      const savedTags = tags && tags.status && Array.isArray(tags.tags) ? tags.tags : null
-      const effectiveTags = savedTags || drivingSchool.SERVICE_TAGS
-      patch.drivingTags = effectiveTags.map((name) => ({ name, removing: false }))
-      patch.drivingTagInput = ''
-      patch.drivingTagsSaved = !!savedTags
-      patch.drivingTagsUpdatedAtText = tags && tags.updatedAt ? String(tags.updatedAt).slice(0, 10) : ''
+      // 与前台 loadTagPool 同口径：未配置/已下线 → 内置池；已保存（哪怕是空）→ 以配置为准。
+      // 请求本身失败时不动这块 —— null 不等于「未配置」，误填内置池会让保存覆盖掉真配置
+      if (settled[1].status === 'fulfilled') {
+        const savedTags = tags && tags.status && Array.isArray(tags.tags) ? tags.tags : null
+        const effectiveTags = savedTags || drivingSchool.SERVICE_TAGS
+        patch.drivingTags = effectiveTags.map((name) => ({ name, removing: false }))
+        patch.drivingTagInput = ''
+        patch.drivingTagsSaved = !!savedTags
+        patch.drivingTagsUpdatedAtText = tags && tags.updatedAt ? String(tags.updatedAt).slice(0, 10) : ''
+      }
       patch.drivingGuide = {
         title: (guide && guide.title) || '',
         status: guide ? !!guide.status : true,
         updatedAtText: guide && guide.updatedAt ? String(guide.updatedAt).slice(0, 10) : ''
+      }
+      // 校园圈学车落地页（找驾校横幅跳转目标；与学车指南相互独立）
+      patch.promoLanding = {
+        title: (promoLanding && promoLanding.title) || '',
+        status: promoLanding ? !!promoLanding.status : true,
+        updatedAtText: promoLanding && promoLanding.updatedAt ? String(promoLanding.updatedAt).slice(0, 10) : ''
       }
       this.setData(patch)
     } catch (e) { /* 读取失败保留当前表单，不阻塞其他区块 */ }
@@ -1222,6 +1271,10 @@ Page({
   },
   openDrivingGuideEditor() {
     wx.navigateTo({ url: '/pages/banner-detail/index?scope=drivingGuide&edit=1' })
+  },
+  // 校园圈学车落地页（找驾校横幅跳转目标）：与学车指南分开的独立编辑入口
+  openPromoLandingEditor() {
+    wx.navigateTo({ url: '/pages/banner-detail/index?scope=promoLanding&edit=1' })
   },
 
   // ===== 评分对象治理（「物品」tab；删除为软删，用户端立即不可见，可在「已删除」里恢复） =====

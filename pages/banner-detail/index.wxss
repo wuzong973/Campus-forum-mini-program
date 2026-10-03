@@ -11,8 +11,6 @@
 .offline-tip { margin-bottom: 20rpx; padding: 14rpx 20rpx; border: 1rpx dashed #ffb02e; border-radius: 12rpx; background: #fff7e8; color: #b26a00; font-size: 24rpx; line-height: 1.5; }
 
 .hero-title { margin-bottom: 16rpx; color: #1f2329; font-size: 38rpx; font-weight: 700; line-height: 1.4; }
-.hero-content { display: block; }
-.hero-para { display: block; margin-bottom: 16rpx; color: #414652; font-size: 28rpx; line-height: 1.75; word-break: break-all; }
 
 .hero-images { display: block; }
 .hero-img { display: block; width: 100%; margin-bottom: 16rpx; border-radius: 12rpx; background: #f0f2f5; }
@@ -35,7 +33,18 @@
 .form-label { margin-bottom: 12rpx; color: #667085; font-size: 25rpx; line-height: 1.5; }
 .form-req { color: #ff5a5f; }
 .form-input { height: 88rpx; padding: 0 20rpx; border: 1rpx solid #e4e9f2; border-radius: 12rpx; background: #f8fafc; color: #1f2329; font-size: 27rpx; line-height: 88rpx; box-sizing: border-box; }
-.form-textarea { width: 100%; min-height: 220rpx; padding: 18rpx 20rpx; border: 1rpx solid #e4e9f2; border-radius: 12rpx; background: #f8fafc; color: #1f2329; font-size: 27rpx; line-height: 1.6; box-sizing: border-box; }
+/* 正文工具栏：与下方 textarea 拼成一块，按钮文字本身就是该样式的预览 */
+.rich-toolbar { display: flex; flex-wrap: wrap; gap: 10rpx; padding: 12rpx; border: 1rpx solid #e4e9f2; border-bottom: none; border-radius: 12rpx 12rpx 0 0; background: #eef2f8; }
+.rich-btn { display: flex; min-width: 56rpx; height: 52rpx; padding: 0 14rpx; align-items: center; justify-content: center; border-radius: 8rpx; background: #ffffff; color: #3d4a63; font-size: 24rpx; }
+.rich-btn:active { background: #dfe7f5; }
+.rich-sep { width: 1rpx; align-self: stretch; margin: 4rpx 2rpx; background: #d6deea; }
+.rt-demo-b { font-weight: 700; }
+.rt-demo-i { font-style: italic; }
+.rt-demo-u { text-decoration: underline; }
+.rt-demo-s { text-decoration: line-through; }
+.rt-demo-color { color: #2e6bff; font-weight: 700; }
+
+.form-textarea { width: 100%; min-height: 220rpx; padding: 18rpx 20rpx; border: 1rpx solid #e4e9f2; border-radius: 0 0 12rpx 12rpx; background: #f8fafc; color: #1f2329; font-size: 27rpx; line-height: 1.6; box-sizing: border-box; }
 
 .img-grid { display: flex; flex-wrap: wrap; gap: 16rpx; }
 .img-cell { position: relative; width: 150rpx; height: 150rpx; }
@@ -64,3 +73,5 @@
 .banner-preview { display: flex; align-items: center; gap: 12rpx; min-height: 80rpx; padding: 0 26rpx; border-radius: 14rpx; box-shadow: 0 6rpx 16rpx rgba(61, 123, 250, .28); box-sizing: border-box; }
 .banner-preview-icon { flex-shrink: 0; font-size: 32rpx; line-height: 1; }
 .banner-preview-text { flex: 1; min-width: 0; overflow: hidden; font-size: 30rpx; font-weight: 600; line-height: 1.4; white-space: nowrap; text-overflow: ellipsis; }
+
+.hero-rich { display: block; --rt-size: 28rpx; --rt-color: #414652; --rt-line: 1.75; word-break: break-all; }

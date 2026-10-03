@@ -189,9 +189,10 @@
       </view>
     </view>
 
-    <!-- 分类标签 -->
+    <!-- 分类标签（指示条为液态拉伸样式，utils/liquid-tab.js 驱动；
+         指示条随滚动内容移动，横滚由用户手动，不做自动滚入） -->
     <scroll-view class="category-scroll" scroll-x enable-flex>
-      <view class="category-list">
+      <view class="category-list liquid-tab-track">
         <view
           class="category-item pressable {{activeCategory === index ? 'active' : ''}}"
           wx:for="{{categories}}"
@@ -199,6 +200,7 @@
           data-index="{{index}}"
           bindtap="onCategoryTap"
         >{{item}}</view>
+        <view class="liquid-indicator {{liquidPhase}}" style="{{liquidStyle}}"></view>
       </view>
     </scroll-view>
 

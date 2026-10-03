@@ -260,10 +260,9 @@
 .notice-text {
   display: block;
   margin-top: 18rpx;
-  font-size: 26rpx;
-  color: #6b5423;
-  line-height: 1.75;
+  --rt-size: 26rpx;
+  --rt-color: #6b5423;
+  --rt-line: 1.75;
   text-align: justify;
-  white-space: pre-wrap;
   word-break: break-word;
 }

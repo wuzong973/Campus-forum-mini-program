@@ -133,9 +133,9 @@
 
 .section-text {
   display: block;
-  font-size: 27rpx;
-  color: #4a5468;
-  line-height: 1.75;
+  --rt-size: 27rpx;
+  --rt-color: #4a5468;
+  --rt-line: 1.75;
   text-align: justify;
   /* 不设 max-height / overflow：简介上限 1000 字，截断后无从查看 */
 }

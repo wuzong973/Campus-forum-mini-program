@@ -1,5 +1,5 @@
 <view class="page" wx:if="{{post}}">
-  <scroll-view class="page-scroll" scroll-y enhanced show-scrollbar="{{false}}" style="height: {{pageHeight}}px;" bindscrolltolower="loadMoreComments">
+  <scroll-view class="page-scroll" scroll-y enhanced show-scrollbar="{{false}}" scroll-into-view="{{commentAnchor}}" scroll-with-animation style="height: {{pageHeight}}px;" bindscrolltolower="loadMoreComments">
     <view class="post-detail">
       <view class="post-header">
         <image class="post-avatar" src="{{post.avatarUrl || '/assets/icons/avatar.png'}}" mode="aspectFill" catchtap="onAvatarTap" data-userid="{{post.userId}}"></image>
@@ -32,10 +32,21 @@
       </view>
       <view class="post-components" wx:if="{{post.components && post.components.length}}">
         <view class="detail-poll" wx:for="{{post.components}}" wx:for-index="compIndex" wx:key="_key" wx:if="{{item.type === 'poll'}}">
-          <view class="component-detail-head"><text class="component-detail-icon">☆</text><text>投票</text><text class="component-detail-mode">{{item.mode === 'multiple' ? '多选' : '单选'}}</text></view>
-          <text class="component-question">{{item.question}}</text>
-          <checkbox-group bindchange="onPollChoice" data-poll-index="{{compIndex}}" wx:if="{{item.mode === 'multiple'}}"><label class="poll-option" wx:for="{{item.options}}" wx:for-item="option" wx:key="index"><checkbox value="{{index}}" checked="{{pollChecked[compIndex][index]}}" color="#3478f6"></checkbox><text>{{option.text}}</text><text class="poll-votes">{{option.votes || 0}} 票</text></label></checkbox-group>
-          <radio-group bindchange="onPollChoice" data-poll-index="{{compIndex}}" wx:else><label class="poll-option" wx:for="{{item.options}}" wx:for-item="option" wx:key="index"><radio value="{{index}}" checked="{{pollChecked[compIndex][index]}}" color="#3478f6"></radio><text>{{option.text}}</text><text class="poll-votes">{{option.votes || 0}} 票</text></label></radio-group>
+          <view class="component-detail-head"><text class="component-detail-icon">★</text><text class="component-question-text">{{item.question || '投票'}}</text><text class="component-detail-mode">{{item.mode === 'multiple' ? '多选' : '单选'}}</text></view>
+          <view
+            class="poll-option-bar {{pollChecked[compIndex][optIndex] ? 'selected' : ''}}"
+            wx:for="{{item.options}}"
+            wx:for-item="option"
+            wx:for-index="optIndex"
+            wx:key="index"
+            data-poll-index="{{compIndex}}"
+            data-option-index="{{optIndex}}"
+            catchtap="onPollOptionTap"
+          >
+            <view class="poll-option-fill" style="width: {{option._pct || 0}}%;"></view>
+            <text class="poll-option-text">{{option.text}}</text>
+            <text class="poll-option-count">{{option.votes || 0}}</text>
+          </view>
           <button hover-class="press-spring" class="component-action-btn spring-btn" loading="{{submittingVote}}" disabled="{{submittingVote || (item.selectedOptionIndexes && item.selectedOptionIndexes.length)}}" data-poll-index="{{compIndex}}" bindtap="onSubmitVote" hover-stay-time="120">{{item.selectedOptionIndexes && item.selectedOptionIndexes.length ? '已投票' : '提交投票'}}</button>
         </view>
       </view>
@@ -57,9 +68,9 @@
         <view class="contact-info-content {{contactExpanded ? 'expanded' : ''}}">
           <view class="contact-row"><text class="contact-label">联系姓名</text><text class="contact-value">{{post.contact.name}}</text></view>
           <view class="contact-row"><text class="contact-label">{{post.contact.type}}</text><text class="contact-value">{{post.contact.value}}</text><image class="contact-copy" src="/assets/icons/clipboard.png" mode="aspectFit" catchtap="onCopyContact"></image></view>
-          <text class="contact-tip">联系 Ta 时请备注在「校园社区」看到的</text>
+          <text class="contact-tip">联系 Ta 时请备注在「帕云校园论坛」看到的</text>
         </view>
-        <view class="contact-toggle spring-btn" hover-class="contact-toggle-hover press-spring" hover-stay-time="80" catchtap="toggleContactInfo"><text>{{contactExpanded ? '收起联系方式' : '展开联系方式'}}</text><text class="contact-toggle-icon {{contactExpanded ? 'expanded' : ''}}">⌄</text></view>
+        <view class="contact-toggle spring-btn" hover-class="contact-toggle-hover press-spring" hover-stay-time="80" catchtap="toggleContactInfo"><text>{{contactExpanded ? '收起联系方式' : '展开联系方式'}}</text><view class="contact-toggle-icon {{contactExpanded ? 'expanded' : ''}}"><view class="contact-toggle-chevron"></view></view></view>
       </view>
     </view>
 
@@ -92,7 +103,7 @@
     <view class="comments-section">
       <view class="comments-header"><view class="comments-tag spring-btn" hover-class="comments-tag-hover press-spring" hover-stay-time="80"><text class="comments-tag-text">评论区</text><text class="comments-tag-count" wx:if="{{commentTotal > 0}}">{{commentTotal}}</text></view><view class="comment-sort"><view class="sort-option {{commentSort === 'time' ? 'active' : ''}} spring-btn" hover-class="sort-hover press-spring" hover-stay-time="80" data-sort="time" catchtap="onCommentSort">时间</view><view class="sort-option {{commentSort === 'hot' ? 'active' : ''}} spring-btn" hover-class="sort-hover press-spring" hover-stay-time="80" data-sort="hot" catchtap="onCommentSort">赞数↓</view></view></view>
       <view class="comment-list">
-        <view class="comment-item anim-stagger" style="--i: {{index < 6 ? index : 0}};" wx:for="{{comments}}" wx:key="id">
+        <view class="comment-item anim-stagger" id="comment-{{item.id}}" style="--i: {{index < 6 ? index : 0}};" wx:for="{{comments}}" wx:key="id">
           <image class="comment-avatar" src="{{item.avatarUrl || '/assets/icons/avatar.png'}}" mode="aspectFill" data-userid="{{item.userId}}" data-anonymous="{{item.isAnonymous}}" data-nick="{{item.nickName}}" data-avatar="{{item.avatarUrl}}" data-isowner="{{item.isAuthor}}" data-allowpm="{{item.allowAnonymousPm}}" catchtap="onCommentAvatarTap"></image>
           <view class="comment-content-wrap comment-reply-trigger" catchtap="onReplyComment" data-id="{{item.id}}" data-nick="{{item.nickName}}">
             <view class="comment-head">
@@ -103,7 +114,7 @@
             <view class="comment-image-list" wx:if="{{item.images.length || item.videos.length}}"><image class="comment-image" wx:for="{{item.images}}" wx:for-item="img" wx:key="*this" src="{{img}}" mode="aspectFill" lazy-load data-urls="{{item.images}}" data-url="{{img}}" catchtap="onPreviewCommentImage" bindlongpress="onImageQrScan"></image><video wx:for="{{item.videos}}" wx:for-item="vid" wx:key="*this" class="comment-video" src="{{vid}}" object-fit="contain" controls catchtap="onCommentVideoTap"></video></view>
             <view class="comment-actions" wx:if="{{item.userId === currentUserId}}"><text catchtap="onEditComment" data-id="{{item.id}}" data-content="{{item.content}}">编辑</text><text class="delete" catchtap="onDeleteComment" data-id="{{item.id}}">删除</text></view>
             <view class="reply-list" wx:if="{{item.replies.length}}">
-              <view class="reply-item" wx:for="{{item.expanded ? item.replies : item.recentReplies}}" wx:for-item="reply" wx:key="id" catchtap="onReplyComment" data-id="{{reply.id}}" data-nick="{{reply.nickName}}">
+              <view class="reply-item" id="reply-{{reply.id}}" wx:for="{{item.expanded ? item.replies : item.recentReplies}}" wx:for-item="reply" wx:key="id" catchtap="onReplyComment" data-id="{{reply.id}}" data-nick="{{reply.nickName}}">
                 <image class="reply-avatar" src="{{reply.avatarUrl || '/assets/icons/avatar.png'}}" mode="aspectFill" lazy-load data-userid="{{reply.userId}}" data-anonymous="{{reply.isAnonymous}}" data-nick="{{reply.nickName}}" data-avatar="{{reply.avatarUrl}}" data-isowner="{{reply.isAuthor}}" data-allowpm="{{reply.allowAnonymousPm}}" catchtap="onCommentAvatarTap"></image>
                 <view class="reply-content">
                   <view class="comment-head">

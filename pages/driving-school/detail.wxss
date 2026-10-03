@@ -281,9 +281,9 @@
 .intro-text {
   display: block;
   margin-top: 18rpx;
-  font-size: 26rpx;
-  color: #3a4356;
-  line-height: 1.75;
+  --rt-size: 26rpx;
+  --rt-color: #3a4356;
+  --rt-line: 1.75;
   text-align: justify;
 }
 

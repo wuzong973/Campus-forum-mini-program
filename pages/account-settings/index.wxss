@@ -6,3 +6,7 @@
 .phone-modal-header { display: flex; align-items: center; justify-content: space-between; }.phone-modal-title { color: #202938; font-size: 32rpx; font-weight: 700; }.phone-modal-close { padding: 4rpx 8rpx; color: #929ba8; font-size: 44rpx; line-height: 1; }
 .phone-modal-input { width: 100%; height: 84rpx; margin-top: 30rpx; padding: 0 24rpx; box-sizing: border-box; border: 1rpx solid #e7eaf0; border-radius: 14rpx; background: #f5f7fa; color: #2f3642; font-size: 30rpx; }.phone-modal-placeholder { color: #a5aebd; }
 .phone-modal-actions { display: flex; gap: 20rpx; margin-top: 36rpx; }.phone-modal-btn { flex: 1; height: 80rpx; border-radius: 40rpx; font-size: 29rpx; line-height: 80rpx; text-align: center; }.phone-modal-btn.cancel { background: #f2f4f8; color: #66718a; }.phone-modal-btn.confirm { background: #4a7aff; color: #ffffff; font-weight: 600; }.phone-modal-btn.confirm.disabled { opacity: 0.6; }
+
+/* 完善信息引导：缺失字段行高亮 + 「待完善」角标 */
+.row-missing { background: #fff7e6; border-radius: 12rpx; }
+.row-missing-tag { flex: 0 0 auto; margin-right: 12rpx; padding: 2rpx 12rpx; border-radius: 999rpx; background: #ffe7ba; color: #d46b08; font-size: 20rpx; }

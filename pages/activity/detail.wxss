@@ -176,10 +176,9 @@
 
 .detail-content {
   display: block;
-  font-size: 27rpx;
-  color: #3a4356;
-  line-height: 1.75;
-  white-space: pre-wrap;
+  --rt-size: 27rpx;
+  --rt-color: #3a4356;
+  --rt-line: 1.75;
   text-align: justify;
 }
 

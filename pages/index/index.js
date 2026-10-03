@@ -5,6 +5,7 @@ const format = require('../../utils/format')
 const hotRank = require('../../utils/hot-rank')
 // 卡片动效降级开关（低端机 / 用户在设置里关闭）：命中时挂 .fx-off
 const motion = require('../../utils/motion')
+const liquidTab = require('../../utils/liquid-tab')
 const wechat = require('../../utils/wechat')
 const messageStore = require('../../utils/messageStore')
 const campusServices = require('../../utils/campus-services')
@@ -68,6 +69,9 @@ Page({
     serviceIndicatorCurrent: 0,
     categories: [],
     activeCategory: 0,
+    // 液态指示条（utils/liquid-tab.js）；横滚由用户手动，不做自动滚入
+    liquidStyle: '',
+    liquidPhase: '',
     isHotCategory: false,
     hotPosts: [],
     hotRankGroups: [],
@@ -143,6 +147,13 @@ Page({
     this.loadServices()
     // 轮播/公告配置由 onShow 统一拉取（首次进入 onShow 也会触发）
     this.loadPosts(true)
+    // 液态分类指示条：分类在 loadStaticData 已同步渲染，nextTick 后测量落位（无动画）
+    this.liquidTab = liquidTab.create(this, {
+      track: '.category-list',
+      items: '.category-item',
+      indicator: '.liquid-indicator'
+    })
+    wx.nextTick(() => this.liquidTab.snap(this.data.activeCategory))
     // 订阅未读数变化：WebSocket 新消息 / 已读同步都会触发回调，实时刷新悬浮徽章
     this._unsubscribeUnread = messageStore.onMessage(() => {
       this.setData({ unreadCount: messageStore.getUnreadTotal() })
@@ -277,7 +288,16 @@ Page({
     this.setData({ updateDialogVisible: false, updateDialogUpdating: false })
   },
 
+  onReady() {
+    // 首次测量可能早于字体渲染完成、宽度有微差，这里重测量校正
+    if (this.liquidTab) this.liquidTab.refresh(this.data.activeCategory)
+  },
+
   onUnload() {
+    if (this.liquidTab) {
+      this.liquidTab.destroy()
+      this.liquidTab = null
+    }
     if (this._unsubscribeUnread) {
       this._unsubscribeUnread()
       this._unsubscribeUnread = null
@@ -897,10 +917,10 @@ Page({
       wx.navigateTo({ url: '/pages/driving-school/index' })
       return
     }
-    // 校园市场：映射到首页「二手闲置」分类（校园内二手交易的真实帖子）
+    // 校园市场：进入市场页（租赁服务 / 校园数码 / 校园家政 / DIY电脑 四个后台可编辑分类）
     if (item.name === '校园市场') {
       wx.vibrateShort({ type: 'light' })
-      this.applyCategoryByName('二手闲置')
+      wx.navigateTo({ url: '/pages/market/index' })
       return
     }
     // 跳转到外部小程序（乘车码 / 零食店 等）
@@ -1015,6 +1035,7 @@ Page({
     if (index < 0 || index >= this.data.categories.length) return
     const isHotCategory = this.data.categories[index] === '最热'
     this.setData({ activeCategory: index, page: 1, skeleton: !isHotCategory, isHotCategory })
+    this.liquidTab.moveTo(index)
     // 切分类后回到顶部（scrollTop 绑定值原本一直是 0，直接 setData 0 不会触发滚动）
     this.scrollContentToTop()
     if (isHotCategory) this.loadHotPosts()

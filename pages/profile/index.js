@@ -18,6 +18,9 @@ Page({
     tabs: ["帖子", "收藏"],
     loading: true,
     isSelf: false,
+    // 访客视角：主页作者开启了「隐藏主页帖子」时，帖子 tab 显示「已隐藏主页帖子」
+    // 而不是「帖子 0」（服务端 getProfile 对所有访客都会下发 hideProfilePosts 标记）
+    visitorHidden: false,
     avatarSaving: false,
     // 加载失败态：区分「用户不存在/已注销」（404）与网络失败，
     // 不能只把 loading 关掉 —— 整页 wx:if="{{profile}}" 会直接白屏，用户不知道发生了什么
@@ -38,21 +41,15 @@ Page({
     // 聊天页据此「回到帖子」（覆盖「帖子详情→个人主页→聊天」路径）
     this.sourcePostId = parseInt(options.postId, 10) || 0;
     const currentUserId = Number((app.globalData.userInfo || {}).id || 0);
-    // 「隐藏主页帖子」本地偏好只作用于本人主页；访客能否看到帖子由服务端按
-    // sys_user.hide_profile_posts 过滤，避免把访问者自己的开关错套到他人主页上
-    const hideProfilePosts = profileId === currentUserId && !!((wx.getStorageSync('system_settings') || {}).hideProfilePosts);
     this.setData({
       statusBarHeight: app.globalData.statusBarHeight,
       navBarHeight: app.globalData.navBarHeight,
       currentUserId,
       profileId,
-      hideProfilePosts,
     });
-    // 偏好开启时默认落在「收藏」tab（帖子 tab 已隐藏）
-    if (hideProfilePosts) {
-      this.setData({ activeTab: 1 });
-    }
-    // 液态标签指示条：首个 tab 可能隐藏，数据序换算渲染序后落位（无动画）
+    // 「隐藏主页帖子」只对访客生效（见 loadPageData 里的 visitorHidden）；
+    // 本人主页照常展示自己的帖子，不受该开关影响
+    // 液态标签指示条：tab 集合固定为「帖子/收藏」两个
     this.liquidTab = liquidTab.create(this, {
       track: ".profile-tabbar",
       items: ".profile-tab",
@@ -66,10 +63,8 @@ Page({
     if (this.liquidTab) this.liquidTab.destroy();
   },
 
-  // 数据序 → 渲染序：hideProfilePosts 时 0 号 tab（帖子）不渲染，其后标签整体左移一位
   liquidPos() {
-    const i = this.data.activeTab;
-    return this.data.hideProfilePosts ? i - 1 : i;
+    return this.data.activeTab;
   },
 
   // 首个 tab 的可见性变化会让标签集合重排，需要重测量再落位
@@ -79,12 +74,6 @@ Page({
   },
 
   onShow() {
-    // 从设置页返回时同步「隐藏主页帖子」偏好（即时生效；仅本人主页适用）
-    const hideProfilePosts = this.data.profileId === this.data.currentUserId && !!((wx.getStorageSync('system_settings') || {}).hideProfilePosts);
-    if (hideProfilePosts !== this.data.hideProfilePosts) {
-      this.setData({ hideProfilePosts, activeTab: hideProfilePosts ? 1 : 0 });
-      this.syncLiquidTab();
-    }
     if (this.data.profileId) {
       this.loadPageData(true);
     }
@@ -131,6 +120,7 @@ Page({
           posts: posts || [],
           loading: false,
           isSelf: currentUserProfile,
+          visitorHidden: !currentUserProfile && !!profile.hideProfilePosts,
           loadErrorText: "",
         });
       })

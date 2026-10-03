@@ -569,7 +569,7 @@ async function push(userId, tplType, data, options = {}) {
 // 标注「备用」的模板暂无业务发送点，函数已按表格字段写好，接入时直接调用即可。
 
 /** 新的评论提醒（thing17 来自频道 / thing6 帖子内容 / thing2 评论内容 / number8 评论人数 / time3 评论时间） */
-function pushComment(userId, { channelText, postDigest, commentDigest, timeText, postId }) {
+function pushComment(userId, { channelText, postDigest, commentDigest, timeText, postId, commentId }) {
   return push(userId, 'commentNew', {
     thing17: { value: clip(channelText || '校园论坛', 20) },
     thing6: { value: clip(postDigest || '查看帖子详情', 20) },
@@ -577,7 +577,8 @@ function pushComment(userId, { channelText, postDigest, commentDigest, timeText,
     number8: { value: '1' },
     time3: { value: clip(timeText || nowWxTime(), 32) }
   }, {
-    page: `pages/post-detail/index?id=${postId}`,
+    // 携带评论 id：从「服务通知」点进来直接定位到该条评论
+    page: `pages/post-detail/index?id=${postId}${commentId ? '&commentId=' + commentId : ''}`,
     summary: `新评论：${commentDigest}`
   })
 }
@@ -589,14 +590,14 @@ function pushComment(userId, { channelText, postDigest, commentDigest, timeText,
  * 本函数曾用 `clip(x || '', 20)`，而帖子的 title 是选填（大量帖子没有标题），
  * 导致 thing20 长期为空 —— 历史统计 11 次发送 100% 失败、0 次成功。
  */
-function pushCommentReply(userId, { postDigest, actorNick, commentDigest, timeText, postId }) {
+function pushCommentReply(userId, { postDigest, actorNick, commentDigest, timeText, postId, commentId }) {
   return push(userId, 'commentReply', {
     thing20: { value: clipOr(postDigest, 20, '你发布的帖子') },
     time9: { value: clip(timeText || nowWxTime(), 32) },
     thing6: { value: clipOr(actorNick, 20, '有同学') },
     thing8: { value: clipOr(commentDigest, 20, '回复了你的评论') }
   }, {
-    page: `pages/post-detail/index?id=${postId}`,
+    page: `pages/post-detail/index?id=${postId}${commentId ? '&commentId=' + commentId : ''}`,
     summary: `评论回复：${commentDigest}`
   })
 }

@@ -83,6 +83,17 @@
   font-size: 32rpx;
 }
 
+/* 微信好友图标是位图，按文字图标的视觉重量裁成小圆角方块 */
+.save-icon-img {
+  width: 40rpx;
+  height: 40rpx;
+  border-radius: 8rpx;
+}
+
+.poster-actions .save-btn + .save-btn {
+  margin-top: 20rpx;
+}
+
 /* P12：错误态下的「重新生成」按钮，沿用底部操作区样式，只调整间距与宽度 */
 .poster-retry-btn {
   margin-top: 24rpx;

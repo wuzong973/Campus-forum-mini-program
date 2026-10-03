@@ -84,7 +84,7 @@
 .contact-popup{width:600rpx;background:#fff;border-radius:20rpx;padding:32rpx 28rpx;display:flex;flex-direction:column}
 .contact-popup-title{font-size:32rpx;font-weight:600;text-align:center;color:#22303f;margin-bottom:8rpx}
 .contact-option{display:flex;align-items:center;gap:20rpx;padding:26rpx 20rpx;margin-top:16rpx;border-radius:16rpx;background:#f7f9fb}
-.contact-option-hover{background:#eef4fb transform: scale(0.96); box-shadow: inset 0 2rpx 6rpx rgba(16, 32, 64, 0.16), inset 0 -1rpx 2rpx rgba(255, 255, 255, 0.08); }
+.contact-option-hover{background:#eef4fb; transform: scale(0.96); box-shadow: inset 0 2rpx 6rpx rgba(16, 32, 64, 0.16), inset 0 -1rpx 2rpx rgba(255, 255, 255, 0.08); }
 .contact-option-icon{width:72rpx;height:72rpx;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:32rpx;color:#fff;flex-shrink:0}
 .contact-option-icon.online{background:#347ff2}
 .contact-option-icon.phone{background:#3ba872}

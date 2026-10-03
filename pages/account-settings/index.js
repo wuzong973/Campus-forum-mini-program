@@ -13,6 +13,8 @@ Page({
     genderText: '未设置',
     commonAddress: '',
     showProfileModal: false,
+    // 待完善字段高亮：从引导入口（requirePublishReady）带 focus 参数进来时标记
+    missingMap: {},
     showAvatarSource: false,
     editAvatar: '',
     editNickname: '',
@@ -35,7 +37,24 @@ Page({
     ]
   },
 
-  onShow() { this.refreshProfile() },
+  onLoad(options) {
+    // 完善信息引导：新用户/资料缺失时从发布等入口直接跳进来，
+    // 自动弹出「完善个人资料」弹窗并高亮缺失的字段行
+    if (options && options.profile === '1') {
+      this._focusFields = String(options.focus || '')
+        .split(',')
+        .map((key) => key.trim())
+        .filter(Boolean)
+    }
+  },
+
+  onShow() {
+    this.refreshProfile()
+    // 引导进入：资料刷新完成后自动弹窗（放在 onShow 尾部保证弹窗数据已就绪）
+    if (this._focusFields && this._focusFields.length) {
+      this.openProfileModal()
+    }
+  },
   onPullDownRefresh() { runPullDownRefresh(this, () => this.refreshProfile()) },
 
   refreshProfile() {
@@ -59,8 +78,13 @@ Page({
     if (!avatar.isStoredAvatar(userInfo.avatarUrl)) userInfo.avatarUrl = defaults.avatarUrl
     if (avatar.isDefaultName(userInfo.nickName)) userInfo.nickName = defaults.nickName
     const editCampusGroup = this.getCampusGroup(userInfo.campus)
+    const focus = this._focusFields || []
+    // WXML 不支持数组 indexOf，预计算成对象映射用于行高亮
+    const missingMap = {}
+    focus.forEach((key) => { missingMap[key] = true })
     this.setData({
       showProfileModal: true,
+      missingMap,
       editAvatar: userInfo.avatarUrl || defaults.avatarUrl,
       editNickname: userInfo.nickName || '',
       editGender: userInfo.gender === 2 ? 2 : 1,

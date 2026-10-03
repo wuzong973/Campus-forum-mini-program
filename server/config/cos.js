@@ -41,8 +41,19 @@ function deleteObject(Key) {
   })
 }
 
+// 判断对象是否已存在（小程序码等生成物的缓存检查）
+function headObject(Key) {
+  return new Promise((resolve) => {
+    cos.headObject({
+      Bucket: BUCKET,
+      Region: REGION,
+      Key
+    }, (err) => resolve(!err))
+  })
+}
+
 function getPublicUrl(Key) {
   return `https://${BUCKET}.cos.${REGION}.myqcloud.com/${Key}`
 }
 
-module.exports = { cos, putObject, deleteObject, getPublicUrl, BUCKET, REGION }
+module.exports = { cos, putObject, deleteObject, headObject, getPublicUrl, BUCKET, REGION }

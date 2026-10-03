@@ -39,15 +39,20 @@
 .post-video { background: #000; }
 .post-img-error { display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; color: #8290a0; font-size: 22rpx; }
 .post-components { margin-top: 22rpx; }
-.detail-poll { margin-top: 16rpx; padding: 22rpx; border: 1rpx solid #e7edf5; border-radius: 12rpx; background: #fbfcfe; }
-.component-detail-head { display: flex; align-items: center; gap: 8rpx; color: #20334b; font-size: 27rpx; font-weight: 700; }
-.component-detail-icon { color: #3478f6; font-size: 34rpx; }
-.component-detail-mode { margin-left: auto; padding: 4rpx 12rpx; border-radius: 16rpx; background: #eaf1ff; color: #3478f6; font-size: 21rpx; font-weight: 500; }
-.component-question { display: block; margin: 18rpx 0 10rpx; color: #1e3048; font-size: 29rpx; font-weight: 700; line-height: 1.45; }
-.poll-option { display: flex; align-items: center; min-height: 70rpx; gap: 10rpx; color: #405068; font-size: 26rpx; }
-.poll-option checkbox, .poll-option radio { transform: scale(.82); }
-.poll-votes { margin-left: auto; color: #99a6b4; font-size: 22rpx; }
-.component-action-btn { width: 100%; height: 72rpx; margin-top: 16rpx; border: 0; border-radius: 8rpx; background: #3478f6; color: #fff; font-size: 26rpx; line-height: 72rpx; }
+.detail-poll { margin-top: 16rpx; padding: 24rpx; border: 1rpx solid #eef1f6; border-radius: 16rpx; background: #fcfdff; }
+.component-detail-head { display: flex; align-items: center; gap: 10rpx; color: #1e3048; font-size: 29rpx; font-weight: 700; }
+.component-detail-icon { color: #f7b52c; font-size: 32rpx; }
+.component-question-text { flex: 1; min-width: 0; line-height: 1.45; }
+/* 单选/多选角标：黄色实心（对齐参考样式） */
+.component-detail-mode { flex: 0 0 auto; padding: 4rpx 14rpx; border-radius: 14rpx; background: #ffc53d; color: #ffffff; font-size: 21rpx; font-weight: 600; }
+/* 选项条：圆角胶囊 + 按票数占比填充的橙色进度（对齐参考样式） */
+.poll-option-bar { position: relative; display: flex; align-items: center; min-height: 76rpx; margin-top: 16rpx; padding: 0 24rpx; border: 1rpx solid #f2e2bd; border-radius: 16rpx; background: #fffdf6; overflow: hidden; }
+.poll-option-bar.selected { border-color: #f0b93f; }
+.poll-option-fill { position: absolute; top: 0; bottom: 0; left: 0; border-radius: 16rpx 0 0 16rpx; background: #ffedb8; transition: width .3s ease; }
+.poll-option-bar.selected .poll-option-fill { background: #ffd98a; }
+.poll-option-text { position: relative; z-index: 1; color: #405068; font-size: 27rpx; }
+.poll-option-count { position: relative; z-index: 1; margin-left: auto; color: #8b97a6; font-size: 25rpx; }
+.component-action-btn { display: flex; align-items: center; justify-content: center; width: 100%; height: 72rpx; margin-top: 16rpx; padding: 0; border: 0; border-radius: 12rpx; background: #3478f6; color: #fff; font-size: 26rpx; line-height: 1; }
 .component-action-btn[disabled] { background: #c5d3e8; color: #fff; }
 .component-action-btn::after { border: none; }
 .post-topic-meta { display: flex; align-items: center; gap: 10rpx; margin-top: 18rpx; }
@@ -91,9 +96,13 @@
 .contact-value { flex: 1; min-width: 0; color: #25364d; font-size: 28rpx; font-weight: 600; word-break: break-all; }
 .contact-copy { width: 34rpx; height: 34rpx; margin-left: 14rpx; opacity: .7; }
 .contact-tip { display: block; margin-top: 12rpx; padding-top: 16rpx; border-top: 1rpx solid #edf0f4; color: #9da7b2; font-size: 22rpx; text-align: center; }
-.contact-toggle { display: flex; align-items: center; justify-content: center; gap: 8rpx; min-height: 52rpx; border-radius: 12rpx; color: #98a4b1; font-size: 24rpx; transition: background-color .2s ease, transform 0.35s cubic-bezier(0.34, 1.42, 0.6, 1), box-shadow 0.35s cubic-bezier(0.34, 1.42, 0.6, 1); }
-.contact-toggle-hover { background: #f2f5f9;  transform: scale(0.96); box-shadow: inset 0 2rpx 6rpx rgba(16, 32, 64, 0.16), inset 0 -1rpx 2rpx rgba(255, 255, 255, 0.08); }
-.contact-toggle-icon { font-size: 28rpx; transition: transform .32s ease; }
+/* 联系方式开关：全宽浅灰圆角条 + 圆圈箭头（对齐参考样式） */
+.contact-toggle { display: flex; align-items: center; justify-content: center; gap: 12rpx; min-height: 76rpx; margin-top: 16rpx; border-radius: 16rpx; background: #f2f5f9; color: #55657a; font-size: 26rpx; transition: background-color .2s ease, transform 0.35s cubic-bezier(0.34, 1.42, 0.6, 1), box-shadow 0.35s cubic-bezier(0.34, 1.42, 0.6, 1); }
+.contact-toggle-hover { background: #e8edf3;  transform: scale(0.96); box-shadow: inset 0 2rpx 6rpx rgba(16, 32, 64, 0.16), inset 0 -1rpx 2rpx rgba(255, 255, 255, 0.08); }
+/* 圆圈箭头：CSS 画的 chevron（旋转方块边框），比字符 ⌄ 更居中精致 */
+.contact-toggle-icon { display: flex; align-items: center; justify-content: center; width: 40rpx; height: 40rpx; border: 2rpx solid #bcc8d6; border-radius: 50%; background: #ffffff; transition: transform .32s ease; }
+.contact-toggle-chevron { width: 14rpx; height: 14rpx; border-right: 3rpx solid #7c8a9c; border-bottom: 3rpx solid #7c8a9c; transform: rotate(45deg) translate(-2rpx, -2rpx); }
+.contact-toggle-icon.expanded { transform: rotate(180deg); }
 .contact-toggle-icon.expanded { transform: rotate(180deg); }
 .comments-section { margin-bottom: 150rpx; }
 .comments-header { display: flex; align-items: center; justify-content: space-between; padding-bottom: 18rpx; border-bottom: 1rpx solid #eef1f4; }
@@ -150,14 +159,16 @@
 .bottom-bar { position: fixed; z-index: 20; right: 0; bottom: 0; left: 0; padding: 12rpx 18rpx calc(12rpx + env(safe-area-inset-bottom)); background: #ffffff; border-top: 1rpx solid #edf0f4; }
 .comment-toolbar { display: flex; align-items: center; gap: 10rpx; }
 .comment-anonymous-btn { display: flex; align-items: center; gap: 5rpx; height: 54rpx; padding: 0 12rpx; border: 1rpx solid #d9e0e9; border-radius: 28rpx; color: #7d8999; font-size: 22rpx; white-space: nowrap; }
-.comment-anonymous-btn.active { border-color: #3478f6; background: #eaf1ff; color: #3478f6; font-weight: 700; }
+/* 分身开启：蓝色实心填充（白字白点），与图五期望样式一致 */
+.comment-anonymous-btn.active { border-color: #3478f6; background: #3478f6; color: #ffffff; font-weight: 700; }
 .anonymous-dot { width: 12rpx; height: 12rpx; border-radius: 50%; background: #b2bdca; }
-.comment-anonymous-btn.active .anonymous-dot { background: #3478f6; }
+.comment-anonymous-btn.active .anonymous-dot { background: #ffffff; }
 .comment-input { flex: 1; min-width: 0; height: 70rpx; padding: 0 20rpx; border-radius: 36rpx; background: #f3f5f8; color: #1d3048; font-size: 26rpx; }
-.send-btn { color: #9ca7b4; font-size: 26rpx; }
-.send-btn.active { color: #3478f6; font-weight: 700; }
+/* 发送按钮：胶囊填充样式，未激活为灰色、输入内容后绿色实心（对齐图五「发送」框） */
+.send-btn { display: flex; align-items: center; justify-content: center; height: 54rpx; padding: 0 24rpx; border-radius: 28rpx; background: #d7dee7; color: #ffffff; font-size: 26rpx; white-space: nowrap; }
+.send-btn.active { background: #07c160; color: #ffffff; font-weight: 700; }
 /* 提交中：弱化按钮并占位，防止重复点击（逻辑上 onSendComment 也有 submittingComment 守卫） */
-.send-btn.sending { color: #b8c2cf; opacity: .6; }
+.send-btn.sending { opacity: .6; }
 .tool-btn { display: flex; align-items: center; justify-content: center; width: 48rpx; height: 48rpx; color: #64748b; font-size: 32rpx; }
 .comment-preview-images { display: flex; gap: 10rpx; margin-bottom: 10rpx; }
 .comment-preview-item { position: relative; width: 82rpx; height: 82rpx; }

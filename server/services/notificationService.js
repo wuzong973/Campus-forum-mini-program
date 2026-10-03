@@ -64,7 +64,8 @@ function pushCommentSubscribe(notification) {
       postDigest: notification.postTitle,
       actorNick: notification.actorNick,
       commentDigest: notification.content,
-      postId: notification.relatedId
+      postId: notification.relatedId,
+      commentId: notification.sourceCommentId
     }).catch(() => {})
     return
   }
@@ -72,7 +73,8 @@ function pushCommentSubscribe(notification) {
     channelText: '校园论坛',
     postDigest: notification.postTitle,
     commentDigest: notification.content,
-    postId: notification.relatedId
+    postId: notification.relatedId,
+    commentId: notification.sourceCommentId
   }).catch(() => {})
 }
 

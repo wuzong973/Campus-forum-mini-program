@@ -1,4 +1,7 @@
 {
   "navigationStyle": "custom",
-  "backgroundColor": "#F2F3F5"
+  "backgroundColor": "#F2F3F5",
+  "usingComponents": {
+    "richtext-content": "/components/richtext-content/richtext-content"
+  }
 }

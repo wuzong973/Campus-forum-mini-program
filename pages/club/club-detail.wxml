@@ -87,7 +87,7 @@
         <text class="section-title">文字介绍</text>
         <text class="section-hint" bindtap="onCopyIntro">复制</text>
       </view>
-      <text class="section-text">{{club.intro || '该社团暂未填写介绍。'}}</text>
+      <richtext-content class="section-text" content="{{club.intro || '该社团暂未填写介绍。'}}" selectable></richtext-content>
     </view>
 
     <!-- ===== 图片介绍（申请页「图片介绍(选填)」）===== -->

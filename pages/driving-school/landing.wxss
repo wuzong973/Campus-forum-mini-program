@@ -1,0 +1,19 @@
+.page { min-height: 100vh; padding: 24rpx 24rpx calc(40rpx + env(safe-area-inset-bottom)); box-sizing: border-box; background: #f5f7fa; }
+
+/* 内容卡片（与校园市场页同款观感） */
+.landing-card { padding: 32rpx 30rpx; border-radius: 20rpx; background: #ffffff; box-shadow: 0 4rpx 18rpx rgba(29, 48, 72, 0.06); }
+.landing-title-row { display: flex; align-items: center; gap: 14rpx; margin-bottom: 24rpx; }
+.landing-title-accent { width: 8rpx; height: 32rpx; border-radius: 4rpx; background: #3478f6; }
+.landing-title { color: #1d3048; font-size: 34rpx; font-weight: 700; line-height: 1.4; }
+.landing-rich { display: block; }
+.landing-images { display: flex; flex-direction: column; gap: 20rpx; margin-top: 28rpx; }
+.landing-image { width: 100%; border-radius: 14rpx; }
+
+/* 加载/空态 */
+.landing-loading, .landing-empty { display: flex; flex-direction: column; align-items: center; padding: 140rpx 40rpx; }
+.loading-text { color: #9aa7b6; font-size: 27rpx; }
+.landing-empty-icon { font-size: 88rpx; margin-bottom: 24rpx; }
+.landing-empty-text { color: #405068; font-size: 30rpx; font-weight: 700; margin-bottom: 12rpx; }
+.landing-empty-sub { color: #9aa7b6; font-size: 24rpx; text-align: center; line-height: 1.6; }
+
+.landing-rich { display: block; --rt-size: 29rpx; --rt-color: #405068; --rt-line: 1.75; }

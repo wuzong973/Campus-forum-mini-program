@@ -154,6 +154,7 @@ Page({
           actorUserId: item.actorUserId || 0,
           postTitle: item.postTitle || '',
           commentImages: item.commentImages || [],
+          sourceCommentId: item.sourceCommentId || 0,
           postId: ['comment', 'like', 'follow', 'reply'].indexOf(item.type) > -1 ? item.relatedId : '',
           read: !!item.isRead,
           time: format.formatRelativeTime(item.createdAt)
@@ -382,7 +383,9 @@ Page({
         time: target.time || '',
         title: target.title || '',
         postTitle: target.postTitle || '',
-        commentImages: target.commentImages || []
+        commentImages: target.commentImages || [],
+        // 来源评论 id：详情页「查看原帖」跳帖子后直接定位到该条评论/回复
+        sourceCommentId: target.sourceCommentId || 0
       }
       wx.navigateTo({ url: '/pages/message-detail/index?id=' + target.postId })
     }

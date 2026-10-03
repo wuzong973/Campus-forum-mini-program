@@ -88,7 +88,7 @@
   <!-- 驾校简介（后台填了「驾校概况」优先展示长文，否则用一句话简介） -->
   <view class="card">
     <view class="sec-title">驾校概况</view>
-    <text class="intro-text">{{school.detail || school.intro}}</text>
+    <richtext-content class="intro-text" content="{{school.detail || school.intro}}" image-group="{{images}}" selectable></richtext-content>
     <view class="address-row">
       <text class="address-label">训练场地址</text>
       <text class="address-text">{{school.address || '报名后由驾校告知'}}</text>
@@ -123,7 +123,7 @@
   <!-- 底部固定操作条：contact-admin 才是 flex 子项，必须包一层拿宽度，
        否则按钮只按文字收缩、右侧留空（组件内部的 flex:1 撑不到外层） -->
   <view class="foot-bar">
-    <view class="foot-ghost spring-btn" hover-stay-time="80" hover-class="foot-ghost--hover press-spring" bindtap="goGuide">学车指南</view>
+    <view class="foot-ghost spring-btn" hover-stay-time="80" hover-class="foot-ghost--hover press-spring" bindtap="goGuide">{{guideBtnText}}</view>
     <view class="foot-main-wrap">
       <!-- 「立即咨询」直接弹二维码，不再经过「联系管理员」菜单：
            本驾校配了自己的码就弹驾校的，没配则回落到全站管理员微信 -->

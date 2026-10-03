@@ -1,0 +1,18 @@
+<template name="rtRuns">
+  <block wx:for="{{runs}}" wx:for-item="run" wx:key="index">
+    <image wx:if="{{run.img}}" class="rt-img-inline" src="{{run.img}}" mode="aspectFit" lazy-load data-src="{{run.img}}" bindtap="onImageTap"></image>
+    <text wx:elif="{{run.href}}" class="{{run.cls || 'rt-link'}}" style="{{run.style}}" user-select="{{selectable}}" data-href="{{run.href}}" catchtap="onLinkTap">{{run.t}}</text>
+    <text wx:else class="{{run.cls}}" style="{{run.style}}" user-select="{{selectable}}">{{run.t}}</text>
+  </block>
+</template>
+
+<view class="richtext-content">
+  <block wx:for="{{items}}" wx:for-item="blk" wx:key="index">
+    <view wx:if="{{blk.type === 'hr'}}" class="{{blk.cls}}"></view>
+    <image wx:elif="{{blk.type === 'img'}}" class="{{blk.cls}}" src="{{blk.src}}" mode="widthFix" lazy-load data-src="{{blk.src}}" bindtap="onImageTap"></image>
+    <view wx:elif="{{blk.type === 'h1' || blk.type === 'h2' || blk.type === 'h3'}}" class="{{blk.cls}}"><template is="rtRuns" data="{{runs: blk.runs, selectable: selectable}}"/></view>
+    <view wx:elif="{{blk.type === 'quote'}}" class="{{blk.cls}}"><template is="rtRuns" data="{{runs: blk.runs, selectable: selectable}}"/></view>
+    <view wx:elif="{{blk.type === 'li' || blk.type === 'li-ol'}}" class="{{blk.cls}}"><text class="rt-li-mark">{{blk.type === 'li-ol' ? blk.start + '.' : '•'}}</text><view class="rt-li-body"><template is="rtRuns" data="{{runs: blk.runs, selectable: selectable}}"/></view></view>
+    <view wx:else class="{{blk.cls}}"><template is="rtRuns" data="{{runs: blk.runs, selectable: selectable}}"/></view>
+  </block>
+</view>

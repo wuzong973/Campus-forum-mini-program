@@ -1,0 +1,49 @@
+<view class="page {{fxOff ? 'fx-off' : ''}}">
+  <!-- 四分类切换 -->
+  <view class="category-bar">
+    <view
+      class="category-item {{activeCategory === item.key ? 'active' : ''}} spring-btn"
+      wx:for="{{categories}}"
+      wx:key="key"
+      data-key="{{item.key}}"
+      bindtap="onCategoryTap"
+      hover-class="category-hover press-spring"
+      hover-stay-time="80"
+    >{{item.name}}</view>
+  </view>
+
+  <!-- 加载中 -->
+  <view class="market-loading" wx:if="{{loading}}">
+    <text class="loading-text">内容加载中…</text>
+  </view>
+
+  <!-- 分类内容（后台可编辑的自定义页面） -->
+  <view class="market-card card anim-stagger" wx:elif="{{page && page.status && page.blocks.length}}">
+    <view class="market-title-row" wx:if="{{page.title}}">
+      <view class="market-title-accent"></view>
+      <text class="market-title">{{page.title}}</text>
+    </view>
+    <richtext-content class="market-rich" blocks="{{page.blocks}}" selectable image-group="{{page.images}}"></richtext-content>
+    <view class="market-images" wx:if="{{page.images.length}}">
+      <image
+        class="market-image"
+        wx:for="{{page.images}}"
+        wx:key="*this"
+        src="{{item}}"
+        mode="widthFix"
+        lazy-load
+        data-url="{{item}}"
+        bindtap="onPreviewImage"
+      ></image>
+    </view>
+    <!-- 正文下方的跳转按钮：链接与文字由后台「编辑校园市场页面」配置，留空则不显示 -->
+    <page-link-button link="{{page.link}}" link-text="{{page.linkText}}"></page-link-button>
+  </view>
+
+  <!-- 空态：管理员未发布该分类内容 -->
+  <view class="market-empty" wx:elif="{{!loading}}">
+    <view class="market-empty-icon">🛒</view>
+    <text class="market-empty-text">内容正在筹备中</text>
+    <text class="market-empty-sub">{{activeCategory === 'rental' ? '租赁服务' : activeCategory === 'digital' ? '校园数码' : activeCategory === 'housekeeping' ? '校园家政' : 'DIY电脑'}}相关内容会在这里展示，敬请期待</text>
+  </view>
+</view>

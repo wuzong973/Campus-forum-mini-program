@@ -1460,6 +1460,32 @@ async function repairUserAvatars() {
   } catch (e) {
     console.error('[migrations] 修复用户头像昵称失败：', e.message)
   }
+
+  // ===== 微信群播报（论坛广播）=====
+  // 短链缓存：genwxashortlink 有配额且链接约 30 天过期，同一页面地址只生成一次，
+  // 临近过期（服务层按 created_at > 25 天判断）重新生成
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS broadcast_short_link (
+      page_key VARCHAR(255) NOT NULL,
+      link VARCHAR(128) NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (page_key)
+    ) ENGINE=InnoDB
+  `)
+  // 播报流水：window 起止即新帖扫描游标，content 为最终发群文案
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS group_broadcast_log (
+      id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+      window_start DATETIME NOT NULL,
+      window_end DATETIME NOT NULL,
+      post_count INT UNSIGNED NOT NULL DEFAULT 0,
+      content TEXT,
+      delivered TINYINT(1) NOT NULL DEFAULT 0,
+      delivered_at DATETIME DEFAULT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      INDEX idx_broadcast_created (created_at)
+    ) ENGINE=InnoDB
+  `)
 }
 
 module.exports = {

@@ -8,6 +8,7 @@ const activityController = require('../controllers/activityController')
 const repairController = require('../controllers/repairController')
 const drivingSchoolController = require('../controllers/drivingSchoolController')
 const reviewController = require('../controllers/reviewController')
+const broadcastController = require('../controllers/broadcastController')
 const { auth, requireAdmin } = require('../middleware/auth')
 
 router.use(auth)
@@ -101,5 +102,9 @@ router.delete('/activities/:id', requireAdmin('content.manage'), activityControl
 // 活动审核（普通用户发布的活动需审核通过后才公开）
 router.get('/activity-audits', requireAdmin('content.manage'), activityController.adminAuditList)
 router.post('/activities/:id/audit', requireAdmin('content.manage'), activityController.adminAudit)
+
+// 微信群播报（论坛广播）：生成新帖摘要+小程序短链的群发文案（content.manage 权限）
+router.get('/broadcasts', requireAdmin('content.manage'), broadcastController.list)
+router.post('/broadcasts/run', requireAdmin('content.manage'), broadcastController.runNow)
 
 module.exports = router

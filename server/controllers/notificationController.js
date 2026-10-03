@@ -32,7 +32,7 @@ exports.list = async (req, res) => {
     const [[count]] = await pool.query('SELECT COUNT(*) AS total FROM system_notification WHERE user_id = ?', [req.userId])
     const [rows] = await pool.query(
       `SELECT n.id, n.type, n.title, n.content, n.related_id, n.is_read, n.created_at,
-        n.actor_user_id, n.actor_nick, n.actor_avatar, n.post_title, n.comment_images,
+        n.actor_user_id, n.actor_nick, n.actor_avatar, n.post_title, n.comment_images, n.source_comment_id,
         u2.nick_name AS actor_real_nick, u2.avatar_url AS actor_real_avatar,
         fp.title AS related_post_title
        FROM system_notification n
@@ -63,6 +63,8 @@ exports.list = async (req, res) => {
             item.actor_nick || item.actor_real_nick,
           ),
           postTitle: item.post_title || item.related_post_title || '',
+          // 来源评论 id：消息详情「查看原帖」跳帖子后直接定位到该条评论/回复
+          sourceCommentId: item.source_comment_id || 0,
           commentImages
         }
       }),

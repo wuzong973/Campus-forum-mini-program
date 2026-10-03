@@ -29,7 +29,7 @@
     <!-- 群公告：后台维护的进群须知，用浅黄底与正文区分 -->
     <view class="sec-card notice-card" wx:if="{{group.notice}}">
       <view class="sec-title">群公告</view>
-      <text class="notice-text" user-select>{{group.notice}}</text>
+      <richtext-content class="notice-text" content="{{group.notice}}" selectable></richtext-content>
     </view>
 
     <!-- 群管理：管理员微信二维码 -->

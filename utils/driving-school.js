@@ -38,6 +38,9 @@ const DEFAULT_PROMO = {
   image: ''
 }
 
+// 驾校详情页左下角入口按钮的兜底文字（后台在「编辑学车指南」页里改）
+const DEFAULT_GUIDE_BTN_TEXT = '学车指南'
+
 // 排序方式（详情见 sortSchools）
 const SORT_OPTIONS = [
   { key: 'default', label: '综合排序' },
@@ -73,9 +76,7 @@ function buildSchoolCard(school, index) {
   item.firstChar = String(school.name || '驾').charAt(0)
   item.coverTheme = COVER_THEMES[(index >= 0 ? index : 0) % COVER_THEMES.length]
   item.tagList = (school.tags || []).slice(0, 5)
-  // 列表卡片只放前 3 个标签，剩下的收成 +N，避免五个长标签把卡片撑成三行
-  item.cardTags = (school.tags || []).slice(0, 3)
-  item.cardTagMore = Math.max(0, (school.tags || []).length - 3)
+  item.cardTags = (school.tags || []).slice()
   item.passRateText = toNumber(school.passRate, 0) + '%'
   item.carTypesText = String(school.carTypes || '').trim()
   item.priceText = String(school.price || '').trim()
@@ -124,6 +125,7 @@ module.exports = {
   PASS_RATE_FILTERS,
   LEVEL_FILTERS,
   DEFAULT_PROMO,
+  DEFAULT_GUIDE_BTN_TEXT,
   SORT_OPTIONS,
   ENROLL_STEPS,
   COVER_THEMES,

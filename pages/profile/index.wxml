@@ -30,7 +30,7 @@
         <text class="stat-num">{{profile.likeReceived || 0}}</text>
         <text class="stat-label">获赞</text>
       </view>
-      <view class="stat-item" wx:if="{{!hideProfilePosts}}">
+      <view class="stat-item" wx:if="{{!visitorHidden}}">
         <text class="stat-num">{{profile.postCount || 0}}</text>
         <text class="stat-label">帖子</text>
       </view>
@@ -43,23 +43,21 @@
         class="profile-tab {{activeTab === index ? 'active' : ''}}"
         wx:for="{{tabs}}"
         wx:key="*this"
-        wx:if="{{index === 0 ? !hideProfilePosts : true}}"
         data-index="{{index}}"
         bindtap="onTab"
       >
-        <text>{{item}}{{index === 0 ? ' ' + posts.length : ''}}</text>
+        <text>{{index === 0 ? (visitorHidden ? '已隐藏主页帖子' : item + ' ' + posts.length) : item}}</text>
       </view>
-      <!-- 液态指示条（utils/liquid-tab.js）：首个 tab 隐藏时数据序与渲染序差 1，见 js 的 liquidPos -->
+      <!-- 液态指示条（utils/liquid-tab.js） -->
       <view class="liquid-indicator {{liquidPhase}}" style="{{liquidStyle}}"></view>
     </view>
 
-    <view wx:if="{{activeTab === 0 && !hideProfilePosts}}" wx:for="{{posts}}" wx:key="id" class="feed-item anim-stagger" style="--i: {{index < 6 ? index : 0}};">
+    <view wx:if="{{activeTab === 0}}" wx:for="{{posts}}" wx:key="id" class="feed-item anim-stagger" style="--i: {{index < 6 ? index : 0}};">
       <post-card post="{{item}}" showFooter="{{false}}" />
     </view>
 
-    <empty-state wx:if="{{!loading && activeTab === 0 && !hideProfilePosts && posts.length === 0}}" text="还没有发布帖子" />
+    <empty-state wx:if="{{!loading && activeTab === 0 && posts.length === 0}}" text="{{visitorHidden ? '该用户已隐藏主页帖子' : '还没有发布帖子'}}" />
     <empty-state wx:if="{{activeTab === 1}}" text="收藏内容暂未公开" />
-    <empty-state wx:if="{{hideProfilePosts && activeTab === 0}}" text="已开启「隐藏主页帖子」" />
   </view>
 </view>
 

@@ -211,16 +211,7 @@ Page({
     this.refresh()
   },
 
-  // ===== 指标说明 / 跳转 =====
-  onMetricHelp() {
-    wx.showModal({
-      title: '指标说明',
-      content: '通过率：该驾校近一年科目二、科目三首次考试的通过比例，由驾校提供、平台抽样核实。\n推荐等级：综合通过率、服务口碑与投诉情况评定的等级，S 为最高。\n\n以上信息仅供参考，报名前请实地确认并签订书面合同。',
-      showCancel: false,
-      confirmText: '知道了'
-    })
-  },
-
+  // ===== 跳转 =====
   onSchoolTap(e) {
     const id = Number(e.currentTarget.dataset.id)
     if (!id) return
@@ -228,9 +219,9 @@ Page({
     wx.navigateTo({ url: '/pages/driving-school/detail?id=' + id })
   },
 
-  // 运营横幅：进入学车指南（流程 / 材料 / 科目 / 常见问题）
-  goGuide() {
-    wx.navigateTo({ url: '/pages/driving-school/guide' })
+  // 运营横幅（校园圈学车）：进入独立的落地页（与学车指南分开，内容后台单独维护）
+  openPromoLanding() {
+    wx.navigateTo({ url: '/pages/driving-school/landing' })
   },
 
   onShareAppMessage() {

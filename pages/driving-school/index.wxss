@@ -408,16 +408,16 @@
 
 .school-head {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
 }
 
 .school-name {
   flex: 1;
   min-width: 0;
-  font-size: 30rpx;
+  font-size: 34rpx;
   font-weight: 700;
   color: #1f2a44;
-  line-height: 1.35;
+  line-height: 1.25;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -434,12 +434,14 @@
 .school-region {
   font-size: 22rpx;
   color: #8b93a3;
+  line-height: 1.25;
 }
 
 .school-distance {
-  margin-top: 4rpx;
+  margin-top: 2rpx;
   font-size: 22rpx;
   color: #8b93a3;
+  line-height: 1.25;
 }
 
 .school-intro {
@@ -457,7 +459,7 @@
 .school-metrics {
   display: flex;
   align-items: center;
-  margin-top: 14rpx;
+  margin-top: 6rpx;
 }
 
 .metric-label {
@@ -474,18 +476,6 @@
   font-size: 24rpx;
   font-weight: 700;
   color: #f5a70a;
-}
-
-.metric-help {
-  width: 30rpx;
-  height: 30rpx;
-  margin-left: 8rpx;
-  border-radius: 50%;
-  background: #eef1f5;
-  color: #98a2b3;
-  font-size: 20rpx;
-  line-height: 30rpx;
-  text-align: center;
 }
 
 .school-tags {
@@ -507,11 +497,6 @@
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
-}
-
-.school-tag--more {
-  background: #f2f4f8;
-  color: #8b93a3;
 }
 
 /* 班型 / 价格 chips */

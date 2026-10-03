@@ -119,9 +119,10 @@ async function main() {
       ['pending', 'accepted', 'finishing', 'disputed'].includes(p))
     assert.deepStrictEqual([...new Set(statusParams)].sort(),
       ['accepted', 'disputed', 'finishing', 'pending'], 'active 口径必须覆盖四态（看参数展开）')
+    // 已完成订单永久留存并对所有人可见（产品口径调整），但交接态仍必须与当事人条件同分支
     assert.match(state.hallWhere,
-      /e\.status IN \(\?, \?\) OR \(e\.status IN \(\?, \?\) AND \(e\.publisher_id = \? OR e\.acceptor_id = \?\)\)/,
-      '交接态必须与当事人条件同分支（仅当事人可见）')
+      /e\.status IN \(\?, \?\) OR e\.status = 'finished' OR \(e\.status IN \(\?, \?\) AND \(e\.publisher_id = \? OR e\.acceptor_id = \?\)\)/,
+      '已完成单所有人可见；交接态必须与当事人条件同分支（仅当事人可见）')
     assert.ok(!/e\.status IN \('pending', 'accepted'\)/.test(state.hallWhere), '不能退回只含两态的旧口径')
   })
 

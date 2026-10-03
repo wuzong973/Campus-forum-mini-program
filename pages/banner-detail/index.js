@@ -3,6 +3,7 @@ const api = require('../../utils/api')
 const wechat = require('../../utils/wechat')
 const messageStore = require('../../utils/messageStore')
 const qr = require('../../utils/qr')
+const richtext = require('../../utils/richtext')
 
 // 横幅编辑发布权限与后端 config.manage 对齐（super_admin/content_admin/operator）
 const BANNER_ADMIN_ROLES = ['super_admin', 'content_admin', 'operator']
@@ -24,6 +25,7 @@ const EMPTY_FORM = {
   icon: '',
   detailTitle: '',
   detailContent: '',
+  guideBtnText: '',
   images: [],
   link: '',
   linkText: '',
@@ -33,7 +35,15 @@ const EMPTY_FORM = {
 }
 
 // 「自定义页面」类 scope：复用本页的表单与展示，但字段是 { title, content, images, status }。
-// campusCard 可配多张（带 id 编辑某一张）；drivingGuide 是单张运营位（不传 id 时先取现有页面原地更新）
+// campusCard 可配多张（带 id 编辑某一张）；drivingGuide 是单张运营位（不传 id 时先取现有页面原地更新）；
+// market 为校园市场四分类页（每类一张，具体分类由 URL 的 category 参数决定）
+const MARKET_CATEGORY_LABELS = {
+  rental: '租赁服务',
+  digital: '校园数码',
+  housekeeping: '校园家政',
+  diypc: 'DIY电脑'
+}
+let marketCategory = ''
 const PAGE_SCOPES = {
   campusCard: {
     label: '校园卡页面',
@@ -50,18 +60,36 @@ const PAGE_SCOPES = {
     fetch: () => api.getDrivingGuidePage(),
     create: (payload) => api.createDrivingGuidePage(payload),
     save: (id, payload) => api.saveDrivingGuidePage(id, payload)
+  },
+  market: {
+    label: '校园市场页面',
+    createLabel: '编辑市场页面',
+    single: true,
+    fetch: () => api.getMarketPage(marketCategory),
+    create: (payload) => api.createMarketPage(marketCategory, payload),
+    save: (id, payload) => api.saveMarketPage(marketCategory, id, payload)
+  },
+  // 校园圈学车落地页：找驾校列表页顶部横幅的跳转目标，与「学车指南」分开编辑
+  promoLanding: {
+    label: '校园圈学车页面',
+    createLabel: '编辑校园圈学车页面',
+    single: true,
+    fetch: () => api.getPromoLandingPage(),
+    create: (payload) => api.createPromoLandingPage(payload),
+    save: (id, payload) => api.savePromoLandingPage(id, payload)
   }
 }
 
 Page({
   data: {
     banner: { text: '', icon: '', detailTitle: '', detailContent: '', images: [], link: '', linkText: '', bgColor: '', textColor: '', status: true },
-    paragraphs: [],
+    blocks: [],
     loaded: false,
     isAdmin: false,
     // 自定义页面模式（校园卡 / 学车指南）：复用同一套表单样式，隐藏横幅专属字段（文字/图标/配色/预览/链接），
     // 「发布横幅」改为「发布状态」；pageLabel 用于表单里的文案随 scope 切换
     isCard: false,
+    isDrivingGuide: false,
     pageLabel: '',
     // 编辑态
     editing: false,
@@ -76,8 +104,17 @@ Page({
 
   onLoad(options) {
     // scope=post → 帖子详情页「每日热榜」上方横幅；scope=publish → 发布页顶部横幅详情（只读）；
-    // scope=campusCard / drivingGuide → 后台可编辑的自定义页面（管理后台「物品」入口跳入）；默认 message → 消息通知横幅
-    this.scope = ['post', 'publish', 'campusCard', 'drivingGuide'].indexOf(options.scope) >= 0 ? options.scope : 'message'
+    // scope=campusCard / drivingGuide / market → 后台可编辑的自定义页面（管理后台「物品」入口跳入）；默认 message → 消息通知横幅
+    this.scope = ['post', 'publish', 'campusCard', 'drivingGuide', 'market', 'promoLanding'].indexOf(options.scope) >= 0 ? options.scope : 'message'
+    // market scope：分类由 URL 决定，页面标题带上分类名（如「编辑市场页面 · 租赁服务」）
+    if (this.scope === 'market') {
+      marketCategory = MARKET_CATEGORY_LABELS[options.category] ? options.category : ''
+      if (!marketCategory) {
+        wx.showToast({ title: '市场分类不存在', icon: 'none' })
+        setTimeout(() => wx.navigateBack({ fail: () => wx.switchTab({ url: '/pages/index/index' }) }), 900)
+        return
+      }
+    }
     this.pageScope = PAGE_SCOPES[this.scope] || null
     // publish 模式下按公告 id 精准展示对应横幅（发布页可配置多条公告，各自进各自详情）
     this.publishBannerId = options.id || ''
@@ -88,6 +125,7 @@ Page({
     // publish 横幅在管理后台「内容配置-发布横幅」中编辑，本页仅展示
     this.setData({
       isCard: !!this.pageScope,
+      isDrivingGuide: this.scope === 'drivingGuide',
       pageLabel: this.pageScope ? this.pageScope.label : '',
       isAdmin: BANNER_ADMIN_ROLES.indexOf(userInfo.role) >= 0 && this.scope !== 'publish'
     })
@@ -134,8 +172,9 @@ Page({
         this.cardCreateMode = false
       }
       // 自定义页面数据结构 { title, content }，映射进横幅展示字段（detailTitle/detailContent）复用同一套渲染
+      // link/linkText 不再清空：它们与横幅同名字段语义一致（横幅=点横幅跳转，自定义页=正文下方按钮）
       const banner = this.pageScope && raw
-        ? Object.assign({}, raw, { text: '', icon: '', detailTitle: raw.title || '', detailContent: raw.content || '', link: '', linkText: '', bgColor: '', textColor: '' })
+        ? Object.assign({}, raw, { text: '', icon: '', detailTitle: raw.title || '', detailContent: raw.content || '', link: raw.link || '', linkText: raw.linkText || '', bgColor: '', textColor: '' })
         : raw
       const data = banner || { text: '', icon: '', detailTitle: '', detailContent: '', images: [], link: '', linkText: '', bgColor: '', textColor: '', status: true }
       if (!Array.isArray(data.images)) data.images = []
@@ -144,20 +183,18 @@ Page({
       this.setData({
         banner: data,
         loaded: true,
-        paragraphs: this.splitParagraphs(data.detailContent)
+        blocks: richtext.parseBlocks(data.detailContent)
       })
       // 导航栏标题按场域固定，不受后台内容影响，加载失败也保持不变
       const navTitle = this.pageScope
-        ? (this.cardCreateMode ? this.pageScope.createLabel : this.pageScope.label)
+        ? (this.scope === 'market' && MARKET_CATEGORY_LABELS[marketCategory]
+          ? this.pageScope.label + ' · ' + MARKET_CATEGORY_LABELS[marketCategory]
+          : (this.cardCreateMode ? this.pageScope.createLabel : this.pageScope.label))
         : '公告详情'
       wx.setNavigationBarTitle({ title: navTitle })
     }).catch(() => {
       this.setData({ loaded: true })
     })
-  },
-
-  splitParagraphs(content) {
-    return String(content || '').split('\n').map((line) => line.trim()).filter(Boolean)
   },
 
   // ===== 展示态交互 =====
@@ -204,6 +241,7 @@ Page({
         icon: b.icon || '',
         detailTitle: b.detailTitle || '',
         detailContent: b.detailContent || '',
+        guideBtnText: b.guideBtnText || '',
         images: (b.images || []).slice(),
         link: b.link || '',
         linkText: b.linkText || '',
@@ -300,9 +338,12 @@ Page({
     }
     if (this.data.saving) return
     this.setData({ saving: true })
-    // 校园卡页面只提交 { title, content, images, status }；横幅按原字段全量提交
+    // 两类表单共有 link/linkText：横幅用它做「点击横幅跳转」，
+    // 自定义页面用它做「正文下方的跳转按钮」（留空则按钮不显示）。
+    const link = String(form.link || '').trim()
+    const linkText = String(form.linkText || '').trim()
     const payload = isCard
-      ? { title: String(form.detailTitle || '').trim(), content: form.detailContent, images: form.images, status: form.status }
+      ? { title: String(form.detailTitle || '').trim(), content: form.detailContent, images: form.images, status: form.status, link, linkText }
       : {
         text: form.text,
         icon: form.icon,
@@ -315,6 +356,8 @@ Page({
         textColor: form.textColor,
         status: form.status
       }
+    // 只有「学车指南」这一类页面带入口按钮文字，其他自定义页面不提交这个键
+    if (isCard && this.data.isDrivingGuide) payload.guideBtnText = String(form.guideBtnText || '').trim()
     this.submitBanner(payload).then(() => {
       this.setData({ editing: false, saving: false })
       wx.showToast({ title: form.status ? '已发布' : '已保存（下线）', icon: 'success' })

@@ -627,7 +627,7 @@ exports.getInteractionList = async (req, res) => {
     );
     const distinct = type === "commented" ? "DISTINCT p.id" : "p.id";
     const [rows] = await pool.query(
-      `SELECT ${distinct}, p.user_id, p.title, p.category, p.content, p.images,
+      `SELECT ${distinct}, p.user_id, p.anonymous_identity, p.title, p.category, p.content, p.images,
         p.like_count, p.comment_count, p.favorite_count, p.share_count, p.view_count, p.created_at,
         u.nick_name, u.avatar_url, u.campus, u.is_verified,
         IFNULL((SELECT COUNT(*) FROM forum_post fp2 WHERE fp2.user_id = p.user_id AND fp2.status = 1), 0) AS post_count
@@ -639,15 +639,24 @@ exports.getInteractionList = async (req, res) => {
       [userId, pageSize, offset],
     );
     const total = countRow ? countRow.total : 0;
+    // 匿名帖必须换成分身身份输出，否则「已点赞/已转发/已评论/已收藏」列表里
+    // 匿名帖会以作者真实昵称/头像出现（与帖子列表 mapPost 口径一致）
     success(res, {
-      list: rows.map((r) => ({
-        id: r.id, userId: r.user_id, nickName: r.nick_name, avatarUrl: normalizeLegacyAvatarUrl(r.avatar_url), campus: r.campus || "",
-        title: r.title || "", category: r.category, content: r.content,
-        images: parseImages(r.images), likeCount: r.like_count, commentCount: r.comment_count,
-        favoriteCount: r.favorite_count, shareCount: r.share_count || 0, viewCount: r.view_count || 0,
-        verified: !!r.is_verified, postCount: r.post_count || 0,
-        isLiked: !!isLiked, isFavorited: !!isFavorited, createdAt: r.created_at,
-      })),
+      list: rows.map((r) => {
+        const anonymous = parseAnonymousIdentity(r.anonymous_identity);
+        return {
+          id: r.id, userId: r.user_id,
+          nickName: anonymous ? anonymous.nickName : (r.nick_name || '校园同学'),
+          avatarUrl: anonymous ? anonymous.avatarUrl : normalizeLegacyAvatarUrl(r.avatar_url),
+          campus: r.campus || "",
+          isAnonymous: !!anonymous,
+          title: r.title || "", category: r.category, content: r.content,
+          images: parseImages(r.images), likeCount: r.like_count, commentCount: r.comment_count,
+          favoriteCount: r.favorite_count, shareCount: r.share_count || 0, viewCount: r.view_count || 0,
+          verified: !!r.is_verified, postCount: r.post_count || 0,
+          isLiked: !!isLiked, isFavorited: !!isFavorited, createdAt: r.created_at,
+        };
+      }),
       total,
       hasMore: offset + rows.length < total,
     });

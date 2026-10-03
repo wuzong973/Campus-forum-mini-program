@@ -7,13 +7,14 @@
  *   commentAnonymous ✗ 已删（2026-09-12 用户要求）：评论默认公开，详情页手动切换匿名保留
  *   commentPublic   ✗ 纯摆设（与 commentAnonymous 同一事实的反面，无消费方）——已删除
  *   anonymousMessage ✗ 纯摆设（账号级「允许被匿名私信」在发帖页由服务端字段承载）——已删除
- *   hideProfilePosts ✗ 纯摆设（无消费方）——已接线到个人主页：隐藏帖子 tab/列表/统计
+ *   hideProfilePosts ✓ 已接线（服务端驱动）：设置页 PUT /user/info 落库 sys_user.hide_profile_posts，
+ *                        服务端对访客过滤帖子数与列表，个人主页按访客视角隐藏帖子 tab/统计
  *
  * 覆盖：
  *   A. 保留开关的消费点存在（源码断言，防误删）
  *   B. 摆设开关已彻底移除（settings 源码零残留）
  *   C. 设置页 vm 行为：写入 system_settings、不再产生 commentPublic 副作用
- *   D. hideProfilePosts → 个人主页接线（wxml/js 护栏）
+ *   D. hideProfilePosts → 服务端落库 + 访客过滤 + 个人主页访客视角接线（wxml/js/服务端护栏）
  */
 const assert = require('assert')
 const path = require('path')
@@ -148,19 +149,32 @@ function run() {
     assert.strictEqual(state.storage.system_settings.hideProfilePosts, true, '隐藏主页帖子写入设置')
   }, 'C. 保留开关经设置页写入 system_settings（commentAnonymous 键不再产生）')
 
-  // D. hideProfilePosts → 个人主页接线
+  // D. hideProfilePosts → 服务端落库 + 访客过滤 + 个人主页访客视角接线
+  //    语义（2026-09-30 起调整）：该开关关闭的是「访客能否看到我的帖子」，
+  //    由服务端按 sys_user.hide_profile_posts 过滤；本人主页照常展示自己的帖子。
   check(() => {
     const profileJs = read('pages/profile/index.js')
-    assert.ok(profileJs.indexOf("hideProfilePosts") > -1, '个人主页必须读取 hideProfilePosts')
-    assert.ok(profileJs.indexOf("(wx.getStorageSync('system_settings') || {}).hideProfilePosts") > -1, '从 system_settings 读取偏好')
-    assert.ok(profileJs.indexOf('activeTab: hideProfilePosts ? 1 : 0') > -1, '开启时默认落在收藏 tab')
-    assert.ok(profileJs.indexOf('hideProfilePosts !== this.data.hideProfilePosts') > -1, 'onShow 同步偏好（设置页返回即时生效）')
+    assert.ok(profileJs.indexOf('hideProfilePosts') > -1, '个人主页必须读取 hideProfilePosts')
+    assert.ok(profileJs.indexOf('visitorHidden: false') > -1, '默认不隐藏（资料加载前）')
+    assert.ok(profileJs.indexOf('visitorHidden: !currentUserProfile && !!profile.hideProfilePosts') > -1,
+      '仅对访客生效：本人主页不受该开关影响')
     const profileWxml = read('pages/profile/index.wxml')
-    assert.ok(profileWxml.indexOf('activeTab === 0 && !hideProfilePosts') > -1, '帖子列表受偏好控制')
-    assert.ok(profileWxml.indexOf("index === 0 ? !hideProfilePosts : true") > -1, '帖子 tab 受偏好隐藏')
-    assert.ok(profileWxml.indexOf('wx:if="{{!hideProfilePosts}}"') > -1, '帖子数统计受偏好隐藏')
-    assert.ok(profileWxml.indexOf('已开启「隐藏主页帖子」') > -1, '关闭态显示说明占位')
-  }, 'D. hideProfilePosts 已接线到个人主页（tab/列表/统计/占位/onShow 同步）')
+    assert.ok(profileWxml.indexOf('wx:if="{{!visitorHidden}}"') > -1, '帖子数统计对访客隐藏')
+    assert.ok(profileWxml.indexOf("visitorHidden ? '已隐藏主页帖子' : item + ' ' + posts.length") > -1,
+      '帖子 tab 文案按访客视角切换')
+    assert.ok(profileWxml.indexOf("visitorHidden ? '该用户已隐藏主页帖子' : '还没有发布帖子'") > -1,
+      '空态区分「已隐藏」与「还没有发布」')
+    assert.ok(!/hideProfilePosts/.test(profileWxml), 'wxml 不得再依赖已删除的本地 hideProfilePosts 变量')
+    // 服务端口径：开关必须真正过滤数据，而不是只改文案
+    const userController = read('server/controllers/userController.js')
+    assert.ok(userController.indexOf('const hidePostsFromVisitor = Number(u.hide_profile_posts) === 1 && Number(currentUserId) !== profileId') > -1,
+      'getProfile 对访客归零 postCount')
+    assert.ok(userController.indexOf('if (Number((targetUsers[0] || {}).hide_profile_posts) === 1 && Number(currentUserId) !== profileId)') > -1,
+      'getProfilePosts 对访客返回空列表')
+    assert.ok(userController.indexOf('fields.push("hide_profile_posts = ?")') > -1, 'updateInfo 落库 hide_profile_posts')
+    const settingsJs = read('pages/settings/index.js')
+    assert.ok(settingsJs.indexOf("request.put('/user/info', { hideProfilePosts: value ? 1 : 0 }") > -1, '设置页开关同步服务端')
+  }, 'D. hideProfilePosts 已接线（设置页落库 + 服务端过滤访客 + 个人主页访客视角）')
 
   // F. anonymousMessage 接线：发帖页「允许被匿名私信」在服务端未设置时回退设备级默认
   check(() => {

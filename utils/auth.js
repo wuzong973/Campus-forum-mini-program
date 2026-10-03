@@ -87,12 +87,17 @@ function requirePublishReady() {
   if (!requireLogin('发帖需要先登录')) return false
   const missing = getMissingProfileFields()
   if (!missing.length) return true
+  const fieldKeyMap = { avatarUrl: 'avatar', nickName: 'nickname', campus: 'campus', gender: 'gender', phone: 'phone' }
+  const focus = missing.map((item) => fieldKeyMap[item.key] || item.key).join(',')
   wx.showModal({
     title: '请完善个人信息',
     content: '发帖前需先补充：' + missing.map((item) => item.label).join('、'),
-    confirmText: '去编辑',
+    confirmText: '去完善',
     success(res) {
-      if (res.confirm) wx.navigateTo({ url: '/pages/account-settings/index' })
+      if (res.confirm) {
+        // 直接进入完善资料弹窗，并携带缺失字段列表：设置页会自动弹窗并高亮待补项
+        wx.navigateTo({ url: '/pages/account-settings/index?profile=1&focus=' + focus })
+      }
     }
   })
   return false

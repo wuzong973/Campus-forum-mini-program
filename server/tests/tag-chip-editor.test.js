@@ -28,6 +28,12 @@ assert.ok(js.indexOf('> 8') >= 0 && js.indexOf('>= 12') >= 0, '单个 8 字 / �
 assert.ok(js.indexOf('filter((item) => !item.removing)') >= 0, '保存时要排除动画中的标签，避免把正在删的又存回去')
 assert.ok(js.indexOf('savedTags || drivingSchool.SERVICE_TAGS') >= 0, '未配置时要预填内置标签池，否则后台显示空、用户端却有 8 个')
 
+// 这一块的读取不得再共用一个 Promise.all：任一接口 reject（如 /config/promo-landing-page 未部署返 404）
+// 会让横幅/标签/指南/落地页四块一起停在初值，且空 catch 不报错 —— 用户看到的就是「标签凭空消失」
+assert.ok(js.indexOf('await Promise.allSettled([') >= 0, 'loadDrivingOps 必须用 allSettled，单个接口失败不得连带清空白')
+assert.ok(js.indexOf('const [promo, tags, guide, promoLanding] = await Promise.all([') < 0, '不得退回 Promise.all 写法')
+assert.ok(js.indexOf("if (settled[1].status === 'fulfilled')") >= 0, '标签接口失败时不得回填内置池，否则保存会覆盖掉已存在的配置')
+
 // 补位动画必须收占位宽度与外边距
 assert.ok(/@keyframes tag-collapse\s*\{[\s\S]*max-width:\s*0;[\s\S]*margin-right:\s*0/.test(wxss), 'collapse 关键帧要同时收 max-width 与 margin，后面的标签才会补位')
 assert.ok(/\.tag-chip--removing\s*\{[^}]*animation:\s*tag-collapse/.test(wxss), 'removing 类要挂 collapse 动画')

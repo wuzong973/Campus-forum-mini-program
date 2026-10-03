@@ -1,0 +1,86 @@
+# Dependencies
+node_modules/
+**/node_modules/
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Environment files
+.env
+.env.*
+!.env.example
+!server/.env.example
+
+# Production credentials
+server/config/apiclient_*.pem
+private.upload.key
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor files
+.vscode/
+.idea/
+
+# Build artifacts
+dist/
+build/
+coverage/
+
+# Python bytecode (deploy 脚本运行产物，会触发小程序保留目录报错)
+__pycache__/
+*.pyc
+
+# Temporary files
+*.tmp
+*.temp
+.workbuddy/
+.mimosa/
+
+# Crawler captures and local test artifacts
+jw-crawler/.logs/
+jw-crawler/captcha.png
+jw-crawler/captcha-samples/
+jw-crawler/schedule.json
+jw-crawler/schedule_raw/
+jw-crawler/login_debug/
+
+# 数据库备份：含用户手机号 / openid / 真实姓名等个人信息，禁止提交到仓库
+# （备份统一落在 db-backup/；不要在这里用 `*.sql` 通配，
+#   否则会误伤 server/sql/init.sql 这类必须版本化的建表脚本）
+db-backup/
+db-backup-*.sql
+*.sql.bak-*
+
+# ===== ↑ 以上同步自 .gitignore（「从 .gitignore 同步」只重写以上部分）=====
+.git/
+.hg/
+.svn/
+bower_components/
+jspm_packages/
+site-packages/
+venv/
+htmlcov/
+lcov-report/
+cmakefiles/
+cmake-build-*/
+bazel-*/
+pods/
+deriveddata/
+storybook-static/
+playwright-report/
+test-results/
+allure-results/
+allure-report/
+cdk.out/
+*.egg-info/
+*.dist-info/
+eggs/
+pip-wheel-metadata/
+wheels/
+# ----- ↑ 以上为 ZCode 默认排除规则（自定义规则请写在本行下方，不会被同步/恢复改动）-----
+# 自定义规则写在下方（本行提示可删除）

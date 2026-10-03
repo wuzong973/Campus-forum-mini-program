@@ -1,0 +1,48 @@
+<view class="richtext-editor">
+  <view class="rich-toolbar">
+    <block wx:for="{{groups}}" wx:for-item="group" wx:key="group">
+      <view class="rich-sep" wx:if="{{index > 0}}"></view>
+      <view
+        class="rich-btn {{item.demo}} {{item.kind === 'preview' && preview ? 'rt-on' : ''}}"
+        wx:for="{{group.items}}"
+        wx:for-item="item"
+        wx:key="label"
+        data-kind="{{item.kind}}"
+        data-cmd="{{item.cmd}}"
+        aria-label="{{item.label}}"
+        bindtap="onCmd"
+      >
+        <!-- 图标按钮：几何图形用 view 画（不依赖字体字形与图片资源），其余直接排字形 -->
+        <text class="rt-glyph" wx:if="{{item.glyph}}">{{item.glyph}}</text>
+        <view class="rt-ic rt-ic-list" wx:elif="{{item.icon === 'bullet' || item.icon === 'number'}}">
+          <view class="rt-li"><text class="rt-li-n" wx:if="{{item.icon === 'number'}}">1</text><view class="rt-li-dot" wx:else></view><view class="rt-li-bar"></view></view>
+          <view class="rt-li"><text class="rt-li-n" wx:if="{{item.icon === 'number'}}">2</text><view class="rt-li-dot" wx:else></view><view class="rt-li-bar"></view></view>
+        </view>
+        <view class="rt-ic rt-ic-quote" wx:elif="{{item.icon === 'quote'}}">
+          <view class="rt-quote-bar"></view>
+          <view class="rt-quote-lines"><view class="rt-bar"></view><view class="rt-bar"></view></view>
+        </view>
+        <view class="rt-ic rt-ic-divider" wx:elif="{{item.icon === 'divider'}}"><view class="rt-bar"></view></view>
+        <view class="rt-ic rt-ic-{{item.icon}}" wx:elif="{{item.icon}}">
+          <view class="rt-bar b1"></view><view class="rt-bar b2"></view><view class="rt-bar b3"></view>
+        </view>
+        <text wx:else>{{item.label}}</text>
+      </view>
+    </block>
+  </view>
+  <textarea
+    class="rich-textarea {{textareaClass}}"
+    value="{{text}}"
+    placeholder="{{placeholder}}"
+    maxlength="{{maxlength}}"
+    disabled="{{disabled}}"
+    cursor="{{cursor}}"
+    bindinput="onInput"
+    auto-height
+    show-confirm-bar="{{false}}"
+  ></textarea>
+  <view class="rich-preview" wx:if="{{preview}}">
+    <view class="rich-preview-tip">渲染效果预览 · 正文里的 * # |c| » 等是标记本身，用户端不会显示</view>
+    <richtext-content class="rich-preview-body" content="{{text}}"></richtext-content>
+  </view>
+</view>

@@ -272,6 +272,34 @@ async function main() {
     )
   }, 'js：确认失败有可见反馈')
 
+  // ---------- D. 静态：仅当事人可见的两个入口（2026-10-01 订单记录 403） ----------
+  check(() => {
+    assert.ok(
+      /class="row" bindtap="openLogs" wx:if="\{\{canViewLogs\}\}"/.test(wxml),
+      '「订单记录 / 查看记录」行必须挂 canViewLogs：后端 /errand/:id/logs 仅参与双方可见，第三方点进来必然 403'
+    )
+    assert.ok(
+      /class="contact spring-btn" bindtap="onContact"[^>]*wx:if="\{\{canContact\}\}"/.test(wxml),
+      '联系按钮必须挂 canContact：第三方看别人的历史单会看到一个点了拿不到号码的假入口'
+    )
+  }, 'wxml：订单记录与联系入口按角色隐藏')
+
+  check(() => {
+    assert.ok(/canViewLogs: role !== 'viewer'/.test(js), 'canViewLogs 必须由角色推导，不得写死')
+    assert.ok(
+      /canContact: role === 'publisher' \|\| role === 'acceptor' \|\| status === 'pending'/.test(js),
+      'canContact 要保留「待接单 + 浏览者」这条引导路径（onContact 会提示先接单），但不得放行其他状态的浏览者'
+    )
+    const logs = functionBody(js, 'openLogs')
+    assert.ok(logs, '应能取到 openLogs 函数体（方法被改名时这里会失败）')
+    assert.ok(/if \(!this\.data\.canViewLogs\) return/.test(logs), 'openLogs 必须有角色守卫，与后端 403 同口径')
+    assert.ok(
+      !/订单记录加载失败/.test(logs),
+      'openLogs 不得再弹笼统文案：utils/request 已按服务端 message 弹过一次，' +
+        '第二次 toast 会把「无权查看该订单记录」覆盖成「订单记录加载失败」，看起来像网络坏了'
+    )
+  }, 'js：openLogs 守卫与提示口径')
+
   console.log(testCount + ' tests passed.')
 }
 

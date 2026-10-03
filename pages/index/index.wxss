@@ -609,17 +609,8 @@
   line-height: 1.5;
 }
 
-.category-item.active::after {
-  content: "";
-  position: absolute;
-  bottom: 0;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 34rpx;
-  height: 5rpx;
-  background: #3478f6;
-  border-radius: 3rpx;
-}
+/* 原每分类的 .category-item.active::after 静态下划线已移除：
+   指示条换成 .liquid-indicator 滑动液态条（utils/liquid-tab.js），避免双重下划线 */
 
 .post-feed { margin: 0 12rpx; }
 

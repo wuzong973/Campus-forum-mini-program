@@ -29,12 +29,14 @@
         </view>
       </view>
     </view>
-    <view class="card" wx:elif="{{servicePage && (cardParagraphs.length || servicePage.images.length)}}">
+    <view class="card" wx:elif="{{servicePage && (cardBlocks.length || servicePage.images.length)}}">
       <view class="sec-title" wx:if="{{servicePage.title}}">{{servicePage.title}}</view>
-      <text class="para card-para" wx:for="{{cardParagraphs}}" wx:key="*this">{{item}}</text>
+      <richtext-content class="card-rich" blocks="{{cardBlocks}}" image-group="{{servicePage.images}}"></richtext-content>
       <view class="card-image-list" wx:if="{{servicePage.images.length}}">
         <image class="card-image" wx:for="{{servicePage.images}}" wx:key="*this" src="{{item}}" mode="widthFix" lazy-load data-url="{{item}}" bindtap="onPreviewCardImage"></image>
       </view>
+      <!-- 正文下方的跳转按钮：链接与文字由后台「编辑校园卡页面」配置，留空则不显示 -->
+      <page-link-button link="{{servicePage.link}}" link-text="{{servicePage.linkText}}"></page-link-button>
       <text class="card-updated" wx:if="{{servicePage.updatedAtText}}">更新于 {{servicePage.updatedAtText}}</text>
     </view>
     <view class="card" wx:else>

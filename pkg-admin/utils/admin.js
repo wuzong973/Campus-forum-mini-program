@@ -34,6 +34,10 @@ module.exports = {
   drivingServiceTags: () => request.get('/config/driving-service-tags', {}, true, { silent: true }),
   saveDrivingServiceTags: (data) => request.put('/config/driving-service-tags', data, true),
   drivingGuidePage: () => request.get('/config/driving-guide-page', {}, true, { silent: true }),
+  // 校园圈学车落地页（找驾校横幅跳转目标，与学车指南独立）
+  promoLandingPage: () => request.get('/config/promo-landing-page', {}, true, { silent: true }),
+  // 校园市场四分类自定义页（每类一张）：编辑跳 pages/banner-detail?scope=market&category=<key>&edit=1
+  marketPage: (category) => request.get('/config/market-page/' + category, {}, true, { silent: true }).then((d) => d || null),
   services: () => get('/services'),
   createService: (data) => post('/services', data),
   updateService: (id, data) => put('/services/' + id, data),

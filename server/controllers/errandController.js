@@ -7,6 +7,7 @@ const paymentController = require('./paymentController')
 const wsServer = require('../ws/wsServer')
 
 const CAMPUS_GROUPS = {
+    // 已完成订单沉底展示：进行中的订单永远排前面，完成的历史单按时间倒序留在下方。
   '广州校区': ['广州校区', '新港校区', '琶洲校区'],
   '佛山校区': ['佛山校区', '南海南校区', '南海北校区']
 }
@@ -232,10 +233,11 @@ exports.list = async (req, res) => {
     }
     if (status === 'active') {
       // ① 待接单 / 已被接走：所有人可见；
-      // ② 交接阶段（待确认 / 有异议）：**仅当事人**可见。
-      // 已取消 / 已完成的订单不进大厅（当事人看历史订单走「我发布的 / 我接的单」tab，
-      // 那两个 tab 读 /errand/mine/*，全量返回）。
+      // ② 交接阶段（待确认 / 有异议）：**仅当事人**可见；
+      // ③ 已完成订单永久留存：大厅对**所有人**展示（历史订单当事人仍走「我发布的 / 我接的单」tab）。
+      // 已取消订单不进大厅。
       where += ' AND (e.status IN (' + PUBLIC_HALL_STATUSES.map(() => '?').join(', ') + ')'
+        + ' OR e.status = \'finished\''
         + ' OR (e.status IN (' + PRIVATE_STAGE_STATUSES.map(() => '?').join(', ') + ')'
         + ' AND (e.publisher_id = ? OR e.acceptor_id = ?)))'
       params.push(...PUBLIC_HALL_STATUSES, ...PRIVATE_STAGE_STATUSES, userId, userId)
@@ -260,7 +262,7 @@ exports.list = async (req, res) => {
        FROM errand_order e
        LEFT JOIN sys_user u ON e.publisher_id = u.id
        LEFT JOIN sys_user a ON e.acceptor_id = a.id
-       ${where} ORDER BY e.created_at DESC LIMIT ? OFFSET ?`,
+      ${where} ORDER BY (e.status = 'finished') ASC, e.created_at DESC LIMIT ? OFFSET ?`,
       // 占位符仅 CASE WHEN 两处使用 userId，传 4 个会导致 IN/LIMIT/OFFSET 参数整体错位
       [userId, userId].concat(params, [pageSize, offset])
     )

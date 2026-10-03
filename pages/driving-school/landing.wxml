@@ -1,0 +1,33 @@
+<view class="page">
+  <view class="landing-loading" wx:if="{{loading}}">
+    <text class="loading-text">内容加载中…</text>
+  </view>
+
+  <view class="landing-card card" wx:elif="{{page && page.status && blocks.length}}">
+    <view class="landing-title-row" wx:if="{{page.title}}">
+      <view class="landing-title-accent"></view>
+      <text class="landing-title">{{page.title}}</text>
+    </view>
+    <richtext-content class="landing-rich" blocks="{{blocks}}" selectable image-group="{{page.images}}"></richtext-content>
+    <view class="landing-images" wx:if="{{page.images.length}}">
+      <image
+        class="landing-image"
+        wx:for="{{page.images}}"
+        wx:key="*this"
+        src="{{item}}"
+        mode="widthFix"
+        lazy-load
+        data-url="{{item}}"
+        bindtap="onPreviewImage"
+      ></image>
+    </view>
+    <!-- 正文下方的跳转按钮：链接与文字由后台「编辑校园圈学车页面」配置，留空则不显示 -->
+    <page-link-button link="{{page.link}}" link-text="{{page.linkText}}"></page-link-button>
+  </view>
+
+  <view class="landing-empty" wx:elif="{{!loading}}">
+    <view class="landing-empty-icon">🚗</view>
+    <text class="landing-empty-text">内容正在筹备中</text>
+    <text class="landing-empty-sub">学车优惠与活动信息会在这里展示，敬请期待</text>
+  </view>
+</view>

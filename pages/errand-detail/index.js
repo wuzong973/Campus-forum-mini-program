@@ -59,6 +59,8 @@ Page({
     bottomMode: '', // acceptor / publisher / ownerPending / pending / finished / ''
     requestPending: false,
     canHandleRequest: false,
+    canViewLogs: false,
+    canContact: false,
     cancelRequest: null,
     logs: [],
     showLogs: false,
@@ -158,6 +160,10 @@ Page({
       guideStep,
       requestPending,
       canHandleRequest: requestPending && role === 'publisher',
+      // 订单流水与联系方式只对当事人开放（后端 /logs 对第三方直接 403）；
+      // 待接单订单的浏览者保留联系入口，点了走 onContact 的「先接单」引导。
+      canViewLogs: role !== 'viewer',
+      canContact: role === 'publisher' || role === 'acceptor' || status === 'pending',
       contactPhoneText: this.buildContactPhoneText(order),
       showTakenPopup: showTaken,
       takenAcceptorName: (order && order.acceptorName) || '其他同学',
@@ -458,6 +464,8 @@ Page({
   },
 
   openLogs() {
+    // 与 /errand/:id/logs 的「仅参与双方可见」同口径，避免第三方点了只收到 403
+    if (!this.data.canViewLogs) return
     request.get('/errand/' + this.data.id + '/logs', {}, true).then((data) => {
       const list = (data && data.list) || []
       this.setData({
@@ -468,7 +476,7 @@ Page({
         })),
         showLogs: true
       })
-    }).catch(() => wx.showToast({ title: '订单记录加载失败', icon: 'none' }))
+    }).catch(() => { /* request.js 已按服务端 message 弹过提示，这里不再覆盖成笼统文案 */ })
   },
 
   closeLogs() {

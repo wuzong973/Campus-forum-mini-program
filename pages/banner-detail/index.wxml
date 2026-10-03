@@ -11,9 +11,7 @@
 
       <block wx:if="{{banner.text || (isCard && banner.detailTitle)}}">
         <view class="hero-title" wx:if="{{banner.detailTitle}}">{{banner.detailTitle}}</view>
-        <view class="hero-content" wx:if="{{paragraphs.length}}">
-          <text class="hero-para" wx:for="{{paragraphs}}" wx:key="index">{{item}}</text>
-        </view>
+        <richtext-content wx:if="{{blocks.length}}" class="hero-rich" blocks="{{blocks}}" image-group="{{banner.images}}"></richtext-content>
         <view class="hero-images" wx:if="{{banner.images.length}}">
           <image
             wx:for="{{banner.images}}"
@@ -32,7 +30,7 @@
           <text class="hero-link-value">{{banner.link}}</text>
           <text class="hero-link-action">复制</text>
         </view>
-        <view class="hero-empty" wx:if="{{!paragraphs.length && !banner.images.length && !banner.link}}">管理员还没有发布详细内容，敬请期待</view>
+        <view class="hero-empty" wx:if="{{!blocks.length && !banner.images.length && !banner.link}}">管理员还没有发布详细内容，敬请期待</view>
       </block>
 
       <view class="hero-empty" wx:if="{{loaded && !banner.text && !(isCard && banner.detailTitle)}}">{{isCard ? pageLabel + '还没有内容，点击下方编辑' : '暂无公告内容'}}</view>
@@ -91,8 +89,8 @@
       </view>
 
       <view class="form-item">
-        <view class="form-label">{{isCard ? '正文内容' : '详情内容'}}（换行分段）</view>
-        <textarea class="form-textarea" value="{{form.detailContent}}" maxlength="5000" placeholder="{{isCard ? '填写' + pageLabel + '的详细说明，换行分段...' : '向用户解释横幅内容的详细文字...'}}" data-field="detailContent" bindinput="onFieldInput" auto-height></textarea>
+        <view class="form-label">{{isCard ? '正文内容' : '详情内容'}}（换行分段；可用下方工具栏加样式）</view>
+        <richtext-editor value="{{form.detailContent}}" placeholder="{{isCard ? '填写' + pageLabel + '的详细说明，换行分段...' : '向用户解释横幅内容的详细文字...'}}" maxlength="5000" data-field="detailContent" bindinput="onFieldInput"></richtext-editor>
       </view>
 
       <view class="form-item">
@@ -109,7 +107,9 @@
         </view>
       </view>
 
-      <block wx:if="{{!isCard}}">
+      <!-- 跳转链接与链接文字：横幅与自定义页面共有。横幅的语义是「点击横幅跳这里」，
+           自定义页面的语义是「正文下方那个跳转按钮」（链接留空则整块按钮不显示）。
+           两个表单的字段名与位置刻意保持一致，管理员在任意表单里看到的都是同一组输入框。 -->
       <view class="form-item">
         <view class="form-label">跳转链接（可选；内部页面填 /pages/... 路径，外部链接将提供复制）</view>
         <input class="form-input" value="{{form.link}}" placeholder="https:// 或 /pages/xxx/index" data-field="link" bindinput="onFieldInput" />
@@ -117,9 +117,13 @@
 
       <view class="form-item">
         <view class="form-label">链接文字（可选）</view>
-        <input class="form-input" value="{{form.linkText}}" maxlength="30" placeholder="例如：报名入口" data-field="linkText" bindinput="onFieldInput" />
+        <input class="form-input" value="{{form.linkText}}" maxlength="20" placeholder="例如：报名入口" data-field="linkText" bindinput="onFieldInput" />
       </view>
-      </block>
+
+      <view class="form-item" wx:if="{{isDrivingGuide}}">
+        <view class="form-label">驾校详情页左下角按钮文字（12 字内，留空显示「学车指南」）</view>
+        <input class="form-input" value="{{form.guideBtnText}}" maxlength="12" placeholder="学车指南" data-field="guideBtnText" bindinput="onFieldInput" />
+      </view>
 
       <view class="form-item form-switch-row">
         <view class="form-label">{{isCard ? '发布状态（关闭即对用户下线）' : '发布横幅（关闭即对用户下线）'}}</view>

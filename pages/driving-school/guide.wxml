@@ -1,8 +1,8 @@
 <view class="page page-enter">
-  <!-- 后台可编辑的自定义页面：标题 + 正文（换行分段）+ 图片，普通用户只读 -->
-  <view class="card" wx:if="{{page && (paragraphs.length || page.images.length)}}">
+  <!-- 后台可编辑的自定义页面：标题 + 正文（标记语法）+ 图片，普通用户只读 -->
+  <view class="card" wx:if="{{page && (blocks.length || page.images.length)}}">
     <view class="sec-title" wx:if="{{page.title}}">{{page.title}}</view>
-    <text class="para" wx:for="{{paragraphs}}" wx:key="*this">{{item}}</text>
+    <richtext-content class="guide-rich" blocks="{{blocks}}" image-group="{{page.images}}"></richtext-content>
     <view class="image-list" wx:if="{{page.images.length}}">
       <image
         class="image"
@@ -15,6 +15,8 @@
         bindtap="onPreviewImage"
       ></image>
     </view>
+    <!-- 正文下方的跳转按钮：链接与文字由后台「编辑学车指南」配置，留空则不显示 -->
+    <page-link-button link="{{page.link}}" link-text="{{page.linkText}}"></page-link-button>
     <text class="updated" wx:if="{{page.updatedAtText}}">更新于 {{page.updatedAtText}}</text>
   </view>
 

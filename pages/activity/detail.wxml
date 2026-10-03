@@ -36,7 +36,7 @@
     <view class="card" wx:if="{{activity.detailTitle || activity.detailContent || activity.images.length}}">
       <view class="card-title">活动介绍</view>
       <view class="detail-title" wx:if="{{activity.detailTitle}}">{{activity.detailTitle}}</view>
-      <text class="detail-content" wx:if="{{activity.detailContent}}">{{activity.detailContent}}</text>
+      <richtext-content class="detail-content" wx:if="{{activity.detailContent}}" content="{{activity.detailContent}}" selectable></richtext-content>
       <view class="img-grid" wx:if="{{activity.images.length}}">
         <image
           wx:for="{{activity.images}}"

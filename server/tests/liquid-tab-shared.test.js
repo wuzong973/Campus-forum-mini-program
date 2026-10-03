@@ -50,7 +50,9 @@ assert.ok(!/requestAnimationFrame|setInterval/.test(engine),
 const SURFACES = [
   { file: 'pages/errand-order/index', track: '.top-tabs', items: '.top-tab', removed: '.top-tab.active::after' },
   { file: 'pages/profile/index', track: '.profile-tabbar', items: '.profile-tab', removed: '.profile-tab.active::after' },
-  { file: 'pages/my-messages/index', track: '.tabs', items: '.tab', removed: 'border-bottom: 4rpx solid #4A7AFF' }
+  { file: 'pages/my-messages/index', track: '.tabs', items: '.tab', removed: 'border-bottom: 4rpx solid #4A7AFF' },
+  // 横滚栏：指示条随滚动内容移动，scroll-left 联动见页面 syncCategoryScroll
+  { file: 'pages/index/index', track: '.category-list', items: '.category-item', removed: '.category-item.active::after' }
 ]
 
 SURFACES.forEach((s) => {

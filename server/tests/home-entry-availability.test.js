@@ -73,12 +73,13 @@ const PAGE_ENTRIES = [
   ['校园卡', '/pages/campus-service/index'],
   ['速印', '/pages/campus-service/index'],
   ['返乡大巴', '/pages/campus-service/index'],
-  ['特惠寄件', '/pages/campus-service/index']
+  ['特惠寄件', '/pages/campus-service/index'],
+  // 校园市场：独立的市场页（租赁服务 / 校园数码 / 校园家政 / DIY电脑 四个后台可编辑分类）
+  ['校园市场', '/pages/market/index']
 ]
 
 // 映射到首页分类的入口
 const CATEGORY_ENTRIES = [
-  ['校园市场', '二手闲置'],
   ['失物招领', '失物寻物']
 ]
 

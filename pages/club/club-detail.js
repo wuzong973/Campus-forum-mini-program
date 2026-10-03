@@ -177,8 +177,11 @@ Page({
   onCopyIntro() {
     const club = this.data.club
     if (!club || !club.intro) return
+    // 惰性 require：本页面被纯 Node 桩测试直接加载，顶层加依赖会连坐报错
+    const richtext = require('../../utils/richtext')
     wx.setClipboardData({
-      data: club.name + '\n' + club.intro,
+      // 复制走的是原文，必须剥掉标记，否则粘出去的是 **加粗** 而不是加粗
+      data: club.name + '\n' + richtext.stripMarks(club.intro),
       success() {
         wx.showToast({ title: '社团介绍已复制', icon: 'none' })
       }

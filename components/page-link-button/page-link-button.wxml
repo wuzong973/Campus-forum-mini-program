@@ -1,0 +1,11 @@
+<!-- 链接留空时整块不渲染：老页面（没有 link 字段）不会多出一个空按钮 -->
+<view
+  wx:if="{{show}}"
+  class="page-link-btn spring-btn"
+  hover-class="page-link-btn--hover press-spring"
+  hover-stay-time="80"
+  bindtap="onTap"
+>
+  <text class="page-link-btn-text">{{label}}</text>
+  <text class="page-link-btn-arrow">›</text>
+</view>

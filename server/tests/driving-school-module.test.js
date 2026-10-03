@@ -312,7 +312,12 @@ async function pageBehaviorTests() {
     await filled.onLoad()
     check(() => {
       assert.strictEqual(filled.data.page.title, '学车全流程')
-      assert.deepStrictEqual(filled.data.paragraphs, ['第一段说明', '第二段说明'], '正文按空行分段并去掉空段')
+      assert.deepStrictEqual(filled.data.blocks.map((b) => b.type), ['p', 'p'], '正文按段渲染，空段照旧丢弃')
+      assert.deepStrictEqual(
+        filled.data.blocks.map((b) => b.runs.map((r) => r.t).join('')),
+        ['第一段说明', '第二段说明'],
+        '纯文本经标记解析器应与旧的逐行切段得到同样的文字（老内容零迁移的底线）'
+      )
       assert.strictEqual(filled.data.page.images.length, 1)
       assert.strictEqual(filled.data.page.updatedAtText, '', '缺 updatedAt 时不应渲染 undefined 文本')
     }, '学车指南渲染后台内容')
@@ -325,7 +330,7 @@ async function pageBehaviorTests() {
 // =====================================================================
 function sourceGuardTests() {
   const appJson = JSON.parse(read('app.json'))
-  const pages = ['index', 'detail', 'guide']
+  const pages = ['index', 'detail', 'guide', 'landing']
 
   for (const name of pages) {
     check(() => {
@@ -353,7 +358,9 @@ function sourceGuardTests() {
     assert.ok(listWxml.indexOf('item.priceText') >= 0, '卡片应展示价格')
     assert.ok(listWxml.indexOf('item.addressText') >= 0, '卡片应展示地址')
     assert.ok(listWxml.indexOf('item.phoneText') >= 0, '卡片应展示联系方式')
-    assert.ok(listWxml.indexOf('bindtap="goGuide"') >= 0, '运营横幅应可进入学车指南')
+    // 运营横幅改为进入独立的「校园圈学车」落地页（内容后台单独编辑，与学车指南分开）
+    assert.ok(listWxml.indexOf('bindtap="openPromoLanding"') >= 0, '运营横幅应可进入校园圈学车落地页')
+    assert.ok(listJs.indexOf("url: '/pages/driving-school/landing'") >= 0, '落地页跳转目标缺失')
     assert.ok(listWxml.indexOf('regionOptions') === -1, '旧区域分类应已移除')
   }, '列表页交互接线与字段')
 
@@ -537,6 +544,38 @@ function mapEntryGuardTests() {
   }, '每所驾校一张咨询二维码')
 }
 
+// 驾校详情页左下角入口按钮文字：存储随「学车指南」这条自定义页面走，
+// 运营横幅不得再带同名字段（两个入口写同一语义会互相覆盖）
+function guideBtnTextGuardTests() {
+  check(() => {
+    const detailJs = read('pages/driving-school/detail.js')
+    assert.ok(detailJs.indexOf('api.getDrivingGuidePage()') >= 0, '端上要从指南页面接口取入口按钮文字')
+    assert.ok(detailJs.indexOf('guideBtnText: ds.DEFAULT_GUIDE_BTN_TEXT') >= 0, '默认值取独立常量，不再挂在横幅兜底对象上')
+    assert.ok(detailJs.indexOf('promo.guideBtnText') < 0, '不得再从运营横幅读这个字段')
+
+    const editorJs = read('pages/banner-detail/index.js')
+    assert.ok(editorJs.indexOf('isDrivingGuide') >= 0, '编辑器要按 scope 区分是否显示该字段')
+    assert.ok(editorJs.indexOf("payload.guideBtnText = String(form.guideBtnText || '').trim()") >= 0, '保存时提交该字段')
+    const editorWxml = read('pages/banner-detail/index.wxml')
+    assert.ok(editorWxml.indexOf('wx:if="{{isDrivingGuide}}"') >= 0, '输入框只对学车指南 scope 显示')
+    assert.ok(editorWxml.indexOf('data-field="guideBtnText"') >= 0, '输入框要接到 form.guideBtnText')
+  }, '入口按钮文字改由学车指南页面配置')
+
+  check(() => {
+    const ctrl = read('server/controllers/configController.js')
+    assert.ok(/if \(type === DRIVING_GUIDE_TYPE\) \{[\s\S]{0,200}meta\.guideBtnText = guideBtnText/.test(ctrl),
+      '只有 drivingGuide 类型写这个键，其他自定义页面的 body 结构不受影响')
+    assert.ok(ctrl.indexOf("guideBtnText: String(meta.guideBtnText || '')") >= 0, '读取时要回传该字段')
+    assert.ok(ctrl.indexOf('入口按钮文字不能超过12字') >= 0, '服务端要有 12 字上限，与端上 maxlength 同口径')
+    const promoBlock = ctrl.slice(ctrl.indexOf('exports.drivingPromo'), ctrl.indexOf('exports.saveDrivingPromo'))
+    assert.ok(promoBlock.indexOf('guideBtnText') < 0, 'drivingPromo 不得再回传 guideBtnText')
+    assert.ok(ctrl.slice(ctrl.indexOf('exports.saveDrivingPromo')).indexOf('guideBtnText') < 0, 'saveDrivingPromo 不得再接收 guideBtnText')
+
+    assert.ok(read('pkg-admin/admin/index.wxml').indexOf('guideBtnText') < 0, '后台横幅表单不应再留这个输入框')
+    assert.ok(read('pkg-admin/admin/index.js').indexOf('guideBtnText') < 0, '后台横幅的读取与提交都不应再带这个字段')
+  }, '服务端落点与旧入口收尾')
+}
+
 async function main() {
   dataModuleTests()
   await pageBehaviorTests()
@@ -544,6 +583,7 @@ async function main() {
   serverWiringTests()
   serverParserTests()
   mapEntryGuardTests()
+  guideBtnTextGuardTests()
   console.log(testCount + ' tests passed.')
   process.exit(0)
 }

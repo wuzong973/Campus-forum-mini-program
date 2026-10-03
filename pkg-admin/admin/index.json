@@ -4,6 +4,8 @@
   "navigationBarTextStyle": "white",
   "enablePullDownRefresh": true,
   "usingComponents": {
-    "color-picker": "/components/color-picker/index"
+    "color-picker": "/components/color-picker/index",
+    "richtext-editor": "/components/richtext-editor/richtext-editor",
+    "richtext-content": "/components/richtext-content/richtext-content"
   }
 }

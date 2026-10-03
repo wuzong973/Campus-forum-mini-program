@@ -1,0 +1,29 @@
+.page { min-height: 100vh; padding: 24rpx 24rpx calc(40rpx + env(safe-area-inset-bottom)); box-sizing: border-box; background: #f5f7fa; }
+
+/* 分类切换条：横向一行四个，等宽铺满 */
+.category-bar { display: flex; gap: 14rpx; margin-bottom: 24rpx; }
+.category-item { flex: 1 1 0; min-width: 0; padding: 14rpx 0; border-radius: 999rpx; background: #ffffff; color: #51617a; font-size: 26rpx; font-weight: 600; text-align: center; white-space: nowrap; border: 1rpx solid #e6ebf2; transition: background-color .2s ease, color .2s ease, transform 0.35s cubic-bezier(0.34, 1.42, 0.6, 1), box-shadow 0.35s cubic-bezier(0.34, 1.42, 0.6, 1); }
+.category-item.active { background: #3478f6; border-color: #3478f6; color: #ffffff; }
+.category-hover { background: #eef3fa; transform: scale(0.96); box-shadow: inset 0 2rpx 6rpx rgba(16, 32, 64, 0.16), inset 0 -1rpx 2rpx rgba(255, 255, 255, 0.08); }
+.category-item.active.category-hover { background: #2b66d9; }
+
+/* 内容卡片 */
+.market-card { padding: 32rpx 30rpx; border-radius: 20rpx; background: #ffffff; box-shadow: 0 4rpx 18rpx rgba(29, 48, 72, 0.06); }
+.market-title-row { display: flex; align-items: center; gap: 14rpx; margin-bottom: 24rpx; }
+.market-title-accent { width: 8rpx; height: 32rpx; border-radius: 4rpx; background: #3478f6; }
+.market-title { color: #1d3048; font-size: 34rpx; font-weight: 700; line-height: 1.4; }
+.market-rich { display: block; }
+.market-images { display: flex; flex-direction: column; gap: 20rpx; margin-top: 28rpx; }
+.market-image { width: 100%; border-radius: 14rpx; }
+
+/* 加载/空态 */
+.market-loading, .market-empty { display: flex; flex-direction: column; align-items: center; padding: 140rpx 40rpx; }
+.loading-text { color: #9aa7b6; font-size: 27rpx; }
+.market-empty-icon { font-size: 88rpx; margin-bottom: 24rpx; }
+.market-empty-text { color: #405068; font-size: 30rpx; font-weight: 700; margin-bottom: 12rpx; }
+.market-empty-sub { color: #9aa7b6; font-size: 24rpx; text-align: center; line-height: 1.6; }
+
+/* 动效降级：低端机/用户关闭动效时去掉入场动画 */
+.fx-off .anim-stagger { animation: none; }
+
+.market-rich { display: block; --rt-size: 29rpx; --rt-color: #405068; --rt-line: 1.75; }

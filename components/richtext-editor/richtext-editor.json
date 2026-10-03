@@ -1,0 +1,6 @@
+{
+  "component": true,
+  "usingComponents": {
+    "richtext-content": "/components/richtext-content/richtext-content"
+  }
+}

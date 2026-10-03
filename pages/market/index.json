@@ -1,0 +1,9 @@
+{
+  "navigationBarTitleText": "校园市场",
+  "enablePullDownRefresh": true,
+  "backgroundColor": "#F5F7FA",
+  "usingComponents": {
+    "richtext-content": "/components/richtext-content/richtext-content",
+    "page-link-button": "/components/page-link-button/page-link-button"
+  }
+}

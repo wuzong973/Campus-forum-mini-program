@@ -2,5 +2,8 @@
   "navigationBarTitleText": "学车指南",
   "navigationBarBackgroundColor": "#D7EFFF",
   "navigationBarTextStyle": "black",
-  "usingComponents": {}
+  "usingComponents": {
+    "richtext-content": "/components/richtext-content/richtext-content",
+    "page-link-button": "/components/page-link-button/page-link-button"
+  }
 }

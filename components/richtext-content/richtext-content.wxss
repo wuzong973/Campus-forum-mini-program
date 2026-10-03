@@ -1,0 +1,83 @@
+/* 排印三件套走 CSS 变量：组件给一套默认值，宿主页面在自己的类上设 --rt-size/--rt-color/--rt-line
+   即可保留原有观感。写死在组件里会静默改掉各页字号（群公告原本是黄卡上的棕字，最典型）。 */
+.richtext-content {
+  font-size: var(--rt-size, 28rpx);
+  color: var(--rt-color, #3d4a63);
+  line-height: var(--rt-line, 1.7);
+}
+
+.rt-p {
+  margin: 0 0 20rpx;
+  word-break: break-all;
+}
+
+.rt-h1, .rt-h2, .rt-h3 {
+  font-weight: 700;
+  color: #1f2a44;
+  line-height: 1.45;
+  margin: 8rpx 0 20rpx;
+}
+
+.rt-h1 { font-size: 38rpx; }
+.rt-h2 { font-size: 33rpx; }
+.rt-h3 { font-size: 30rpx; }
+
+.rt-quote {
+  margin: 0 0 20rpx;
+  padding: 10rpx 0 10rpx 20rpx;
+  border-left: 6rpx solid #dfe5ee;
+  color: #6b7891;
+}
+
+.rt-li {
+  display: flex;
+  align-items: flex-start;
+  margin: 0 0 14rpx;
+}
+
+.rt-li-mark {
+  flex: none;
+  min-width: 34rpx;
+  color: #8b93a3;
+}
+
+.rt-li-body {
+  flex: 1;
+  min-width: 0;
+  word-break: break-all;
+}
+
+.rt-hr {
+  height: 1rpx;
+  margin: 28rpx 0;
+  background: #e6eaf1;
+}
+
+.rt-img {
+  display: block;
+  width: 100%;
+  margin: 8rpx 0 24rpx;
+  border-radius: 12rpx;
+}
+
+.rt-img-inline {
+  width: 40rpx;
+  height: 40rpx;
+  vertical-align: middle;
+  border-radius: 6rpx;
+}
+
+/* 加粗与删除线只改字重/线型，颜色留给宿主：在棕色公告卡里跳出一段藏蓝会很突兀 */
+.rt-b { font-weight: 700; }
+.rt-i { font-style: italic; }
+.rt-u { text-decoration: underline; }
+.rt-s { text-decoration: line-through; opacity: .68; }
+.rt-link { color: #2e6bff; text-decoration: underline; }
+
+/* 行级指令：对齐靠继承落到列表正文里，缩进按级加左内边距（最多三级） */
+.rt-a-left { text-align: left; }
+.rt-a-center { text-align: center; }
+.rt-a-right { text-align: right; }
+.rt-i1 { padding-left: 40rpx; }
+.rt-i2 { padding-left: 80rpx; }
+.rt-i3 { padding-left: 120rpx; }

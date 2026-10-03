@@ -12,6 +12,8 @@ router.get('/hidden', auth, postController.hiddenList)
 router.delete('/hidden/:postId', auth, postController.unhide)
 // 蹲贴列表必须注册在 '/:id' 之前，否则 '/post/follow' 会被当成帖子 id 命中详情路由
 router.get('/follow/list', auth, postController.followedList)
+// 分享海报用的小程序码（同上：必须注册在 '/:id' 之前）
+router.get('/wxacode/:id', optionalAuth, require('../controllers/wxacodeController').postWxacode)
 router.get('/:id', optionalAuth, postController.detail)
 router.post('/', auth, contentSecurity, postController.create)
 router.post('/:id/vote', auth, postController.vote)

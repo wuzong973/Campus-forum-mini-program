@@ -3,5 +3,8 @@
   "navigationBarBackgroundColor": "#D7EFFF",
   "navigationBarTextStyle": "black",
   "backgroundColor": "#f4f6fa",
-  "enablePullDownRefresh": true
+  "enablePullDownRefresh": true,
+  "usingComponents": {
+    "richtext-content": "/components/richtext-content/richtext-content"
+  }
 }

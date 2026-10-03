@@ -12,12 +12,19 @@ Page({
     images: [],
     heroSrc: '',
     stepTip: '当前阶段：选驾校 —— 对比价格、距离与口碑，确认后点下方「立即咨询」',
+    // 左下角入口按钮文字：后台「编辑学车指南」页可配（guideBtnText），缺省「学车指南」
+    guideBtnText: ds.DEFAULT_GUIDE_BTN_TEXT,
     loading: true
   },
 
   onLoad(options) {
     const id = Number((options && options.id) || 0)
     if (!id) return this.failBack()
+    // 入口按钮文字随「学车指南」页面一起配置；指南页下线时非管理员读不到，回落默认文案
+    api.getDrivingGuidePage().then((page) => {
+      const text = String((page && page.guideBtnText) || '').trim()
+      if (text) this.setData({ guideBtnText: text })
+    }).catch(() => {})
     return api.getDrivingSchoolDetail(id).then((raw) => {
       if (!raw) return this.failBack()
       const school = ds.buildSchoolCard(raw, 0)

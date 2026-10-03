@@ -1,0 +1,34 @@
+/* 四个自定义页面共用的底部跳转按钮。
+   取色与圆角跟全站设计 token 对齐（app.wxss 的 page 选择器）：--primary / --radius。
+   用 CSS 变量而不是硬编码，页面若要微调（例如窄屏内边距）可以覆盖而不必改组件。 */
+.page-link-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8rpx;
+  height: 88rpx;
+  margin: 28rpx 0 8rpx;
+  border-radius: var(--radius, 18rpx);
+  background: var(--primary, #315CFF);
+  box-shadow: 0 8rpx 20rpx rgba(49, 92, 255, 0.22);
+}
+
+/* 按压反馈：与全站共享层同一套（app.wxss 的 .spring-btn / .press-spring）。
+   hover 类必须自带 scale(0.96)，护栏 tests/press-spring-shared.test.js 会校验每一个 hover 类。 */
+.page-link-btn--hover {
+  transform: scale(0.96);
+  box-shadow: inset 0 2rpx 6rpx rgba(16, 32, 64, 0.16), inset 0 -1rpx 2rpx rgba(255, 255, 255, 0.08);
+}
+
+.page-link-btn-text {
+  color: #ffffff;
+  font-size: 30rpx;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.page-link-btn-arrow {
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 30rpx;
+  line-height: 1;
+}
