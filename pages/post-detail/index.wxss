@@ -121,7 +121,13 @@
 .comment-text { display: block; margin-top: 6rpx; color: #27394f; font-size: 26rpx; line-height: 1.5; word-break: break-word; }
 .comment-like-count { display: flex; align-items: center; gap: 4rpx; color: #9aa5b2; font-size: 22rpx; white-space: nowrap; }
 .comment-like-count image { width: 28rpx; height: 28rpx; opacity: .72; }
-.comment-item { display: flex; align-items: flex-start; gap: 14rpx; padding: 22rpx 0; border-bottom: 1rpx solid #f0f2f5; }
+/* 每条评论一个独立彩色框：左侧色条 + 同色系浅底，颜色按评论 id 稳定分配 */
+.comment-item { position: relative; display: flex; align-items: flex-start; gap: 14rpx; padding: 20rpx 18rpx 16rpx; margin-bottom: 18rpx; border-radius: 16rpx; background: #f7f9fc; border-left: 6rpx solid #d7dee8; transition: box-shadow .25s ease, background-color .35s ease, border-color .35s ease; }
+/* 锚点目标（从消息/通知点击定位进来的评论）：琥珀色实心底 + 描边，一眼就能看出「就是这条」。
+   背景色与描边随高亮整体淡入淡出（transition 见上），2.4s 后由 pulseCommentHighlight 移除类名；
+   同时给一个轻微放大回弹，强化「定位到这里」的视觉落点。 */
+.comment-item.anchored { background: #fef0c7; border-left-color: #f59e0b; box-shadow: 0 0 0 4rpx #f59e0b, 0 10rpx 28rpx rgba(245, 158, 11, 0.28); animation: anchor-pop .5s cubic-bezier(.34, 1.42, .6, 1) both; }
+@keyframes anchor-pop { 0% { transform: scale(1); } 40% { transform: scale(1.015); } 100% { transform: scale(1); } }
 .comment-meta { display: flex; align-items: center; gap: 12rpx; }
 /* 「作者」标识：与首页帖子卡片（post-card 的 .post-anonymous-label）样式保持一致 */
 .author-comment-label { display: inline-flex; align-items: center; justify-content: center; overflow: hidden; height: 34rpx; flex: 0 0 auto; padding: 0 11rpx; border: 0; border-radius: 9rpx; background: #f34e72; color: #fff; font-size: 22rpx; font-weight: 700; line-height: 1; }
@@ -147,8 +153,10 @@
 .comment-like .pa-icon.on { opacity: 1; }
 .comment-like .like-count { font-size: 22rpx; line-height: 1.2; }
 .like-hover { opacity: 0.6;  transform: scale(0.96); box-shadow: inset 0 2rpx 6rpx rgba(16, 32, 64, 0.16), inset 0 -1rpx 2rpx rgba(255, 255, 255, 0.08); }
-.reply-list { margin-top: 20rpx; padding: 4rpx 0 0 18rpx; border-left: 2rpx solid #e8edf3; }
-.reply-item { display: flex; align-items: flex-start; gap: 12rpx; padding: 14rpx 0; }
+.reply-list { margin-top: 16rpx; padding: 0; }
+/* 回复也是独立彩色小框（白底 + 自身色条），嵌在父评论框内 */
+.reply-item { position: relative; display: flex; align-items: flex-start; gap: 12rpx; padding: 14rpx 16rpx; margin-top: 14rpx; border-radius: 14rpx; background: #ffffff; border-left: 5rpx solid #d7dee8; transition: box-shadow .25s ease, background-color .35s ease, border-color .35s ease; }
+.reply-item.anchored { background: #fef0c7; box-shadow: 0 0 0 4rpx #f59e0b, 0 6rpx 20rpx rgba(245, 158, 11, 0.26); }
 .reply-avatar { width: 46rpx; height: 46rpx; flex: 0 0 auto; border-radius: 50%; background: #edf1f6; }
 .reply-content { flex: 1; min-width: 0; }
 .reply-item .comment-nick { font-size: 25rpx; }

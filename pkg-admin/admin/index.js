@@ -75,9 +75,6 @@ const STATS_POLL_MS = 15000
 
 // 发布页横幅可选颜色（与小程序端 style-red/green/... 样式对应）
 const BANNER_STYLE_VALUES = ['red', 'green', 'orange', 'blue', 'purple']
-const BANNER_STYLE_NAMES = ['红色', '绿色', '橙色', '蓝色', '紫色']
-const BANNER_STYLE_BG = { red: '#ffe2e2', green: '#e0f5e6', orange: '#fff1de', blue: '#e3edff', purple: '#f0e5ff' }
-const BANNER_STYLE_FG = { red: '#e34d4d', green: '#3aa356', orange: '#e8930c', blue: '#3a6fe3', purple: '#8a4de0' }
 
 // ===== 群聊管理：建群申请状态与可选群类别（与设计稿九大分类一致，顺序即展示顺序） =====
 const GC_APPLY_STATUS_TEXT = { pending: '待审核', approved: '已通过', rejected: '已驳回' }
@@ -86,13 +83,6 @@ const GC_CATEGORIES = ['学院群', '线下桌游群', '体育运动群', '老�
 // ===== 社团审核：用户端「申请创建社团」提交的申请状态（与服务端 club_apply.status 一致） =====
 const CLUB_APPLY_STATUS_TEXT = { pending: '待审核', approved: '已通过', rejected: '已驳回' }
 
-// ===== 校区维度（与用户端 utils/campus.js 一致；'' = 全部校区，所有校区可见） =====
-const CAMPUS_SELECT_OPTIONS = [
-  { label: '全部校区', value: '' },
-  { label: '广州校区', value: '广州校区' },
-  { label: '佛山校区', value: '佛山校区' },
-]
-
 // ===== 群聊进群方式（与服务端 groupChatController 的 JOIN_MODES 及用户端
 //       pages/group-chat/detail 的文案保持一致） =====
 const JOIN_MODE_OPTIONS = [
@@ -100,30 +90,9 @@ const JOIN_MODE_OPTIONS = [
   { label: '加管理员拉群', value: 'admin' },
   { label: '仅群成员邀请', value: 'invite' },
 ]
-const JOIN_MODE_LABELS = JOIN_MODE_OPTIONS.map((item) => item.label)
 const DEFAULT_JOIN_MODE = 'qrcode'
 // 群成员规模展示上限（与服务端 MAX_MEMBER_COUNT 一致）
 const MAX_MEMBER_COUNT = 100000
-
-// 内容配置弹窗的标题与操作指引（与「页面横幅」编辑器风格统一）
-const CONTENT_FORM_META = {
-  notice: {
-    title: '公告',
-    guide: '操作指引：① 填写公告文字；② 按需配置右侧链接文字与跳转路径（默认显示"点此查看"，用户点击后跳转到所填页面路径；路径留空则弹出管理员微信二维码）；③ 按需配置尾部链接文字与链接图片；④ 可自定义背景颜色与文字颜色（实时预览）；⑤ 打开底部「启用状态」；⑥ 点击「保存并发布」，首页公告实时生效。首页公告取排序最前的启用条目。'
-  },
-  tag: {
-    title: '标签',
-    guide: '操作指引：① 填写标签名称，描述可留空；② 可自定义标签的背景颜色与文字颜色（配置列表中将按此颜色展示）；③ 打开底部「启用状态」；④ 点击「保存并发布」。'
-  },
-  banner: {
-    title: '首页轮播',
-    guide: '操作指引：① 填写主标题并上传轮播图片（建议宽高比 16:9）；② 按需填写描述、角标、跳转路径，并可点击挑选主题色（实时预览）；③ 打开底部「启用状态」；④ 点击「保存并发布」。启用中的轮播按排序展示在首页顶部，未配置时显示默认轮播。'
-  },
-  publish_banner: {
-    title: '发布横幅',
-    guide: '操作指引：① 填写横幅文字；② 选择预设配色，或点击「背景颜色 / 文字颜色」自定义颜色（实时预览，保存后在发布页生效）；③ 按需填写跳转链接（用户点击横幅后跳转，支持 /pages/... 页面路径或 https 网页）与详情标题/详情内容（横幅详情页展示）；④ 打开底部「启用状态」；⑤ 点击「保存并发布」。横幅展示在「发布帖子」「发布跑腿」页顶部，多条启用横幅按排序自动左右轮播。'
-  }
-}
 
 function pad2(n) { return (n < 10 ? '0' : '') + n }
 
@@ -307,6 +276,17 @@ function fmtDateTime(value) {
   return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()) + ' ' + pad2(d.getHours()) + ':' + pad2(d.getMinutes()) + ':' + pad2(d.getSeconds())
 }
 
+// 接单完成率行：状态文案 + 冻结到期时间。
+// 冻结是「冷却期」而不是永久封禁，所以必须把到期时间显示出来，
+// 否则管理员看到一个孤零零的「已冻结」无法判断该不该介入。
+function formatRunnerRow(row) {
+  return {
+    frozenUntilText: fmtDateTime(row.frozenUntil),
+    unfrozenAtText: fmtDateTime(row.unfrozenAt),
+    updatedAtText: fmtDateTime(row.updatedAt)
+  }
+}
+
 // 列表行展示：状态文案 + 「xx 发布订单 · xx 接单」过程描述
 function formatErrandRow(row) {
   const publisher = row.publisherName || '未知用户'
@@ -354,6 +334,9 @@ Page({
     activeSubTab: 'groupChat',
     subTabs: {},
     tabs: [],
+    // 待审核数量（/admin/pending-count）：top 级 tab 与子 tab 上的红点角标
+    pendingStats: { total: 0, breakdown: {} },
+    pendingBadges: {},
     stats: null,
     statsUpdatedAt: '',
     reports: [],
@@ -363,18 +346,9 @@ Page({
     selectedPostIds: [],
     contentType: 'notice',
     contentList: [],
-    styleNames: BANNER_STYLE_NAMES,
-    styleBg: BANNER_STYLE_BG,
-    styleFg: BANNER_STYLE_FG,
-    colorPickerShow: false,
-    colorPickerField: '',
-    colorPickerValue: '',
-    colorPickerTitle: '选择颜色',
-    contentFormTitle: '',
-    contentFormGuide: '',
     items: [],
     // 区块折叠开关（默认收起，点「展开 ▼」显示内容）：校园卡页面/评分对象管理/找驾校/服务宫格/群聊列表/群聊类别/社团分类/管理员账号
-    sectionCollapsed: { campusCard: true, market: true, drivingGuide: true, promoLanding: true, drivingPromo: true, drivingTags: true, reviewTargets: true, drivingSchools: true, services: true, gcGroups: true, gcCategories: true, clubCategories: true, admins: true },
+    sectionCollapsed: { campusCard: true, market: true, drivingGuide: true, promoLanding: true, drivingPromo: true, drivingTags: true, reviewTargets: true, drivingSchools: true, services: true, gcGroups: true, gcCategories: true, clubCategories: true, admins: true, pushGroups: true },
     // 校园卡自定义页面列表，可维护多张（编辑跳 pages/banner-detail?scope=campusCard）
     campusCards: [],
     // 校园市场四分类页面（每类一张，编辑跳 pages/banner-detail?scope=market&category=<key>）
@@ -388,7 +362,8 @@ Page({
     // 找驾校内容管理（「物品」tab，校园卡页面下方）
     drivingSchools: [],
     drivingSchoolCampusOptions: ['广州校区', '佛山校区'],
-    drivingSchoolLevelOptions: ['S', 'A', 'B'],
+    // 信息推送群卡片（「物品」tab，评分对象管理下方）：首页悬浮微信入口落地页的内容
+    pushGroups: [],
     // 评分对象治理（「物品」tab，找驾校下方）：软删可在「已删除」里恢复
     reviewTargets: [],
     reviewTargetCategory: '',
@@ -444,7 +419,16 @@ Page({
     errandHasMore: false,
     errandLoading: false,
     errandDetail: null,
-    // 日志 tab 内部分段：跑腿订单流程 / 订阅消息发送流水 / 维修信息
+    // 日志 tab：接单完成率 / 冻结名单（冻结为冷却期，可手动解除）
+    errandRunners: [],
+    runnerOnly: '',
+    runnerKeyword: '',
+    runnerPage: 1,
+    runnerHasMore: false,
+    runnerLoading: false,
+    // 「解除接单冻结」确认弹窗状态（show/userId/note/loading/text）
+    runnerConfirm: { show: false, userId: null, note: '', loading: false, text: '' },
+    // 日志 tab 内部分段：跑腿订单流程 / 接单完成率 / 订阅消息发送流水 / 维修信息
     logScope: 'errand',
     subscribeLogs: [],
     subscribeLogStatus: '',
@@ -468,8 +452,6 @@ Page({
     groupChatGroups: [],
     gcCategories: [],
     chatCategoryNames: GC_CATEGORIES,
-    joinModeLabels: JOIN_MODE_LABELS,
-    campusOptions: CAMPUS_SELECT_OPTIONS,
     // 活动管理 tab：活动列表 + 关键词搜索
     activities: [],
     activityKeyword: '',
@@ -488,31 +470,14 @@ Page({
     clubAuditDetail: null,
     // 群聊模块内的两个功能区：群聊信息（群聊列表与类别维护，即原有页面）/ 群聊审核（用户端提交的建群申请）
     groupChatView: 'info',
-    form: null,
-    saving: false,
+    // 编辑类操作已全部迁移到独立页面 pkg-admin/admin/edit/index（原抽屉 form 状态已移除）
     showCertModal: false,
     certUserId: 0,
     certDraft: '',
     savingCert: false
   },
 
-  // 表单「未保存修改」检查：在 setData 这一层拦截，整表赋值（form: {...} / form: null）
-  // 视为打开或关闭表单并记录快照，局部更新（['form.x']）不动快照。
-  // 放在这里而不是十几个 begin* 方法里逐个打点，避免新增表单时漏记。
-  installFormSnapshot() {
-    if (this._formSnapshotHooked) return
-    this._formSnapshotHooked = true
-    const originalSetData = this.setData.bind(this)
-    this.setData = (patch, callback) => {
-      if (patch && typeof patch === 'object' && patch.form !== undefined) {
-        this._formSnapshot = patch.form ? JSON.stringify(patch.form) : null
-      }
-      return originalSetData(patch, callback)
-    }
-  },
-
   async onLoad() {
-    this.installFormSnapshot()
     try {
       const access = await admin.me()
       // The server is authoritative for roles. Refresh the cached profile so
@@ -560,6 +525,7 @@ Page({
       })
       this.loadCurrent()
       this.startStatsTimer()
+      this.loadPendingCount()
     } catch (e) {
       wx.showModal({ title: '无法访问', content: '当前账号没有管理员权限或权限已变更。', showCancel: false, complete: () => wx.navigateBack() })
     }
@@ -569,6 +535,15 @@ Page({
     // 动效降级每次回到本页都同步：设置页刚关掉要立即生效，低端机判定结果不会变但成本极低（照首页写法）
     const fxOff = motion.isCardFxOff()
     if (fxOff !== this.data.fxOff) this.setData({ fxOff })
+    // 从独立编辑页（pkg-admin/admin/edit/index）保存后返回：重拉当前 tab，列表即时反映修改。
+    // 编辑页保存成功时写 app.globalData.adminEditDone，这里读取后清理，避免重复刷新。
+    const app = getApp()
+    const done = app && app.globalData && app.globalData.adminEditDone
+    if (done) {
+      app.globalData.adminEditDone = null
+      if (this.data.ready) this.loadCurrent()
+      return
+    }
     // 返回本页时重启轮询并立即刷新概览，保证数字尽量新
     if (this.data.ready && this.data.activeTab === 'overview') this.refreshStats(true)
     if (this.data.ready) this.startStatsTimer()
@@ -587,7 +562,8 @@ Page({
   startStatsTimer() {
     if (this._statsTimer) return
     this._statsTimer = setInterval(() => {
-      const busy = this.data.form || this.data.showCertModal || this.data.showAdminModal
+      const busy = this.data.showCertModal || this.data.showAdminModal
+      if (this.data.ready && !busy) this.loadPendingCount()
       if (this.data.ready && this.data.activeTab === 'overview' && !busy) this.refreshStats(true)
     }, STATS_POLL_MS)
   },
@@ -604,11 +580,13 @@ Page({
     const silent = !!(opts && opts.silent)
     const tab = this.data.activeTab
     const seq = (this._loadSeq = (this._loadSeq || 0) + 1)
+    // 切 tab 顺手刷新待审核角标：处理完审核切走时数字立即减少
+    this.loadPendingCount()
     try {
       if (tab === 'overview') await this.refreshStats(silent)
       if (tab === 'reports') await this.loadReports()
       if (tab === 'posts') await this.loadPosts()
-      if (tab === 'content') await this.loadContent()
+      if (tab === 'content') { await this.loadContent(); this.loadPushGroups() }
       if (tab === 'items') {
         this.setData({ items: (await admin.items()).list || [] })
         this.loadCampusCards()
@@ -663,12 +641,35 @@ Page({
 
   refreshStatsTap() { this.refreshStats(false) },
 
+  // 各 tab / 子 tab 上的待审核角标：把 pendingCount 的分项折算到对应菜单位置
+  async loadPendingCount() {
+    try {
+      const d = await admin.pendingCount()
+      const b = (d && d.breakdown) || {}
+      const sum = (...keys) => keys.reduce((s, k) => s + (Number(b[k]) || 0), 0)
+      this.setData({
+        pendingStats: d || { total: 0, breakdown: {} },
+        pendingBadges: {
+          reports: Number(b.reports) || 0,
+          posts: Number(b.posts) || 0,
+          review: sum('activities', 'withdrawals', 'riders'),
+          clubGroup: sum('chatApplies', 'clubApplies'),
+          activityAudit: Number(b.activities) || 0,
+          withdrawals: Number(b.withdrawals) || 0,
+          riderVerifications: Number(b.riders) || 0,
+          groupChat: Number(b.chatApplies) || 0,
+          clubs: Number(b.clubApplies) || 0
+        }
+      })
+    } catch (e) {}
+  },
+
   switchTab(e) {
     const key = e.currentTarget.dataset.key
     if (key === this.data.activeTab) return
     // 进入合并父级菜单时，重置为其可见子页中的第一个
     const subs = this.data.subTabs[key] || []
-    const patch = { activeTab: key, selectedPostIds: [], form: null }
+    const patch = { activeTab: key, selectedPostIds: [] }
     if (subs.length) patch.activeSubTab = subs[0].key
     this.setData(patch)
     this.loadCurrent()
@@ -685,7 +686,7 @@ Page({
   switchSubTab(e) {
     const key = e.currentTarget.dataset.key
     if (key === this.data.activeSubTab) return
-    this.setData({ activeSubTab: key, form: null })
+    this.setData({ activeSubTab: key })
     this.loadCurrent()
   },
 
@@ -750,9 +751,9 @@ Page({
   },
 
   beginPostEdit(e) {
-    const post = this.data.posts.find((item) => Number(item.id) === Number(e.currentTarget.dataset.id))
-    if (!post) return
-    this.setData({ form: { kind: 'post', id: post.id, title: post.title || '', content: post.content || '', category: post.category || '' } })
+    const id = Number(e.currentTarget.dataset.id)
+    if (!id) return
+    wx.navigateTo({ url: '/pkg-admin/admin/edit/index?scope=post&id=' + id })
   },
 
   chooseContentType(e) { this.setData({ contentType: e.currentTarget.dataset.type }); this.loadContent() },
@@ -773,13 +774,6 @@ Page({
     this.setData({ contentList: list })
   },
   // 轮播/公告的 body 存 JSON，表单里拆成结构化字段；分类/标签仍用纯文本
-  emptyContentMeta(type) {
-    if (type === 'banner') return { image: '', subtitle: '', tag: '', link: '', accent: '' }
-    if (type === 'notice') return { tailText: '', tailImage: '', linkText: '', linkUrl: '', bgColor: '', textColor: '' }
-    if (type === 'publish_banner') return { style: 'red', styleIndex: 0, icon: '', bgColor: '', textColor: '', link: '', linkText: '', detailTitle: '', detailContent: '' }
-    if (type === 'tag') return { text: '', bgColor: '', textColor: '' }
-    return null
-  },
   parseContentMeta(type, body) {
     let meta = {}
     try { meta = JSON.parse(body) || {} } catch (e) {}
@@ -798,70 +792,20 @@ Page({
     }
     return null
   },
-  onFormStyleChange(e) {
-    const index = Number(e.detail.value) || 0
-    this.setData({ 'form.meta.styleIndex': index, 'form.meta.style': BANNER_STYLE_VALUES[index] })
-  },
   // ===== 内容配置弹窗颜色选择：背景颜色 / 文字颜色 / 轮播主题色 / 社团分类主题色 =====
-  openContentColorPicker(e) {
-    const allowed = ['textColor', 'accent', 'bgColor', 'color']
-    const field = allowed.indexOf(e.currentTarget.dataset.field) >= 0 ? e.currentTarget.dataset.field : 'bgColor'
-    const titles = { bgColor: '选择背景颜色', textColor: '选择文字颜色', accent: '选择主题色', color: '选择主题色' }
-    this.setData({
-      colorPickerField: field,
-      colorPickerValue: (this.data.form.meta || {})[field] || '',
-      colorPickerTitle: titles[field],
-      colorPickerShow: true
-    })
-  },
-  onColorPickerClose() { this.setData({ colorPickerShow: false }) },
-  onColorPickerConfirm(e) {
-    const hex = normalizeHex(e.detail && e.detail.hex)
-    const field = this.data.colorPickerField
-    if (field && this.data.form) this.setData({ ['form.meta.' + field]: hex, colorPickerShow: false })
-    else this.setData({ colorPickerShow: false })
-  },
   beginContentCreate() {
     const type = this.data.contentType
-    const info = CONTENT_FORM_META[type] || { title: '内容', guide: '' }
-    this.setData({ contentFormTitle: info.title, contentFormGuide: info.guide, form: Object.assign({ kind: 'content', type, title: '', body: '', status: 1, sortOrder: 0 }, { meta: this.emptyContentMeta(type) }) })
+    wx.navigateTo({ url: '/pkg-admin/admin/edit/index?scope=content&type=' + type })
   },
   beginContentEdit(e) {
-    const item = this.data.contentList.find((row) => Number(row.id) === Number(e.currentTarget.dataset.id))
-    if (!item) return
-    const info = CONTENT_FORM_META[item.type] || { title: '内容', guide: '' }
-    const meta = this.parseContentMeta(item.type, item.body)
-    // 标签的描述文字存在 meta.text 中（旧数据为纯文本 body，已在 parseContentMeta 兼容）
-    const body = item.type === 'tag' ? (meta.text || '') : (item.body || '')
-    this.setData({ contentFormTitle: info.title, contentFormGuide: info.guide, form: Object.assign({ kind: 'content' }, item, { body, meta }) })
-  },
-  chooseFormImage(e) {
-    const key = e.currentTarget.dataset.key
-    if (!key || !this.data.form) return
-    wx.chooseMedia({
-      count: 1,
-      mediaType: ['image'],
-      sizeType: ['compressed'],
-      success: (res) => {
-        const file = (res.tempFiles || [])[0]
-        if (!file || !file.tempFilePath) return
-        wx.showLoading({ title: '上传中...', mask: true })
-        wechat.uploadImages([file.tempFilePath]).then((urls) => {
-          wx.hideLoading()
-          const url = (urls || [])[0]
-          if (!url || !/^https:\/\//.test(url)) throw new Error('upload failed')
-          this.setData({ ['form.meta.' + key]: url })
-        }).catch(() => {
-          wx.hideLoading()
-          wx.showToast({ title: '图片上传失败，请重试', icon: 'none' })
-        })
-      }
-    })
+    const id = Number(e.currentTarget.dataset.id)
+    if (!id) return
+    wx.navigateTo({ url: '/pkg-admin/admin/edit/index?scope=content&type=' + this.data.contentType + '&id=' + id })
   },
   async deleteContent(e) { const id = Number(e.currentTarget.dataset.id); if (!await this.confirm('删除内容', '删除后无法恢复。')) return; try { await admin.deleteContent(id); this.loadContent() } catch (err) {} },
 
-  beginItemCreate() { this.setData({ form: { kind: 'item', name: '', description: '', coverUrl: '', price: '', stock: 0, status: 1 } }) },
-  beginItemEdit(e) { const item = this.data.items.find((row) => Number(row.id) === Number(e.currentTarget.dataset.id)); if (item) this.setData({ form: Object.assign({ kind: 'item' }, item) }) },
+  beginItemCreate() { wx.navigateTo({ url: '/pkg-admin/admin/edit/index?scope=item' }) },
+  beginItemEdit(e) { const id = Number(e.currentTarget.dataset.id); if (id) wx.navigateTo({ url: '/pkg-admin/admin/edit/index?scope=item&id=' + id }) },
   async toggleItem(e) { const item = this.data.items.find((row) => Number(row.id) === Number(e.currentTarget.dataset.id)); if (!item) return; const status = item.status ? 0 : 1; if (!await this.confirm(status ? '上架物品' : '下架物品', `确定${status ? '上架' : '下架'}“${item.name}”吗？`)) return; try { await admin.updateItem(item.id, { status }); this.loadCurrent() } catch (err) {} },
 
   // ===== 校园卡自定义页面（「物品」tab 列表；编辑器复用公告详情页表单 pages/banner-detail） =====
@@ -964,154 +908,34 @@ Page({
       status: form.status === false || Number(form.status) === 0 ? 0 : 1
     }
   },
-  beginDrivingSchoolCreate() {
-    const campus = this.data.drivingSchoolCampusOptions[0]
-    this.setData({
-      form: {
-        kind: 'drivingSchool', name: '', campus, campusIndex: 0, region: '', address: '', phone: '',
-        carTypes: 'C1 C2', price: '', intro: '', passRate: '', level: 'A', levelIndex: 1,
-        tags: '', distanceKm: '', cover: '', images: [], detail: '', sortOrder: 0, status: 1, lat: 0, lng: 0, contactQr: '', contactName: ''
-      }
-    })
-  },
-  beginDrivingSchoolEdit(e) {
-    const row = this.data.drivingSchools.find((r) => Number(r.id) === Number(e.currentTarget.dataset.id))
-    if (!row) return
-    this.setData({
-      form: Object.assign({ kind: 'drivingSchool' }, row, {
-        campusIndex: Math.max(0, this.data.drivingSchoolCampusOptions.indexOf(row.campus)),
-        levelIndex: Math.max(0, this.data.drivingSchoolLevelOptions.indexOf(row.level)),
-        tags: (row.tags || []).join('，'),
-        images: (row.images || []).slice(),
-        lat: Number(row.latitude) || 0,
-        lng: Number(row.longitude) || 0,
-        contactQr: row.contactQr || '',
-        contactName: row.contactName || '',
-        passRate: String(row.passRate || ''),
-        distanceKm: row.distanceKm ? String(row.distanceKm) : '',
-        status: !!row.status
-      })
-    })
-  },
-  onDrivingSchoolCampusChange(e) {
-    const idx = Number(e.detail.value) || 0
-    const campus = this.data.drivingSchoolCampusOptions[idx]
-    if (!campus) return
-    this.setData({ 'form.campusIndex': idx, 'form.campus': campus })
-  },
-  onDrivingSchoolLevelChange(e) {
-    const idx = Number(e.detail.value) || 0
-    const level = this.data.drivingSchoolLevelOptions[idx]
-    if (!level) return
-    this.setData({ 'form.levelIndex': idx, 'form.level': level })
-  },
-  chooseSchoolCover() {
-    if (!this.data.form) return
-    wx.chooseMedia({
-      count: 1,
-      mediaType: ['image'],
-      sizeType: ['compressed'],
-      success: (res) => {
-        const file = (res.tempFiles || [])[0]
-        if (!file || !file.tempFilePath) return
-        wx.showLoading({ title: '上传中...', mask: true })
-        wechat.uploadImages([file.tempFilePath]).then((urls) => {
-          wx.hideLoading()
-          const url = (urls || [])[0]
-          if (!url || !/^https:\/\//.test(url)) throw new Error('upload failed')
-          this.setData({ 'form.cover': url })
-        }).catch(() => {
-          wx.hideLoading()
-          wx.showToast({ title: '封面上传失败，请重试', icon: 'none' })
-        })
-      }
-    })
-  },
-  clearSchoolCover() { this.setData({ 'form.cover': '' }) },
+  beginDrivingSchoolCreate() { wx.navigateTo({ url: '/pkg-admin/admin/edit/index?scope=drivingSchool' }) },
+  beginDrivingSchoolEdit(e) { const id = Number(e.currentTarget.dataset.id); if (id) wx.navigateTo({ url: '/pkg-admin/admin/edit/index?scope=drivingSchool&id=' + id }) },
   // 咨询二维码：单图上传，与封面同一套 wechat.uploadImages 通道
-  chooseSchoolQr() {
-    if (!this.data.form) return
-    wx.chooseMedia({
-      count: 1,
-      mediaType: ['image'],
-      sizeType: ['original'],
-      success: (res) => {
-        const file = (res.tempFiles || [])[0]
-        if (!file || !file.tempFilePath) return
-        wx.showLoading({ title: '上传中...', mask: true })
-        wechat.uploadImages([file.tempFilePath]).then((urls) => {
-          wx.hideLoading()
-          const url = (urls || [])[0]
-          if (!url || !/^https:\/\//.test(url)) throw new Error('upload failed')
-          this.setData({ 'form.contactQr': url })
-        }).catch(() => {
-          wx.hideLoading()
-          wx.showToast({ title: '二维码上传失败，请重试', icon: 'none' })
-        })
-      }
-    })
+  // ===== 信息推送群卡片（「物品」tab，评分对象管理下方） =====
+  async loadPushGroups() {
+    try { this.setData({ pushGroups: await admin.pushGroups() }) } catch (err) {}
   },
-  clearSchoolQr() { this.setData({ 'form.contactQr': '' }) },
+  beginPushGroupCreate() { wx.navigateTo({ url: '/pkg-admin/admin/edit/index?scope=pushGroup' }) },
+  beginPushGroupEdit(e) { const id = Number(e.currentTarget.dataset.id); if (id) wx.navigateTo({ url: '/pkg-admin/admin/edit/index?scope=pushGroup&id=' + id }) },
+  // 卡片配图：与「驾校场地图片」同一套（扁平 form.images + .img-grid），一次可多选、追加不覆盖
+  async togglePushGroup(e) {
+    const row = this.data.pushGroups.find((r) => Number(r.id) === Number(e.currentTarget.dataset.id))
+    if (!row) return
+    const status = row.status ? 0 : 1
+    if (!await this.confirm(status ? '启用卡片' : '停用卡片', `确定${status ? '启用' : '停用'}“${row.title}”吗？`)) return
+    try {
+      await admin.savePushGroup(row.id, { title: row.title, desc: row.desc, icon: row.icon, iconPath: row.iconPath, theme: row.theme, link: row.link, copyText: row.copyText, sortOrder: row.sortOrder, status })
+      this.loadPushGroups()
+    } catch (err) {}
+  },
+  async deletePushGroup(e) {
+    const row = this.data.pushGroups.find((r) => Number(r.id) === Number(e.currentTarget.dataset.id))
+    if (!row) return
+    if (!await this.confirm('删除卡片', `删除后无法恢复。确定删除“${row.title}”吗？`)) return
+    try { await admin.deletePushGroup(row.id); this.loadPushGroups() } catch (err) {}
+  },
   // 训练场坐标：手动选点。高德对「公司全称」类地址的地理编码只到区县级（会钉到市中心），
   // POI 搜索又常命中别家驾校，所以这里不给自动解析，必须由管理员在地图上确认一次
-  chooseSchoolLocation() {
-    if (!this.data.form) return
-    wx.chooseLocation({
-      success: (res) => {
-        const lat = Number(res.latitude)
-        const lng = Number(res.longitude)
-        if (!Number.isFinite(lat) || !Number.isFinite(lng) || (!lat && !lng)) {
-          wx.showToast({ title: '未取到坐标，请重试', icon: 'none' })
-          return
-        }
-        // 库里是 DECIMAL(10,6)，先按 6 位小数取整，避免界面显示一长串而落库被截断
-        const round = (n) => Math.round(n * 1e6) / 1e6
-        this.setData({ 'form.lat': round(lat), 'form.lng': round(lng) })
-        // 选点框里的名称往往比「训练场地址」更准，顺手提示管理员可以直接采用
-        const picked = String(res.name || res.address || '').trim()
-        if (picked && !String(this.data.form.address || '').trim()) {
-          this.setData({ 'form.address': picked })
-        }
-        wx.showToast({ title: '已选点，保存后生效', icon: 'none' })
-      },
-      fail: (err) => {
-        const msg = String((err && err.errMsg) || '')
-        if (msg.indexOf('cancel') >= 0) return
-        wx.showToast({ title: '打开地图失败，请检查定位权限', icon: 'none' })
-      }
-    })
-  },
-  clearSchoolLocation() { this.setData({ 'form.lat': 0, 'form.lng': 0 }) },
-  addSchoolImage() {
-    const form = this.data.form
-    if (!form) return
-    const remain = 9 - (form.images || []).length
-    if (remain <= 0) { wx.showToast({ title: '最多上传 9 张场地图片', icon: 'none' }); return }
-    wx.chooseMedia({
-      count: remain,
-      mediaType: ['image'],
-      sizeType: ['compressed'],
-      success: (res) => {
-        const paths = (res.tempFiles || []).map((f) => f.tempFilePath).filter(Boolean)
-        if (!paths.length) return
-        wx.showLoading({ title: '上传中...', mask: true })
-        wechat.uploadImages(paths).then((urls) => {
-          wx.hideLoading()
-          const valid = (urls || []).filter((url) => /^https:\/\//.test(url))
-          if (!valid.length) throw new Error('upload failed')
-          this.setData({ 'form.images': (form.images || []).concat(valid).slice(0, 9) })
-        }).catch(() => {
-          wx.hideLoading()
-          wx.showToast({ title: '图片上传失败，请重试', icon: 'none' })
-        })
-      }
-    })
-  },
-  removeSchoolImage(e) {
-    const images = (this.data.form.images || []).slice()
-    images.splice(Number(e.currentTarget.dataset.index), 1)
-    this.setData({ 'form.images': images })
-  },
   async toggleDrivingSchool(e) {
     const row = this.data.drivingSchools.find((r) => Number(r.id) === Number(e.currentTarget.dataset.id))
     if (!row) return
@@ -1362,9 +1186,8 @@ Page({
   },
 
   async loadServices() { const data = await admin.services(); const categories = data.categories || []; this.setData({ services: data.list || [], serviceCategories: categories, serviceCategoryNames: categories.map((c) => c.name) }) },
-  beginServiceCreate() { const cats = this.data.serviceCategories; if (!cats.length) { wx.showToast({ title: '请先在配置里添加服务分类', icon: 'none' }); return } this.setData({ form: { kind: 'service', categoryIndex: 0, categoryId: cats[0].id, name: '', icon: '', iconPath: '', badge: '', link: '', miniAppId: '', sortOrder: 0, status: 1 } }) },
-  beginServiceEdit(e) { const row = this.data.services.find((r) => Number(r.id) === Number(e.currentTarget.dataset.id)); if (!row) return; const idx = this.data.serviceCategories.findIndex((c) => Number(c.id) === Number(row.categoryId)); this.setData({ form: Object.assign({ kind: 'service', categoryIndex: idx < 0 ? 0 : idx }, row) }) },
-  onServiceCategoryChange(e) { const idx = Number(e.detail.value); const cat = this.data.serviceCategories[idx]; if (!cat) return; const form = Object.assign({}, this.data.form, { categoryIndex: idx, categoryId: cat.id }); this.setData({ form }) },
+  beginServiceCreate() { if (!this.data.serviceCategories.length) { wx.showToast({ title: '请先在配置里添加服务分类', icon: 'none' }); return } wx.navigateTo({ url: '/pkg-admin/admin/edit/index?scope=service' }) },
+  beginServiceEdit(e) { const id = Number(e.currentTarget.dataset.id); if (id) wx.navigateTo({ url: '/pkg-admin/admin/edit/index?scope=service&id=' + id }) },
   async toggleService(e) { const row = this.data.services.find((r) => Number(r.id) === Number(e.currentTarget.dataset.id)); if (!row) return; const status = row.status ? 0 : 1; if (!await this.confirm(status ? '上架服务' : '下架服务', `确定${status ? '上架' : '下架'}“${row.name}”吗？`)) return; try { await admin.updateService(row.id, { status }); this.loadServices() } catch (err) {} },
   async deleteService(e) { const row = this.data.services.find((r) => Number(r.id) === Number(e.currentTarget.dataset.id)); if (!row) return; if (!await this.confirm('删除服务', `确定删除服务“${row.name}”吗？该操作不可恢复。`)) return; try { await admin.deleteService(row.id); wx.showToast({ title: '已删除', icon: 'success' }); this.loadServices() } catch (err) {} },
 
@@ -1431,10 +1254,8 @@ Page({
 
   rejectActivityAudit(e) {
     const id = Number(e.currentTarget.dataset.id)
-    const item = this.data.activityAudits.find((row) => Number(row.id) === id)
-      || (this.data.activityAuditDetail && this.data.activityAuditDetail.id === id ? this.data.activityAuditDetail : null)
-    if (!item) return
-    this.setData({ form: { kind: 'activityAudit', id, action: 'reject', activityTitle: item.title, reviewNote: '' }, activityAuditDetail: null })
+    if (!id) return
+    wx.navigateTo({ url: '/pkg-admin/admin/edit/index?scope=activityAudit&id=' + id })
   },
   async reviewRiderVerification(e) {
     const id = Number(e.currentTarget.dataset.id)
@@ -1564,14 +1385,80 @@ Page({
   },
   loadMoreErrandOrders() { if (this.data.errandHasMore) this.loadErrandOrders(this.data.errandPage + 1) },
 
+  // ===== 日志 tab：接单完成率 / 冻结名单 =====
+  onRunnerKeywordInput(e) { this.setData({ runnerKeyword: e.detail.value }) },
+  searchRunners() { this.loadErrandRunners(1) },
+  chooseRunnerOnly(e) {
+    const value = e.currentTarget.dataset.only
+    this.setData({ runnerOnly: value === '' ? '' : String(value) })
+    this.loadErrandRunners(1)
+  },
+  async loadErrandRunners(page) {
+    if (this.data.runnerLoading) return
+    this.setData({ runnerLoading: true })
+    try {
+      const data = await admin.errandRunners({ page: page || 1, pageSize: 20, only: this.data.runnerOnly, keyword: this.data.runnerKeyword })
+      const list = (data.list || []).map((row) => Object.assign({}, row, formatRunnerRow(row)))
+      this.setData({
+        errandRunners: (page || 1) <= 1 ? list : this.data.errandRunners.concat(list),
+        runnerPage: page || 1,
+        runnerHasMore: !!data.hasMore
+      })
+    } catch (e) {
+      wx.showToast({ title: (e && e.message) || '完成率数据加载失败', icon: 'none' })
+    } finally {
+      this.setData({ runnerLoading: false })
+    }
+  },
+  loadMoreRunners() { if (this.data.runnerHasMore) this.loadErrandRunners(this.data.runnerPage + 1) },
+  // 打开「解除接单冻结」确认弹窗（按钮只在「当前确实冻结中」时出现）。
+  // 不用 wx.showModal：它的 content 在「多行 + editable 同开」时会被截断（只显示一行半），
+  // editable 的输入框也是单行，长原因看不全。这里用自定义居中弹窗，正文完整换行、原因用 textarea。
+  unfreezeRunner(e) {
+    const userId = e.currentTarget.dataset.userId
+    const name = e.currentTarget.dataset.name || userId
+    if (!userId) return
+    this.setData({
+      runnerConfirm: {
+        show: true,
+        userId,
+        loading: false,
+        note: '',
+        text: `确认解除「${name}」的接单冻结？`
+      }
+    })
+  },
+  closeRunnerConfirm() {
+    this.setData({ 'runnerConfirm.show': false })
+  },
+  onRunnerNoteInput(e) {
+    this.setData({ 'runnerConfirm.note': e.detail.value })
+  },
+  async submitRunnerConfirm() {
+    const { userId, note } = this.data.runnerConfirm || {}
+    if (!userId) return
+    this.setData({ 'runnerConfirm.loading': true })
+    try {
+      await admin.unfreezeErrandRunner(userId, note || '')
+      wx.showToast({ title: '已解除冻结', icon: 'success' })
+      this.setData({ 'runnerConfirm.show': false })
+      this.loadErrandRunners(1)
+    } catch (err) {
+      wx.showToast({ title: (err && err.message) || '解除失败', icon: 'none' })
+    } finally {
+      this.setData({ 'runnerConfirm.loading': false })
+    }
+  },
+
   // ===== 日志 tab：订阅消息发送流水（客服排查「用户说收不到微信通知」）=====
   chooseLogScope(e) {
     const scope = String(e.currentTarget.dataset.scope || 'errand')
     if (scope === this.data.logScope) return
     // 切换分段时一并关掉其它分段残留的弹窗，避免「切过去又弹出来」
-    this.setData({ logScope: scope, errandDetail: null, repairDetail: null })
+    this.setData({ logScope: scope, errandDetail: null, repairDetail: null, 'runnerConfirm.show': false })
     if (scope === 'subscribe') this.loadSubscribeLogs(1)
     else if (scope === 'repair') this.loadRepairOrders(1)
+    else if (scope === 'runner') this.loadErrandRunners(1)
     else this.loadErrandOrders(1)
   },
   onSubscribeLogKeywordInput(e) { this.setData({ subscribeLogKeyword: e.detail.value }) },
@@ -1784,7 +1671,7 @@ Page({
     if (view === this.data.groupChatView) return
     wx.vibrateShort({ type: 'light' })
     // 与社团功能区切换保持一致：切换时关闭进行中的表单与详情弹窗，避免跨视图残留
-    this.setData({ groupChatView: view, form: null, chatApplyDetail: null })
+    this.setData({ groupChatView: view, chatApplyDetail: null })
     this.loadCurrent()
   },
 
@@ -1857,9 +1744,8 @@ Page({
   openChatReview(e) {
     const id = Number(e.currentTarget.dataset.id)
     const action = e.currentTarget.dataset.action === 'approve' ? 'approve' : 'reject'
-    const apply = this.data.groupChatApplies.find((row) => Number(row.id) === id)
-    if (!apply) return
-    this.setData({ form: { kind: 'chatReview', id, action, applyName: apply.name, reviewNote: '' } })
+    if (!id) return
+    wx.navigateTo({ url: '/pkg-admin/admin/edit/index?scope=chatReview&id=' + id + '&action=' + action })
   },
 
   async toggleChatGroup(e) {
@@ -1882,126 +1768,16 @@ Page({
   //   群成员与权限：ownerName / memberCount / joinModeIndex / needAudit
   //   展示素材：meta.avatarUrl / meta.qrcodeUrl / meta.gzhQrcodeUrl / meta.images
   //   展示与状态：isOfficial / customTag / sortOrder / status
-  beginChatGroupCreate() {
-    this.setData({
-      form: {
-        kind: 'chatGroup',
-        id: 0,
-        name: '',
-        categoryIndex: 0,
-        intro: '',
-        notice: '',
-        ownerName: '',
-        memberCount: '',
-        joinModeIndex: 0,
-        needAudit: 0,
-        meta: { avatarUrl: '', qrcodeUrl: '', gzhQrcodeUrl: '', images: [] },
-        isOfficial: 0,
-        customTag: '',
-        campus: '',
-        sortOrder: 0,
-        status: 1
-      }
-    })
-  },
+  beginChatGroupCreate() { wx.navigateTo({ url: '/pkg-admin/admin/edit/index?scope=chatGroup' }) },
 
-  beginChatGroupEdit(e) {
-    const group = this.data.groupChatGroups.find((row) => Number(row.id) === Number(e.currentTarget.dataset.id))
-    if (!group) return
-    const categoryIndex = Math.max(0, this.data.chatCategoryNames.indexOf(group.category || ''))
-    const joinModeIndex = Math.max(0, JOIN_MODE_OPTIONS.findIndex((item) => item.value === (group.joinMode || DEFAULT_JOIN_MODE)))
-    const memberCount = Number(group.memberCount) || 0
-    this.setData({
-      form: {
-        kind: 'chatGroup',
-        id: group.id,
-        name: group.name || '',
-        categoryIndex,
-        intro: group.intro || '',
-        notice: group.notice || '',
-        ownerName: group.ownerName || '',
-        // 0 视为未填写，输入框留空更直观
-        memberCount: memberCount > 0 ? String(memberCount) : '',
-        joinModeIndex,
-        needAudit: group.needAudit ? 1 : 0,
-        meta: {
-          avatarUrl: group.avatarUrl || '',
-          qrcodeUrl: group.qrcodeUrl || '',
-          gzhQrcodeUrl: group.gzhQrcodeUrl || '',
-          images: Array.isArray(group.images) ? group.images : []
-        },
-        isOfficial: group.isOfficial ? 1 : 0,
-        customTag: group.customTag || '',
-        campus: group.campus || '',
-        sortOrder: group.sortOrder || 0,
-        status: group.status ? 1 : 0
-      }
-    })
-  },
-
-  onChatCategoryChange(e) { this.setData({ 'form.categoryIndex': Number(e.detail.value) || 0 }) },
-  onChatJoinModeChange(e) { this.setData({ 'form.joinModeIndex': Number(e.detail.value) || 0 }) },
-  formOfficial(e) { this.setData({ 'form.isOfficial': e.detail.value ? 1 : 0 }) },
-  formNeedAudit(e) { this.setData({ 'form.needAudit': e.detail.value ? 1 : 0 }) },
+  beginChatGroupEdit(e) { const id = Number(e.currentTarget.dataset.id); if (id) wx.navigateTo({ url: '/pkg-admin/admin/edit/index?scope=chatGroup&id=' + id }) },
 
   // 群聊表单图片介绍：多张上传
-  addChatGroupImage() {
-    const meta = (this.data.form && this.data.form.meta) || null
-    if (!meta) return
-    const remain = 5 - (meta.images || []).length
-    if (remain <= 0) { wx.showToast({ title: '最多上传 5 张图片', icon: 'none' }); return }
-    wx.chooseMedia({
-      count: remain,
-      mediaType: ['image'],
-      sizeType: ['compressed'],
-      success: (res) => {
-        const paths = (res.tempFiles || []).map((f) => f.tempFilePath).filter(Boolean)
-        if (!paths.length) return
-        wx.showLoading({ title: '上传中...', mask: true })
-        wechat.uploadImages(paths).then((urls) => {
-          wx.hideLoading()
-          const valid = (urls || []).filter((url) => /^https:\/\//.test(url))
-          if (!valid.length) throw new Error('upload failed')
-          this.setData({ 'form.meta.images': (meta.images || []).concat(valid).slice(0, 5) })
-        }).catch(() => {
-          wx.hideLoading()
-          wx.showToast({ title: '图片上传失败，请重试', icon: 'none' })
-        })
-      }
-    })
-  },
-
-  // 清除表单内的单张图片（群头像 / 群二维码 / 公众号二维码）：置空即可，保存时不传地址
-  clearFormImage(e) {
-    const key = e.currentTarget.dataset.key
-    if (!key || !this.data.form) return
-    this.setData({ ['form.meta.' + key]: '' })
-  },
-
-  removeChatGroupImage(e) {
-    const index = Number(e.currentTarget.dataset.index)
-    const images = ((this.data.form && this.data.form.meta && this.data.form.meta.images) || []).slice()
-    if (index < 0 || index >= images.length) return
-    images.splice(index, 1)
-    this.setData({ 'form.meta.images': images })
-  },
-
-  previewChatGroupImage(e) {
-    const url = e.currentTarget.dataset.url
-    const images = (this.data.form && this.data.form.meta && this.data.form.meta.images) || []
-    if (url) wx.previewImage({ urls: images.length ? images : [url], current: url })
-  },
 
   // ===== 群聊类别编辑 =====
-  beginGcCategoryCreate() {
-    this.setData({ form: { kind: 'gcCategory', id: 0, name: '', description: '', sortOrder: 0, status: 1 } })
-  },
+  beginGcCategoryCreate() { wx.navigateTo({ url: '/pkg-admin/admin/edit/index?scope=gcCategory' }) },
 
-  beginGcCategoryEdit(e) {
-    const category = this.data.gcCategories.find((row) => Number(row.id) === Number(e.currentTarget.dataset.id))
-    if (!category) return
-    this.setData({ form: { kind: 'gcCategory', id: category.id, name: category.name || '', description: category.description || '', sortOrder: category.sortOrder || 0, status: category.status ? 1 : 0 } })
-  },
+  beginGcCategoryEdit(e) { const id = Number(e.currentTarget.dataset.id); if (id) wx.navigateTo({ url: '/pkg-admin/admin/edit/index?scope=gcCategory&id=' + id }) },
 
   async deleteGcCategory(e) {
     const category = this.data.gcCategories.find((row) => Number(row.id) === Number(e.currentTarget.dataset.id))
@@ -2096,29 +1872,8 @@ Page({
   },
 
   beginActivityEdit(e) {
-    const activity = this.data.activities.find((row) => Number(row.id) === Number(e.currentTarget.dataset.id))
-    if (!activity) return
-    this.setData({
-      form: {
-        kind: 'activity',
-        id: activity.id,
-        title: activity.title || '',
-        signupStart: fmtDateTime(activity.signupStart).slice(0, 16),
-        signupEnd: fmtDateTime(activity.signupEnd).slice(0, 16),
-        activityStart: fmtDateTime(activity.activityStart).slice(0, 16),
-        activityEnd: fmtDateTime(activity.activityEnd).slice(0, 16),
-        location: activity.location || '',
-        address: activity.address || '',
-        campus: activity.campus || '',
-        capacity: activity.capacity || 0,
-        meta: { coverUrl: activity.coverUrl || '', images: Array.isArray(activity.images) ? activity.images : [] },
-        detailTitle: activity.detailTitle || '',
-        detailContent: activity.detailContent || '',
-        signupTitle: activity.signupTitle || '',
-        signupContent: activity.signupContent || '',
-        status: activity.status ? 1 : 0
-      }
-    })
+    const id = Number(e.currentTarget.dataset.id)
+    if (id) wx.navigateTo({ url: '/pkg-admin/admin/edit/index?scope=activity&id=' + id })
   },
 
   async toggleActivity(e) {
@@ -2142,7 +1897,7 @@ Page({
     const view = e.currentTarget.dataset.view === 'audit' ? 'audit' : 'categories'
     if (view === this.data.clubAuditView) return
     wx.vibrateShort({ type: 'light' })
-    this.setData({ clubAuditView: view, form: null, clubAuditDetail: null })
+    this.setData({ clubAuditView: view, clubAuditDetail: null })
     this.loadCurrent()
   },
 
@@ -2237,243 +1992,27 @@ Page({
   openClubReview(e) {
     const id = Number(e.currentTarget.dataset.id)
     const action = e.currentTarget.dataset.action === 'approve' ? 'approve' : 'reject'
-    const apply = this.data.clubApplies.find((row) => Number(row.id) === id)
-    if (!apply) return
-    this.setData({ form: { kind: 'clubReview', id, action, applyName: apply.name, reviewNote: '' } })
+    if (!id) return
+    wx.navigateTo({ url: '/pkg-admin/admin/edit/index?scope=clubReview&id=' + id + '&action=' + action })
   },
 
-  beginClubCategoryCreate() {
-    this.setData({ form: { kind: 'clubCategory', id: 0, name: '', iconChar: '', slogan: '', meta: { color: '#2E6BFF' }, position: '', scopeIntro: '', scopeText: '', featuresText: '', contact: '', sortOrder: 0, status: 1 } })
-  },
+  beginClubCategoryCreate() { wx.navigateTo({ url: '/pkg-admin/admin/edit/index?scope=clubCategory' }) },
 
-  beginClubCategoryEdit(e) {
-    const category = this.data.clubCategories.find((row) => Number(row.id) === Number(e.currentTarget.dataset.id))
-    if (!category) return
-    this.setData({
-      form: {
-        kind: 'clubCategory',
-        id: category.id,
-        name: category.name || '',
-        iconChar: category.iconChar || '',
-        slogan: category.slogan || '',
-        meta: { color: category.color || '#2E6BFF' },
-        position: category.position || '',
-        scopeIntro: category.scopeIntro || '',
-        scopeText: (category.scope || []).join('、'),
-        featuresText: (category.features || []).map((item) => item.title + '|' + item.desc).join('\n'),
-        contact: category.contact || '',
-        sortOrder: category.sortOrder || 0,
-        status: category.status ? 1 : 0
-      }
-    })
-  },
+  beginClubCategoryEdit(e) { const id = Number(e.currentTarget.dataset.id); if (id) wx.navigateTo({ url: '/pkg-admin/admin/edit/index?scope=clubCategory&id=' + id }) },
 
   beginClubCreate(e) {
-    const categoryId = Number(e.currentTarget.dataset.id)
-    const categoryName = String(e.currentTarget.dataset.name || '')
-    const index = this.data.clubCategories.findIndex((row) => Number(row.id) === categoryId)
-    this.setData({ form: { kind: 'club', id: 0, categoryId, categoryIndex: Math.max(0, index), clubType: '学生社团', name: '', tags: '', intro: '', recruit: '', campus: '', sortOrder: 0, status: 1, meta: { avatarUrl: '', qrcodeUrl: '', adminQrcodeUrl: '', gzhQrcodeUrl: '', images: [] } } })
+    const categoryId = Number(e.currentTarget.dataset.id || 0)
+    wx.navigateTo({ url: '/pkg-admin/admin/edit/index?scope=club' + (categoryId ? '&categoryId=' + categoryId : '') })
   },
 
   beginClubEdit(e) {
     const clubId = Number(e.currentTarget.dataset.id)
-    const club = this.findClubById(clubId)
-    if (!club) return
-    const category = this.data.clubCategories.find((row) => (row.clubs || []).some((row2) => Number(row2.id) === clubId))
-    const index = this.data.clubCategories.findIndex((row) => row.id === (category || {}).id)
-    this.setData({ form: { kind: 'club', id: club.id, categoryId: (category || {}).id || 0, categoryIndex: Math.max(0, index), clubType: club.clubType || '学生社团', name: club.name || '', tags: club.tags || '', intro: club.intro || '', recruit: club.recruit || '', campus: club.campus || '', sortOrder: club.sortOrder || 0, status: club.status ? 1 : 0, meta: { avatarUrl: club.avatarUrl || '', qrcodeUrl: club.qrcodeUrl || '', adminQrcodeUrl: club.adminQrcodeUrl || '', gzhQrcodeUrl: club.gzhQrcodeUrl || '', images: Array.isArray(club.images) ? club.images : [] } } })
-  },
-
-  onClubCategoryChange(e) {
-    const index = Number(e.detail.value) || 0
-    const category = this.data.clubCategories[index]
-    this.setData({ 'form.categoryIndex': index, 'form.categoryId': category ? category.id : 0 })
+    if (clubId) wx.navigateTo({ url: '/pkg-admin/admin/edit/index?scope=club&id=' + clubId })
   },
 
   // 表单内校区选择（全部校区 + 四个校区）
-  onFormCampus(e) {
-    this.setData({ 'form.campus': e.currentTarget.dataset.value || '' })
-  },
-
-  formInput(e) { const key = e.currentTarget.dataset.key; this.setData({ ['form.' + key]: e.detail.value }) },
-  formStatus(e) { this.setData({ 'form.status': e.detail.value ? 1 : 0 }) },
 
   // 取消：与打开表单时的快照比对，有未保存的修改时先二次确认，避免误触丢数据
-  async closeForm() {
-    if (this.data.saving) return
-    const form = this.data.form
-    if (form && this._formSnapshot && JSON.stringify(form) !== this._formSnapshot) {
-      const ok = await this.confirm('放弃修改', '表单中有未保存的修改，关闭后将会丢失。确定关闭吗？')
-      if (!ok) return
-    }
-    this.setData({ form: null })
-  },
-  async saveForm() {
-    const form = this.data.form; if (!form || this.data.saving) return
-    this.setData({ saving: true })
-    try {
-      if (form.kind === 'post') await admin.updatePost(form.id, form)
-      if (form.kind === 'content') {
-        const payload = Object.assign({}, form)
-        if (form.type === 'banner' || form.type === 'notice' || form.type === 'publish_banner') payload.body = JSON.stringify(form.meta || {})
-        // 标签：描述文字存 meta.text，颜色随 meta 一起存入 body JSON（兼容旧纯文本格式，见 parseContentMeta）
-        if (form.type === 'tag') payload.body = JSON.stringify({ text: String(form.body || ''), bgColor: form.meta.bgColor || '', textColor: form.meta.textColor || '' })
-        if (form.type === 'banner' && (!String(form.title || '').trim() || !(form.meta && form.meta.image))) {
-          wx.showToast({ title: '请填写标题并上传轮播图片', icon: 'none' })
-          return
-        }
-        if (form.type === 'notice' && !String(form.title || '').trim()) {
-          wx.showToast({ title: '请填写公告文字', icon: 'none' })
-          return
-        }
-        form.id ? await admin.updateContent(form.id, payload) : await admin.createContent(payload)
-      }
-      if (form.kind === 'item') form.id ? await admin.updateItem(form.id, form) : await admin.createItem(form)
-      if (form.kind === 'service') {
-        if (!String(form.name || '').trim()) { wx.showToast({ title: '请填写服务名称', icon: 'none' }); return }
-        if (!form.categoryId) { wx.showToast({ title: '请选择所属分类', icon: 'none' }); return }
-        const payload = { categoryId: form.categoryId, name: String(form.name).trim(), icon: String(form.icon || '').trim(), iconPath: String(form.iconPath || '').trim(), badge: String(form.badge || '').trim(), link: String(form.link || '').trim(), miniAppId: String(form.miniAppId || '').trim(), sortOrder: Number(form.sortOrder) || 0, status: form.status ? 1 : 0 }
-        form.id ? await admin.updateService(form.id, payload) : await admin.createService(payload)
-      }
-      if (form.kind === 'drivingSchool') {
-        if (!String(form.name || '').trim()) { wx.showToast({ title: '请填写驾校名称', icon: 'none' }); return }
-        const payload = this.buildSchoolPayload(form)
-        form.id ? await admin.updateDrivingSchool(form.id, payload) : await admin.createDrivingSchool(payload)
-      }
-      if (form.kind === 'chatReview') {
-        const isApprove = form.action === 'approve'
-        const note = String(form.reviewNote || '').trim()
-        if (!isApprove && !note) { wx.showToast({ title: '驳回时请填写审核意见', icon: 'none' }); return }
-        if (!await this.confirm(isApprove ? '确认通过建群申请' : '确认驳回建群申请', isApprove ? '通过后「' + form.applyName + '」将立即上架到用户端群聊列表。' : '驳回后用户将在「我的申请」中看到审核意见。')) return
-        await admin.reviewGroupChatApply(form.id, form.action, note)
-        wx.showToast({ title: isApprove ? '已通过并上架' : '已驳回', icon: 'success' })
-        this.setData({ form: null })
-        await this.loadGroupChatData()
-        return
-      }
-      if (form.kind === 'clubReview') {
-        const isApprove = form.action === 'approve'
-        const note = String(form.reviewNote || '').trim()
-        if (!isApprove && !note) { wx.showToast({ title: '驳回时请填写审核意见', icon: 'none' }); return }
-        if (!await this.confirm(isApprove ? '确认通过社团申请' : '确认驳回社团申请', isApprove ? '通过后「' + form.applyName + '」将立即出现在用户端「社团&组织」的对应分类中。' : '驳回后用户将在「我的社团申请」中看到审核意见。')) return
-        await admin.reviewClubApply(form.id, form.action, note)
-        wx.showToast({ title: isApprove ? '已通过并上架' : '已驳回', icon: 'success' })
-        this.setData({ form: null })
-        await this.loadClubApplies()
-        return
-      }
-      if (form.kind === 'clubCategory') {
-        const scope = String(form.scopeText || '').split(/[，,、\s]+/).map((s) => s.trim()).filter(Boolean)
-        const features = String(form.featuresText || '').split('\n').map((line) => {
-          const idx = line.indexOf('|')
-          if (idx < 0) return null
-          const title = line.slice(0, idx).trim()
-          const desc = line.slice(idx + 1).trim()
-          return title && desc ? { title, desc } : null
-        }).filter(Boolean)
-        if (!String(form.name || '').trim()) { wx.showToast({ title: '请填写分类名称', icon: 'none' }); return }
-        if (!features.length && String(form.featuresText || '').trim()) { wx.showToast({ title: '特色说明格式应为：标题|描述', icon: 'none' }); return }
-        const payload = { name: String(form.name).trim(), iconChar: String(form.iconChar || '').trim(), slogan: String(form.slogan || '').trim(), color: form.meta.color || '#2E6BFF', position: String(form.position || '').trim(), scopeIntro: String(form.scopeIntro || '').trim(), scope, features, contact: String(form.contact || '').trim(), sortOrder: Number(form.sortOrder) || 0, status: form.status ? 1 : 0 }
-        form.id ? await admin.updateClubCategory(form.id, payload) : await admin.createClubCategory(payload)
-      }
-      if (form.kind === 'club') {
-        if (!form.categoryId) { wx.showToast({ title: '请选择所属分类', icon: 'none' }); return }
-        if (!String(form.name || '').trim()) { wx.showToast({ title: '请填写社团名称', icon: 'none' }); return }
-        const meta = form.meta || {}
-        const payload = { categoryId: form.categoryId, name: String(form.name).trim(), tags: String(form.tags || '').trim(), intro: String(form.intro || '').trim(), recruit: String(form.recruit || '').trim(), campus: form.campus || '', sortOrder: Number(form.sortOrder) || 0, status: form.status ? 1 : 0, clubType: String(form.clubType || '学生社团').trim() || '学生社团', avatarUrl: meta.avatarUrl || '', qrcodeUrl: meta.qrcodeUrl || '', adminQrcodeUrl: meta.adminQrcodeUrl || '', gzhQrcodeUrl: meta.gzhQrcodeUrl || '', images: Array.isArray(meta.images) ? meta.images : [] }
-        form.id ? await admin.updateClub(form.id, payload) : await admin.createClub(payload)
-      }
-      if (form.kind === 'activityAudit') {
-        const note = String(form.reviewNote || '').trim()
-        if (!note) { wx.showToast({ title: '驳回时请填写审核意见', icon: 'none' }); return }
-        if (!await this.confirm('确认驳回活动', `驳回后「${form.activityTitle}」不会公开，发起人可在活动详情看到审核意见。`)) return
-        await admin.auditActivity(form.id, 'reject', note)
-        wx.showToast({ title: '已驳回', icon: 'success' })
-        this.setData({ form: null })
-        await this.loadActivityAudits()
-        return
-      }
-      if (form.kind === 'gcCategory') {
-        if (!String(form.name || '').trim()) { wx.showToast({ title: '请填写类别名称', icon: 'none' }); return }
-        const payload = { name: String(form.name).trim(), description: String(form.description || '').trim(), sortOrder: Number(form.sortOrder) || 0, status: form.status ? 1 : 0 }
-        form.id ? await admin.updateGroupChatCategory(form.id, payload) : await admin.createGroupChatCategory(payload)
-      }
-      if (form.kind === 'chatGroup') {
-        const name = String(form.name || '').trim()
-        if (!name) { wx.showToast({ title: '请填写群聊名称', icon: 'none' }); return }
-        if (name.length > 30) { wx.showToast({ title: '群聊名称最多 30 个字', icon: 'none' }); return }
-        const category = this.data.chatCategoryNames[form.categoryIndex] || ''
-        if (!category) { wx.showToast({ title: '请选择群类别', icon: 'none' }); return }
-        const intro = String(form.intro || '').trim()
-        if (!intro) { wx.showToast({ title: '请填写群介绍，用户端群聊列表会展示', icon: 'none' }); return }
-        const notice = String(form.notice || '').trim()
-        if (notice.length > 500) { wx.showToast({ title: '群公告最多 500 个字', icon: 'none' }); return }
-        const ownerName = String(form.ownerName || '').trim()
-        if (ownerName.length > 32) { wx.showToast({ title: '群主昵称最多 32 个字', icon: 'none' }); return }
-        // 成员数：留空按 0 处理；输入框是 type=number，但仍可能粘贴非数字，这里兜一层
-        const memberRaw = String(form.memberCount === undefined || form.memberCount === null ? '' : form.memberCount).trim()
-        let memberCount = 0
-        if (memberRaw) {
-          if (!/^\d+$/.test(memberRaw)) { wx.showToast({ title: '群成员数只能填写整数', icon: 'none' }); return }
-          memberCount = Number(memberRaw)
-          if (memberCount > MAX_MEMBER_COUNT) { wx.showToast({ title: '群成员数不能超过 ' + MAX_MEMBER_COUNT, icon: 'none' }); return }
-        }
-        const sortRaw = String(form.sortOrder === undefined || form.sortOrder === null ? '' : form.sortOrder).trim()
-        if (sortRaw && !/^-?\d+$/.test(sortRaw)) { wx.showToast({ title: '排序需填写整数', icon: 'none' }); return }
-        const meta = form.meta || {}
-        const joinMode = (JOIN_MODE_OPTIONS[form.joinModeIndex] || JOIN_MODE_OPTIONS[0]).value
-        if (joinMode === 'qrcode' && !meta.qrcodeUrl) {
-          wx.showToast({ title: '进群方式为「扫码进群」时请先上传群二维码', icon: 'none' }); return
-        }
-        const images = Array.isArray(meta.images) ? meta.images : []
-        if (images.length > 5) { wx.showToast({ title: '图片介绍最多 5 张', icon: 'none' }); return }
-        const payload = {
-          name,
-          category,
-          campus: form.campus || '',
-          intro,
-          notice,
-          ownerName,
-          memberCount,
-          joinMode,
-          needAudit: form.needAudit ? 1 : 0,
-          images,
-          avatarUrl: meta.avatarUrl || '',
-          qrcodeUrl: meta.qrcodeUrl || '',
-          gzhQrcodeUrl: meta.gzhQrcodeUrl || '',
-          isOfficial: form.isOfficial ? 1 : 0,
-          customTag: String(form.customTag || '').trim(),
-          sortOrder: sortRaw ? Number(sortRaw) : 0,
-          status: form.status ? 1 : 0
-        }
-        form.id ? await admin.updateGroupChatGroup(form.id, payload) : await admin.createGroupChatGroup(payload)
-      }
-      if (form.kind === 'activity') {
-        const DT_RE = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/
-        if (!String(form.title || '').trim()) { wx.showToast({ title: '请填写活动标题', icon: 'none' }); return }
-        const timeFields = [['signupStart', '报名时间'], ['signupEnd', '报名截止'], ['activityStart', '活动开始'], ['activityEnd', '活动结束']]
-        const payload = { title: String(form.title).trim() }
-        for (const [key, label] of timeFields) {
-          const value = String(form[key] || '').trim()
-          if (value && !DT_RE.test(value)) { wx.showToast({ title: label + '格式需为 YYYY-MM-DD HH:mm', icon: 'none' }); return }
-          payload[key] = value
-        }
-        payload.location = String(form.location || '').trim()
-        payload.address = String(form.address || '').trim()
-        payload.campus = form.campus || ''
-        payload.detailTitle = String(form.detailTitle || '').trim()
-        payload.detailContent = String(form.detailContent || '').trim()
-        payload.signupTitle = String(form.signupTitle || '').trim()
-        payload.signupContent = String(form.signupContent || '').trim()
-        payload.coverUrl = form.meta.coverUrl || ''
-        payload.images = Array.isArray(form.meta.images) ? form.meta.images : []
-        const capacity = parseInt(form.capacity, 10)
-        payload.capacity = Number.isInteger(capacity) && capacity > 0 ? capacity : 0
-        await admin.updateActivity(form.id, payload)
-      }
-      wx.showToast({ title: '已保存', icon: 'success' }); this.setData({ form: null }); this.loadCurrent()
-    } catch (e) {} finally { this.setData({ saving: false }) }
-  },
 
   editCertLabel(e) {
     const userId = Number(e.currentTarget.dataset.id)

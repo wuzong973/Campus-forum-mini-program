@@ -5,7 +5,10 @@
  *
  * 需求：私信聊天页里对方非匿名时，点其头像进入对方个人主页。
  * 现实缺口：聊天页头像此前根本没有点击事件（wxml 里 <image class="avatar"> 无 bindtap），
- * 消息详情页虽有入口但跳转失败无反馈、原帖 404 时「查看原帖」仍可点（点进去再白屏一次）。
+ * 消息详情页原帖 404 时「查看原帖」仍可点（点进去再白屏一次）。
+ *
+ * 2026-10-06 变更：消息详情页「点用户进个人主页」入口按用户要求移除（详情页只留「查看原帖」），
+ * 由 B5 的源码护栏守住，防止后续改动又把它接回来。聊天页的头像进主页入口不受影响。
  *
  * 覆盖：
  *   A. 聊天页
@@ -21,6 +24,7 @@
  *     1) 原帖 404 → 标记为不可用并给出「已删除」文案
  *     2) 原帖不可用时点「查看原帖」不再跳转（否则又是一次 404 白屏）
  *     3) 头像加载失败 → 兜底
+ *     4) 不存在「进用户主页」的入口，唯一跳转是「查看原帖」
  */
 const assert = require('assert')
 const fs = require('fs')
@@ -374,7 +378,7 @@ async function main() {
   // ===== B4 头像兜底 =====
   {
     currentDetailPayload = {
-      nick: '匿名者', avatar: '/assets/avatar1/态态 (2).jpg', actorUserId: 0,
+      nick: '匿名者', avatar: '/assets/avatar1/态态 (2).jpg',
       content: '内容', title: '匿名者 评论了你的帖子',
     }
     const page = instantiate(detailDefinition)
@@ -382,11 +386,23 @@ async function main() {
     await tick()
     check(() => {
       const avatarMod = require(path.join(ROOT, 'utils', 'avatar.js'))
-      assert.strictEqual(page.data.canViewProfile, false, '匿名（actorUserId=0）不应展示主页入口')
       page.onAvatarError()
       assert.ok(avatarMod.isAnonymousAvatar(page.data.actorAvatar),
         '损坏的匿名头像应换成素材池形象，实际：' + page.data.actorAvatar)
     }, '详情页头像兜底')
+  }
+
+  // ===== B5 详情页不得再有「进用户主页」入口（2026-10-06 用户要求只留「查看原帖」）=====
+  {
+    const detailJs = fs.readFileSync(path.join(ROOT, 'pages', 'message-detail', 'index.js'), 'utf8')
+    const detailWxml = fs.readFileSync(path.join(ROOT, 'pages', 'message-detail', 'index.wxml'), 'utf8')
+    check(() => {
+      assert.ok(detailJs.indexOf('/pages/profile/') === -1, '详情页 js 不得再跳用户主页')
+      assert.ok(typeof detailDefinition.onActorProfile === 'undefined', 'onActorProfile 处理器应已删除')
+      assert.ok(detailWxml.indexOf('onActorProfile') === -1 && detailWxml.indexOf('/pages/profile/') === -1,
+        '详情页 wxml 不得残留主页入口（bindtap/箭头/可点样式）')
+      assert.ok(detailWxml.indexOf('viewOriginalPost') > -1, '「查看原帖」入口必须保留')
+    }, '主页入口已移除')
   }
 
   console.log(testCount + ' tests passed.')

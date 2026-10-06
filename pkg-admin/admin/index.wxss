@@ -18,6 +18,8 @@
 .tabs { margin: 20rpx -24rpx 24rpx; white-space: nowrap; background: #fff; }
 .tabs-inner, .filters-inner, .mini-tabs { display: flex; align-items: center; }
 .tab { flex: 0 0 auto; padding: 22rpx 28rpx 18rpx; color: var(--text-secondary); font-size: 28rpx; border-bottom: 4rpx solid transparent; }
+/* tab / 子 tab 的待审核数量角标：小号红底白字，贴在标签文字右侧 */
+.tab-badge { display: inline-block; margin-left: 6rpx; padding: 0 8rpx; min-width: 26rpx; height: 28rpx; box-sizing: border-box; border-radius: 16rpx; background: #ff5a5f; color: #ffffff; font-size: 18rpx; line-height: 28rpx; text-align: center; vertical-align: top; }
 .tab.active { color: var(--primary); font-weight: 600; border-color: var(--primary); }
 .metric-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16rpx; }
 .metric { padding: 24rpx; background: #fff; border: 1rpx solid var(--border); border-radius: 12rpx; }
@@ -60,44 +62,46 @@
 .logs-action { display: block; color: var(--text-primary); font-size: 26rpx; font-weight: 500; }
 .logs-sub { display: block; margin-top: 6rpx; color: var(--text-tertiary); font-size: 22rpx; word-break: break-all; }
 .logs-more { display: flex; justify-content: center; padding: 8rpx 0 24rpx; }
+/* 接单完成率：冻结名单里的「解除冻结 / 恢复接单」操作按钮
+   注意：.plain-btn 默认只有文字色、无边框，直接放在卡片里会「浮在空白上」看不出是按钮。
+   这里补上可见的圆角边框（描边式按钮），并给两种状态不同视觉：
+   已冻结=危险操作（红描边），待解冻=常规恢复（主色描边）。 */
+.runner-actions { display: flex; justify-content: flex-end; margin-top: 12rpx; }
+.runner-actions .runner-btn { margin: 0; padding: 0 28rpx; line-height: 56rpx; font-size: 24rpx; border-radius: 28rpx; border: 1rpx solid var(--primary); color: var(--primary); background: #fff; }
+.runner-actions .runner-btn::after { border: none; }
+.runner-actions .runner-btn--danger { border-color: var(--error); color: var(--error); }
 .upload-row { margin-bottom: 16rpx; }
 .upload-thumb { width: 320rpx; height: 180rpx; border-radius: 10rpx; background: #f2f4f8; }
 .upload-add { display: flex; align-items: center; justify-content: center; width: 320rpx; height: 180rpx; border: 1rpx dashed var(--border, #d9dee8); border-radius: 10rpx; color: var(--text-tertiary); font-size: 24rpx; }
 .form-hint { display: block; margin: -6rpx 0 16rpx; color: var(--text-tertiary); font-size: 22rpx; line-height: 1.5; }
+/* 居中确认弹窗（用于「解除接单冻结」等需要完整正文 + 多行输入的场景）
+   为什么不用 wx.showModal：它的 content 在多行 + editable 同开时会被截断一行显示不全，
+   editable 输入框也是单行，长原因看不全。自定义弹窗可控排版与换行。 */
+.confirm-mask { position: fixed; z-index: 20; inset: 0; display: flex; align-items: center; justify-content: center; padding: 0 56rpx; background: rgba(0,0,0,.45); }
+.confirm-card { width: 100%; max-height: 80vh; overflow-y: auto; padding: 40rpx 36rpx 28rpx; background: #fff; border-radius: 20rpx; }
+.confirm-title { margin-bottom: 22rpx; font-size: 34rpx; font-weight: 600; text-align: center; }
+.confirm-text { display: block; margin-bottom: 22rpx; color: var(--text-primary); font-size: 27rpx; line-height: 1.65; word-break: break-word; white-space: pre-wrap; }
+.confirm-note { display: block; margin-bottom: 20rpx; color: var(--text-tertiary); font-size: 23rpx; line-height: 1.55; }
+.confirm-card textarea { box-sizing: border-box; width: 100%; height: 150rpx; margin-bottom: 24rpx; padding: 18rpx; border: 1rpx solid var(--border); border-radius: 10rpx; font-size: 26rpx; }
+.confirm-buttons { display: flex; gap: 20rpx; }
+.confirm-buttons button { flex: 1; margin: 0; font-size: 28rpx; line-height: 76rpx; }
+.confirm-buttons button::after { border: none; }
 /* ===== 内容配置弹窗：与「页面横幅」编辑器统一的表单样式 ===== */
-.form-guide { margin-bottom: 24rpx; padding: 16rpx 20rpx; border-radius: 12rpx; background: #eef4ff; color: #4a6b9c; font-size: 23rpx; line-height: 1.6; }
 .form-item { margin-bottom: 24rpx; }
 .form-item .form-label { display: block; margin-bottom: 12rpx; color: #667085; font-size: 25rpx; line-height: 1.5; }
-.form-req { color: #ff5a5f; }
 .form-item input { width: 100%; height: 84rpx; margin-bottom: 0; padding: 0 20rpx; border: 1rpx solid #e4e9f2; border-radius: 12rpx; background: #f8fafc; color: var(--text-primary); font-size: 26rpx; box-sizing: border-box; }
 .form-item textarea { width: 100%; min-height: 140rpx; margin-bottom: 0; padding: 18rpx 20rpx; border: 1rpx solid #e4e9f2; border-radius: 12rpx; background: #f8fafc; color: var(--text-primary); font-size: 26rpx; line-height: 1.6; box-sizing: border-box; }
 .form-item .picker-row { margin-bottom: 0; background: #f8fafc; }
 /* ===== 横幅自定义颜色：颜色字段 + 实时预览 ===== */
-.color-field { display: flex; align-items: center; gap: 16rpx; min-height: 76rpx; padding: 14rpx 20rpx; border: 1rpx solid #e4e9f2; border-radius: 12rpx; background: #f8fafc; box-sizing: border-box; }
-.color-swatch { flex-shrink: 0; width: 44rpx; height: 44rpx; border: 1rpx solid rgba(0, 0, 0, .08); border-radius: 8rpx; }
-.color-value { flex: 1; min-width: 0; overflow: hidden; color: var(--text-primary); font-size: 25rpx; white-space: nowrap; text-overflow: ellipsis; }
-.color-action { flex-shrink: 0; color: var(--text-secondary); font-size: 24rpx; }
-.banner-preview { display: flex; align-items: center; gap: 12rpx; min-height: 72rpx; padding: 0 24rpx; border-radius: 36rpx; font-size: 26rpx; box-sizing: border-box; }
-.banner-preview-icon { flex-shrink: 0; }
-.banner-preview-text { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 /* 标签彩色芯片（配置列表与预览） */
 .tag-chip { display: inline-block; max-width: 100%; padding: 6rpx 20rpx; border-radius: 999rpx; font-size: 24rpx; font-weight: 500; box-sizing: border-box; word-break: break-all; }
-.tag-chip-preview { display: inline-block; padding: 12rpx 32rpx; border-radius: 999rpx; font-size: 26rpx; font-weight: 500; }
 /* 公告栏预览 */
-.notice-preview { display: flex; align-items: center; gap: 16rpx; min-height: 72rpx; padding: 16rpx 22rpx; border-radius: 14rpx; box-sizing: border-box; }
-.notice-preview-text { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 24rpx; }
-.notice-preview-link { flex-shrink: 0; margin-left: -8rpx; color: #3478f6; font-size: 24rpx; font-weight: 600; }
-.notice-preview-tail { flex-shrink: 0; padding: 4rpx 14rpx; border-radius: 999rpx; background: rgba(0, 0, 0, .06); font-size: 20rpx; }
 /* 轮播主题色预览 */
-.banner-accent-preview { display: flex; align-items: stretch; gap: 16rpx; padding: 20rpx; border: 1rpx solid var(--border); border-radius: 12rpx; background: #f8fafc; box-sizing: border-box; }
-.banner-accent-strip { flex-shrink: 0; width: 10rpx; border-radius: 6rpx; background: #4A7AFF; }
-.banner-accent-main { flex: 1; min-width: 0; }
-.banner-accent-tag { display: inline-block; margin-bottom: 6rpx; padding: 2rpx 12rpx; border-radius: 6rpx; background: rgba(74, 122, 255, .12); color: #4A7AFF; font-size: 20rpx; }
-.banner-accent-title { display: block; overflow: hidden; color: var(--text-primary); font-size: 27rpx; font-weight: 600; white-space: nowrap; text-overflow: ellipsis; }
-.banner-accent-sub { display: block; margin-top: 4rpx; overflow: hidden; color: var(--text-secondary); font-size: 22rpx; white-space: nowrap; text-overflow: ellipsis; }
 /* ===== 列表行防截断：主内容占满剩余宽度并可换行，操作按钮不被挤压 ===== */
 .compact-row > view:first-child { flex: 1; min-width: 0; margin-right: 16rpx; }
 .row-title { word-break: break-all; white-space: normal; }
+/* 信息推送群列表行内的图标缩略图（上传了图片图标时显示） */
+.row-icon-thumb { width: 34rpx; height: 34rpx; margin-right: 8rpx; border-radius: 8rpx; vertical-align: -6rpx; background: #f2f4f8; }
 
 /* ===== 日志 tab：跑腿订单流程 ===== */
 .errand-log-card { display: block; }
@@ -113,6 +117,8 @@
 .st-disputed { background: #f2635f; }
 /* 命中节流：与「发送失败」区分开（那不是失败，是本地弹窗次数用尽），用紫色 */
 .st-throttled { background: #722ed1; }
+/* 接单冻结名单：已解冻（统计仍超标但已人工放行）—— 用蓝色与「已冻结」的红、「正常」的绿区分 */
+.st-frozen-lifted { background: #315cff; }
 
 /* 订单流程详情弹窗 */
 .errand-detail-users { display: flex; gap: 16rpx; margin: 8rpx 0 16rpx; }
@@ -201,13 +207,8 @@
 
 /* 自定义群标签（管理员配置 + 列表展示） */
 .custom-tag { margin-left: 12rpx; font-size: 20rpx; font-weight: 600; color: #2e6bff; background: rgba(46, 107, 255, 0.10); border-radius: 8rpx; padding: 3rpx 10rpx; vertical-align: middle; }
-.tag-input-row { display: flex; align-items: center; gap: 16rpx; }
-.tag-input-row .tag-input { flex: 1; }
 
 /* 校区选择网格（表单内，参照设计稿 2×2 高亮样式） */
-.campus-grid { margin-top: 14rpx; display: grid; grid-template-columns: repeat(2, 1fr); gap: 18rpx; }
-.campus-option { height: 80rpx; border-radius: 12rpx; background: #f2f3f5; border: 3rpx solid transparent; color: var(--text-secondary, #4a5468); font-size: 26rpx; font-weight: 600; display: flex; align-items: center; justify-content: center; transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease; }
-.campus-option--active { background: #eef4ff; border-color: #315cff; color: #315cff; }
 
 /* ===== 活动管理 ===== */
 .act-admin-row { flex-direction: row; align-items: stretch; gap: 18rpx; }
@@ -230,11 +231,6 @@
 .danger-mini::after { border: none; }
 
 /* 多图网格（图片介绍） */
-.img-grid { display: flex; flex-wrap: wrap; gap: 14rpx; margin-bottom: 16rpx; }
-.img-item { position: relative; width: 150rpx; height: 150rpx; }
-.img-thumb { width: 100%; height: 100%; border-radius: 10rpx; background: #f2f4f8; }
-.img-remove { position: absolute; top: -12rpx; right: -12rpx; width: 36rpx; height: 36rpx; display: flex; align-items: center; justify-content: center; border-radius: 50%; background: rgba(0, 0, 0, 0.55); color: #fff; font-size: 26rpx; line-height: 1; }
-.upload-add--grid { width: 150rpx; height: 150rpx; font-size: 40rpx; }
 
 /* 活动发起人信息（头像/昵称/手机号） */
 .act-initiator { margin-top: 10rpx; display: flex; align-items: center; gap: 14rpx; padding: 12rpx 16rpx; background: #f7f9fc; border-radius: 12rpx; }
@@ -283,17 +279,12 @@
 /* ===== 群聊编辑等长表单：分组标题 / 辅助信息 / 图片清除 =====
    群聊表单字段较多，按「基础信息 / 群成员与进群权限 / 展示素材 / 展示与状态」分组，
    组标题用左侧色条与正文区分层级，避免整屏字段连成一片看不出结构。 */
-.form-group-title { margin: 34rpx 0 18rpx; padding-left: 18rpx; border-left: 6rpx solid #315cff; color: #1f2a44; font-size: 27rpx; font-weight: 700; line-height: 1.4; }
-.form-config-hint { margin: -4rpx 0 18rpx; padding: 12rpx 18rpx; border-radius: 10rpx; background: #f5f7fb; color: #6b7891; font-size: 22rpx; line-height: 1.55; }
 /* 字数统计：右浮动贴在标签行右侧，标签换行时仍停在第一行 */
-.form-counter { float: right; margin-left: 12rpx; color: #98a2b3; font-size: 22rpx; font-weight: 400; }
 /* 单图清除：与上传区并列的独立按钮，避免与「点击上传」手势冲突 */
 .upload-clear { display: inline-block; margin: -4rpx 0 6rpx; padding: 8rpx 24rpx; border-radius: 999rpx; background: #fff1f1; color: #d9483b; font-size: 22rpx; }
 /* 二维码建议上传方形图，缩略图改方形避免二维码被拉扁扫不出来 */
 .upload-thumb--qr, .upload-add--qr { width: 240rpx; height: 240rpx; }
-.upload-tip { margin-top: 10rpx; padding: 12rpx 18rpx; border-radius: 10rpx; background: #fff8e8; color: #a2732a; font-size: 22rpx; line-height: 1.55; }
 /* 校区选项固定三项（全部/广州/佛山），用三列网格铺满一行，避免 2 列时最后一项单独占半行 */
-.campus-grid--triple { grid-template-columns: repeat(3, 1fr); }
 /* 群聊列表行内的数据质量提醒（如「扫码进群」却没传二维码） */
 .row-warn { display: block; margin-top: 6rpx; color: #d9483b; font-size: 22rpx; line-height: 1.5; }
 

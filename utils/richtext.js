@@ -18,6 +18,17 @@
 
 const COLOR_MAP = { 蓝: '#2e6bff', 红: '#e5484d', 绿: '#1a9d5a', 橙: '#f5a70a' }
 
+// 字色标记的 key 除了登记的颜色名，还允许直接写 6 位 hex（如 {文字|#c0392b}），
+// 这样工具栏的完整色板才能给出任意颜色；3 位缩写与 8 位带透明度不开放，避免歧义。
+const HEX_COLOR_RE = /^#[0-9a-fA-F]{6}$/
+
+// 颜色 key → 真正渲染用的色值；不认识的 key 返回空串
+function colorValueOf(key) {
+  const k = String(key || '').trim()
+  if (COLOR_MAP[k]) return COLOR_MAP[k]
+  return HEX_COLOR_RE.test(k) ? k.toLowerCase() : ''
+}
+
 // 顺序即优先级：图片要先于链接（两者都含 ]( ），*** 先于 ** 先于 *（长标记必须抢先匹配）
 const INLINE_RE = /!\[([^\]]*)\]\((https?:\/\/[^)\s]+)\)|\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)|\*\*\*([^*\n]+)\*\*\*|\*\*([^*\n]+)\*\*|~~([^~\n]+)~~|__([^_\n]+)__|\*([^*\n]+)\*|\{([^|}\n]+)\|([^}\n]+)\}/g
 
@@ -100,8 +111,8 @@ function parseInline(text) {
     } else if (m[9] !== undefined) {
       pushWrapped(runs, m[9], 'rt-i', '')
     } else {
-      // 字色：{蓝|文字}，未登记的颜色名按原样输出，避免把标记直接暴露给用户
-      const color = COLOR_MAP[String(m[10]).trim()]
+      // 字色：{蓝|文字} 或 {文字|#c0392b}，未登记的颜色名按原样输出，避免把标记直接暴露给用户
+      const color = colorValueOf(m[10])
       if (!color) {
         pushRun(runs, plainRun(m[0]))
       } else {
@@ -145,7 +156,7 @@ function inlineOpenerAt(s, i) {
   }
   if (s[i] === '{') {
     const m = /^\{([^|}{\n]+)\|/.exec(s.slice(i))
-    if (m && COLOR_MAP[m[1].trim()]) return { open: m[0], close: '}' }
+    if (m && colorValueOf(m[1])) return { open: m[0], close: '}' }
   }
   return null
 }
@@ -341,10 +352,12 @@ function applyLinePrefix(text, cursor, kind) {
 // 用户看到的就是「点了按钮却显示错误内容」。规范化后每次产出都是可解析的单层组合。
 
 function colorKeyOf(style) {
-  const m = /color:\s*(#[0-9a-fA-F]{3,8})/.exec(String(style || ''))
-  if (!m) return ''
-  const hex = m[1].toLowerCase()
-  return Object.keys(COLOR_MAP).filter((k) => COLOR_MAP[k].toLowerCase() === hex)[0] || ''
+  const matched = String(style || '').match(/color:\s*(#[0-9a-fA-F]{3,8})/)
+  if (!matched) return ''
+  const hex = matched[1].toLowerCase()
+  // 登记过的颜色名优先回写名字（旧内容保持原样），否则直接回写 hex 本身
+  const named = Object.keys(COLOR_MAP).filter((k) => COLOR_MAP[k].toLowerCase() === hex)[0]
+  return named || (HEX_COLOR_RE.test(hex) ? hex : '')
 }
 
 // 一行的样式层：只在「整行恰好是一层包裹」时才认定样式已应用。
@@ -383,7 +396,7 @@ function buildStyled(source, marks, colorKey) {
   else if (has('bold')) { open = '**'; close = '**' }
   else if (has('italic')) { open = '*'; close = '*' }
   const text = open + source + close
-  return colorKey && COLOR_MAP[colorKey] ? '{' + colorKey + '|' + text + '}' : text
+  return colorKey && colorValueOf(colorKey) ? '{' + colorKey + '|' + text + '}' : text
 }
 
 // 行内按钮：把整个行正文包成一层目标标记；再点同一个按钮取消。
@@ -425,16 +438,19 @@ function wrapLine(text, cursor, kind) {
 }
 
 function colorLine(text, cursor, colorKey) {
-  if (!COLOR_MAP[colorKey]) return { text: String(text || ''), cursor }
+  const key = String(colorKey || '').trim()
+  const value = colorValueOf(key)
+  // 空白 key 表示「自动」：只摘掉字色层；未登记且非 hex 的 key 不动作
+  if (!value && key) return { text: String(text || ''), cursor }
   return editLineBody(text, cursor, (body) => {
     const trimmed = String(body || '').trim()
-    if (!trimmed) return '{' + colorKey + '|着色文字}'
+    if (!trimmed) return value ? '{' + key + '|着色文字}' : trimmed
     const st = styleState(trimmed)
     const source = st.detected ? st.source : trimmed
     const marks = st.detected ? st.marks : []
     // 再点同一个颜色：只摘掉字色层，行内标记原样保留
-    if (st.detected && st.colorKey === colorKey) return buildStyled(source, marks, '')
-    return buildStyled(source, marks, colorKey)
+    if (st.detected && st.colorKey === key) return buildStyled(source, marks, '')
+    return buildStyled(source, marks, key)
   })
 }
 
@@ -525,6 +541,7 @@ function applyCommand(text, cursor, kind, cmd) {
 
 module.exports = {
   COLOR_MAP,
+  colorValueOf,
   INLINE_MARKS,
   LINE_PREFIXES,
   parseBlocks,

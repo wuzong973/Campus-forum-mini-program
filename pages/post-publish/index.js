@@ -22,7 +22,7 @@ Page({
     categories: ['日常话题', '表白交友', '二手闲置', '失物寻物', '树洞吐槽', '组队拼车'], categoryIndex: -1, tempCategoryIndex: -1,
     title: '', content: '', images: [], mediaList: [], canSubmit: false, showTagPicker: false, showContactSheet: false, showComponentSheet: false, componentEditor: '',
     contactName: '', contactType: '手机号码', contactTypes: ['手机号码', '微信账号', 'QQ账号'], contactValue: '', contactSummary: '方便其他同学联系',
-    secondIdentity: false, anonymousPreview: null, polls: [], poll: null, submitting: false, lastSubmitPayload: null, submitError: '',
+    secondIdentity: false, anonymousPreview: null, polls: [], poll: null, componentEditIndex: -1, submitting: false, lastSubmitPayload: null, submitError: '',
     allowAnonymousPm: true,
     publishBanners: [],
     // 顶部「订阅评论消息提醒」入口：订阅生效（偏好开启 + 微信侧已授权）后隐藏，
@@ -204,13 +204,26 @@ Page({
   openComponentEditor(e) {
     const type = e.currentTarget.dataset.type
     if (this.data.polls.length >= 3) { wx.showToast({ title: '最多可添加3个组件', icon: 'none' }); return }
-    this.setData({ showComponentSheet: false, componentEditor: type, poll: type === 'poll' ? newPoll() : this.data.poll })
+    this.setData({ showComponentSheet: false, componentEditor: type, componentEditIndex: -1, poll: type === 'poll' ? newPoll() : this.data.poll })
   },
-  closeComponentEditor() { this.setData({ componentEditor: '' }) },
+  // 点已添加的组件行：把该组件装回编辑器继续改；保存时原位替换而不是追加一条
+  editComponent(e) {
+    const index = Number(e.currentTarget.dataset.index)
+    const poll = this.data.polls[index]
+    if (!poll) return
+    this.setData({ poll: JSON.parse(JSON.stringify(poll)), componentEditor: 'poll', componentEditIndex: index })
+  },
+  closeComponentEditor() { this.setData({ componentEditor: '', componentEditIndex: -1 }) },
   saveComponentEditor() {
     if (this.data.componentEditor === 'poll') {
       if (!this.isPollValid()) { wx.showToast({ title: '请填写投票问题和至少两个选项', icon: 'none' }); return }
-      this.setData({ polls: this.data.polls.concat(this.data.poll), poll: null })
+      const editIndex = this.data.componentEditIndex
+      if (editIndex >= 0) {
+        const polls = this.data.polls.slice(); polls.splice(editIndex, 1, this.data.poll)
+        this.setData({ polls, poll: null, componentEditIndex: -1 })
+      } else {
+        this.setData({ polls: this.data.polls.concat(this.data.poll), poll: null })
+      }
     }
     this.setData({ componentEditor: '' }); this.saveDraft()
   },

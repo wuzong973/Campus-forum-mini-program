@@ -10,7 +10,6 @@ Page({
   data: {
     statusBarHeight: 20,
     navBarHeight: 44,
-    title: '',
     privateInfo: '',
     wechatId: '',
     useLastContact: false,
@@ -32,6 +31,10 @@ Page({
     remark: '',
     images: [],
     maxImages: 3,
+    // 隐私信息（可选文字 + 图片）：文案 privateInfo，图片走独立数组 ——
+    // 必须与公开 images 分开，否则隐私图会随公开图进大厅
+    privateImages: [],
+    maxPrivateImages: 3,
     // 金额
     baseAmount: '',
     totalAmount: '',
@@ -294,6 +297,39 @@ Page({
     })
   },
 
+  // 隐私信息图片（仅接单者可见）：与公开 images 完全独立的一套
+  onChoosePrivateImage() {
+    const remain = this.data.maxPrivateImages - this.data.privateImages.length
+    if (remain <= 0) return
+    wx.chooseMedia({
+      count: remain,
+      mediaType: ['image'],
+      sizeType: ['compressed'],
+      sourceType: ['album', 'camera'],
+      success: (res) => {
+        const paths = res.tempFiles.map((f) => f.tempFilePath)
+        this.setData({
+          privateImages: [...this.data.privateImages, ...paths]
+        })
+      }
+    })
+  },
+
+  onRemovePrivateImage(e) {
+    const index = Number(e.currentTarget.dataset.index)
+    const privateImages = this.data.privateImages.slice()
+    privateImages.splice(index, 1)
+    this.setData({ privateImages })
+  },
+
+  onPreviewPrivateImage(e) {
+    const index = Number(e.currentTarget.dataset.index)
+    wx.previewImage({
+      current: this.data.privateImages[index],
+      urls: this.data.privateImages
+    })
+  },
+
   // 计算费用
   getFeeDetail() {
     const base = parseInt(this.data.baseAmount) || 2
@@ -444,12 +480,11 @@ Page({
 
   // 发布并支付
   onSubmit() {
-    const { title, remark, baseAmount, wechatId, receiverPhone } = this.data
+    const { remark, baseAmount, wechatId, receiverPhone } = this.data
     if (!this.data.agreed) {
       wx.showToast({ title: '请先阅读并同意发单系统协议', icon: 'none' })
       return
     }
-    if (!title || !title.trim()) { wx.showToast({ title: '请填写标题', icon: 'none' }); return }
     if (!remark.trim()) {
       wx.showToast({ title: '请填写公开描述', icon: 'none' })
       return
@@ -487,7 +522,8 @@ Page({
 
     const fee = this.getFeeDetail()
     const payload = {
-      title: title.trim(),
+      // 标题不再单独填写：由公开描述派生（截前 50 字），保证大厅卡片与详情页显示一致
+      title: remark.trim().slice(0, 50),
       type: '其他',
       campus: this.data.activeSubCampus || this.data.campusGroups[this.data.activeCampus].name,
       genderRequirement: this.data.genderRestrictions[this.data.activeGenderRestriction],
@@ -502,6 +538,7 @@ Page({
       acceptDeadline: this.formatAcceptDeadline(),
       remark: remark.trim(),
       privateInfo: this.data.privateInfo.trim(),
+      privateImages: this.data.privateImages,
       wechatId: this.data.wechatId.trim(),
       images: this.data.images,
       baseAmount: parseFloat(fee.baseAmount),
@@ -512,7 +549,8 @@ Page({
     const formKey = JSON.stringify([
       payload.title, payload.type, payload.campus, payload.genderRequirement,
       payload.receiverName, payload.receiverPhone, payload.appointmentTime,
-      payload.acceptDeadline, payload.remark, payload.privateInfo, payload.wechatId,
+      payload.acceptDeadline, payload.remark, payload.privateInfo, this.data.privateImages,
+      payload.wechatId,
       this.data.images, payload.baseAmount, payload.totalAmount
     ])
     const pending = this._pendingOrder
@@ -522,14 +560,18 @@ Page({
 
     // 复用订单时跳过重新上传，直接使用上次上传得到的图片 URL
     const prepareImages = reuse
-      ? Promise.resolve(reuse.images || [])
-      : (this.data.images.length ? wechat.uploadImages(this.data.images) : Promise.resolve([]))
+      ? Promise.resolve({ images: reuse.images || [], privateImages: reuse.privateImages || [] })
+      : Promise.all([
+        this.data.images.length ? wechat.uploadImages(this.data.images) : Promise.resolve([]),
+        this.data.privateImages.length ? wechat.uploadImages(this.data.privateImages) : Promise.resolve([])
+      ]).then(([images, privateImages]) => ({ images, privateImages }))
 
-    prepareImages.then((images) => {
+    prepareImages.then(({ images, privateImages }) => {
       if (reuse) return reuse.id
       payload.images = images
+      payload.privateImages = privateImages
       return request.post('/errand', payload, true, { silent: true, idempotencyKey: this._createKey }).then((order) => {
-        this._pendingOrder = { id: order.id, formKey, images }
+        this._pendingOrder = { id: order.id, formKey, images, privateImages }
         return order.id
       })
     }).then((orderId) => this._payFlow(orderId)).then(() => {

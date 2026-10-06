@@ -30,6 +30,10 @@ Page({
     comments: [],
     // 评论锚点：scroll-into-view 目标（comment-<id> / reply-<id>）
     commentAnchor: '',
+    // 高亮目标（'comment-<id>' / 'reply-<id>'）：定位到达后单独控制「琥珀色实心底」高亮，
+    // 与 commentAnchor 分离 —— scroll-into-view 的值必须常驻（清了会跳回顶部），
+    // 而视觉高亮只该闪一下就淡出，否则页面里会永远留着一条亮色卡片。
+    commentHighlight: '',
     rawComments: [],
     // 操作按钮动效状态（纯视觉，不参与业务逻辑）：'' | 'anim-pop' | 'anim-unpop'
     likeAnim: "",
@@ -159,6 +163,7 @@ Page({
   onUnload() {
     if (this.unsubscribeBanner) this.unsubscribeBanner();
     if (this._commentFocusTimer) clearTimeout(this._commentFocusTimer);
+    if (this._highlightTimer) { clearTimeout(this._highlightTimer); this._highlightTimer = null; }
     // 动效定时器清理
     ["_likeAnimTimer", "_favoriteAnimTimer", "_followAnimTimer", "_likeHeartTimer"].forEach((key) => {
       if (this[key]) { clearTimeout(this[key]); this[key] = null; }
@@ -580,8 +585,36 @@ Page({
     const anchor = this.resolveCommentAnchor(rawComments || [], this._pendingCommentAnchor)
     if (anchor) {
       this._pendingCommentAnchor = 0
+      this._anchorPagesScanned = 0
+      // 两步走：先设锚点（触发 scroll-into-view 滚动），下一帧再开高亮 ——
+      // 顺序与视频一致：先滚到那条，再亮起琥珀底色，视觉落点更清楚。
+      // 高亮是独立字段，2.4s 后自动淡出，不影响 scroll-into-view 需要的常驻锚点值。
       this.setData({ commentAnchor: anchor })
+      setTimeout(() => this.pulseCommentHighlight(anchor), 60)
+      return
     }
+    // 目标评论还没出现在已加载的页里：自动继续向后翻页查找，
+    // 直到找到 / 没有更多 / 达到扫描上限（大帖子避免无限请求）。
+    // loadMoreComments 追加成功后会再次调回本函数，形成逐页扫描循环
+    this._anchorPagesScanned = this._anchorPagesScanned || 1
+    if (this.data.commentHasMore && !this._commentsLoadingMore && this._anchorPagesScanned < 15) {
+      this.loadMoreComments()
+    } else if (!this.data.commentHasMore || this._anchorPagesScanned >= 15) {
+      this._pendingCommentAnchor = 0
+    }
+  },
+
+  // 定位高亮：开启琥珀色实心底，停留约 2.4 秒后淡出移除。
+  // 用定时器而不是 setTimeout 直接清 —— 连续点两条通知时后者要能打断前者的计时。
+  pulseCommentHighlight(anchor) {
+    if (!anchor) return
+    if (this._highlightTimer) clearTimeout(this._highlightTimer)
+    this.setData({ commentHighlight: anchor })
+    this._highlightTimer = setTimeout(() => {
+      this._highlightTimer = null
+      // 只在仍是同一条时清除，避免打断期间新开的高亮
+      if (this.data.commentHighlight === anchor) this.setData({ commentHighlight: '' })
+    }, 2400)
   },
 
   resolveCommentAnchor(rawComments, targetId) {
@@ -614,6 +647,7 @@ Page({
     this.setData({ commentsLoadingMore: true })
     api.getCommentList(this.data.post.id, this.data.commentSort, (this._commentPage || 1) + 1).then((res) => {
       this._commentPage = (this._commentPage || 1) + 1
+      this._anchorPagesScanned = this._commentPage
       const list = (res.list || []).map((comment) => this.normalizeComment(comment));
       const hiddenCommentIds = (wx.getStorageSync('hidden_comment_ids') || []).map(Number);
       const blockedUserIds = (wx.getStorageSync('blocked_user_ids') || []).map(Number);

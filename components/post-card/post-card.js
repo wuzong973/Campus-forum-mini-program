@@ -26,6 +26,8 @@ Component({
     previewImages: [],
     imageUrls: [],
     imageLayout: "none",
+    // 帖子卡片内的投票摘要（未添加投票时为 null，区块不渲染）
+    pollSummary: null,
     canManageNote: false,
     showNoteEditor: false,
     noteDraft: "",
@@ -41,13 +43,14 @@ Component({
     likeHeartFly: false,
   },
   observers: {
-    "post.createdAt, post.content, post.images, post.viewCount, post.nickName, post.certLabel": function (
+    "post.createdAt, post.content, post.images, post.viewCount, post.nickName, post.certLabel, post.components": function (
       createdAt,
       content,
       images,
       viewCount,
       nickName,
       certLabel,
+      components,
     ) {
       this.setData({
         timeText: format.formatRelativeTime(createdAt) || "刚刚",
@@ -57,6 +60,8 @@ Component({
         previewImages: this.toPreviewImages(images),
         imageUrls: this.toStringUrls(images),
         imageLayout: this.getImageLayout(images || []),
+        // 投票摘要：仅当作者添加了投票组件时才有值（未添加不显示）
+        pollSummary: this.buildPollSummary(components),
       });
       this.processContent(content);
     },
@@ -72,6 +77,7 @@ Component({
         previewImages: this.toPreviewImages(post && post.images),
         imageUrls: this.toStringUrls(post && post.images),
         imageLayout: this.getImageLayout(((post && post.images) || [])),
+        pollSummary: this.buildPollSummary(post && post.components),
         canManageNote: this.canManagePostContent(),
       });
       this.processContent(post && post.content);
@@ -96,6 +102,16 @@ Component({
       if (count === 1) return "single";
       if (count === 2) return "double";
       return "grid";
+    },
+
+    // 投票摘要：取帖子第一个投票组件，仅作者主动添加时才存在（否则 null，卡片不渲染该区块）
+    buildPollSummary(components) {
+      const poll = (Array.isArray(components) ? components : []).find((item) => item && item.type === "poll");
+      if (!poll || !poll.question) return null;
+      return {
+        question: String(poll.question),
+        modeText: poll.mode === "multiple" ? "多选" : "单选",
+      };
     },
 
     toPreviewImages(images) {

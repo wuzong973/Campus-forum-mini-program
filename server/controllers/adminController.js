@@ -57,6 +57,25 @@ async function statOne(sql) {
 
 const num = (v) => Number(v || 0)
 
+// 「我的」页管理后台入口角标：汇总所有需要管理员审核/处理的未处理数量。
+// 各业务一张小 COUNT，合并一次返回；入口页轮询这个接口即可实时反映数量变化。
+exports.pendingCount = async (req, res) => {
+  try {
+    const [reports, posts, activities, chatApplies, clubApplies, withdrawals, riders] = await Promise.all([
+      pool.query("SELECT COUNT(*) n FROM content_report WHERE status = 'pending'").then(([r]) => num(r[0].n)),
+      pool.query('SELECT COUNT(*) n FROM forum_post WHERE status = 2').then(([r]) => num(r[0].n)),
+      pool.query("SELECT COUNT(*) n FROM campus_activity WHERE deleted = 0 AND audit_status = 'pending'").then(([r]) => num(r[0].n)),
+      pool.query("SELECT COUNT(*) n FROM group_chat_apply WHERE status = 'pending'").then(([r]) => num(r[0].n)),
+      pool.query("SELECT COUNT(*) n FROM club_apply WHERE status = 'pending'").then(([r]) => num(r[0].n)),
+      pool.query("SELECT COUNT(*) n FROM wallet_withdrawal WHERE status = 'PENDING'").then(([r]) => num(r[0].n)),
+      pool.query("SELECT COUNT(*) n FROM rider_verification WHERE status = 'pending'").then(([r]) => num(r[0].n))
+    ])
+    const breakdown = { reports, posts, activities, chatApplies, clubApplies, withdrawals, riders }
+    const total = Object.keys(breakdown).reduce((sum, k) => sum + breakdown[k], 0)
+    success(res, { total, breakdown })
+  } catch (e) { fail(res, safeMessage(e), 500) }
+}
+
 exports.stats = async (req, res) => {
   try {
     const [users, posts, errands, items, activity, recentRows] = await Promise.all([
@@ -157,6 +176,84 @@ exports.listErrandOrders = async (req, res) => {
        ${where} ORDER BY e.id DESC LIMIT ? OFFSET ?`, params.concat([pageSize, offset]))
     ])
     success(res, { list, total: Number(count[0].total), page, hasMore: offset + list.length < Number(count[0].total) })
+  } catch (e) { fail(res, safeMessage(e), 500) }
+}
+
+// 跑腿接单完成率 / 冻结名单（管理后台）
+//
+// 冻结口径与 errandController.freezeStats 完全一致：total >= 3 且 finished/total < 0.5，
+// 且 frozen_until 仍在未来（到期自动恢复）。这里必须把「已完成/自身取消/完成率/冻结到期」
+// 一起给出来 —— 只看一个布尔值，管理员无法判断该不该解冻。
+exports.listErrandRunners = async (req, res) => {
+  const { page, pageSize, offset } = pageParams(req.query)
+  const keyword = String(req.query.keyword || '').trim().slice(0, 64)
+  const only = String(req.query.only || '')  // 'frozen' = 只看被冻结的
+  let where = 'WHERE 1 = 1'
+  const params = []
+  if (keyword) {
+    where += ' AND (u.nick_name LIKE ? OR u.phone LIKE ?' + (/^\d+$/.test(keyword) ? ' OR s.user_id = ?' : '') + ')'
+    const q = '%' + keyword + '%'
+    params.push(q, q)
+    if (/^\d+$/.test(keyword)) params.push(Number(keyword))
+  }
+  if (only === 'frozen') {
+    where += ' AND s.finished_count + s.self_cancel_count >= 3'
+    where += ' AND s.finished_count / (s.finished_count + s.self_cancel_count) < 0.5'
+    where += ' AND s.frozen_until IS NOT NULL AND s.frozen_until > NOW()'
+  }
+  try {
+    const [[count], [list]] = await Promise.all([
+      pool.query(`SELECT COUNT(*) total FROM errand_stat s LEFT JOIN sys_user u ON s.user_id = u.id ${where}`, params),
+      pool.query(`SELECT s.user_id userId, s.finished_count finishedCount, s.self_cancel_count selfCancelCount,
+          s.frozen_at frozenAt, s.frozen_until frozenUntil, s.unfrozen_at unfrozenAt, s.unfreeze_note unfreezeNote,
+          s.updated_at updatedAt, u.nick_name nickName, u.phone, u.avatar_url avatarUrl, u.status userStatus
+         FROM errand_stat s LEFT JOIN sys_user u ON s.user_id = u.id
+         ${where} ORDER BY s.self_cancel_count DESC, s.user_id ASC LIMIT ? OFFSET ?`, params.concat([pageSize, offset]))
+    ])
+    const FREEZE_MIN_RECORDS = 3
+    const FREEZE_RATE = 0.5
+    const rows = list.map((r) => {
+      const finished = Number(r.finishedCount) || 0
+      const selfCancel = Number(r.selfCancelCount) || 0
+      const total = finished + selfCancel
+      const rate = total ? finished / total : 1
+      const overThreshold = total >= FREEZE_MIN_RECORDS && rate < FREEZE_RATE
+      const until = r.frozenUntil ? new Date(r.frozenUntil).getTime() : 0
+      const frozen = overThreshold && until > Date.now()
+      // 已解冻 = 统计上仍超标（完成率没变好），但冻结期已被提前结束（frozen_until 在过去）。
+      // 必须单独标出来：否则端上只能靠 overThreshold 判，会把「已解冻」误显示成「待解冻」，
+      // 还会给出一个点了没用的「恢复接单」按钮（2026-10-06 实测）。
+      const unfrozen = overThreshold && !frozen && !!r.frozenUntil
+      return Object.assign({}, r, {
+        totalCount: total,
+        finishRate: Math.round(rate * 1000) / 10,
+        overThreshold,
+        frozen,
+        unfrozen
+      })
+    })
+    success(res, { list: rows, total: Number(count[0].total), page, hasMore: offset + rows.length < Number(count[0].total) })
+  } catch (e) { fail(res, safeMessage(e), 500) }
+}
+
+// 手动解除接单冻结（客服人工放行）
+//
+// 为什么需要：完成率低到阈值后，接单接口直接 403 → finished_count 不再增长 →
+// 完成率永远低于阈值。不提供手动解冻，「冻结」在数学上就是永久封禁。
+// 解冻只写 frozen_until = NOW()（对完成率本身不做粉饰，统计仍如实保留）。
+exports.unfreezeErrandRunner = async (req, res) => {
+  const userId = intId(req.params.userId)
+  const note = optionalText((req.body && req.body.note) || '', 255)
+  if (!userId || note === null) return fail(res, 'Invalid user id')
+  try {
+    const [rows] = await pool.query('SELECT * FROM errand_stat WHERE user_id = ?', [userId])
+    if (!rows.length) return fail(res, '该用户没有接单记录', 404)
+    await pool.query(
+      'UPDATE errand_stat SET frozen_until = NOW(), unfrozen_at = NOW(), unfreeze_note = ? WHERE user_id = ?',
+      [note || '', userId]
+    )
+    const [after] = await pool.query('SELECT * FROM errand_stat WHERE user_id = ?', [userId])
+    success(res, { runner: after[0] }, '已解除接单冻结')
   } catch (e) { fail(res, safeMessage(e), 500) }
 }
 

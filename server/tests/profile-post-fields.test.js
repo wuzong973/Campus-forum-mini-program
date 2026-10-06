@@ -199,11 +199,12 @@ async function main() {
 
   // ===== 7) 源码护栏：三个字段必须留在映射里 =====
   check(() => {
-    const fn = USER_CONTROLLER_SRC.match(/function mapProfilePost\(item\)\s*\{[\s\S]*?\r?\n\}/)
+    const fn = USER_CONTROLLER_SRC.match(/function mapProfilePost\(item, viewerId\)\s*\{[\s\S]*?\r?\n  return post;\r?\n\}/)
     assert.ok(fn, '应能找到 mapProfilePost 定义')
     assert.match(fn[0], /viewCount:/, 'mapProfilePost 必须映射 viewCount')
     assert.match(fn[0], /pinned:/, 'mapProfilePost 必须映射 pinned')
     assert.match(fn[0], /isLiked:/, 'mapProfilePost 必须映射 isLiked')
+    assert.match(fn[0], /components: presentComponents\(/, 'mapProfilePost 必须下发帖内组件（投票等），post-card 渲染依赖它')
   }, '源码护栏')
 
   // ===== 8) 蹲贴列表（pages/my-posts 的「我蹲的帖子」）同样渲染 footer =====

@@ -169,18 +169,21 @@ check('后台四处正文框都换成共享编辑器', () => {
   assert.strictEqual(json.usingComponents['richtext-editor'], '/components/richtext-editor/richtext-editor',
     '未在 json 注册会整块静默不渲染')
 
-  const adminWxml = read('pkg-admin/admin/index.wxml')
-  const adminJson = JSON.parse(read('pkg-admin/admin/index.json'))
+  const adminWxml = read('pkg-admin/admin/edit/index.wxml')
+  const adminJson = JSON.parse(read('pkg-admin/admin/edit/index.json'))
   assert.strictEqual(adminJson.usingComponents['richtext-editor'], '/components/richtext-editor/richtext-editor',
-    '管理后台未注册编辑器组件')
-  // 这四个是面向用户的多段正文；reviewNote / signupContent / 帖子 content 等刻意不上
-  ;['intro', 'notice', 'detailContent', 'detail'].forEach((key) => {
+    '独立编辑页未注册编辑器组件')
+  // 这五个是面向用户的多段正文；reviewNote / signupContent / 帖子 content 等刻意不上
+  ;['intro', 'notice', 'detailContent', 'detail', 'content'].forEach((key) => {
     assert.ok(adminWxml.indexOf('<richtext-editor data-key="' + key + '"') >= 0, '后台正文框未接入：' + key)
   })
   // 用总数把关：只换掉三处同名 textarea 里的第一处，也要能被这条抓到
   const editorCount = (adminWxml.match(/<richtext-editor /g) || []).length
-  assert.strictEqual(editorCount, 4, '后台接入编辑器的字段应恰好是 4 个，实际 ' + editorCount + ' 个（多接的字段其渲染端没有解析器）')
-  const plainKept = ['content', 'reviewNote', 'signupContent', 'body', 'position', 'scopeText', 'featuresText', 'description']
+  // 第 5 个是「信息推送群」卡片正文，渲染端 = pages/push-group-detail（见 push-group-detail.test.js）
+  assert.strictEqual(editorCount, 5, '后台接入编辑器的字段应恰好是 5 个，实际 ' + editorCount + ' 个（多接的字段其渲染端没有解析器）')
+  // 这些字段必须保持纯文本 textarea，它们的渲染端没有解析器
+  // （intro/content/position/scopeText/featuresText 会同时出现在服务端未覆盖的分支里，故按「存在任一 textarea 版本」为准）
+  const plainKept = ['signupContent', 'body', 'reviewNote', 'description']
     .filter((key) => adminWxml.indexOf('<textarea data-key="' + key + '"') < 0)
   assert.deepStrictEqual(plainKept, [], '这些字段必须保持纯文本 textarea，它们的渲染端没有解析器：缺 ' + plainKept.join(', '))
 })

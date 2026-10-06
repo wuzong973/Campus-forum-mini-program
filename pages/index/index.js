@@ -491,7 +491,7 @@ Page({
       { name: '社团&组织', iconPath: '/assets/icons/svc-club.png' },
       { name: '校园评价', iconPath: '/assets/icons/svc-review.png' },
       { name: '找驾校', iconPath: '/assets/icons/svc-driving.png' },
-      { name: '校园市场', iconPath: '/assets/icons/svc-store.png' },
+      { name: '校园市场', uiIcon: 'market' },
       { name: '广轻义修' },
       { name: '校园卡' },
       { name: '速印', iconPath: '/assets/icons/svc-speed-print.png' },
@@ -522,6 +522,8 @@ Page({
       if (serverBottom) {
         bottom = Object.assign({}, serverBottom)
         bottom.iconPath = bottom.iconPath || def.iconPath || ''
+        // 内置统一图标：后端没配 iconPath 时才用它（后台配置优先级更高）
+        bottom.uiIcon = bottom.iconPath ? '' : (def.uiIcon || '')
         if (!row2KeepJump[def.name]) {
           delete bottom.miniAppId
           bottom.link = ''
@@ -531,6 +533,7 @@ Page({
           id: 'home-bottom-' + index,
           name: def.name,
           iconPath: def.iconPath || '',
+          uiIcon: def.iconPath ? '' : (def.uiIcon || ''),
           icon: '',
           badge: '',
           link: ''
@@ -1023,6 +1026,11 @@ Page({
     // 与聊天页「发送」按钮共用 message 触发组（只含 message 一个模板）。
     if (typeof subscribe.requestTriggerByTap === 'function') subscribe.requestTriggerByTap('message')
     wx.navigateTo({ url: '/pages/my-messages/index?tab=0' })
+  },
+
+  // 浮动按钮：信息推送群（树洞/二手/跑腿等微信群与墙墙微信的入口页）
+  goPushGroups() {
+    wx.navigateTo({ url: '/pages/push-groups/index' })
   },
 
   onCategoryTap(e) {

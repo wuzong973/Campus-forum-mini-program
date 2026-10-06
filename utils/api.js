@@ -48,7 +48,6 @@ const SERVICE_ICON_MAP = {
   '社团&组织': '/assets/icons/svc-club.png',
   '校园评价': '/assets/icons/svc-review.png',
   '找驾校': '/assets/icons/svc-driving.png',
-  '校园市场': '/assets/icons/svc-store.png',
   '返乡大巴': '/assets/icons/svc-bus-return.png',
   '特惠寄件': '/assets/icons/svc-express.png'
 }
@@ -298,6 +297,16 @@ function saveMessageBanner(payload) {
 // 帖子详情页「每日热榜」上方横幅：机制同消息通知横幅，内容相互独立
 function getPostBanner() {
   return request.get("/config/post-banner", {}, false, { silent: true }).then((d) => d || null);
+}
+
+// 信息推送群卡片（首页悬浮微信入口打开的页面）：公开读取，管理员额外可读停用条目
+function getPushGroups() {
+  return request.get("/config/push-groups", {}, true, { silent: true }).then((d) => (d && d.list) || []);
+}
+
+// 管理后台入口角标：全部需要管理员审核/处理的未处理数量（仅管理员可调，非管理员 403）
+function getAdminPendingCount() {
+  return request.get("/admin/pending-count", {}, true, { silent: true }).then((d) => d || { total: 0, breakdown: {} });
 }
 
 function savePostBanner(payload) {
@@ -767,7 +776,8 @@ function getReviewTargets(query) {
 }
 
 function getReviewTargetDetail(id) {
-  return request.get("/review/target/" + id, {}, false, { silent: true });
+  // 必须带登录态：服务端按 userId 返回 myRating（我的评分回显），游客请求永远为空
+  return request.get("/review/target/" + id, {}, true, { silent: true });
 }
 
 function createReviewTarget(data) {
@@ -793,12 +803,29 @@ function getReviewComments(id, sort, page) {
   return request.get("/review/target/" + id + "/comments", query, false, { silent: true });
 }
 
-function addReviewComment(id, content) {
-  return request.post("/review/target/" + id + "/comments", { content }, true);
+function addReviewComment(id, content, images, anonymousIdentity, parentId) {
+  return request.post("/review/target/" + id + "/comments", {
+    content,
+    images: Array.isArray(images) ? images : [],
+    anonymousIdentity: anonymousIdentity || null,
+    // parentId = 0 顶层评价；>0 回复该条评价（与论坛评论同款两级模型）
+    parentId: Number(parentId) || 0
+  }, true);
 }
 
 function likeReviewComment(id) {
   return request.post("/review/comment/" + id + "/like", {}, true);
+}
+
+// 编辑评价评论（仅作者本人）：与论坛评论同款，只有作者能改自己的内容。
+function updateReviewComment(id, content) {
+  return request.post("/review/comment/" + id + "/update", { content }, true);
+}
+
+// 删除评价评论（软删）：管理员可删任意；评论作者可删自己的。
+// 顶层评价会连带删除其下回复，返回 affected 与删除后的总数。
+function deleteReviewComment(id) {
+  return request.post("/review/comment/" + id + "/delete", {}, true);
 }
 
 module.exports = {
@@ -837,6 +864,8 @@ module.exports = {
   getReviewComments,
   addReviewComment,
   likeReviewComment,
+  updateReviewComment,
+  deleteReviewComment,
   getErrandList,
   getErrandChats,
   getErrandChatMessages,
@@ -881,6 +910,8 @@ module.exports = {
   saveMessageBanner,
   getPostBanner,
   savePostBanner,
+  getPushGroups,
+  getAdminPendingCount,
   getDrivingSchools,
   getDrivingSchoolDetail,
   likeComment,

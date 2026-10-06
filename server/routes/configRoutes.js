@@ -45,4 +45,10 @@ router.put('/driving-promo', auth, requireAdmin('config.manage'), controller.sav
 router.get('/driving-service-tags', optionalAuth, controller.drivingServiceTags)
 router.put('/driving-service-tags', auth, requireAdmin('config.manage'), controller.saveDrivingServiceTags)
 
+// 信息推送群卡片：首页悬浮微信入口打开的页面内容；公开读取，维护需管理员权限
+router.get('/push-groups', optionalAuth, controller.pushGroups)
+router.post('/push-group', auth, requireAdmin('config.manage'), controller.createPushGroup)
+router.put('/push-group/:id', auth, requireAdmin('config.manage'), controller.savePushGroup)
+router.delete('/push-group/:id', auth, requireAdmin('config.manage'), controller.deletePushGroup)
+
 module.exports = router

@@ -11,16 +11,9 @@
       >{{item}}</view>
     </view>
 
-    <!-- 子级页顶部：当前所在食堂/商圈，点它可以给食堂本身评分、看评价 -->
-    <view
-      wx:if="{{mode === 'child'}}"
-      class="parent-bar spring-btn"
-      bindtap="onParentTap"
-      hover-class="parent-bar--hover press-spring"
-      hover-stay-time="100"
-    >
+    <!-- 子级页顶部：当前所在食堂/商圈名称（容器本身不可评分，仅作层级标识） -->
+    <view wx:if="{{mode === 'child'}}" class="parent-bar">
       <text class="parent-bar-name">{{parentName}}</text>
-      <text class="parent-bar-link">{{parentEntryText}}</text>
     </view>
 
     <!-- 搜索 -->
@@ -83,7 +76,7 @@
           <view class="target-meta">{{item.ratedCountText}}</view>
         </view>
         <view class="target-side">
-          <view class="score-badge">{{item.scoreText === '暂无' ? '暂无' : item.scoreText}}</view>
+          <view wx:if="{{item.scoreText}}" class="score-badge">{{item.scoreText}}</view>
           <view class="target-counts">
             <text class="count-item">💬 {{item.commentCount}}</text>
             <text class="count-item">🐾 {{item.likeCount}}</text>

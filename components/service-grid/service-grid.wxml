@@ -3,6 +3,7 @@
     <view class="service-item service-strip-item spring-btn" hover-class="service-item--hover press-spring" hover-stay-time="120" wx:for="{{services}}" wx:key="id" data-item="{{item}}" bindtap="onTap">
       <view class="icon-wrap">
         <image class="service-icon-img" src="{{item.iconPath}}" mode="aspectFit" wx:if="{{item.iconPath}}"></image>
+        <view wx:elif="{{item.uiIcon}}" class="ui-icon ui-icon--{{item.uiIcon}} ui-icon--live"></view>
         <text class="icon" wx:else>{{item.icon}}</text>
       </view>
       <text class="name">{{item.name}}</text>
@@ -14,6 +15,7 @@
   <view class="service-item spring-btn" hover-class="service-item--hover press-spring" hover-stay-time="120" wx:for="{{services}}" wx:key="id" data-item="{{item}}" bindtap="onTap">
     <view class="icon-wrap">
       <image class="service-icon-img" src="{{item.iconPath}}" mode="aspectFit" wx:if="{{item.iconPath}}"></image>
+      <view wx:elif="{{item.uiIcon}}" class="ui-icon ui-icon--{{item.uiIcon}} ui-icon--live"></view>
       <text class="icon" wx:else>{{item.icon}}</text>
     </view>
     <text class="name">{{item.name}}</text>

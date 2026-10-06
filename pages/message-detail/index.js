@@ -11,8 +11,6 @@ Page({
     actorAvatar: '',
     // 头像加载失败标记：防止兜底后的路径再次报错时陷入「失败→替换→失败」循环
     actorAvatarFailed: false,
-    actorUserId: 0,
-    canViewProfile: false,
     content: '',
     mediaItems: [],
     time: '',
@@ -42,14 +40,10 @@ Page({
       video: /\.(mp4|mov|m4v|avi|mkv|webm)(\?|$)/i.test(String(url))
     }))
     const content = String(payload.content || '').replace(/\s*\[(图片|视频)\]\s*$/, '').trim()
-    // actorUserId>0 才是真实用户：头像可进入其主页；匿名形象与占位用户不可点击
-    const actorUserId = Number(payload.actorUserId) || 0
     this.setData({
       postId: options.id || '',
       actorNick: nick,
       actorAvatar: payload.avatar || '',
-      actorUserId,
-      canViewProfile: actorUserId > 0,
       content,
       mediaItems,
       // 图片 URL 列表：长按识别菜单里"预览大图"使用
@@ -61,22 +55,6 @@ Page({
       commentId: Number(payload.sourceCommentId) || 0
     })
     this.loadPost()
-  },
-
-  onActorProfile() {
-    if (!this.data.canViewProfile) return
-    // 防连点：连续点击会重复压栈，栈深超限后整页白屏
-    if (this._profileNavigating) return
-    this._profileNavigating = true
-    setTimeout(() => { this._profileNavigating = false }, 800)
-    wx.navigateTo({
-      url: '/pages/profile/index?id=' + this.data.actorUserId,
-      // 跳转失败必须有反馈，不能静默（用户会以为点了没反应）
-      fail: () => {
-        this._profileNavigating = false
-        wx.showToast({ title: '打开用户主页失败，请稍后重试', icon: 'none' })
-      }
-    })
   },
 
   // 头像加载失败兜底：通知快照里的历史脏路径（不存在的内置素材名）会让渲染层

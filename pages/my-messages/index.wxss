@@ -210,7 +210,8 @@
   display: block;
   margin: 0 0 8rpx;
   padding: 2rpx 0 2rpx 16rpx;
-  border-left: 6rpx solid #FF4D4F;
+  /* 卡片已回归中性底色（随机配色已移除），内容条沿用统一的浅色左描边 */
+  border-left: 6rpx solid #e6ebf2;
 }
 
 .msg-content-text {

@@ -9,6 +9,30 @@
 const richtext = require('../../utils/richtext')
 const wechat = require('../../utils/wechat')
 
+// 字色选择板：仿 Word 的「自动 + 主题颜色 + 标准色」。
+// 渐变填充不搬 —— 正文标记只能存单色值，渐变没有可落库的渲染口径；
+// 4 种命名色（蓝红绿橙）在 utils/richtext.js 里继续兼容，色板直接下发 hex，
+// 解析端同样认 {文字|#c0392b}，任意颜色都能落库并渲染。
+const THEME_BASE = ['#ffffff', '#000000', '#e7e6e6', '#44546a', '#4472c4', '#ed7d31', '#a5a5a5', '#ffc000', '#5b9bd5', '#70ad47']
+const TINT_RATIOS = [0.85, 0.7, 0.55, 0.35, 0.2]
+const STANDARD_COLORS = ['#c00000', '#ff0000', '#ffc000', '#ffff00', '#92d050', '#00b050', '#00b0f0', '#0070c0', '#002060', '#7030a0']
+
+function mixWithWhite(hex, ratio) {
+  const channel = (i) => {
+    const v = parseInt(hex.slice(1 + i * 2, 3 + i * 2), 16)
+    return Math.round(v + (255 - v) * ratio).toString(16).padStart(2, '0')
+  }
+  return '#' + channel(0) + channel(1) + channel(2)
+}
+
+function buildThemeRows() {
+  const rows = [{ key: 'base', colors: THEME_BASE.slice() }]
+  TINT_RATIOS.forEach((ratio, i) => {
+    rows.push({ key: 'tint' + i, colors: THEME_BASE.map((c) => mixWithWhite(c, ratio)) })
+  })
+  return rows
+}
+
 // 工具栏按钮：kind 决定走哪条插入逻辑，cmd 是参数。
 //
 // label 是给测试与无障碍用的语义名（不再直接显示）；显示内容二选一：
@@ -73,7 +97,12 @@ Component({
     // 预览默认打开：管理员的诉求是「别让我费劲猜 ** 会渲染成什么」，
     // 默认展开渲染效果，写完即时可见；不需要时点一下「预览」收起即可。
     preview: true,
-    uploading: false
+    uploading: false,
+    // 字色选择板（点 A 弹出）
+    paletteShow: false,
+    paletteCursor: -1,
+    themeRows: buildThemeRows(),
+    standardColors: STANDARD_COLORS
   },
 
   lifetimes: {
@@ -115,17 +144,23 @@ Component({
     },
 
     pickColor(cursor) {
-      const keys = Object.keys(richtext.COLOR_MAP)
-      wx.showActionSheet({
-        itemList: keys.map((k) => k + '色文字'),
-        success: (res) => {
-          const key = keys[res.tapIndex]
-          if (!key) return
-          const next = richtext.applyCommand(this.data.text, cursor, 'color', key)
-          this.emit(next.text, next.cursor)
-        },
-        fail: () => {}
-      })
+      // 弹组件内色板而不是 wx.showActionSheet：ActionSheet 最多 6 项且只有文字，
+      // 交付不了 Word 那种整版色板；光标先记下，选色时再落标记。
+      this.setData({ paletteShow: true, paletteCursor: cursor })
+    },
+
+    onPaletteClose() {
+      this.setData({ paletteShow: false })
+    },
+
+    noop() {},
+
+    onColorTap(e) {
+      // 「自动」下发空 key：colorLine 里空 key 只摘掉字色层（即 Word 的自动/默认色）
+      const key = String(e.currentTarget.dataset.hex || '')
+      const next = richtext.applyCommand(this.data.text, this.data.paletteCursor, 'color', key)
+      this.setData({ paletteShow: false })
+      if (next) this.emit(next.text, next.cursor)
     },
 
     // 图片走全站同一套上传通道，拿到 https 地址后写成整行图片标记

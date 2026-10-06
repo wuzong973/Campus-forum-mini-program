@@ -54,6 +54,40 @@ async function ensureUniqueIndex(tableName, indexName, definition) {
   if (!rows.length) await pool.query(`CREATE UNIQUE INDEX ${indexName} ON ${tableName} ${definition}`)
 }
 
+// 唯一键的列集合会随需求变（这里把 source_comment_id 的唯一键从单列扩成三列），
+// 而 ensureUniqueIndex 只按索引名判断存在与否、改了定义也不会重建。
+// 所以比对实际列序列，不一致就先删后建；两步之间进程被打断只会留下「暂时缺唯一键」，
+// 下次启动仍会补上，不会丢数据。表名与索引名全部是调用方写死的常量。
+async function ensureUniqueIndexColumns(tableName, indexName, columns) {
+  const [rows] = await pool.query(
+    `SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.STATISTICS
+     WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND INDEX_NAME = ?
+     ORDER BY SEQ_IN_INDEX ASC`,
+    [tableName, indexName]
+  )
+  const current = rows.map((row) => String(row.COLUMN_NAME))
+  if (current.join(',') === columns.join(',')) return
+  if (current.length) await pool.query(`DROP INDEX ${indexName} ON ${tableName}`)
+  await pool.query(
+    `CREATE UNIQUE INDEX ${indexName} ON ${tableName} (` + columns.map((c) => '`' + c + '`').join(', ') + ')'
+  )
+}
+
+// 管理员配置的正文/图标常含 emoji，而老库的表默认字符集可能是 utf8mb3（存不下 4 字节字符，
+// INSERT 会报 Incorrect string value）。只在字符集不对时才做一次重量级 CONVERT；
+// 表名与目标字符集写死，不引入任何拼接输入。
+async function ensureSystemContentUtf8mb4() {
+  const [rows] = await pool.query(
+    `SELECT CCSA.character_set_name AS cs FROM INFORMATION_SCHEMA.TABLES T
+     JOIN INFORMATION_SCHEMA.COLLATION_CHARACTER_SET_APPLICABILITY CCSA
+       ON T.TABLE_COLLATION = CCSA.COLLATION_NAME
+     WHERE T.TABLE_SCHEMA = DATABASE() AND T.TABLE_NAME = 'system_content'`
+  )
+  if (rows.length && String(rows[0].cs).toLowerCase() !== 'utf8mb4') {
+    await pool.query('ALTER TABLE system_content CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci')
+  }
+}
+
 async function runMigrations() {
   await ensureColumn('sys_user', 'gender', "TINYINT DEFAULT 1 AFTER avatar_url")
   await ensureColumn('sys_user', 'campus', "VARCHAR(64) DEFAULT '' AFTER gender")
@@ -99,6 +133,25 @@ async function runMigrations() {
   `).catch((e) => console.warn('[migrations] 重算蹲贴计数失败：', e.message))
   await ensureColumn('forum_comment', 'images', 'JSON AFTER content')
   await ensureColumn('forum_comment', 'anonymous_identity', 'JSON DEFAULT NULL AFTER images')
+  // 校园评价评论对齐论坛评论规范：支持配图与分身（匿名身份）
+  await ensureColumn('review_comment', 'images', 'JSON AFTER content')
+  await ensureColumn('review_comment', 'anonymous_identity', 'JSON DEFAULT NULL AFTER images')
+  // 评价评论回复：与论坛评论同款两级模型（parent_id = 被回复的评论 id，0 表示顶层评论）
+  await ensureColumn('review_comment', 'parent_id', 'INT UNSIGNED NOT NULL DEFAULT 0 AFTER target_id')
+  // 评价对象计数器曾因历史写入链缺口与明细表不一致（新建对象/删除评论都不重算），
+  // 这里以明细表为准兜底重算一次（幂等，条件与 refreshRating/comment_count 的聚合口径一致）
+  await pool.query(`
+    UPDATE review_target t SET
+      t.rating_sum = (SELECT COALESCE(SUM(r.score), 0) FROM review_rating r WHERE r.target_id = t.id),
+      t.rating_count = (SELECT COUNT(*) FROM review_rating r WHERE r.target_id = t.id)
+    WHERE t.rating_count <> (SELECT COUNT(*) FROM review_rating r WHERE r.target_id = t.id)
+       OR t.rating_sum <> (SELECT COALESCE(SUM(r.score), 0) FROM review_rating r WHERE r.target_id = t.id)
+  `).catch((e) => console.warn('[migrations] 重算评价对象评分计数失败：', e.message))
+  await pool.query(`
+    UPDATE review_target t SET
+      t.comment_count = (SELECT COUNT(*) FROM review_comment c WHERE c.target_id = t.id AND c.deleted = 0 AND c.status = 1)
+    WHERE t.comment_count <> (SELECT COUNT(*) FROM review_comment c WHERE c.target_id = t.id AND c.deleted = 0 AND c.status = 1)
+  `).catch((e) => console.warn('[migrations] 重算评价对象评论计数失败：', e.message))
   await ensureColumn('user_schedule', 'week_type', "VARCHAR(8) DEFAULT 'all' AFTER end_week")
   await ensureColumn('user_schedule', 'updated_at', 'DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP AFTER created_at')
   await ensureColumn('errand_order', 'gender_requirement', "VARCHAR(16) NOT NULL DEFAULT '不限性别' AFTER campus")
@@ -111,6 +164,10 @@ async function runMigrations() {
   await ensureColumn('errand_order', 'receiver_phone', "VARCHAR(20) DEFAULT '' AFTER receiver_name")
   await ensureColumn('errand_order', 'delivery_building', "VARCHAR(64) DEFAULT '' AFTER receiver_phone")
   await ensureColumn('errand_order', 'delivery_room', "VARCHAR(32) DEFAULT '' AFTER delivery_building")
+  // 发布页「隐私信息」（取件码/门牌号等，仅接单者可见）：此前前端收集但服务端从未落库
+  await ensureColumn('errand_order', 'private_info', 'TEXT AFTER remark')
+  // 发布页「隐私信息」区上传的图片（仅接单者可见）：与公开 images 分开存，避免隐私图进大厅
+  await ensureColumn('errand_order', 'private_images', 'JSON DEFAULT NULL AFTER private_info')
   await ensureColumn('errand_order', 'is_large_item', 'TINYINT(1) DEFAULT 0 AFTER remark')
   await ensureColumn('errand_order', 'is_urgent', 'TINYINT(1) DEFAULT 0 AFTER is_large_item')
   // Existing orders predate escrow payments, so retain their visibility.
@@ -154,9 +211,27 @@ async function runMigrations() {
     ) d ON d.source_comment_id = n.source_comment_id
     WHERE n.type = 'reply' AND n.id <> d.keep_id
   `).catch((e) => console.warn('[migrations] 清理重复回复通知失败：', e.message))
-  await ensureUniqueIndex('system_notification', 'uk_notification_source_comment', '(source_comment_id)')
+  // 2026-10-06：唯一键从 (source_comment_id) 扩成 (user_id, type, source_comment_id)。
+  // 单列键等于「一条评论全站最多一条通知」，但同一条评论要同时发给帖子作者(comment)、
+  // 每个蹲贴者(follow)、被回复者(reply)，而这三类现在都要带来源评论 id
+  // （消息点进原帖要能定位并高亮那条评论）。键不收窄，fan-out 的第二个收件人起
+  // 就被 ER_DUP_ENTRY 静默吞掉（notificationService 里 catch 成 null，用户永远收不到）。
+  // 三列键保留 P20 真正要防的重复：同一收件人 + 同一类型 + 同一来源评论只留一条。
+  await pool.query(`
+    DELETE n FROM system_notification n
+    JOIN (
+      SELECT user_id, type, source_comment_id, MIN(id) AS keep_id
+      FROM system_notification
+      WHERE source_comment_id IS NOT NULL
+      GROUP BY user_id, type, source_comment_id
+      HAVING COUNT(*) > 1
+    ) d ON d.user_id = n.user_id AND d.type = n.type AND d.source_comment_id = n.source_comment_id
+    WHERE n.source_comment_id IS NOT NULL AND n.id <> d.keep_id
+  `).catch((e) => console.warn('[migrations] 清理重复来源评论通知失败：', e.message))
+  await ensureUniqueIndexColumns('system_notification', 'uk_notification_source_comment',
+    ['user_id', 'type', 'source_comment_id'])
     .then(() => pool.query('ALTER TABLE system_notification DROP INDEX idx_notification_source_comment').catch(() => {}))
-    .catch((e) => console.warn('[migrations] source_comment_id 唯一键创建跳过（可能存在历史重复）：', e.message))
+    .catch((e) => console.warn('[migrations] source_comment_id 唯一键调整跳过（可能存在历史重复）：', e.message))
   // 历史评论区回复此前缺少独立 reply 通知，或旧枚举直接导致写库失败。
   // 这里按 forum_comment 的父子关系补齐；source_comment_id + NOT EXISTS 保证重复启动不重复插入。
   await pool.query(`
@@ -335,6 +410,8 @@ async function runMigrations() {
       INDEX idx_system_content_type_status (type, status, sort_order)
     ) ENGINE=InnoDB
   `)
+  // 管理员配置的正文/图标常含 emoji；线上老库默认 utf8mb3 时种子与保存都会 500
+  await ensureSystemContentUtf8mb4()
   await pool.query(`
     CREATE TABLE IF NOT EXISTS feature_config (
       id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -701,7 +778,12 @@ async function runMigrations() {
   await ensureColumn('errand_order', 'finish_description', "VARCHAR(500) DEFAULT '' AFTER accepted_at")
   await ensureColumn('errand_order', 'finish_images', 'JSON DEFAULT NULL AFTER finish_description')
   await ensureColumn('errand_order', 'finished_at', 'DATETIME DEFAULT NULL AFTER finish_images')
-  // 接单方取消接单申请：30分钟内自身原因可直接取消，其余情况需发单人同意
+  // 取消申请（双向）：谁申请、对方批。
+  //   reason_side='self'     → 接单方因自身原因申请取消接单（会降低完成率）
+  //   reason_side='publisher'→ 接单方归因发单人 / 发单人自己申请取消订单
+  // 审批人由 requester_id 与订单双方比对得出（见 errandController.reviewCancelRequest）：
+  // 发单人发的申请由接单方批，接单方发的申请由发单人批。
+  // 2026-10-06 起发单人取消已被接单的订单也必须走这张表，不再单方面置 cancelled。
   await pool.query(`
     CREATE TABLE IF NOT EXISTS errand_cancel_request (
       id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -738,6 +820,14 @@ async function runMigrations() {
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
     ) ENGINE=InnoDB
   `)
+  // 冻结期为「冷却时间」而非永久封禁：冻结到期自动恢复，或由管理员手动解冻。
+  // 为什么必须有到期时间：冻结期间接单接口直接 403 → finished_count 永远不再增长 →
+  // 完成率永远低于阈值 → 数学上永久解不开（曾把两个测试号锁死）。
+  await ensureColumn('errand_stat', 'frozen_at', 'DATETIME DEFAULT NULL')
+  await ensureColumn('errand_stat', 'frozen_until', 'DATETIME DEFAULT NULL')
+  // 解冻审计：谁在什么时候解的、什么原因（管理员手动解冻留痕）
+  await ensureColumn('errand_stat', 'unfrozen_at', 'DATETIME DEFAULT NULL')
+  await ensureColumn('errand_stat', 'unfreeze_note', 'VARCHAR(255) DEFAULT NULL')
   // 跑腿订单专属聊天（与私信完全独立）：消息按订单维度存储，仅发单人与接单人可读写
   await pool.query(`
     CREATE TABLE IF NOT EXISTS errand_message (

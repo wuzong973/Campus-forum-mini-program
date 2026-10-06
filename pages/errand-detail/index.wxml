@@ -41,6 +41,29 @@
       <button hover-class="press-spring" class="contact spring-btn" bindtap="onContact" hover-stay-time="120" wx:if="{{canContact}}"><text class="contact-icon">✆</text>{{order.role === 'publisher' ? '联系接单方' : '联系需求方'}}</button>
     </view>
 
+    <!-- 隐私信息：接单后仅订单双方可见（接单方看收件信息，发单人看接单人联系方式）。
+         字段由服务端按角色下发，第三方浏览者拿不到这些字段，卡片也不渲染 -->
+    <view class="card privacy-card" wx:if="{{privacyVisible}}">
+      <view class="privacy-head">
+        <text class="section-title">{{order.role === 'acceptor' ? '收件信息' : '接单联系信息'}}</text>
+        <text class="privacy-tag">仅双方可见</text>
+      </view>
+      <block wx:if="{{order.role === 'acceptor'}}">
+        <view class="row" wx:if="{{order.receiverName}}"><text class="row-label">收件人</text><view class="row-value-wrap"><text class="row-value">{{order.receiverName}}</text><text class="copy-btn" bindtap="copyPrivacy" data-text="{{order.receiverName}}">复制</text></view></view>
+        <view class="row" wx:if="{{order.deliveryBuilding}}"><text class="row-label">楼栋</text><view class="row-value-wrap"><text class="row-value">{{order.deliveryBuilding}}</text><text class="copy-btn" bindtap="copyPrivacy" data-text="{{order.deliveryBuilding}}">复制</text></view></view>
+        <view class="row" wx:if="{{order.deliveryRoom}}"><text class="row-label">房间号</text><view class="row-value-wrap"><text class="row-value">{{order.deliveryRoom}}</text><text class="copy-btn" bindtap="copyPrivacy" data-text="{{order.deliveryRoom}}">复制</text></view></view>
+        <view class="row" wx:if="{{order.deliveryAddr}}"><text class="row-label">送达地址</text><view class="row-value-wrap"><text class="row-value">{{order.deliveryAddr}}</text><text class="copy-btn" bindtap="copyPrivacy" data-text="{{order.deliveryAddr}}">复制</text></view></view>
+        <view class="row" wx:if="{{order.privateInfo}}"><text class="row-label">隐私信息</text><view class="row-value-wrap"><text class="row-value">{{order.privateInfo}}</text><text class="copy-btn" bindtap="copyPrivacy" data-text="{{order.privateInfo}}">复制</text></view></view>
+        <view class="private-images" wx:if="{{order.privateImages.length}}"><image wx:for="{{order.privateImages}}" wx:key="*this" src="{{item}}" mode="aspectFill" data-src="{{item}}" data-urls="{{order.privateImages}}" bindtap="previewPrivateImage" bindlongpress="onImageQrScan"/></view>
+      </block>
+      <block wx:else>
+        <view class="row" wx:if="{{order.acceptorName}}"><text class="row-label">接单人</text><text class="row-value">{{order.acceptorName}}</text></view>
+        <view class="row" wx:if="{{order.contactPhone}}"><text class="row-label">联系电话</text><view class="row-value-wrap"><text class="row-value">{{order.contactPhone}}</text><text class="copy-btn" bindtap="copyPrivacy" data-text="{{order.contactPhone}}">复制</text><text class="copy-btn dial-btn" bindtap="onDialPrivacy" data-phone="{{order.contactPhone}}">拨打</text></view></view>
+        <view class="row" wx:if="{{order.acceptedText}}"><text class="row-label">接单时间</text><text class="row-value">{{order.acceptedText}}</text></view>
+      </block>
+      <text class="privacy-tip">交易请走平台支付并保留凭证，私下转账无法保障资金安全</text>
+    </view>
+
     <!-- 接单人（发单人视角：待确认/有异议时展示，便于核对身份并联系） -->
     <view class="card acceptor-card" wx:if="{{order.role === 'publisher' && (order.status === 'finishing' || order.status === 'disputed')}}">
       <text class="section-title">接单人</text>
@@ -98,11 +121,11 @@
       </view>
     </view>
 
-    <!-- 取消接单申请（接单方提交、发单人审批） -->
+    <!-- 取消申请（谁申请、对方批）：接单方申请→发单人处理；发单人申请→接单方处理 -->
     <view class="card request-card" wx:if="{{cancelRequest && cancelRequest.status === 'pending'}}">
       <view class="request-head">
-        <text class="section-title">取消接单申请</text>
-        <text class="request-tag">{{cancelRequest.reasonSide === 'publisher' ? '发单人原因' : '自身原因'}}</text>
+        <text class="section-title">{{requestByPublisher ? '发单人取消订单申请' : '取消接单申请'}}</text>
+        <text class="request-tag">{{requestByPublisher ? (cancelRequest.reasonSide === 'accepter' ? '接单人原因' : '自身原因') : (cancelRequest.reasonSide === 'publisher' ? '发单人原因' : '自身原因')}}</text>
       </view>
       <text class="request-reason">{{cancelRequest.reason}}</text>
       <view class="request-images" wx:if="{{cancelRequest.images.length}}">
@@ -112,7 +135,7 @@
         <button hover-class="press-spring" class="btn-reject spring-btn" bindtap="respondRequest" data-approve="0" hover-stay-time="120">拒绝</button>
         <button hover-class="press-spring" class="btn-approve spring-btn" bindtap="respondRequest" data-approve="1" hover-stay-time="120">同意取消</button>
       </view>
-      <text class="request-tip" wx:else>等待发单人处理，处理结果将通过消息通知</text>
+      <text class="request-tip" wx:else>等待{{requestReviewerLabel}}处理，处理结果将通过消息通知</text>
     </view>
 
     <!-- 平台保障指引 -->
@@ -145,10 +168,19 @@
     <view class="bottom-bar pending-note" wx:elif="{{bottomMode === 'acceptor' && requestPending}}">
       <text>取消接单申请待发单人处理，请耐心等待或继续完成订单</text>
     </view>
-    <view class="bottom-bar" wx:elif="{{bottomMode === 'publisher'}}">
+    <!-- 发单人申请取消：接单方来审批（与接单方申请、发单人审批完全对称） -->
+    <view class="bottom-bar" wx:elif="{{bottomMode === 'acceptorReview'}}">
+      <text class="income">到手佣金 <text class="income-num">¥{{order.rewardText}}</text></text>
+      <button hover-class="press-spring" class="btn-cancel spring-btn" bindtap="openCancel" hover-stay-time="120">申请取消接单</button>
+      <button hover-class="press-spring" class="btn-finish spring-btn" bindtap="openComplete" hover-stay-time="120">提交完成</button>
+    </view>
+    <view class="bottom-bar" wx:elif="{{bottomMode === 'publisher' && !requestPending}}">
       <text class="income">悬赏佣金 <text class="income-num">¥{{order.rewardText}}</text></text>
       <button hover-class="press-spring" class="btn-cancel spring-btn" bindtap="onContact" hover-stay-time="120">联系接单方</button>
-      <button hover-class="press-spring" class="btn-finish spring-btn" bindtap="openCancelPublisher" hover-stay-time="120">取消订单</button>
+      <button hover-class="press-spring" class="btn-finish spring-btn" bindtap="openCancelPublisher" hover-stay-time="120">申请取消订单</button>
+    </view>
+    <view class="bottom-bar pending-note" wx:elif="{{bottomMode === 'publisher' && requestPending}}">
+      <text>取消订单申请已提交，待接单方同意后订单才会终止，请耐心等待</text>
     </view>
     <!-- 待确认：发单人决定「提出异议」或「确认完成」 -->
     <view class="bottom-bar" wx:elif="{{bottomMode === 'publisherConfirm'}}">

@@ -45,4 +45,39 @@
     <view class="rich-preview-tip">渲染效果预览 · 正文里的 * # |c| » 等是标记本身，用户端不会显示</view>
     <richtext-content class="rich-preview-body" content="{{text}}"></richtext-content>
   </view>
+
+  <!-- 字色选择板（仿 Word：自动 + 主题颜色 + 标准色），点工具栏 A 弹出 -->
+  <view class="rich-palette-mask" wx:if="{{paletteShow}}" catchtap="onPaletteClose">
+    <view class="rich-palette" catchtap="noop">
+      <view class="rp-title">文字颜色</view>
+      <view class="rp-auto" data-hex="" bindtap="onColorTap">
+        <view class="rp-auto-swatch"></view>
+        <text>自动</text>
+      </view>
+      <view class="rp-label">主题颜色</view>
+      <view class="rp-grid" wx:for="{{themeRows}}" wx:for-item="row" wx:key="key">
+        <view
+          wx:for="{{row.colors}}"
+          wx:for-item="hex"
+          wx:key="*this"
+          class="rp-cell"
+          style="background: {{hex}};"
+          data-hex="{{hex}}"
+          bindtap="onColorTap"
+        ></view>
+      </view>
+      <view class="rp-label">标准色</view>
+      <view class="rp-grid">
+        <view
+          wx:for="{{standardColors}}"
+          wx:for-item="hex"
+          wx:key="*this"
+          class="rp-cell"
+          style="background: {{hex}};"
+          data-hex="{{hex}}"
+          bindtap="onColorTap"
+        ></view>
+      </view>
+    </view>
+  </view>
 </view>

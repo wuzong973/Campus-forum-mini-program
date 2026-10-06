@@ -21,6 +21,7 @@
       <view class="shortcut-icon-wrap">
         <image class="shortcut-icon-img {{item.iconDark ? 'shortcut-icon-dark' : ''}}" src="{{item.icon}}" mode="aspectFit"></image>
         <view class="shortcut-badge" wx:if="{{item.badge === 'unread' && unreadCount > 0}}">{{unreadCount > 99 ? '99+' : unreadCount}}</view>
+        <view class="shortcut-badge" wx:elif="{{item.adminBadge && adminPending > 0}}">{{adminPending > 99 ? '99+' : adminPending}}</view>
       </view>
       <text class="shortcut-name">{{item.name}}</text>
     </view>
@@ -37,21 +38,23 @@
       </view>
       <text class="section-title">{{section.title}}</text>
       <view class="feature-grid columns-{{section.columns}}">
-        <block wx:for="{{section.items}}" wx:for-item="feature" wx:key="name">
+        <block wx:for="{{section.items}}" wx:for-item="feature" wx:for-index="featureIndex" wx:key="name">
           <view wx:if="{{feature.type === 'contact'}}" class="feature-item spring-btn" hover-class="fx-hover press-spring" hover-stay-time="120">
             <contact-admin class="feature-contact">
               <view slot="trigger" class="feature-trigger">
                 <view class="feature-icon-wrap">
-                  <text wx:if="{{feature.fontIcon}}" class="iconfont2 {{feature.fontIcon}} feature-font-icon" style="color: {{feature.fontColor}};"></text>
+                  <view wx:if="{{feature.uiIcon}}" class="ui-icon ui-icon--{{feature.uiIcon}} {{feature.uiLive ? 'ui-icon--live' : ''}}"></view>
+                  <text wx:elif="{{feature.fontIcon}}" class="iconfont2 {{feature.fontIcon}} feature-font-icon" style="color: {{feature.fontColor}};"></text>
                   <image wx:else class="feature-icon" src="{{feature.icon}}" mode="aspectFit"></image>
                 </view>
                 <text class="feature-name">{{feature.name}}</text>
               </view>
             </contact-admin>
           </view>
-          <view wx:elif="{{!feature.adminOnly || isAdmin}}" class="feature-item spring-btn" hover-class="fx-hover press-spring" hover-stay-time="120" data-route="{{feature.route}}" data-admin-only="{{feature.adminOnly}}" data-subscribe="{{feature.subscribe}}" bindtap="onFeatureTap">
+          <view wx:elif="{{!feature.adminOnly || isAdmin}}" class="feature-item spring-btn anim-stagger" style="--i: {{featureIndex < 8 ? featureIndex : 0}}" hover-class="fx-hover press-spring" hover-stay-time="120" data-route="{{feature.route}}" data-admin-only="{{feature.adminOnly}}" data-subscribe="{{feature.subscribe}}" bindtap="onFeatureTap">
             <view class="feature-icon-wrap">
-              <text wx:if="{{feature.fontIcon}}" class="iconfont2 {{feature.fontIcon}} feature-font-icon" style="color: {{feature.fontColor}};"></text>
+              <view wx:if="{{feature.uiIcon}}" class="ui-icon ui-icon--{{feature.uiIcon}} {{feature.uiLive ? 'ui-icon--live' : ''}}"></view>
+              <text wx:elif="{{feature.fontIcon}}" class="iconfont2 {{feature.fontIcon}} feature-font-icon" style="color: {{feature.fontColor}};"></text>
               <image wx:else class="feature-icon" src="{{feature.icon}}" mode="aspectFit"></image>
               <view class="feature-badge" wx:if="{{feature.badge === 'unread' && unreadCount > 0}}">{{unreadCount > 99 ? '99+' : unreadCount}}</view>
             </view>

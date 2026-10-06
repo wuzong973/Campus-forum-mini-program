@@ -18,8 +18,9 @@
  * 且 `onConfirmComplete` 的 `.catch(() => {})` 把 403 静默吞掉，用户只会觉得「点了没反应」。
  *
  * 判据：
- *   A. 行为：detail 对 viewer 必须剔除交接阶段的私密字段（尤其 remark —— 它与 description
- *      同为需求正文，前端 desc-box 是 `remark || description || title`，只删 description 会漏）；
+ *   A. 行为：detail 对 viewer 必须剔除交接阶段的私密字段（description 等；
+ *      remark 已转为「公开描述」——发布表单标注◎所有人可见、大厅对所有人展示，
+ *      故对 viewer 保留，保证详情与大厅显示一致）；
  *   B. 行为：list 的 active 分支必须带上「当事人」过滤；
  *   C. 静态：前端详情页的角色守卫不得被删。
  */
@@ -103,6 +104,8 @@ function makeFinishingOrder() {
     type: '快递', title: '帮取快递', description: '一号门菜鸟驿站，取件码 6688',
     remark: '放门口就行，门禁密码 1234#', reward: '10.00',
     pickup_addr: '一号门', delivery_addr: '31 栋', campus: '南海北区',
+    private_info: '取件码 T3-26-5729', private_images: ['https://x/code.jpg'],
+    images: ['https://x/public.jpg'],
     receiver_name: '张三', receiver_phone: '13800138000',
     delivery_building: '31 栋', delivery_room: '201',
     payment_status: 'SUCCESS', transaction_id: '4200001234202609210001', paid_at: '2026-09-21 12:00:00',
@@ -117,7 +120,8 @@ function makeFinishingOrder() {
 }
 
 const PRIVATE_FIELDS = [
-  'description', 'remark',
+  'description',
+  'private_info', 'private_images',
   'receiver_name', 'receiver_phone', 'delivery_building', 'delivery_room',
   'finish_description', 'finish_images', 'finish_submitted_at',
   'dispute_reason', 'dispute_note', 'dispute_result', 'disputed_at', 'dispute_handled_at',
@@ -145,8 +149,12 @@ async function main() {
     assert.deepStrictEqual(
       leaked,
       [],
-      'viewer 不得拿到交接阶段私密字段（remark 与 description 同为需求正文，必须一起剔除）'
+      'viewer 不得拿到交接阶段私密字段（description 等必须剔除）'
     )
+    // remark 即发布页的「公开描述」（表单标注◎所有人可见，大厅列表对所有人展示）：
+    // 必须对 viewer 保留，否则详情 desc-box 退回 title，与大厅卡片显示不一致
+    assert.strictEqual(viewer.order.remark, '放门口就行，门禁密码 1234#',
+      '公开描述（remark）对 viewer 可见，与大厅口径一致')
     assert.strictEqual(viewer.res.body.data.canViewRemark, false, 'viewer 不应获得备注查看权')
   }, 'viewer 详情：私密字段全部剔除')
 
@@ -171,6 +179,30 @@ async function main() {
     assert.strictEqual(acceptor.order.role, 'acceptor', '接单人必须被判定为 acceptor')
     assert.strictEqual(acceptor.order.finish_description, '已送达，放在门口', '接单人能看到自己提交的说明')
   }, 'acceptor 详情：私密字段完整保留')
+
+  // ---------- 隐私图片：与公开图分开，绝不进大厅 ----------
+  check(() => {
+    // 发布页「隐私信息」区上传的图（private_images）必须只对当事人可见：
+    // viewer 拿到的是被 delete 掉 private_images 的对象 → undefined
+    assert.strictEqual(viewer.order.private_images, undefined,
+      'viewer 不得拿到 private_images（隐私图必须明确剔除）')
+    // 公开图（images）是发布页「公开描述」区的图，detail 走 SELECT e.*，对所有人可见 —— 不属隐私
+    assert.deepStrictEqual(viewer.order.images, ['https://x/public.jpg'],
+      '公开图 images 对 viewer 保留（发布页公开描述区，本就公开）')
+    assert.deepStrictEqual(acceptor.order.private_images, ['https://x/code.jpg'],
+      '接单人必须能看到隐私图（取件码截图等）')
+  }, 'detail：private_images 仅当事人可见、images 公开')
+
+  check(() => {
+    // 服务端创建接口必须落库 private_images 列（否则端上传了也是白传）
+    const controller = fs.readFileSync(path.join(ROOT, 'server', 'controllers', 'errandController.js'), 'utf8')
+    assert.ok(/private_info, private_images, images/.test(controller),
+      'create 的 INSERT 列清单必须含 private_images')
+    assert.ok(/JSON\.stringify\(privateImages\)/.test(controller),
+      'create 必须把 privateImages 序列化落库')
+    assert.ok(/const privateImages = Array\.isArray\(body\.privateImages\)/.test(controller),
+      'create 必须从 body.privateImages 取值（字段名对齐端上 payload）')
+  }, 'create：private_images 落库链路在位')
 
   // ---------- B. list：active 必须带当事人过滤 ----------
   QUERIES.length = 0
@@ -212,6 +244,12 @@ async function main() {
     assert.ok(!stringParams.includes('cancelled'), 'cancelled 不得出现在大厅可见状态里')
     assert.ok(!stringParams.includes('finished'), 'finished 不得出现在大厅可见状态里')
   }, 'list(active)：参数配平且不含已取消/已完成')
+
+  check(() => {
+    // 大厅列表用的是显式列清单，绝不能出现 private_images / private_info（隐私图会漏给全体用户）
+    assert.ok(!/private_images/.test(listQuery.sql), '大厅列表不得下发 private_images')
+    assert.ok(!/private_info/.test(listQuery.sql), '大厅列表不得下发 private_info')
+  }, 'list：大厅列清单不含任何隐私字段')
 
   // ---------- C. 静态：前端角色守卫 ----------
   const wxml = fs.readFileSync(path.join(ROOT, 'pages', 'errand-detail', 'index.wxml'), 'utf8')

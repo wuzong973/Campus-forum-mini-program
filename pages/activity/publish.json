@@ -2,6 +2,7 @@
   "navigationStyle": "custom",
   "backgroundColor": "#F2F3F5",
   "usingComponents": {
-    "campus-picker": "/components/campus-picker/campus-picker"
+    "campus-picker": "/components/campus-picker/campus-picker",
+    "richtext-editor": "/components/richtext-editor/richtext-editor"
   }
 }

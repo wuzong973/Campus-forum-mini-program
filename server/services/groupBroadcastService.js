@@ -106,6 +106,12 @@ async function withTokenRetry(fn) {
   }
 }
 
+function toMysqlDateTime(d) {
+  const p = (n) => String(n).padStart(2, '0')
+  return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) +
+    ' ' + p(d.getHours()) + ':' + p(d.getMinutes()) + ':' + p(d.getSeconds())
+}
+
 function clip(text, max = SUMMARY_MAX_CHARS) {
   const flat = String(text || '').replace(/\s+/g, ' ').trim()
   if (flat.length <= max) return flat
@@ -118,11 +124,26 @@ function clip(text, max = SUMMARY_MAX_CHARS) {
  * @param {string} entryLink 论坛入口短链
  * @param {string} footer 运营自定义页脚（如广告位），可为空
  */
+// 摘要标签规则：标题/内容命中关键词时，在摘要前加【标签】（按需扩充此表即可）
+const SUMMARY_TAG_RULES = [
+  { keyword: '投票', tag: '投票' },
+]
+
+function summaryTag(post) {
+  const text = ((post.title || '') + ' ' + (post.content || '')).trim()
+  if (!text) return ''
+  for (const rule of SUMMARY_TAG_RULES) {
+    if (text.includes(rule.keyword)) return rule.tag
+  }
+  return ''
+}
+
 function composeBroadcast(posts, entryLink, footer = '') {
   const lines = []
   posts.forEach((post, index) => {
+    const tag = post.tag ? '【' + post.tag + '】' : ''
     const summary = clip(post.title || post.content)
-    lines.push(summary)
+    lines.push(tag + summary)
     // genwxashortlink 返回的 #小程序://xxx/yyy 原文粘进微信聊天即可点开，
     // 不要改写成其它形态（群里看到的 mp:// 是协议号发结构化消息时的渲染效果）
     lines.push(post.link)
@@ -162,7 +183,17 @@ async function runOnce(options = {}) {
         return { skipped: true, reason: 'recent' }
       }
     }
-    return await generateBroadcast(options, conn)
+    const result = await generateBroadcast(options, conn)
+    // 跑腿/互助订单播报：独立于新帖播报的一条单独消息（同在生成锁内，防双实例重复）
+    try {
+      const errand = await generateErrandBroadcast()
+      if (errand && !errand.skipped) {
+        result.errand = { id: errand.id, postCount: errand.postCount, delivered: errand.delivered }
+      }
+    } catch (e) {
+      console.error('[GroupBroadcast] 跑腿订单播报生成失败：', e.message)
+    }
+    return result
   } finally {
     if (locked) {
       try { await conn.query("SELECT RELEASE_LOCK('group_broadcast_gen')") } catch (e) { /* 连接释放时锁自动解除 */ }
@@ -199,7 +230,7 @@ async function generateBroadcast(options, conn) {
   const items = []
   for (const post of posts) {
     const link = await getOrCreateShortLink(`${POST_PAGE}?id=${post.id}`)
-    items.push({ ...post, link })
+    items.push({ ...post, link, tag: summaryTag(post) })
   }
   const entryLink = await getOrCreateShortLink(ENTRY_PAGE)
 
@@ -237,6 +268,87 @@ async function generateBroadcast(options, conn) {
   }
   console.log(`[GroupBroadcast] 生成播报 #${result.insertId}：${posts.length} 条新帖${delivered ? '，已推送企微' : ''}`)
   return { id: result.insertId, content, postCount: posts.length, windowStart, windowEnd, delivered }
+}
+
+// ===== 跑腿/互助订单播报（单独一条消息，参考同类产品形态）=====
+// 新订单 = status='pending'（待接单）且创建时间晚于游标；游标存于 broadcast_cursor 表。
+const ERRAND_PAGE = 'pages/errand-detail/index'
+const ERRAND_LABEL = '【新跑腿/互助订单】'
+const ERRAND_MAX = 5
+
+let stateTableReady = false
+async function ensureStateTable() {
+  if (stateTableReady) return
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS broadcast_cursor (
+      name VARCHAR(32) NOT NULL PRIMARY KEY,
+      value VARCHAR(64) NOT NULL,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    ) ENGINE=InnoDB
+  `)
+  stateTableReady = true
+}
+
+function composeErrandBroadcast(orders) {
+  // 摘要优先用「公开描述」（发布页的主要需求文本），标题常被填得很随意（如"."）
+  return orders
+    .map((o) => ERRAND_LABEL + clip(o.description || o.title || '', 40) + '\n' + o.link)
+    .join('\n\n')
+}
+
+async function generateErrandBroadcast() {
+  await ensureStateTable()
+  const [cursorRows] = await pool.query("SELECT value FROM broadcast_cursor WHERE name = 'errand'")
+  const since = cursorRows.length ? cursorRows[0].value : null
+  const [orders] = since
+    ? await pool.query(
+        `SELECT id, type, title, description, created_at FROM errand_order
+         WHERE status = 'pending' AND created_at > ? ORDER BY created_at ASC LIMIT ?`,
+        [since, ERRAND_MAX])
+    : await pool.query(
+        `SELECT id, type, title, description, created_at FROM errand_order
+         WHERE status = 'pending' AND created_at > DATE_SUB(NOW(), INTERVAL 30 MINUTE)
+         ORDER BY created_at ASC LIMIT ?`,
+        [ERRAND_MAX])
+
+  // 无论有没有新订单，都把游标推进到当前时间，避免反复扫旧单
+  const [[nowRow]] = await pool.query('SELECT NOW() AS nw')
+  await pool.query(
+    `INSERT INTO broadcast_cursor (name, value) VALUES ('errand', ?)
+     ON DUPLICATE KEY UPDATE value = VALUES(value)`,
+    [toMysqlDateTime(nowRow.nw)])
+
+  if (!orders.length) {
+    return { skipped: true, reason: 'no-errands' }
+  }
+
+  const items = []
+  for (const order of orders) {
+    const link = await getOrCreateShortLink(`${ERRAND_PAGE}?id=${order.id}`)
+    items.push({ ...order, link })
+  }
+  const content = composeErrandBroadcast(items)
+
+  const [result] = await pool.query(
+    `INSERT INTO group_broadcast_log (window_start, window_end, post_count, content, delivered)
+     VALUES (?, NOW(), ?, ?, 0)`,
+    [since || new Date(Date.now() - 30 * 60 * 1000), orders.length, content]
+  )
+
+  let delivered = false
+  if (wecomConfigured()) {
+    try {
+      await pushToWecomOperator(content)
+      delivered = true
+    } catch (e) {
+      console.error('[GroupBroadcast] 跑腿订单播报的企微投递失败：', e.message)
+    }
+  }
+  if (delivered) {
+    await pool.query('UPDATE group_broadcast_log SET delivered = 1, delivered_at = NOW() WHERE id = ?', [result.insertId])
+  }
+  console.log(`[GroupBroadcast] 生成跑腿订单播报 #${result.insertId}：${orders.length} 单${delivered ? '，已推送企微' : ''}`)
+  return { id: result.insertId, content, postCount: orders.length, delivered, kind: 'errand' }
 }
 
 // ===== 企业微信自建应用投递（官方接口，把现成文案推给运营者复制进群）=====
@@ -291,4 +403,7 @@ function stop() {
   timer = null
 }
 
-module.exports = { runOnce, composeBroadcast, clip, getOrCreateShortLink, start, stop }
+module.exports = {
+  runOnce, composeBroadcast, composeErrandBroadcast, summaryTag,
+  clip, getOrCreateShortLink, start, stop
+}

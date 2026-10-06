@@ -71,7 +71,8 @@ contact-admin.inline-contact { display: inline; }
 .add-component-btn { display: flex; align-items: center; gap: 6rpx; padding: 10rpx 16rpx; border-radius: 28rpx; background: #edf4ff; color: #3478f6; font-size: 25rpx; font-weight: 600; }
 .add-component-btn.disabled { background: #eef0f4; color: #a5acb7; }
 .add-symbol { font-size: 31rpx; line-height: 1; }
-.component-summary { min-height: 76rpx; margin-top: 20rpx; padding: 0 14rpx; border-radius: 10rpx; background: #f7f9fc; color: #506078; font-size: 25rpx; }
+.component-summary { min-height: 76rpx; margin-top: 20rpx; padding: 0 14rpx; border-radius: 10rpx; background: #f7f9fc; color: #506078; font-size: 25rpx; transition: transform 0.2s ease; }
+.summary-pressed { transform: scale(0.96); }
 .summary-icon { margin-right: 10rpx; color: #3478f6; font-size: 31rpx; }
 .summary-title { margin-right: 12rpx; color: #20324a; font-weight: 700; }
 .summary-text { color: #8390a0; }

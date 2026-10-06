@@ -103,7 +103,7 @@
     <view class="comments-section">
       <view class="comments-header"><view class="comments-tag spring-btn" hover-class="comments-tag-hover press-spring" hover-stay-time="80"><text class="comments-tag-text">评论区</text><text class="comments-tag-count" wx:if="{{commentTotal > 0}}">{{commentTotal}}</text></view><view class="comment-sort"><view class="sort-option {{commentSort === 'time' ? 'active' : ''}} spring-btn" hover-class="sort-hover press-spring" hover-stay-time="80" data-sort="time" catchtap="onCommentSort">时间</view><view class="sort-option {{commentSort === 'hot' ? 'active' : ''}} spring-btn" hover-class="sort-hover press-spring" hover-stay-time="80" data-sort="hot" catchtap="onCommentSort">赞数↓</view></view></view>
       <view class="comment-list">
-        <view class="comment-item anim-stagger" id="comment-{{item.id}}" style="--i: {{index < 6 ? index : 0}};" wx:for="{{comments}}" wx:key="id">
+        <view class="comment-item anim-stagger {{commentHighlight === 'comment-' + item.id ? 'anchored' : ''}}" id="comment-{{item.id}}" style="--i: {{index < 6 ? index : 0}};" wx:for="{{comments}}" wx:key="id">
           <image class="comment-avatar" src="{{item.avatarUrl || '/assets/icons/avatar.png'}}" mode="aspectFill" data-userid="{{item.userId}}" data-anonymous="{{item.isAnonymous}}" data-nick="{{item.nickName}}" data-avatar="{{item.avatarUrl}}" data-isowner="{{item.isAuthor}}" data-allowpm="{{item.allowAnonymousPm}}" catchtap="onCommentAvatarTap"></image>
           <view class="comment-content-wrap comment-reply-trigger" catchtap="onReplyComment" data-id="{{item.id}}" data-nick="{{item.nickName}}">
             <view class="comment-head">
@@ -114,7 +114,7 @@
             <view class="comment-image-list" wx:if="{{item.images.length || item.videos.length}}"><image class="comment-image" wx:for="{{item.images}}" wx:for-item="img" wx:key="*this" src="{{img}}" mode="aspectFill" lazy-load data-urls="{{item.images}}" data-url="{{img}}" catchtap="onPreviewCommentImage" bindlongpress="onImageQrScan"></image><video wx:for="{{item.videos}}" wx:for-item="vid" wx:key="*this" class="comment-video" src="{{vid}}" object-fit="contain" controls catchtap="onCommentVideoTap"></video></view>
             <view class="comment-actions" wx:if="{{item.userId === currentUserId}}"><text catchtap="onEditComment" data-id="{{item.id}}" data-content="{{item.content}}">编辑</text><text class="delete" catchtap="onDeleteComment" data-id="{{item.id}}">删除</text></view>
             <view class="reply-list" wx:if="{{item.replies.length}}">
-              <view class="reply-item" id="reply-{{reply.id}}" wx:for="{{item.expanded ? item.replies : item.recentReplies}}" wx:for-item="reply" wx:key="id" catchtap="onReplyComment" data-id="{{reply.id}}" data-nick="{{reply.nickName}}">
+              <view class="reply-item {{commentHighlight === 'reply-' + reply.id ? 'anchored' : ''}}" id="reply-{{reply.id}}" wx:for="{{item.expanded ? item.replies : item.recentReplies}}" wx:for-item="reply" wx:key="id" catchtap="onReplyComment" data-id="{{reply.id}}" data-nick="{{reply.nickName}}">
                 <image class="reply-avatar" src="{{reply.avatarUrl || '/assets/icons/avatar.png'}}" mode="aspectFill" lazy-load data-userid="{{reply.userId}}" data-anonymous="{{reply.isAnonymous}}" data-nick="{{reply.nickName}}" data-avatar="{{reply.avatarUrl}}" data-isowner="{{reply.isAuthor}}" data-allowpm="{{reply.allowAnonymousPm}}" catchtap="onCommentAvatarTap"></image>
                 <view class="reply-content">
                   <view class="comment-head">

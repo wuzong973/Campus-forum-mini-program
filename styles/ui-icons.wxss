@@ -1,0 +1,155 @@
+/* ============================================================
+   功能图标共享层（ui-icons）
+   需求（2026-10-06）：统一替换七处功能图标并保持视觉风格一致
+     · 我的帖子 / 点赞我的 / 评论我的 / 消息通知 / 个人中心 / 意见(必回)（个人中心页）
+     · 校园市场（首页功能栏）
+
+   为什么用「内联 SVG data-uri」而不是 PNG 或字体图标：
+     1. 小程序 <image> 不支持 .svg 文件，但 WXSS 的 background-image 支持
+        data:image/svg+xml —— 项目已有先例（post-card / post-detail 的点赞星标）。
+     2. 矢量：76rpx 底座与 68rpx 一排都能锐利渲染，无需出 2x/3x 多套图。
+     3. 可着色：`--ui-icon-accent` 直接换主色，同一份图形复用到不同语义色。
+
+   统一风格口径（七枚图标同一套几何规则）：
+     · 统一 24×24 网格、2px 视觉线宽、圆角端点（stroke-linecap/join: round）
+     · 双色调：主体实心块 + 白色/浅色高光内衬（不是单色描边），缩小后仍读得出层次
+     · 全部图形收在 3~21 的安全区内（留 3px 呼吸边），换尺寸时视觉重量一致
+     · 主色一律走 var(--ui-icon-accent)，底色一律走 var(--ui-icon-base)
+   ============================================================ */
+
+.ui-icon {
+  --ui-icon-accent: #3d7bfa;
+  --ui-icon-base: rgba(61, 123, 250, 0.16);
+  display: inline-block;
+  width: 44rpx;
+  height: 44rpx;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
+  flex-shrink: 0;
+}
+
+/* 每枚图标的主色：与页面原有色彩语义保持一致（不重新定义配色体系）。 */
+.ui-icon--post { --ui-icon-accent: #4a7aff; }
+.ui-icon--like { --ui-icon-accent: #ff3d3f; }
+.ui-icon--comment { --ui-icon-accent: #3c7bfe; }
+.ui-icon--notice { --ui-icon-accent: #4a90f8; }
+.ui-icon--profile { --ui-icon-accent: #ff7a45; }
+.ui-icon--feedback { --ui-icon-accent: #12b8a6; }
+/* 这枚图形顶满了 24×24（圆环直径=24、无呼吸边），铺满容器会比同排的 PNG 图标重一圈。
+   共享层禁止用 <g>/transform 收边（微信对带 transform 的内联 SVG 会静默不渲染，
+   见 ui-icons-shared.test.js B4b），所以用 background-size 在 CSS 侧留边：
+   75% 等效于把图形收进规范要求的 3~21 安全区，容器尺寸与动效都不受影响。 */
+.ui-icon--market { --ui-icon-accent: #0f69f1; background-size: 75%; }
+
+/* ---------- 1. 我的帖子：叠放的两张卡片 + 三条文本线 ---------- */
+.ui-icon--post {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23F98130' d='M17.05 2.9a1.6 1.6 0 0 1 2.1 2.1v0l-3.9 11.4a2.6 2.6 0 0 1-1.9 1.7v0l-4.5 1.2a1.6 1.6 0 0 1-2-2v0l1.2-4.5a2.6 2.6 0 0 1 1.7-1.9z'/%3E%3Cpath fill='%232B7AF9' d='M14.9 5.2H4.6A2.6 2.6 0 0 0 2 7.8v10.7A2.6 2.6 0 0 0 4.6 21h10.7a2.6 2.6 0 0 0 2.6-2.6v-6.1z'/%3E%3Cpath fill='%23FFFFFF' d='M5.9 9.4a1.05 1.05 0 0 1 1.05-1.05h3.6a1.05 1.05 0 1 1 0 2.1h-3.6A1.05 1.05 0 0 1 5.9 9.4zm0 4.1a1.05 1.05 0 0 1 1.05-1.05h7.3a1.05 1.05 0 1 1 0 2.1H6.95A1.05 1.05 0 0 1 5.9 13.5zm0 4.1a1.05 1.05 0 0 1 1.05-1.05h7.3a1.05 1.05 0 1 1 0 2.1H6.95A1.05 1.05 0 0 1 5.9 17.6z'/%3E%3C/svg%3E");
+}
+
+/* ---------- 2. 点赞我的：饱满心形 + 左侧渐层高光 ---------- */
+.ui-icon--like {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23FF8A8B' d='M12 20.9 3.9 12.8a4.9 4.9 0 0 1 0-6.9 4.9 4.9 0 0 1 6.9 0l1.2 1.2 1.2-1.2a4.9 4.9 0 0 1 6.9 0 4.9 4.9 0 0 1 0 6.9z'/%3E%3Cpath fill='%23FF3D3F' d='M12 5.9 10.8 7.1a3 3 0 0 0 0 4.2l4.6 4.6 4.4-4.4a4.9 4.9 0 0 0 0-6.9 4.9 4.9 0 0 0-6.9 0z'/%3E%3Cpath fill='%23FF6365' d='M12 5.9 10.8 7.1a4.9 4.9 0 0 0 0 6.9l1.2 1.2 5.6-5.6a4.9 4.9 0 0 0 0-6.9A4.9 4.9 0 0 0 12 5.9z'/%3E%3C/svg%3E");
+}
+
+/* ---------- 3. 评论我的：双层对话气泡 + 两条文本线 ---------- */
+.ui-icon--comment {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23F5BA18' d='M3.4 3h9.3a2.1 2.1 0 0 1 2.1 2.1v6.2a2.1 2.1 0 0 1-2.1 2.1H8.6l-3.5 2.6a.8.8 0 0 1-1.3-.6v-2H3.4a2.1 2.1 0 0 1-2.1-2.1V5.1A2.1 2.1 0 0 1 3.4 3z'/%3E%3Cpath fill='%233C7BFE' d='M10.2 7.4h10.4a2.1 2.1 0 0 1 2.1 2.1v5.9a2.1 2.1 0 0 1-2.1 2.1h-1.4v1.9a.8.8 0 0 1-1.3.6l-3.4-2.5h-4.3a2.1 2.1 0 0 1-2.1-2.1V9.5a2.1 2.1 0 0 1 2.1-2.1z'/%3E%3Cpath fill='%23FFFFFF' d='M11.6 10.7a1 1 0 0 1 1-1h5.9a1 1 0 1 1 0 2h-5.9a1 1 0 0 1-1-1zm0 3.3a1 1 0 0 1 1-1h4a1 1 0 1 1 0 2h-4a1 1 0 0 1-1-1z'/%3E%3C/svg%3E");
+}
+
+/* ---------- 4. 消息通知：铃铛 + 顶部提示点 ---------- */
+.ui-icon--notice {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23B2D5FE' d='M12 2.3a6.6 6.6 0 0 0-6.6 6.6v3.4l-1.2 2.4a1 1 0 0 0 .9 1.5h13.8a1 1 0 0 0 .9-1.5l-1.2-2.4V8.9A6.6 6.6 0 0 0 12 2.3z'/%3E%3Cpath fill='%230074FC' d='M12 2.3a6.6 6.6 0 0 0-6.6 6.6v3.4l-1.2 2.4a1 1 0 0 0 .9 1.5h6.9z'/%3E%3Cpath fill='%230074FC' d='M9.4 18.6a2.7 2.7 0 0 0 5.2 0z'/%3E%3Ccircle cx='18.4' cy='5.6' r='3.3' fill='%23FF5A5F'/%3E%3Ccircle cx='18.4' cy='5.6' r='1.3' fill='%23FFFFFF'/%3E%3C/svg%3E");
+}
+
+/* ---------- 5. 个人中心：头像 + 肩部轮廓 ---------- */
+.ui-icon--profile {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Ccircle cx='12' cy='12' r='10' fill='%23FFE6D6'/%3E%3Ccircle cx='12' cy='9.3' r='3.9' fill='%23FF7A45'/%3E%3Cpath fill='%23FF7A45' d='M4.2 19.3a7.8 7.8 0 0 1 15.6 0A9.9 9.9 0 0 1 12 22a9.9 9.9 0 0 1-7.8-2.7z'/%3E%3Ccircle cx='12' cy='9.3' r='1.5' fill='%23FFFFFF' opacity='.85'/%3E%3C/svg%3E");
+}
+
+/* ---------- 6. 意见（必回）：信封 + 右上回执徽标 ---------- */
+.ui-icon--feedback {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%2312B8A6' d='M3.6 4.6h16.8a2.4 2.4 0 0 1 2.4 2.4v9.6a2.4 2.4 0 0 1-2.4 2.4H3.6A2.4 2.4 0 0 1 1.2 16.6V7a2.4 2.4 0 0 1 2.4-2.4z'/%3E%3Cpath fill='%23FFFFFF' d='m12 12.5 9-6.2a2.4 2.4 0 0 0-2.2-1.4H5.2A2.4 2.4 0 0 0 3 6.3z'/%3E%3Cpath fill='%234FE3D0' d='M1.2 16.6V7a2.4 2.4 0 0 1 2.4-2.4h3.1L1.2 9.8z'/%3E%3Ccircle cx='18.9' cy='18.4' r='4.5' fill='%23FF7A45'/%3E%3Cpath d='m17.35 18.5 1.15 1.15 2.05-2.25' fill='none' stroke='%23FFFFFF' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+}
+
+/* ---------- 7. 校园市场：双环 + 「市」字（用户提供的 iconfont SVG） ---------- */
+/* 来源：外部 iconfont「市级.svg」，原始为 1024×1024 网格。
+   本层约定七枚图标统一 24×24（B3 护栏），故把路径坐标整体等比缩放到 24 网格
+   （缩放系数 24/1024 = 0.0234375），viewBox 改 0 0 24 24 —— 视觉完全等价，只换坐标系。
+
+   ⚠ 为什么不用 <g transform> 包一层（2026-10-06 实机踩坑）：
+   微信小程序 WXSS 的 background-image 对内联 SVG 的解析不如浏览器宽容，
+   `<g>` / `transform` 属性会导致整张图静默渲染失败（格子里空白、无报错）。
+   本项目所有可正常工作的内联 SVG 先例（post-card 星标、post-detail 点赞）
+   一律是「<svg> 直接包 <path>」的扁平结构，**从无 <g> / transform**。
+   故此处把坐标真正算好，产出与先例完全同构的扁平 SVG。
+
+   `#` 已转义为 `%23`；空格保留（与项目既有内联 SVG 先例同风格，也保证 viewBox 字面可被护栏断言）。
+   蓝色 #0F69F1 沿用原图配色。 */
+.ui-icon--market {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%230F69F1' d='M 12 0 a 12 12 0 1 1 0 24 A 12 12 0 0 1 12 0 z m 0 1.5 a 10.5 10.5 0 1 0 0 21 A 10.5 10.5 0 0 0 12 1.5 z m 0 1.5 a 9 9 0 1 1 0 18 A 9 9 0 0 1 12 3 z m 0.516 4.0545 h -1.875 l 0.327 1.101 H 6.7275 v 0.8205 h 4.431 v 1.407 H 7.0065 v 6.246 h 1.734 V 11.2035 h 2.415 v 6.081 h 1.734 V 11.205 h 2.367 v 4.617 h -1.407 v 0.8085 h 3.141 V 10.383 H 12.891 v -1.407 h 4.383 v -0.819 H 12.867 l -0.351 -1.1025 z'/%3E%3C/svg%3E");
+}
+
+/* ===== 动态交互：图标自身的呼吸/弹跳（与按压弹性叠加，互不冲突） =====
+   按压弹性由 .spring-btn / .press-spring（app.wxss 共享层）负责，这里只加
+   「图标本体」的微动效，避免两处都改 transform 而互相顶掉。
+   周期取 2.6~3.2s 且幅度很小：图标在 76rpx 底座里，动作大了会糊成一团。 */
+
+/* 消息通知：轻微左右摇铃，读作"有新消息" */
+.ui-icon--notice.ui-icon--live {
+  animation: ui-bell-swing 3s ease-in-out infinite;
+  transform-origin: 50% 12%;
+}
+
+@keyframes ui-bell-swing {
+  0%, 62%, 100% { transform: rotate(0deg); }
+  70% { transform: rotate(9deg); }
+  78% { transform: rotate(-7deg); }
+  86% { transform: rotate(4deg); }
+  94% { transform: rotate(-2deg); }
+}
+
+/* 点赞我的：心跳式缩放（只在 0~22% 有动作，其余时间静止，不吵） */
+.ui-icon--like.ui-icon--live {
+  animation: ui-heart-beat 2.8s ease-in-out infinite;
+}
+
+@keyframes ui-heart-beat {
+  0%, 100% { transform: scale(1); }
+  8% { transform: scale(1.12); }
+  16% { transform: scale(0.98); }
+  24% { transform: scale(1.06); }
+  34% { transform: scale(1); }
+}
+
+/* 意见（必回）：右上回执徽标轻微脉冲，提示"一定会回" */
+.ui-icon--feedback.ui-icon--live {
+  animation: ui-mail-nudge 3.2s ease-in-out infinite;
+}
+
+@keyframes ui-mail-nudge {
+  0%, 70%, 100% { transform: translateY(0) scale(1); }
+  80% { transform: translateY(-2%) scale(1.05); }
+  90% { transform: translateY(0) scale(1); }
+}
+
+/* 校园市场：遮阳篷轻微上浮，像摊位在招呼 */
+.ui-icon--market.ui-icon--live {
+  animation: ui-market-bob 3s ease-in-out infinite;
+}
+
+@keyframes ui-market-bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4%); }
+}
+
+/* 我的帖子 / 评论我的 / 个人中心：不加常驻动画。
+   这三个在个人中心页是同一屏的 4 列宫格，多个常驻动画同时跑会显得零乱；
+   它们的"动态感"由按压缩放 + 悬停上浮 + 进场的交错动画提供。 */
+
+/* 减弱动效兜底：停掉常驻动画。按压/悬停仍保留（那是状态反馈，不是装饰）。 */
+@media (prefers-reduced-motion: reduce) {
+  .ui-icon--live {
+    animation: none;
+  }
+}

@@ -432,13 +432,21 @@ function serverWiringTests() {
 
   check(() => {
     const adminJs = read('pkg-admin/admin/index.js')
-    for (const handler of ['beginDrivingSchoolCreate', 'beginDrivingSchoolEdit', 'toggleDrivingSchool', 'deleteDrivingSchool', 'addSchoolImage', 'chooseSchoolCover']) {
+    for (const handler of ['beginDrivingSchoolCreate', 'beginDrivingSchoolEdit', 'toggleDrivingSchool', 'deleteDrivingSchool']) {
       assert.ok(adminJs.indexOf(handler) >= 0, '后台缺少处理函数 ' + handler)
     }
-    assert.ok(adminJs.indexOf("form.kind === 'drivingSchool'") >= 0, 'saveForm 应含驾校分支')
+    assert.ok(/navigateTo\(\{ url: '\/pkg-admin\/admin\/edit\/index\?scope=drivingSchool'/.test(adminJs),
+      '后台驾校新建/编辑入口应跳独立编辑页')
+    // 表单已迁到独立编辑页：图片上传（addImages）与封面（chooseSchoolCover）都在新页
+    const editJs = read('pkg-admin/admin/edit/index.js')
+    const editWxml = read('pkg-admin/admin/edit/index.wxml')
+    for (const handler of ['addImages', 'chooseSchoolCover']) {
+      assert.ok(editJs.indexOf(handler) >= 0, '编辑页缺少处理函数 ' + handler)
+    }
+    assert.ok(editJs.indexOf("scope === 'drivingSchool'") >= 0, '编辑页应有驾校保存分支')
     const adminWxml = read('pkg-admin/admin/index.wxml')
     assert.ok(adminWxml.indexOf('找驾校内容管理') >= 0, '「物品」tab 应含找驾校内容管理模块')
-    assert.ok(adminWxml.indexOf('drivingSchoolCampusOptions') >= 0, '表单应含校区归属选择')
+    assert.ok(editWxml.indexOf('drivingSchoolCampusOptions') >= 0, '编辑页表单应含校区归属选择')
     const wrapper = read('pkg-admin/utils/admin.js')
     assert.ok(wrapper.indexOf("'/driving-schools'") >= 0, '后台 API 包装应挂 /driving-schools')
   }, '管理后台驾校内容模块接线')
@@ -496,7 +504,8 @@ function mapEntryGuardTests() {
   const controller = read('server/controllers/drivingSchoolController.js')
   const migrations = read('server/utils/migrations.js')
   const adminJs = read('pkg-admin/admin/index.js')
-  const adminWxml = read('pkg-admin/admin/index.wxml')
+  const editJs = read('pkg-admin/admin/edit/index.js')
+  const editWxml = read('pkg-admin/admin/edit/index.wxml')
   const detailWxml = read('pages/driving-school/detail.wxml')
   const detailJs = read('pages/driving-school/detail.js')
 
@@ -507,12 +516,13 @@ function mapEntryGuardTests() {
   }, '坐标列与服务端不自动解析')
 
   check(() => {
-    assert.ok(adminJs.indexOf('wx.chooseLocation(') >= 0, '后台表单应提供地图选点')
-    assert.ok(adminJs.indexOf("'form.lat'") >= 0 && adminJs.indexOf("'form.lng'") >= 0, '选点结果要写回表单')
-    assert.ok(/lat: Number\(form\.lat\) \|\| 0/.test(adminJs), '提交体必须带上 lat/lng，否则编辑会清空已有坐标')
-    assert.ok(adminJs.indexOf('lat: Number(row.latitude) || 0') >= 0, '编辑时要回填已有坐标')
-    assert.ok(adminWxml.indexOf('bindtap="chooseSchoolLocation"') >= 0, '选点入口需接线')
-    assert.ok(adminWxml.indexOf('catchtap="clearSchoolLocation"') >= 0, '要能清除坐标')
+    const editMeta = read('pkg-admin/utils/admin-edit-meta.js')
+    assert.ok(editJs.indexOf('wx.chooseLocation(') >= 0, '编辑页表单应提供地图选点')
+    assert.ok(editJs.indexOf("'form.lat'") >= 0 && editJs.indexOf("'form.lng'") >= 0, '选点结果要写回表单')
+    assert.ok(/lat: Number\(form\.lat\) \|\| 0/.test(editMeta), '提交体必须带上 lat/lng，否则编辑会清空已有坐标')
+    assert.ok(editJs.indexOf('lat: Number(row.latitude) || 0') >= 0, '编辑时要回填已有坐标')
+    assert.ok(editWxml.indexOf('bindtap="chooseSchoolLocation"') >= 0, '选点入口需接线')
+    assert.ok(editWxml.indexOf('catchtap="clearSchoolLocation"') >= 0, '要能清除坐标')
   }, '后台选点接线')
 
   check(() => {
@@ -539,8 +549,9 @@ function mapEntryGuardTests() {
     const comp = read('components/contact-admin/contact-admin.js')
     assert.ok(comp.indexOf('overrideImage') >= 0 && comp.indexOf('overrideTitle') >= 0, '组件需支持局部覆盖')
     assert.ok(/if \(this\.data\.overrideImage\)/.test(comp), '有覆盖值时不得再拉全站公告配置盖掉它')
-    assert.ok(adminWxml.indexOf('bindtap="chooseSchoolQr"') >= 0, '后台表单需提供二维码上传')
-    assert.ok(adminJs.indexOf('contactQr: String(form.contactQr') >= 0, '提交体要带二维码，否则编辑会清空已上传的码')
+    assert.ok(editWxml.indexOf('bindtap="chooseSchoolQr"') >= 0, '编辑页表单需提供二维码上传')
+    const editMeta = read('pkg-admin/utils/admin-edit-meta.js')
+    assert.ok(editMeta.indexOf('contactQr: String(form.contactQr') >= 0, '提交体要带二维码，否则编辑会清空已上传的码')
   }, '每所驾校一张咨询二维码')
 }
 

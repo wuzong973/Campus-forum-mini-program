@@ -1,0 +1,63 @@
+<view class="page">
+  <view
+    wx:for="{{cards}}"
+    wx:key="id"
+    class="group-card spring-btn theme-{{item.theme}}"
+    style="--i: {{index < 6 ? index : 0}};"
+    hover-class="card-pressed press-spring"
+    hover-stay-time="80"
+    data-index="{{index}}"
+    bindtap="onCardTap"
+  >
+    <!-- 图标三态：上传的图片 > 特殊值「微信」绿标 > emoji / 短文本 -->
+    <view class="card-icon" wx:if="{{item.iconPath || item.icon}}">
+      <image wx:if="{{item.iconPath}}" class="card-icon-img" src="{{item.iconPath}}" mode="aspectFill" lazy-load />
+      <text wx:elif="{{item.icon === '微信'}}" class="iconfont icon-weixin card-icon-wechat"></text>
+      <text wx:else>{{item.icon}}</text>
+    </view>
+    <view class="card-body">
+      <view class="card-title">{{item.title}}</view>
+      <view class="card-desc" wx:if="{{item.desc}}">{{item.desc}}</view>
+    </view>
+  </view>
+
+  <view wx:if="{{loading}}" class="tip">加载中...</view>
+  <view wx:elif="{{!cards.length}}" class="tip">暂无推送内容</view>
+  <view wx:elif="{{loadFailed}}" class="tip">内容加载失败，当前展示默认卡片</view>
+</view>
+
+<!-- 二维码弹窗：结构与 components/contact-admin 的二维码弹层一致（图一口径）。
+     用 root-portal 挂到页面根节点渲染：卡片本身有 press-spring 的 transform，
+     页面还有 page-enter 动画残留的 transform，它们会把 position:fixed 的包含块劫持到卡片内，
+     导致弹窗被压变形。root-portal 可彻底脱离这些祖先。 -->
+<root-portal wx:if="{{qrCard}}">
+  <view class="qr-mask" catchtap="closeQr" catchtouchmove="stopPropagation"></view>
+  <view class="qr-dialog" catchtap="stopPropagation">
+    <view class="qr-head">
+      <view class="qr-head-text">
+        <text class="qr-title">{{qrCard.title}}</text>
+        <text class="qr-desc">长按二维码保存图片</text>
+      </view>
+      <view class="qr-close" catchtap="closeQr">×</view>
+    </view>
+
+    <!-- 有二维码图就展示图；没配则退化成纯文字提示 + 跳转按钮 -->
+    <image
+      wx:if="{{qrImage}}"
+      class="qr-img"
+      src="{{qrImage}}"
+      mode="widthFix"
+      show-menu-by-longpress="{{true}}"
+      bindtap="previewQr"
+    ></image>
+    <view wx:else class="qr-empty">该群暂未配置二维码，可点下方按钮前往</view>
+
+    <button
+      hover-class="press-spring"
+      class="qr-btn spring-btn"
+      hover-stay-time="120"
+      bindtap="onOpenQrPage"
+    >点击此处即可跳转</button>
+    <view class="qr-tip">如果是二维码的话长按图片即可识别</view>
+  </view>
+</root-portal>

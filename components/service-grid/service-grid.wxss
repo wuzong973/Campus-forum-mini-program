@@ -1,3 +1,9 @@
+/* 功能图标共享层必须组件内自带一份：小程序的样式隔离让 app.wxss 里的类选择器
+   进不了自定义组件（只有标签名 / id 选择器能穿透），所以宫格里的 .ui-icon--market
+   拿不到 background-image，「校园市场」那一格就是纯空白。
+   @import 必须写在其它规则之前。 */
+@import "../../styles/ui-icons.wxss";
+
 .service-grid {
   display: grid;
   gap: 30rpx 0;
@@ -40,6 +46,12 @@
 }
 
 .service-icon-img {
+  width: 58rpx;
+  height: 58rpx;
+}
+
+/* 内置统一图标（styles/ui-icons.wxss）：固定到与 PNG 图标同尺寸，避免各页写法不一 */
+.icon-wrap .ui-icon {
   width: 58rpx;
   height: 58rpx;
 }
@@ -120,6 +132,12 @@
   filter: drop-shadow(0 6rpx 8rpx rgba(49, 92, 255, 0.16));
 }
 
+.service-strip .icon-wrap .ui-icon {
+  width: 68rpx;
+  height: 68rpx;
+  filter: drop-shadow(0 6rpx 8rpx rgba(49, 92, 255, 0.16));
+}
+
 .service-strip .icon {
   font-size: 54rpx;
 }
@@ -163,6 +181,27 @@
  transform: scale(0.96); box-shadow: inset 0 2rpx 6rpx rgba(16, 32, 64, 0.16), inset 0 -1rpx 2rpx rgba(255, 255, 255, 0.08); }
 
 .service-item--hover .service-icon-img,
-.service-strip .service-item--hover .service-icon-img {
+.service-item--hover .icon-wrap .ui-icon,
+.service-strip .service-item--hover .service-icon-img,
+.service-strip .service-item--hover .icon-wrap .ui-icon {
   filter: drop-shadow(0 10rpx 14rpx rgba(49, 92, 255, 0.28));
  transform: scale(0.96); box-shadow: inset 0 2rpx 6rpx rgba(16, 32, 64, 0.16), inset 0 -1rpx 2rpx rgba(255, 255, 255, 0.08); }
+
+/* 内置统一图标：悬停时本体轻微放大（PNG 图标走上面的 filter 阴影路径，
+   内联 SVG 图标额外给一次放大，让"这一格被拾起来"读得更明确）。
+   用 animation 而不是 transform，是为了不被上面的 press-spring scale(0.96) 覆盖。 */
+.service-item--hover .icon-wrap .ui-icon {
+  animation: ui-icon-pop 0.35s cubic-bezier(0.34, 1.42, 0.6, 1);
+}
+
+@keyframes ui-icon-pop {
+  0% { transform: scale(1) rotate(0deg); }
+  45% { transform: scale(1.16) rotate(-5deg); }
+  100% { transform: scale(1.06) rotate(0deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .service-item--hover .icon-wrap .ui-icon {
+    animation: none;
+  }
+}

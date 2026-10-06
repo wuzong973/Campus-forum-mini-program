@@ -16,5 +16,11 @@ router.post('/target/:id/rate', auth, reviewController.rate)
 router.post('/target/:id/like', auth, reviewController.likeTarget)
 router.post('/target/:id/comments', auth, reviewController.addComment)
 router.post('/comment/:id/like', auth, reviewController.likeComment)
+// 编辑评价评论（仅作者本人）：与论坛评论同款，只有作者能改自己的内容。
+router.post('/comment/:id/update', auth, reviewController.updateComment)
+// 删除评价评论（软删 deleted = 1）：管理员（content.manage）可删任意；评论作者可删自己的。
+// 与论坛评论的「删除他人的评论」不同：评分对象是公共条目、没有「作者」，
+// 因此不引入「评分对象创建者可删他人评论」这一档，避免权限口径比论坛更宽。
+router.post('/comment/:id/delete', auth, reviewController.deleteComment)
 
 module.exports = router

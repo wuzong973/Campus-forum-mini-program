@@ -1,72 +1,66 @@
 # 项目长期记忆（gqg-campus）
 
-> 只记「看代码看不出来、踩过坑」的规则；细节见 `docs/`。**注入有上限，超了从尾部截断**（曾整段截掉订阅消息节）。新增前先删旧。
+> 只记「看代码看不出来、踩过坑」的规则。**`topics/*` 与本文一起注入，拆分不减少总量**；**控制总量只能靠删/合并**，高价值排前。
+
+## 📂 分节文件
+| 文件 | 内容 |
+|---|---|
+| `topics/jw-教务同步.md` | 课表周次、教务登录/OCR、业务码、SLB 故障、学期口径 |
+| `topics/订阅消息.md` | stable_token、skipped/throttled/failed、授权弹窗触发点 |
+| `topics/论坛热榜与评价.md` | 匿名判据/昵称池、分享海报、热榜刷新、review 两级树 |
+| `topics/小程序端易错点.md` | `focus` 受控、图标统一层、vm 测试、样式 token、root-portal、抽屉/弹层 |
+
+## 协作与需求解析
+- **⚠ 「参照图 X」类需求，动手前必须先用一句话回述目标形态并让用户确认** —— 2026-10-06 需求 L 连错两轮：用户说「参照图二的抽屉卡片」，我做成「点卡片弹**详情抽屉**」（hero+正文+配图+底部按钮），实际要的是「点卡片弹**二维码弹窗**」（`contact-admin` 的 QR 层）。**「抽屉」在用户语境里可能指任何一种弹出的浮层。**
+- **图片里的 UI 要素要逐项抄，不要归纳**；**先在仓库里找「图里那个东西是不是已有实现」**（图一那层其实就是 `components/contact-admin` 的 QR 弹层），能省一整轮返工。
+- **⚠ 用户说「评论框 / 卡片 / 弹层」时，先按图里的细节特征在两三处候选里定位，别凭名字猜页面。** 项目里评论 UI 有三处：`pages/post-detail`（爱心 + 右上角「…」）、`pages/review/target`（👍 emoji + 底部「回复」）、`pages/index`（首页评论抽屉）。2026-10-07 靠「👍 emoji + 底部回复按钮」这个组合唯一定位到 `review/target`。**定位成本远低于改错页面的成本。**
+- **用户前后口径冲突时以最新表述为准**，并显式标注歧义让用户复核。
+- **用户报「改了但页面没变」时，先怀疑「没部署/没重传」，不要先改代码。** 2026-10-06 需求 M：用户说「点进去页面不像图一」，实测本地 `edit/index` 早已是独立整页 —— 根因是端上未重传。
+- **⚠ 复刻交互组件时，必须逐一枚举「按身份分开的所有入口」，不能只抄显眼的那个。** 2026-10-07 踩坑：`post-detail` 里「自己的评论」有**两个入口** —— ①「…」菜单只给「隐藏」；②**正文下方单独一行 `.comment-actions`「编辑/删除」**。我只搬了 ①，用户实测报「我点自己的评论时怎么只有隐藏」。**通用：抄组件时先列一张「身份 × 入口」矩阵（本人/他人/管理员 × 各有哪些操作），逐格核对。**
 
 ## 部署与排障
-- 生产 `https://payun01.cn`，接口前缀 `/api/v1`；pm2 cluster 2 实例，端口 3000。`BASE_URL` 硬编码在 `utils/request.js`。Nginx 静态根 `/www/wwwroot/payun01.cn`（宝塔），站点配置 `/www/server/panel/vhost/nginx/payun01.cn.conf`，改后 `nginx -t && nginx -s reload`。静态 H5 源 `web-static/`（`embed.html` 必须部署）。服务器 `root@193.112.187.95`（凭据见 `deploy.py`）。
-- **改少量文件不要跑 `deploy*.py` 全量脚本**（固定清单 30~50 文件，线上与仓库有已知漂移）。定向单文件：漂移基线用 **`git show HEAD:<path>`**（不是工作区）→ 备份 `xxx.bak-<ts>` → 上传比 sha256 → `pm2 restart GQG-campus` → curl health 200。模板 `.workbuddy/tmp_deploy_{merge_window,jwt_30d}.py`。
-- **小程序代码不随服务端部署上线**，必须用微信开发者工具重传。验证 `.env`：`cd /home/springboot/server && node -e "require('dotenv').config();console.log(process.env.X)"`（`/proc/<pid>/environ` 看不到）。
-- **`/www/wwwlogs/payun01.cn.log` 已停更（停在 2026-08-16）**，真实日志是 **`logs/out.log`**（`方法 路径 状态码 耗时ms - IP`，**无时间戳**）。统计：`grep -o 'POST /api/v1/<路径> [0-9]*' out.log | sort | uniq -c | sort -rn`；反查身份用同 IP 的 `/api/v1/user/profile/<id>`。**`auth` 拒绝耗时 <1ms** → `401 0.6ms` = 没带 token 或验签失败，与业务无关。
-- 生产库只读巡检：`python .workbuddy/tmp_db_probe.py <本地js>`（SSH 传 /tmp → 用应用自己的 node + `require('/home/springboot/server/config/pool')` → 自动清理）。**只跑 SELECT**；`pool.query` 返回 `[rows, fields]`，DATETIME 是 JS `Date`。**聚合 SQL 警惕 JOIN 重复累加**。
-- 本地看视频取证：托管 venv 装 `imageio-ffmpeg`，用自带 ffmpeg 抽帧（`-vf fps=1`）再 Read；微信视频同目录有 `_thumb.jpg`。
+- 生产 `https://payun01.cn`，前缀 `/api/v1`；pm2 cluster 2 实例，端口 3000。`BASE_URL` 硬编码在 `utils/request.js`。Nginx 静态根 `/www/wwwroot/payun01.cn`（宝塔），配置 `vhost/nginx/payun01.cn.conf`（改后 `nginx -t && nginx -s reload`）。静态 H5 源 `web-static/`（`embed.html` 必须部署）。服务器 `root@193.112.187.95`（凭据见 `deploy.py`）。
+- **改少量文件不要跑 `deploy*.py` 全量脚本**（清单 30~50 文件，线上有漂移）。定向单文件：备份 `.bak-<ts>` → 上传 → `node --check` → 比 sha256 → `pm2 restart GQG-campus` → curl health 200。模板 `.workbuddy/tmp_deploy_*.py`。
+- **⚠ 双向漂移都可能**：① 线上有「未回流仓库」的热修；② **本地也有「整块未部署」的功能**。**判据：本地是线上严格超集 → 可安全覆盖；否则逐文件核对。** 漂移判据必须**语义化**：naive 逐行 diff 会把「单行表达式重构成变量」当线上独有热修 → 去空白规范化 + 对已知重构豁免；当「线上==HEAD」失效时改**语义超集判据**（本地必须含「线上热修标记」+「本次改动标记」）。
+- **⚠ 未部署的改动端上一定显示旧行为** —— 「改了代码但页面没变」**第一步永远是查「服务端是否已部署 / 小程序是否已重传」**。**最快判据：curl 线上接口看新字段在不在**。**小程序代码不随服务端部署上线**，必须用微信开发者工具重传。
+- **真实日志是 `logs/out.log`**（`方法 路径 状态码 耗时ms - IP`，**无时间戳，靠行号排序**）；`/www/wwwlogs/*.log` 已停更。**`auth` 拒绝 <1ms** → `401 0.6ms` = 没带 token/验签失败。
+- **⚠ 端上报 `404` 时，用「curl 三连对照」10 秒定性，别翻日志**：拿**新接口**与**同组已上线老接口**各 curl 一次 —— 新接口 `404` + 老接口 `401` = **路由没挂上（没部署）**；两个都 `404` = 路径前缀写错；两个都 `401` = 路由正常、仅缺 token。**`401 vs 404` 的差值就是「路由挂没挂上」的分界。** 2026-10-07 评价评论 delete/update 报 404 即此法定性为「服务端未部署」。
+- 生产库巡检：只读 `tmp_db_probe.py`，授权写入才用 `tmp_db_apply.py`（SSH 传 /tmp → 用应用自己的 node + `require('/home/springboot/server/config/pool')`）。**/tmp 下第三方模块必须绝对路径**。`pool.query` 返回 `[rows, fields]`；**聚合 SQL 警惕 JOIN 重复累加**。`sys_user` 昵称列是 **`nick_name`**。**探针输出别 `head -N` 截断**。
 
 ## 测试
-- **`npm test` 只跑 43 个文件，`server/tests/` 实际有 97 个 `*.test.js`**（`scripts.test` 用 `&&` 硬链）。**新增测试文件后必须手工补进 `scripts.test`**——`wechat-token-stable`/`subscribe-throttle`/`subscribe-trigger-points`/`hot-rank-deleted-post`/`route-guard`/`local-imports`/`campus-map-panorama` 这批守卫长期不在 `npm test` 里。全量口径：`ls tests/*.test.js` 逐个 `node` 跑。
-- **`.spring-btn` 家族的 hover 类必须写 `transform: scale(0.96)`**，只写 `opacity` 过不了 `press-spring-shared.test.js`。
-- `server/tests/richtext-{content,editor}.test.js` **未纳入 git**（`git show HEAD:` 取不到），别拿 git 做基线回溯。
-- 跑测试时 stderr 里的 `[Subscribe] 40001/43101`、`sharp 不可用`、`WX_MESSAGE_TOKEN 未配置` 是测试桩故意打的，**不是失败**。
+- **`server/tests/` 100+ 个 `*.test.js`，`npm test` 只跑注册过的**（`scripts.test` 字母序硬链）。**新增文件必须补进 `scripts.test`**。全量口径：`for f in tests/*.test.js; do node "$f" || echo FAIL $f; done`；**判全绿看退出码**。
+- **「改了代码测试全绿」头号原因：测试只读函数体、不看路由挂的是谁**。**改控制器的护栏必须同时断言路由绑定**。
+- **静态断言的高危写法（每条都踩过）**：① 取函数体别用 `indexOf('_loadXxx')`（会命中 `onLoad` 分发行）→ 扫描「参数括号收口后紧跟 `{`」；**名字带点（`exports.foo`）时判据要允许 `= async (` 形式**。② **位置断言（A 在 B 内/外）绝不能拿 `indexOf('</view>')` 当容器收口** → **按标签名配对扫描**（`depth` **初值 1**、只对同名标签配平、`depth===0` 才是收口）；**同类元素同名时（评论区顶部栏与评价条目都叫 `comment-head`）必须从正确起点找**。③ **⚠ 断言串若同时出现在注释里，`indexOf(全文)` 就是空判据** → **必须落在 `functionBody()` 切出的函数体内**。④ **⚠ 断言「某动作发生了」必须断言调用表达式本身**（`await X(`、`setStorageSync(k, v)`），**不能只断言标识符/文案出现过**（2026-10-07 一次抓出 4 处：菜单文案还在但分支体已 `return`、`blocked_user_ids` 在 `getStorageSync` 里也有、`writeAdminAudit` 在 `void 0 &&` 短路里仍有名字、`pa-heart` 只断言「存在一处」而另一处已被换掉）。⑤ 断言 URL/CSS 别用 `[^"']*`（`viewBox='…'` 含引号会静默截断）→ 配对引号锚定；⑥ 断言「字段在对象里」别用 `/x,\s*$/m`（末键无逗号）→ 切 `Object.assign({}, r, {`→`})`；⑦ 三元拼的类名源码里不存在 → 匹配拼装片段；⑧ 地址抽成模块级常量时函数体内只剩变量名 → 连常量定义一起断言。
+- **⚠ 反向验证是唯一能发现空判据的手段**：2026-10-07 两批共 34 条改坏补丁，**抓出 8 处空判据**（第一批 18→4，第二批 16→4）—— **护栏写完全绿不等于护栏有效**。反向验证脚本模板见 `.workbuddy/tmp_*_rv.py`（用后即删）。构造改坏补丁时：仓库 `.wxml/.wxss` 是 **LF**；**「只删注释」不等于「改坏了结构」**；**只改文案/只改一处重复串的补丁是无效补丁，别把它算作「未捕获」**。
+- **⚠ 「文案/键名还在」是最常见的假绿灯**：断言守卫时不能只断言**文案**（`/内容不能为空/`、`/wx\.showModal\(/`、`/editContent:/`、`/catchtap="onEditComment"/`），必须断言**完整表达式**（`/if\s*\(\s*!\s*content\s*\)\s*return\s+fail\(/`、`/if\s*\(\s*!res\.confirm\s*\)\s*return/`、`/editContent:\s*String\(\s*ds\.content/`、**逐块**切出容器再断言内部 handler）。
+- 假池 harness（`review-module.test.js` C 段）：`fakePool.query` 按 `queue` 顺序出值。**`createNotification` 是 fire-and-forget**，会偷吃后续用例 queue → 用例前 `await` 排空几 tick。**`.spring-btn` 的 hover 类必须写 `transform: scale(0.96)`**。
+- `tests/richtext-{content,editor}.test.js` **未纳入 git**。跑测试时 stderr 的 `[Subscribe] 40001/43101`、`sharp 不可用` 是测试桩故意打的，**不是失败**。
+
+## 跑腿订单（errand）★ 细节见 `2026-10-06.md`
+- **状态机** `pending → accepted → finishing → finished`，另 `cancelled`/`disputed`。`finishing`（接单方已提交完成、待发单人确认）**对第三方不可见**；大厅可见性 = 「公开状态 OR (交接阶段 AND 当事人)」—— 少后半段则当事人历史 cancelled 会倒进大厅。
+- **⚠ 取消两个入口（对称）**：`/errand/:id/cancel` = **发单人**取消，**必须绑 `errandController.cancel`**（`pending` 直取消；`accepted` **只能提交申请**落 `errand_cancel_request`，须接单方同意）。**曾错绑 `paymentController.cancelErrand`**（直接置 cancelled+退款、无校验无流水）——「接单后发单人照样能单方面取消」的根因。`/errand/:id/release` = **接单方**取消（30 分钟内自身原因可直取消并计 `self_cancel_count`）。审批统一走 `reviewCancelRequest`，审批人 = **申请的对方**（`isPublisherRequester` 判方向），**不能退化成「仅 publisher_id 可批」**。
+- **⚠ 两条链共用 `action='cancel_requested'`**：服务端按方向写不同 `detail`。**端上文案表绝不能按 `action` 写死方向** —— 曾 `errand-detail` 的 `LOG_LABELS.cancel_requested` 写死「接单方申请取消接单」，导致发单人自己申请时显示成接单方。**正解：以服务端 `detail` 为唯一真源**。**通用：一个 action 被两个方向复用时，文案/判据都不能只看 action。**
+- **冻结 = 完成率过低且必须可解除**（`FREEZE_MIN_RECORDS`/`FREEZE_RATE`，`accept` 时 403）：**必须设冷却期**（7 天）且管理员可手动 `unfreeze` —— **不设冷却期 = 数学上的永久封禁**。
+- **⚠ 冻结名单状态必须三态**：`overThreshold`（统计超标）**只增不减**，拿它判「待解冻」会把已解冻账号**永久误显示成待解冻**。服务端 `listErrandRunners` 必须显式下发 `frozen`/`unfrozen`（`unfrozen = overThreshold && !frozen && !!frozenUntil`）。**通用：状态字段一旦有反向事件（人工放行、到期恢复），就不能用单向指标现算。**
+- **⚠ 任何把订单置 `cancelled` 的路径都必须写 `errand_order_log` 并关闭遗留 pending 申请**（`reserveErrandRefund` 曾是「静默取消」源头）—— **排查为何取消先查流水；cancelled 无流水 = 走了未埋点退款路径**。
+- **⚠ 隐私列必须用「显式列清单」防串位**：`private_info`（取件码，仅接单者见）/`private_images`（JSON，仅当事人见）vs `remark`（公开描述，**viewer 也下发**，否则详情退回 title）。大厅 `list` 用显式列清单 → 天然不含隐私列；`detail` 对 viewer 走 `SELECT e.*` 后**剔除** `private_*`（但公开 `images` 保留）。详情/审批下发**驼峰键** `requesterId`/`reasonSide`/`images`（必须数组）。
 
 ## 认证与登录态
-- 唯一登录 `POST /user/phone-login {code, phoneCode}`（小程序专有凭证，浏览器拿不到）；`sys_user` 无密码字段（`jw_credential.password_enc` 是教务爬虫凭据）。JWT HS256 单密钥（`server/config/jwt.js`），载荷仅 `{userId}`，**`JWT_EXPIRES=30d`**，无 aud/iss。
-- `auth` **每请求回查 `sys_user` 的 role + status**（禁用/降权即时生效），不得退化为仅验签；`status !== 1` 返回 **403**（不是 401）。
-- **登录态已加固（2026-09-18）**：`utils/token.js` 解 JWT 载荷判 `exp`（60s 余量，不可解析则交服务端）；`auth.isLoggedIn()` = 有 token **且未过期**；`checkLoginExpiry()` 先判 exp 再判 90 天（reason `token-expired`/`inactive`）；`request.js` 401 分支：**带 token 仍 401** → 清 token + 断 WS + 弹一次「登录已失效」（5 分钟冷却 + 互斥，`silent` 也提示），**游客 401** → 不弹。护栏 `tests/schedule-empty-state-and-session.test.js`。
+- 唯一登录 `POST /user/phone-login {code, phoneCode}`（小程序专有凭证）；`sys_user` 无密码字段。JWT HS256 单密钥，载荷仅 `{userId}`，**`JWT_EXPIRES=30d`**。`auth` **每请求回查 `sys_user` 的 role + status**（禁用/降权即时生效），不得退化为仅验签；`status !== 1` 返回 **403**（不是 401）。
+- **登录态加固**：`utils/token.js` 解 JWT 判 `exp`（60s 余量）；`auth.isLoggedIn()` = 有 token **且未过期**；`request.js` 401：**带 token 仍 401** → 清 token + 断 WS + 弹一次「登录已失效」（5 分钟冷却 + 互斥），**游客 401** → 不弹。
 - 权限点 8 个：stats.view / content.manage / config.manage / item.manage / user.manage / role.assign / payment.manage / admin.manage。`ROLE_PERMISSIONS`：super_admin `*`；content_admin=content+config+stats；user_admin=user+stats；operator=item+config+stats+payment。
 
+## 评价评论（review）★ 2026-10-07 对齐帖子详情页
+- **端上 `pages/review/target` 的评论区已一比一复刻 `pages/post-detail`**：`.comment-item`（灰底 `#f7f9fc` + `border-left:6rpx`）、`.comment-meta` 里昵称与时间同行、右上角 `.comment-more`「…」、`.comment-body` 内右侧 `.comment-icon.pa-heart` 双态爱心。**旧的 `.comment-card`/`.comment-foot`/`.comment-reply-btn`/`👍` 已全部移除**。`pa-heart` 的 SVG 定义在 `post-detail`/`pages/index`/`review/target` 各有一份（wxss 不跨页共享）。
+- **「…」菜单四项**：隐藏（纯本机，不落库）/ 举报（`api.reportComment` → 通用 `/feedback/report`，与评论类型无关）/ 拉黑（`POST /message/block {peerId}`，按 userId 走，与评论类型无关）/ 删除（`POST /review/comment/:id/delete`，本次新增）。**隐藏/举报/拉黑三项后端原本就有，只有删除是新增。**
+- **⚠ 删除权限刻意比论坛窄一档**：`post-detail` 的删除权 = 管理员 **或帖子作者**；**评价页不设「评分对象创建者」这一档**（评分对象是公共条目、没有作者角色）→ 服务端 `deleteComment` **只判 `content.manage` 管理员 + 评论作者本人**，只收紧不放宽。删顶层评价连带 `parent_id` 其下回复，管理员删除写 `admin_audit_log`。
+- **`review_comment` 表有 `deleted`/`status` 两列**，删除统一走软删 `deleted = 1`（所有查询都带 `deleted = 0`）。删完必须 `refreshCommentCount` + `refreshHotComment` 收口。
+
 ## 管理后台（pkg-admin）
-- 单页 `pkg-admin/admin/index.{js,wxml,wxss}`，`activeTab` 切视图；接口封装 `pkg-admin/utils/admin.js`；入口 `pages/user/index.js`。10 个一级 Tab：overview/reports/posts/content/items/clubGroup/activities/userAdmin/review/logs。客户端 `TAB_PERMISSIONS`/`SUB_TABS` 只控制入口显隐，服务端才是真源。
-- **正文标记渲染只走 `components/richtext-content`**（吃 `utils/richtext.js` 的 `parseBlocks`）。`**粗**`/`## 标题`/`{蓝|字}` 是**存储格式**，用户端解析后渲染，**`**` 只在编辑框可见——设计如此，不是 bug**。**凡展示 `detailContent`/`intro`/`notice`/`detail` 的地方都必须接 `richtext-content`**。**审核详情页曾漏 3 处（2026-10-01 修）**：`clubAuditDetail.intro`、`chatApplyDetail.intro`、`activityAuditDetail.detailContent`，护栏 `tests/richtext-editor.test.js` 第 10 条。**`auditNote`/`reviewNote` 是管理员手写纯文本，刻意不走组件**。
-- **`club.intro`/`group_chat.intro` 有两条写入链**：后台 `richtext-editor`(1000) **与用户端申请页纯 `textarea`(500)**（`pages/club/apply.wxml:79`、`pages/group-chat/apply.wxml:79` → `club_apply.intro`/`group_chat_apply.intro`，审批后由 `groupChatController.js:292` 等原样搬进正式表）。改正文存储格式时这四个列 + 两个申请页必须一起改。易混：`group_chat` 的 **`intro`(群介绍) 与 `notice`(群公告) 是两个字段**，intro 在详情页是纯 `<text>`。
-- **自定义页面（校园卡/学车指南/市场/校园圈学车）的「底部跳转按钮」**：`link`/`linkText` 存在 `system_content.body` 的 JSON 里；表单在 `pages/banner-detail`，**与横幅共用同一组输入框（不得再被 `!isCard` 挡住）**；用户端 4 页统一用 `components/page-link-button`（跳转复用 `richtext.openLink`，链接空则不渲染）。**`loadBanner` 必须读 `raw.link`** —— 曾硬编码 `link:''` 把值清空。
-- 接口全在 `/api/v1/admin/*`，统一 `auth` + `requireAdmin(permission)`。**已实现但小程序端无界面**：`GET /admin/audit-logs`、`GET|PUT /admin/features`。`admin_audit_log` 含 `ip`（已设 `trust proxy`，需确认 Nginx 透传 `X-Forwarded-For`）。限流 `rateLimit({max:120})` 是内存态，cluster 下各实例独立。
-- **时间字段必须用 `fmtDateTime()`**，不要 `String(x).replace('T',' ').slice(0,19)` —— API 返回 ISO **UTC**，直接切少 8 小时。护栏 `tests/subscribe-logs-endpoint.test.js` E 组。
-
-## 课表 / 教务同步（jw）
-- **课表页只渲染「当前选中周」**（`pages/schedule/index.js` `applyCurrentWeekCourses`）。**2026-09-18 实测：192 个有课表用户只有 56 人（29%）在第 2 周有课**（大一军训 2 周、课程多从第 3 周起）。**判断「课表丢没丢」的权威依据是「编辑课表」页（同一 `/schedule/list`，顶部「共 N 门课程」），不是课表页空态。**
-- **周次导航栏不得依赖 `courses.length`**（已修）：否则「本周没课」= 切不到有课的周 → 误判「课表没导入」。空态须区分「学期无课」与「本周无课」（`semesterCourseCount`/`firstCourseWeek`），本周无课自动跳到首个有课周（只跳一次，`resolveFirstActiveWeek()` 跳过单双周不匹配的周）。**顶部「第 N 周」可点开全周次总览**（`onWeekTextTap`）。
-- **课表写操作都不得谎报成功**（已修）：`schedule-add.onSave()`、课表页与 `schedule-edit` 的「清空全部课表」必须等接口成功才提示。本地 `schedule_courses` 全仓库**只有写没有读**（死缓存），别写它；保存成功后把 `{startWeek,endWeek,weekType}` 放进 `app.globalData.scheduleJumpToWeek`。
-- **业务码在 `data.code`**（`CAPTCHA_REQUIRED`/`CAPTCHA_INVALID`/`CAPTCHA_EXPIRED`/`JW_CREDENTIAL_INVALID`/`JW_NOT_BOUND`），`code` 是 HTTP 状态码。`utils/request.js` 已解析为 `err.bizCode` —— 判断业务分支**必须用 `err.bizCode`**。
-- 登录：`xsMain.jsp` → `verifycode.servlet`(JPEG) → `POST /jsxsd/xk/LoginToXk`，body `userAccount/RANDOMCODE/encoded(=base64(账号)%%%base64(密码))/pwdstr1/pwdstr2`；失败原因在 `#showMsg`。验证码交接：`schedule-home` 经 `app.globalData.jwCaptchaHandoff` 交给 `schedule-login`。
-- 容错：`JW_TIMEOUT_MS=10000`、`JW_MAX_RETRIES=1`、`JW_RETRY_BACKOFF_MS=500`；`isRetryableError` 覆盖 429/500/502/503/504 + 网络错误。OCR `JW_USE_OCR=1`，实测 18/20。诊断：`logs/{out,err}.log`、`login_debug/login_failed_*.{html,txt}`、`jw_credential`（AES-256-GCM，密钥 `JW_CRED_KEY||APP_SECRET||"gdipu-jw-credential-default-secret-key"`）。
-- **学校侧故障**：教务前置阿里云 SLB（`via: SLB.75`）源站超时时间歇 504/502，与我们无关；服务端统一映射 502 +「教务系统暂时无法连接…」，临时故障不清除已绑定凭证。排查法：端状态码 → 自身服务端 → 到对方网络采样 → 换网络对比 → 看对方原始响应头/body。
-- 官网同源反代 `location /jsxsd/` → `https://jw.gdipu.edu.cn/jsxsd/`（`proxy_ssl_server_name on`、Host/Referer 换回学校域名、`proxy_hide_header X-Frame-Options`、`proxy_redirect` 改回本站），入口 `payun01.cn/jsxsd/`；回滚 `payun01.cn.conf.bak-20260914-jsxsd`。
-- 学期口径唯一来源 `utils/schedule.js`：`DEFAULT_SEMESTER_START="2026-09-07"`、`DEFAULT_TOTAL_WEEKS=20`、`computeAcademicWeek()`（周一锚定）。校历：第 2 周 = 9/14-18。
-
-## 论坛帖子 / 热榜
-- **匿名帖不隐藏校区**：`postController.mapPost()` 的 `campus` 与普通帖同口径 `r.campus || ""`；客户端统一 `post.campus || '未设置校区'`。
-- **分享海报** `pages/poster/index.js`：canvas 2d 不能直接画网络图，头像/配图须 `wx.downloadFile` → `canvas.createImage()` → `drawImage`；内置头像 `/assets/avatar2/*.jpg` 须 `readFile` 转 base64。**对外图片域名只有 `https://payun01.cn`**（`/uploads/<uuid>.jpg|mp4` + 内置头像），微信 downloadFile 合法域名只填它；COS 已配但未使用。
-- **发布校验** `pages/post-publish/index.js`：`onSubmit` 不得因 `canSubmit=false` 提前 return；未选分类提示「请选择分类」（护栏 `tests/post-display-and-publish.test.js`）。
-- **热榜唯一数据源** `GET /post/hot-rank` → `postController.hotRank`；4 个展示位全走它；前端统一 `utils/hot-rank.js`。服务端已正确过滤（主/兜底查询都带 `p.status = 1`；删除路径均置 `status = 0`）——**排查热榜问题别先怀疑这里**，用 `admin_audit_log` 的 `post.delete` 与 `forum_post.status` 交叉自证。
-- **刷新约定**：`navigateTo` 推入的页面常驻，从榜单进详情删除再返回**只触发 `onShow`**。每个热榜展示页必须在 `onShow` 重拉（`_loadedOnce` 跳首次）。已删帖本地广播 `markPostRemoved()`/`filterRemovedPosts()`（键 `hot_removed_post_ids`，TTL 10 分钟）。`/api` 全局 `Cache-Control: no-store`。
-
-## 订阅消息（services/subscribeService.js）
-> 细节见 `docs/订阅消息_{配置与模板方案,功能实现与改造,排查报告与修复记录}.md`。
-- **`skipped`/`throttled`/`failed` 完全不同**：`remain <= 0` → 写 `skipped` 并 return，**压根没调微信**；被微信拒（带 errcode）才写 `failed` —— **`failed` 与额度无关**；`throttled` 是**客户端本地弹窗节流**命中。**`failed` 三来源**：① 无 openid；② 微信 errcode；③ **异常不写日志**（末尾 `catch` 只 `console.error`）。
-- **`access_token` 必须走 `cgi-bin/stable_token`，绝不能回 `cgi-bin/token`**：后者**每调一次就作废上次签发的 token**，而 cluster 2 实例、`cachedToken` 是**进程内变量** → A 刷新后 B 的立刻失效 → `40001 ... not latest`。`forceRefresh: true` **只允许在 40001/42001 自愈路径用**；`40001/42001/40014` 可自愈，必须换新 token 重发、不得记 failed。护栏 `tests/wechat-token-stable.test.js`。**`scripts/verify-wechat-config.js` 是地雷**（跑一次废掉线上 token），已改。
-- **新增「授权弹窗触发点」的唯一姿势**：业务 tap 里调 `subscribe.requestTriggerByTap('<组>')`，**必须在 tap 同步调用链内**（放进 `onLoad`/`setTimeout`/`then` 会静默失败），且在前置校验之后、任何 `await` 之前。8 个组：`postPublish`/`errandPublish`/`withdraw`/`message`/`riderVerify`/`activityPublish`/`activitySignup`/`activityIndex`。**不要新建组或模板**。护栏 `tests/subscribe-trigger-points.test.js`。
-- **弹窗节流层**（`utils/subscribe.js`）：同一触发组**未勾选「总是允许」**时一天最多弹 3 次（本地键 `subscribe_popup_throttle`，`day` 用**本地**时区、跨天惰性重置）。**必须本地存储**——`requestSubscribeMessage` 要在 tap 同步链内调用。闸门只在 `requestTriggerByTap`，**`requestEntryByTap` 不受节流**。**勾选「总是允许」→ 跳过节流但仍照常调用**（每次仍 +1 额度）。护栏 `tests/subscribe-throttle.test.js`。
-- **额度按 `(user_id, tpl_type)` 逐人独立存**（每点一次「允许」= 1 条，`43101` 清零）。看板「剩余」是全体总量、「N 人有额度」(`availableUsers`) 才是真能收的人数。**2026-09-16 实测：`commentNew` 发出率仅 4.6%、20 个订阅过的用户里 14 人已归零。**
-- **空值字段铁律**：`data` 里任何空值字段微信返回 `47003`（不可重试）。必须用 `clipOr(x,n,兜底)`；`date`/`time` 同样拒空。发送前调 `warnEmptyFields()`。字段名要调 `GET /wxaapi/newtmpl/gettemplate` 拉真实结构比对，**不要靠猜**。
-- 其他：`/subscribe/quota` 返回 `{data:{quota:{模板:条数}}}`，客户端要取到 `.quota`（曾漏解 → 入口永不消失）；`SUBSCRIBE_MERGE_WINDOW_MS` 默认 `0`（改值须同步改 `tests/subscribe-slots.test.js` A3 与 `subscribe-delivery.test.js` B 组）；「开了开关却不弹窗」一律是微信侧行为（`wx.getSetting({withSubscriptions:true})` 的 `itemSettings[模板ID]` **键不存在 = 下次应弹窗**）。
-
-## 小程序端易错点
-- **`focus="{{x}}"` 是受控属性**，值变 `true` 就聚焦并拉起键盘。打开只读列表型面板（如首页评论面板）不要置 `true`。**`adjust-position="{{false}}"` 必须自己处理键盘高度**：fixed bottom 元素须绑 `bindkeyboardheightchange` 写 `style="bottom: {{h}}px"`（参照 `pages/post-detail/index.wxml:145`）。
-- **两个评论入口语义不同**：首页 `commentMode="sheet"`（原地开面板），其余 `"detail"`（跳详情 + `&comment=1`，450ms 后聚焦）。`wx.setClipboardData` 成功后微信自弹「内容已复制」，**不要再 showToast**。
-- **页面级 vm 测试**：跨 realm 的 `deepStrictEqual` 会因原型不同失败，改用 `.length` 或 JSON 归一化；测试末尾 `process.exit(0)`。
-- 样式：设计 token 在 `app.wxss` 的 `page` 选择器（`--primary #315CFF`、`--bg #F4F6FA`、`--radius 18rpx`）。但 `pages/about` 等页面用自有一组近似硬编码色，**同页内改样式跟页面既有取值，别混 token**。
-
-## 校园地图围栏
-- 佛山 58 顶点 / 62.2 万㎡；广州新港 10 顶点 / 42.2 万㎡。护栏 `tests/campus-map-panorama.test.js` F/G 组；校验页 `docs/campus-boundary-verify.html`。
-
-## 文档索引（docs/）
-- **2026-09-16 起 docs/ 按主题合并为 14 篇，不再有按日期命名的文件**；新增文档要并入对应主题文档。入口 `docs/README_文档索引.md`。未合并：`项目踩坑铁律总表.md`、`campus-boundary-verify.html`。
-- ⚠️ 索引称旧文件「移入 `docs/_原始归档/`」，但**该目录实际不存在**，旧文件是被删的 —— 回溯旧内容只能 `git checkout HEAD -- docs/`。
+- **⚠ 编辑操作一律走独立整页 `pkg-admin/admin/edit/index`**（2026-10-06 从抽屉迁出）。URL 契约 `?scope=<kind>&id=&type=&action=&categoryId=`，单页按 `scope` 渲染 13 种表单 + 3 种审核。**旧抽屉已全删，`admin/index.wxml` 里 `form.kind` 残留必须为 0**。保存成功写 `app.globalData.adminEditDone` → 后台 `onShow` 读后清理并 `loadCurrent()`。**两端共用常量在 `admin-edit-meta.js`（改口径只改这里）**。**样式全 scope 共用**（`.form-item`/`.form-label`/`.upload-row`/`.img-grid`/`.color-field`/`.action-bar`）。
+- **`pushGroup` 配色的 `<picker>` 是刻意的**：`PUSH_GROUP_THEME_OPTIONS = ['橙色','绿色','蓝色','紫色','青色']` 是 **5 套预设色系**，不是任意取色 → **不能换成 `color-field`（任意取色器），会破坏语义**。
+- 列表页 `pkg-admin/admin/index.{js,wxml,wxss}`，`activeTab` 切视图（10 个 Tab）；接口封装 `admin.js`，全在 `/api/v1/admin/*`，统一 `auth` + `requireAdmin(permission)`。客户端 `TAB_PERMISSIONS` 只控入口显隐，**服务端才是真源**。**端上无界面**：`/admin/audit-logs`、`/admin/features`。`admin_audit_log` 含 `ip`（已设 `trust proxy`）；限流内存态，cluster 下各实例独立。**时间字段必须用 `fmtDateTime()`** —— API 返回 ISO **UTC**，直接 `slice` 会少 8 小时。
+- **正文标记渲染只走 `components/richtext-content`**（吃 `utils/richtext.js` 的 `parseBlocks`）。`**粗**`/`## 标题`/`{蓝|字}` 是**存储格式**，**`**` 只在编辑框可见——设计如此**。**展示 `detailContent`/`intro`/`notice`/`detail` 都必须接 `richtext-content`**；**`auditNote`/`reviewNote` 是管理员手写纯文本，刻意不走组件**。**`edit/index.wxml` 必须恰好接 5 个 `richtext-editor`**。**`club.intro`/`group_chat.intro` 两条写入链**：后台 `richtext-editor`(1000) **与用户端申请页纯 `textarea`(500)** —— 改存储格式时这 4 列 + 2 申请页一起改。**`group_chat.intro`(群介绍) 与 `notice`(群公告) 是两个字段**。
+- **自定义页面「底部跳转按钮」** `link`/`linkText` 存 `system_content.body` JSON；表单在 `pages/banner-detail`，**与横幅共用同一组输入框（不得被 `!isCard` 挡住）**；用户端统一 `components/page-link-button`。**`loadBanner` 必须读 `raw.link`**（曾硬编码清空）。**「信息推送群」卡片** `iconPath` 同存 body JSON（仅 https、≤255 字）—— 该表单是**扁平 `form.iconPath`/`form.images`（其余挂 `form.meta.*`，唯一例外）**，图片处理函数按 scope 分支，否则写错路径静默丢失。**用户端 `pages/push-groups`（2026-10-06 定稿）：只显示卡片，点卡片弹二维码弹窗（样式对齐 `components/contact-admin` 的 QR 层），二维码取卡片 `images[0]`，主按钮「点击此处即可跳转」走 webview → `web-static/wechat-qr.html?qr=&text=`（个人微信二维码只能进 H5 长按识别）；`push-group-detail` 整页已删。**
+- **⚠ `wx.showModal` 的 `content` 在「多行 + `editable:true`」同时开启时会被裁断**，`editable` 输入框也是单行 —— **凡需完整多行正文或长输入，一律用自定义弹窗**（`.confirm-mask`/`.confirm-card`，正文 `white-space:pre-wrap` + `word-break:break-word`，输入用 `textarea`）。
+- **改后台编辑功能必跑 6 个静态护栏**（audit-fixes / driving-school-module / group-chat-admin-form / push-group-detail / push-group-icon / richtext-editor）—— 按源码字符串断言，迁表单时会指向已删的旧抽屉。**修法：表单/handler 断言指向 `edit/index.{wxml,js}` / `admin-edit-meta.js`，列表页断言保留**。

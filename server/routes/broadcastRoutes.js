@@ -42,7 +42,8 @@ router.get('/pending', async (req, res, next) => {
   }
 })
 
-// 回报发送完成：本条标记已发，同时把更早的滞留待发标记为跳过(2)，机器人不补发旧消息
+// 回报发送完成：本条标记已发；过期的滞留待发（超 30 分钟）标记为跳过(2)，
+// 同一轮的新帖播报与跑腿播报保持待发，机器人 20 秒后逐条领取
 router.post('/:id/sent', async (req, res, next) => {
   try {
     const id = Number(req.params.id) || 0
@@ -51,7 +52,9 @@ router.post('/:id/sent', async (req, res, next) => {
       'UPDATE group_broadcast_log SET group_sent = 1, group_sent_at = NOW() WHERE id = ? AND group_sent = 0',
       [id]
     )
-    await pool.query('UPDATE group_broadcast_log SET group_sent = 2 WHERE group_sent = 0 AND id < ?', [id])
+    await pool.query(
+      'UPDATE group_broadcast_log SET group_sent = 2 WHERE group_sent = 0 AND created_at < DATE_SUB(NOW(), INTERVAL 30 MINUTE)'
+    )
     success(res, { updated: result.affectedRows })
   } catch (e) {
     next(e)

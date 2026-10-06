@@ -14,7 +14,7 @@
 
   <scroll-view class="tabs" scroll-x="true" show-scrollbar="false">
     <view class="tabs-inner">
-      <view wx:for="{{tabs}}" wx:key="key" class="tab {{activeTab === item.key ? 'active' : ''}}" data-key="{{item.key}}" bindtap="switchTab">{{item.name}}</view>
+      <view wx:for="{{tabs}}" wx:key="key" class="tab {{activeTab === item.key ? 'active' : ''}}" data-key="{{item.key}}" bindtap="switchTab">{{item.name}}<text wx:if="{{pendingBadges[item.key] > 0}}" class="tab-badge">{{pendingBadges[item.key] > 99 ? '99+' : pendingBadges[item.key]}}</text></view>
     </view>
   </scroll-view>
 
@@ -72,13 +72,20 @@
       <button hover-class="press-spring" size="mini" class="plain-btn spring-btn" bindtap="goBannerEditor" data-scope="message" hover-stay-time="120">消息通知横幅</button>
       <button hover-class="press-spring" size="mini" class="plain-btn spring-btn" bindtap="goBannerEditor" data-scope="post" hover-stay-time="120">热榜上方横幅</button>
     </view>
+
+    <view class="section-head"><text class="section-title-inline">信息推送群（{{pushGroups.length}}）</text><view class="section-head-side"><button hover-class="press-spring" size="mini" class="primary-mini spring-btn" bindtap="beginPushGroupCreate" hover-stay-time="120">新增卡片</button><text class="section-toggle" data-key="pushGroups" bindtap="toggleSection">{{sectionCollapsed.pushGroups ? '展开 ▼' : '收起 ▲'}}</text></view></view>
+    <block wx:if="{{!sectionCollapsed.pushGroups}}">
+      <view class="config-hint">首页悬浮「微信」按钮打开的「信息推送群」页面在这里维护：每张卡片 = 图标 + 标题 + 描述 + 配色，可再填「卡片正文」（富文本，可加样式、可插图）和「配图」，其中「配图」的第 1 张会作为该卡片的二维码展示。用户点卡片会弹出二维码弹窗（长按图片可识别），弹窗里的「点击此处即可跳转」按下面的「跳转链接」跳转，没填跳转链接时按「复制文本」复制。首次打开时已自动内置 5 张默认卡片，可直接编辑、停用或删除。</view>
+      <view wx:for="{{pushGroups}}" wx:key="id" class="list-card compact-row anim-stagger" style="--i: {{index < 6 ? index : 0}};"><view><text class="row-title"><image wx:if="{{item.iconPath}}" class="row-icon-thumb" src="{{item.iconPath}}" mode="aspectFill"></image>{{item.icon}} {{item.title}}</text><text class="row-sub">{{item.status ? '已启用' : '已停用'}} · 排序 {{item.sortOrder}}<text wx:if="{{item.iconPath}}"> · 图片图标</text><text wx:if="{{item.desc}}"> · {{item.desc}}</text></text></view><view class="row-actions"><text data-id="{{item.id}}" bindtap="beginPushGroupEdit">编辑</text><text data-id="{{item.id}}" bindtap="togglePushGroup">{{item.status ? '停用' : '启用'}}</text><text class="danger" data-id="{{item.id}}" bindtap="deletePushGroup">删除</text></view></view>
+      <view wx:if="{{!pushGroups.length}}" class="empty">暂无卡片，点右上「新增卡片」创建</view>
+    </block>
   </view>
 
   <view wx:if="{{activeTab === 'items'}}"><view class="section-head"><text class="section-title-inline">虚拟物品（{{items.length}}）</text><button hover-class="press-spring" size="mini" class="primary-mini spring-btn" bindtap="beginItemCreate" hover-stay-time="120">新增物品</button></view><view wx:for="{{items}}" wx:key="id" class="list-card compact-row anim-stagger" style="--i: {{index < 6 ? index : 0}};"><view><text class="row-title">{{item.name}}</text><text class="row-sub">￥{{item.price}} · 库存 {{item.stock}} · {{item.status ? '上架' : '下架'}}</text></view><view class="row-actions"><text data-id="{{item.id}}" bindtap="beginItemEdit">编辑</text><text data-id="{{item.id}}" bindtap="toggleItem">{{item.status ? '下架' : '上架'}}</text></view></view><view wx:if="{{!items.length}}" class="empty">暂无虚拟物品</view><view class="section-head"><text class="section-title-inline">校园卡页面（{{campusCards.length}}）</text><view class="section-head-side"><button hover-class="press-spring" size="mini" class="primary-mini spring-btn" bindtap="beginCampusCardCreate" hover-stay-time="120">新增校园卡</button><text class="section-toggle" data-key="campusCard" bindtap="toggleSection">{{sectionCollapsed.campusCard ? '展开 ▼' : '收起 ▲'}}</text></view></view><block wx:if="{{!sectionCollapsed.campusCard}}"><view wx:for="{{campusCards}}" wx:key="id" class="list-card compact-row anim-stagger" style="--i: {{index < 6 ? index : 0}};"><view><text class="row-title">{{item.title}}</text><text class="row-sub">{{item.status ? '已发布' : '已下线（草稿仅管理员可见）'}}<text wx:if="{{item.updatedAtText}}"> · 上次更新 {{item.updatedAtText}}</text></text></view><view class="row-actions"><text data-id="{{item.id}}" bindtap="openCampusCardEditor">编辑</text><text data-id="{{item.id}}" bindtap="toggleCampusCard">{{item.status ? '下线' : '发布'}}</text><text class="danger" data-id="{{item.id}}" bindtap="deleteCampusCard">删除</text></view></view><view wx:if="{{!campusCards.length}}" class="empty">暂无校园卡页面，点右上「新增校园卡」创建</view></block><view class="section-head"><text class="section-title-inline">校园市场页面</text><view class="section-head-side"><text class="section-toggle" data-key="market" bindtap="toggleSection">{{sectionCollapsed.market ? '展开 ▼' : '收起 ▲'}}</text></view></view><block wx:if="{{!sectionCollapsed.market}}"><view class="config-hint">首页宫格「校园市场」页面的四个分类（租赁服务 / 校园数码 / 校园家政 / DIY电脑），每类一张：标题 + 正文 + 图片，普通用户只读。点右侧「编辑/创建页面」进入对应分类的编辑器，保存后即时生效。</view><view wx:for="{{marketPages}}" wx:key="category" class="list-card compact-row anim-stagger" style="--i: {{index < 6 ? index : 0}};"><view><text class="row-title">{{item.name}}</text><text class="row-sub">{{item.page && item.page.title ? item.page.title + ' · ' : ''}}{{item.page && item.page.status ? '已发布' : (item.page ? '已下线（草稿仅管理员可见）' : '尚未创建')}}<text wx:if="{{item.updatedAtText}}"> · 上次更新 {{item.updatedAtText}}</text></text></view><view class="row-actions"><text data-category="{{item.category}}" bindtap="openMarketEditor">{{item.page ? '编辑页面' : '创建页面'}}</text></view></view></block><view class="section-head"><text class="section-title-inline">学车指南页面</text><view class="section-head-side"><text class="section-toggle" data-key="drivingGuide" bindtap="toggleSection">{{sectionCollapsed.drivingGuide ? '展开 ▼' : '收起 ▲'}}</text></view></view><block wx:if="{{!sectionCollapsed.drivingGuide}}"><view class="config-hint">用户端「找驾校」页底部「学车指南」按钮打开的页面，与校园卡页面同款：标题 + 正文 + 图片，普通用户只读。</view><view class="list-card compact-row anim-stagger" style="--i: {{index < 6 ? index : 0}};"><view><text class="row-title">{{drivingGuide.title || '尚未创建指南内容'}}</text><text class="row-sub">{{drivingGuide.status ? '已发布' : '已下线（草稿仅管理员可见）'}}<text wx:if="{{drivingGuide.updatedAtText}}"> · 上次更新 {{drivingGuide.updatedAtText}}</text></text></view><view class="row-actions"><text bindtap="openDrivingGuideEditor">编辑页面</text></view></view></block><view class="section-head"><text class="section-title-inline">校园圈学车页面</text><view class="section-head-side"><text class="section-toggle" data-key="promoLanding" bindtap="toggleSection">{{sectionCollapsed.promoLanding ? '展开 ▼' : '收起 ▲'}}</text></view></view><block wx:if="{{!sectionCollapsed.promoLanding}}"><view class="config-hint">「找驾校」列表页顶部「校园圈学车」横幅点击后打开的页面，与「学车指南」相互独立：标题 + 正文 + 图片，在这里单独编辑，普通用户只读。</view><view class="list-card compact-row anim-stagger" style="--i: {{index < 6 ? index : 0}};"><view><text class="row-title">{{promoLanding.title || '尚未创建页面内容'}}</text><text class="row-sub">{{promoLanding.status ? '已发布' : '已下线（草稿仅管理员可见）'}}<text wx:if="{{promoLanding.updatedAtText}}"> · 上次更新 {{promoLanding.updatedAtText}}</text></text></view><view class="row-actions"><text bindtap="openPromoLandingEditor">编辑页面</text></view></view></block><view class="section-head"><text class="section-title-inline">驾校运营横幅</text><view class="section-head-side"><text class="section-toggle" data-key="drivingPromo" bindtap="toggleSection">{{sectionCollapsed.drivingPromo ? '展开 ▼' : '收起 ▲'}}</text></view></view><block wx:if="{{!sectionCollapsed.drivingPromo}}"><view class="config-hint">「找驾校」列表页顶部那条横幅：主副标题、按钮文字、右侧三个卖点标签和背景图都在这里改。不传背景图时用内置蓝色渐变。</view><view class="form-item"><view class="form-label">主标题（必填，20 字内）</view><input data-key="title" value="{{promoForm.title}}" maxlength="20" placeholder="校园圈学车" bindinput="onPromoInput"/></view><view class="form-item"><view class="form-label">副标题（30 字内）</view><input data-key="sub" value="{{promoForm.sub}}" maxlength="30" placeholder="找驾校 · 比价格 · 看口碑" bindinput="onPromoInput"/></view><view class="form-item"><view class="form-label">按钮文字（12 字内）</view><input data-key="btnText" value="{{promoForm.btnText}}" maxlength="12" placeholder="帮我找驾校" bindinput="onPromoInput"/></view><view class="form-item"><view class="form-label">右侧卖点标签（最多 3 个，每个 6 字内，用「、」分隔）</view><input data-key="tagsText" value="{{promoForm.tagsText}}" maxlength="40" placeholder="离校近、价格低、拿本快" bindinput="onPromoInput"/></view><view class="form-item"><view class="form-label">背景图（选填，建议横图 750×320）</view><view class="upload-row" bindtap="choosePromoImage"><image class="upload-thumb" wx:if="{{promoForm.image}}" src="{{promoForm.image}}" mode="aspectFill"></image><view wx:else class="upload-add">＋ 上传背景图</view></view><view wx:if="{{promoForm.image}}" class="upload-clear" catchtap="clearPromoImage">清除背景图</view></view><view class="switch-row"><text>发布状态（关闭即对用户下线）</text><switch checked="{{promoForm.status}}" bindchange="onPromoStatusSwitch"/></view><view class="form-buttons"><button hover-class="press-spring" size="mini" class="plain-btn spring-btn" bindtap="loadDrivingOps" hover-stay-time="120">重新读取</button><button hover-class="press-spring" size="mini" class="primary-mini spring-btn" loading="{{promoSaving}}" disabled="{{promoSaving}}" bindtap="saveDrivingPromo" hover-stay-time="120">保存横幅</button></view><text class="row-sub" wx:if="{{promoUpdatedAtText}}">上次更新 {{promoUpdatedAtText}}</text></block><view class="section-head"><text class="section-title-inline">驾校筛选标签（{{drivingTags.length}}）</text><view class="section-head-side"><text class="section-toggle" data-key="drivingTags" bindtap="toggleSection">{{sectionCollapsed.drivingTags ? '展开 ▼' : '收起 ▲'}}</text></view></view><block wx:if="{{!sectionCollapsed.drivingTags}}"><view class="config-hint">「筛选」面板里的服务保障选项池，最多 12 个、每个 8 字内；点标签右侧 × 移除，在末尾输入框回车即可新增（可一次粘贴多个，用「、」或逗号分隔）。注意：改了标签名，已保存驾校的旧标签不会自动跟着变，要到「找驾校内容管理」里逐个核对。</view><text class="row-sub" wx:if="{{!drivingTagsSaved}}">下面这些是用户端当前正在显示的内置标签，还没有自定义配置；点保存后即以你这里的为准。</text><text class="row-sub" wx:elif="{{!drivingTags.length}}">已保存为空配置：用户端不再显示「服务保障」这一组筛选。</text><view class="tag-editor"><view class="tag-chip {{item.removing ? 'tag-chip--removing' : ''}}" wx:for="{{drivingTags}}" wx:key="name"><text class="tag-chip-text">{{item.name}}</text><text class="tag-chip-x" catchtap="removeDrivingTag" data-index="{{index}}">×</text></view><input class="tag-input" value="{{drivingTagInput}}" maxlength="40" placeholder="输入后回车添加" confirm-type="done" bindinput="onDrivingTagInput" bindconfirm="addDrivingTags"/></view><view class="form-buttons"><button hover-class="press-spring" size="mini" class="plain-btn spring-btn" bindtap="addDrivingTags" hover-stay-time="120">添加</button><button hover-class="press-spring" size="mini" class="primary-mini spring-btn" loading="{{drivingTagsSaving}}" disabled="{{drivingTagsSaving}}" bindtap="saveDrivingTags" hover-stay-time="120">保存标签</button></view><text class="row-sub" wx:if="{{drivingTagsUpdatedAtText}}">上次更新 {{drivingTagsUpdatedAtText}}</text></block><view class="section-head"><text class="section-title-inline">找驾校内容管理（{{drivingSchools.length}}）</text><view class="section-head-side"><button hover-class="press-spring" size="mini" class="primary-mini spring-btn" bindtap="beginDrivingSchoolCreate" hover-stay-time="120">新增驾校</button><text class="section-toggle" data-key="drivingSchools" bindtap="toggleSection">{{sectionCollapsed.drivingSchools ? '展开 ▼' : '收起 ▲'}}</text></view></view><block wx:if="{{!sectionCollapsed.drivingSchools}}"><view wx:for="{{drivingSchools}}" wx:key="id" class="list-card compact-row anim-stagger" style="--i: {{index < 6 ? index : 0}};"><view><text class="row-title">{{item.name}}</text><text class="row-sub">{{item.campus}}<text wx:if="{{item.region}}"> · {{item.region}}</text> · {{item.status ? '启用中' : '已停用'}} · 排序 {{item.sortOrder}}</text></view><view class="row-actions"><text data-id="{{item.id}}" bindtap="beginDrivingSchoolEdit">编辑</text><text data-id="{{item.id}}" bindtap="toggleDrivingSchool">{{item.status ? '停用' : '启用'}}</text><text class="danger" data-id="{{item.id}}" bindtap="deleteDrivingSchool">删除</text></view></view><view wx:if="{{!drivingSchools.length}}" class="empty">暂无驾校，点右上「新增驾校」创建</view></block><view class="section-head"><text class="section-title-inline">评分对象管理（{{reviewTargetTotal}}）</text><view class="section-head-side"><text class="section-toggle" data-key="reviewTargets" bindtap="toggleSection">{{sectionCollapsed.reviewTargets ? '展开 ▼' : '收起 ▲'}}</text></view></view><block wx:if="{{!sectionCollapsed.reviewTargets}}"><view class="config-hint">用户提交的食堂 / 商圈 / 课程条目都在这里：点行可进入该食堂的窗口（或商圈店铺）列表，单独删除某一道；删除根条目会连带其下全部窗口店铺。删除为软删，到「已删除」里可恢复。</view><view class="review-crumb" wx:if="{{reviewTargetParentId}}"><text class="review-crumb-back" bindtap="backReviewTargets">‹ 返回全部</text><text class="review-crumb-name">{{reviewTargetParentName}}</text></view><view class="mini-tabs filter-tabs" wx:if="{{!reviewTargetParentId}}"><text class="{{reviewTargetCategory === '' ? 'on' : ''}}" data-cat="" bindtap="chooseReviewTargetCategory">全部</text><text class="{{reviewTargetCategory === 'canteen' ? 'on' : ''}}" data-cat="canteen" bindtap="chooseReviewTargetCategory">食堂</text><text class="{{reviewTargetCategory === 'business' ? 'on' : ''}}" data-cat="business" bindtap="chooseReviewTargetCategory">商圈</text><text class="{{reviewTargetCategory === 'course' ? 'on' : ''}}" data-cat="course" bindtap="chooseReviewTargetCategory">课程</text></view><view class="mini-tabs filter-tabs"><text class="{{reviewTargetState === '' ? 'on' : ''}}" data-state="" bindtap="chooseReviewTargetState">未删除</text><text class="{{reviewTargetState === 'deleted' ? 'on' : ''}}" data-state="deleted" bindtap="chooseReviewTargetState">已删除</text></view><view class="toolbar"><input placeholder="搜索条目名称" value="{{reviewTargetKeyword}}" bindinput="onReviewTargetKeyword" confirm-type="search" bindconfirm="searchReviewTargets" /><text bindtap="searchReviewTargets">搜索</text></view><view wx:for="{{reviewTargets}}" wx:key="id" class="list-card compact-row anim-stagger" style="--i: {{index < 6 ? index : 0}};"><view data-id="{{item.id}}" data-name="{{item.name}}" data-category="{{item.category}}" data-parent="{{item.parentId}}" bindtap="openReviewTargetChildren"><text class="row-title">{{item.name}}</text><text class="row-sub">{{item.scopeText}} · {{item.statText}}</text><text class="row-sub">{{item.ownerText}}</text><text class="row-sub review-child" wx:if="{{item.childText}}">{{item.childText}} ›</text></view><view class="row-actions"><text wx:if="{{item.deleted}}" data-id="{{item.id}}" bindtap="restoreReviewTarget">恢复</text><text wx:else class="danger" data-id="{{item.id}}" bindtap="deleteReviewTarget">删除</text></view></view><view wx:if="{{!reviewTargets.length}}" class="empty">{{reviewTargetParentId ? '这个条目下还没有窗口/店铺' : '没有符合条件的评分对象'}}</view><view class="logs-more" wx:if="{{reviewTargetHasMore}}"><button hover-class="press-spring" size="mini" class="plain-btn spring-btn" loading="{{reviewTargetLoading}}" bindtap="loadMoreReviewTargets" hover-stay-time="120">加载更多</button></view><view class="logs-more" wx:elif="{{reviewTargets.length}}"><text class="row-sub">共 {{reviewTargetTotal}} 条，已加载 {{reviewTargets.length}} 条</text></view></block></view>
 <view wx:if="{{activeTab === 'services'}}"><view class="section-head"><text class="section-title-inline">服务宫格（{{services.length}}）</text><view class="section-head-side"><button hover-class="press-spring" size="mini" class="primary-mini spring-btn" bindtap="beginServiceCreate" hover-stay-time="120">新增服务</button><text class="section-toggle" data-key="services" bindtap="toggleSection">{{sectionCollapsed.services ? '展开 ▼' : '收起 ▲'}}</text></view></view><block wx:if="{{!sectionCollapsed.services}}"><view wx:for="{{services}}" wx:key="id" class="list-card compact-row anim-stagger" style="--i: {{index < 6 ? index : 0}};"><view><text class="row-title">{{item.name}}</text><text class="row-sub">{{item.badge}} · 排序 {{item.sortOrder}} · {{item.status ? '上架' : '下架'}}</text></view><view class="row-actions"><text data-id="{{item.id}}" bindtap="beginServiceEdit">编辑</text><text data-id="{{item.id}}" bindtap="toggleService">{{item.status ? '下架' : '上架'}}</text><text data-id="{{item.id}}" bindtap="deleteService">删除</text></view></view><view wx:if="{{!services.length}}" class="empty">暂无服务</view></block></view>
 
   <view wx:if="{{activeTab === 'clubGroup' && subTabs.clubGroup.length > 1}}" class="sub-tabs">
-    <view wx:for="{{subTabs.clubGroup}}" wx:key="key" class="sub-tab {{activeSubTab === item.key ? 'active' : ''}}" data-key="{{item.key}}" bindtap="switchSubTab">{{item.name}}</view>
+    <view wx:for="{{subTabs.clubGroup}}" wx:key="key" class="sub-tab {{activeSubTab === item.key ? 'active' : ''}}" data-key="{{item.key}}" bindtap="switchSubTab">{{item.name}}<text wx:if="{{pendingBadges[item.key] > 0}}" class="tab-badge">{{pendingBadges[item.key] > 99 ? '99+' : pendingBadges[item.key]}}</text></view>
   </view>
 
   <!-- 「群聊」下的两个功能区：群聊信息（群聊列表与类别维护，即原有页面）/ 群聊审核（用户提交的建群申请，自原「审核」菜单迁移） -->
@@ -360,7 +367,7 @@
   </view>
 
   <view wx:if="{{activeTab === 'userAdmin' && subTabs.userAdmin.length > 1}}" class="sub-tabs">
-    <view wx:for="{{subTabs.userAdmin}}" wx:key="key" class="sub-tab {{activeSubTab === item.key ? 'active' : ''}}" data-key="{{item.key}}" bindtap="switchSubTab">{{item.name}}</view>
+    <view wx:for="{{subTabs.userAdmin}}" wx:key="key" class="sub-tab {{activeSubTab === item.key ? 'active' : ''}}" data-key="{{item.key}}" bindtap="switchSubTab">{{item.name}}<text wx:if="{{pendingBadges[item.key] > 0}}" class="tab-badge">{{pendingBadges[item.key] > 99 ? '99+' : pendingBadges[item.key]}}</text></view>
   </view>
 
   <view wx:if="{{activeTab === 'userAdmin' && activeSubTab === 'users'}}"><view class="toolbar"><input placeholder="搜索昵称、手机号或学号" value="{{userKeyword}}" bindinput="onUserKeyword" confirm-type="search" bindconfirm="searchUsers"/><text bindtap="searchUsers">搜索</text></view><view wx:for="{{users}}" wx:key="id" class="list-card compact-row anim-stagger" style="--i: {{index < 6 ? index : 0}};"><view><text class="row-title">{{item.nickName || '未命名用户'}} #{{item.id}}</text><text class="row-sub">{{item.phone || '未绑定手机号'}} · {{item.role}} · {{item.status ? '正常' : '已禁用'}}</text><text class="cert-label-display" wx:if="{{item.certLabel}}">{{item.certLabel}}</text></view><view class="row-actions"><text data-id="{{item.id}}" bindtap="toggleUser">{{item.status ? '禁用' : '启用'}}</text><text data-id="{{item.id}}" bindtap="changeRole">角色</text><text data-id="{{item.id}}" data-certlabel="{{item.certLabel || ''}}" bindtap="editCertLabel">认证</text></view></view></view>
@@ -389,12 +396,42 @@
   </view>
 
   <view wx:if="{{activeTab === 'logs'}}">
-    <!-- 日志内部分段：跑腿订单流程 / 订阅消息发送流水 / 维修信息 -->
+    <!-- 日志内部分段：跑腿订单流程 / 接单完成率 / 订阅消息发送流水 / 维修信息 -->
     <view class="scope-tabs">
       <view class="scope-tab {{logScope === 'errand' ? 'selected' : ''}}" data-scope="errand" bindtap="chooseLogScope">跑腿订单流程</view>
+      <view class="scope-tab {{logScope === 'runner' ? 'selected' : ''}}" data-scope="runner" bindtap="chooseLogScope">接单完成率</view>
       <view class="scope-tab {{logScope === 'subscribe' ? 'selected' : ''}}" data-scope="subscribe" bindtap="chooseLogScope">订阅消息</view>
       <view class="scope-tab {{logScope === 'repair' ? 'selected' : ''}}" data-scope="repair" bindtap="chooseLogScope">维修信息</view>
     </view>
+
+    <!-- 接单完成率 / 冻结名单：冻结是冷却期（默认 7 天）而非永久封禁，可手动解冻 -->
+    <block wx:if="{{logScope === 'runner'}}">
+      <view class="config-hint">冻结规则：完成 + 自身取消满 3 单，且完成率低于 50% 时冻结接单。冻结为冷却期，到期自动恢复；也可在此手动提前解除。</view>
+      <view class="toolbar"><input placeholder="搜索昵称、手机号或用户 ID" value="{{runnerKeyword}}" bindinput="onRunnerKeywordInput" confirm-type="search" bindconfirm="searchRunners"/><text bindtap="searchRunners">搜索</text></view>
+      <scroll-view class="filters" scroll-x="true"><view class="filters-inner">
+        <view class="filter {{runnerOnly === '' ? 'selected' : ''}}" data-only="" bindtap="chooseRunnerOnly">全部</view>
+        <view class="filter {{runnerOnly === 'frozen' ? 'selected' : ''}}" data-only="frozen" bindtap="chooseRunnerOnly">仅被冻结</view>
+      </view></scroll-view>
+      <view wx:for="{{errandRunners}}" wx:key="userId" class="list-card errand-log-card">
+        <view class="errand-log-head">
+          <text class="row-title">#{{item.userId}} {{item.nickName || '未知用户'}}</text>
+          <!-- 三态：已冻结（红）/ 已解冻（蓝，统计仍超标但已放行）/ 正常（绿）。
+               注意不能再用 overThreshold 单独判「待解冻」—— 解冻后完成率并不会变好，
+               overThreshold 恒为真，会把已解冻的账号一直显示成「待解冻」（2026-10-06 实测）。 -->
+          <text class="errand-status st-{{item.frozen ? 'disputed' : (item.unfrozen ? 'frozen-lifted' : 'finished')}}">{{item.frozen ? '已冻结' : (item.unfrozen ? '已解冻' : '正常')}}</text>
+        </view>
+        <text class="errand-flow">完成 {{item.finishedCount}} · 自身取消 {{item.selfCancelCount}} · 完成率 {{item.finishRate}}%</text>
+        <text class="row-sub" wx:if="{{item.frozen && item.frozenUntilText}}">冻结至 {{item.frozenUntilText}}</text>
+        <text class="row-sub" wx:elif="{{item.unfrozen && item.unfrozenAtText}}">已于 {{item.unfrozenAtText}} 解除冻结{{item.unfreezeNote ? ' · ' + item.unfreezeNote : ''}}</text>
+        <!-- 只有「当前确实处于冻结中」才给操作按钮；已解冻的无需再点 -->
+        <view class="runner-actions" wx:if="{{item.frozen}}">
+          <button hover-class="press-spring" size="mini" class="runner-btn runner-btn--danger spring-btn" data-user-id="{{item.userId}}" data-name="{{item.nickName || item.userId}}" data-frozen="{{item.frozen}}" bindtap="unfreezeRunner" hover-stay-time="120">解除冻结</button>
+        </view>
+      </view>
+      <view wx:if="{{!errandRunners.length}}" class="empty">暂无接单记录</view>
+      <view class="logs-more" wx:if="{{runnerHasMore}}"><button hover-class="press-spring" size="mini" class="plain-btn spring-btn" loading="{{runnerLoading}}" bindtap="loadMoreRunners" hover-stay-time="120">加载更多</button></view>
+      <view class="logs-more" wx:elif="{{errandRunners.length}}"><text class="row-sub">已加载全部 {{errandRunners.length}} 条记录</text></view>
+    </block>
 
     <block wx:if="{{logScope === 'errand'}}">
       <view class="toolbar"><input placeholder="搜索标题、订单号或用户昵称" value="{{errandKeyword}}" bindinput="onErrandKeywordInput" confirm-type="search" bindconfirm="searchErrandOrders"/><text bindtap="searchErrandOrders">搜索</text></view>
@@ -614,7 +651,7 @@
   </view>
 
   <view wx:if="{{activeTab === 'review' && subTabs.review.length > 1}}" class="sub-tabs">
-    <view wx:for="{{subTabs.review}}" wx:key="key" class="sub-tab {{activeSubTab === item.key ? 'active' : ''}}" data-key="{{item.key}}" bindtap="switchSubTab">{{item.name}}</view>
+    <view wx:for="{{subTabs.review}}" wx:key="key" class="sub-tab {{activeSubTab === item.key ? 'active' : ''}}" data-key="{{item.key}}" bindtap="switchSubTab">{{item.name}}<text wx:if="{{pendingBadges[item.key] > 0}}" class="tab-badge">{{pendingBadges[item.key] > 99 ? '99+' : pendingBadges[item.key]}}</text></view>
   </view>
 
   <!-- 群聊审核列表已迁移至「群聊/社团 → 群聊 → 群聊审核」，此处仅保留共用详情弹窗 -->
@@ -828,707 +865,22 @@
     <view wx:if="{{!riderVerifications.length}}" class="empty">暂无认证申请</view>
   </view>
 
-  <view wx:if="{{form}}" class="form-mask">
-    <view class="form-card">
-      <view class="form-title">{{form.kind === 'post' ? '编辑帖子' : form.kind === 'content' ? (form.id ? '编辑' : '新增') + contentFormTitle : form.kind === 'chatReview' ? (form.action === 'approve' ? '通过建群申请' : '驳回建群申请') : form.kind === 'activityAudit' ? '驳回活动' : form.kind === 'clubCategory' ? (form.id ? '编辑社团分类' : '新增社团分类') : form.kind === 'club' ? (form.id ? '编辑社团' : '添加社团') : form.kind === 'chatGroup' ? (form.id ? '编辑群聊' : '添加群聊') : form.kind === 'gcCategory' ? (form.id ? '编辑群聊类别' : '新增群聊类别') : form.kind === 'activity' ? '编辑活动' : form.kind === 'service' ? (form.id ? '编辑服务' : '新增服务') : form.kind === 'drivingSchool' ? (form.id ? '编辑驾校' : '新增驾校') : '虚拟物品'}}</view>
-
-      <block wx:if="{{form.kind === 'content'}}">
-        <view class="form-guide">{{contentFormGuide}}</view>
-        <block wx:if="{{form.type === 'notice'}}">
-          <view class="form-item">
-            <view class="form-label">公告文字 <text class="form-req">*</text>（展示在首页顶部公告栏）</view>
-            <input data-key="title" value="{{form.title}}" maxlength="60" placeholder="例如：如果你在使用中遇到问题，请联系我们" bindinput="formInput"/>
-          </view>
-          <view class="form-item">
-            <view class="form-label">右侧链接文字（显示在公告最右侧，默认"点此查看"）</view>
-            <input data-key="meta.linkText" value="{{form.meta.linkText}}" maxlength="12" placeholder="例如：点此查看" bindinput="formInput"/>
-          </view>
-          <view class="form-item">
-            <view class="form-label">跳转页面路径（用户点击右侧链接后跳转到该页面；留空则弹出管理员微信二维码）</view>
-            <input data-key="meta.linkUrl" value="{{form.meta.linkUrl}}" maxlength="100" placeholder="例如：/pages/service-all/index" bindinput="formInput"/>
-          </view>
-          <view class="form-item">
-            <view class="form-label">链接图片（可选；作为公告链接及各页面"添加管理员微信"弹窗展示的图片，建议上传方形二维码图）</view>
-            <view class="upload-row" bindtap="chooseFormImage" data-key="tailImage">
-              <image class="upload-thumb" wx:if="{{form.meta.tailImage}}" src="{{form.meta.tailImage}}" mode="aspectFill"></image>
-              <view wx:else class="upload-add">＋ 上传链接图片</view>
-            </view>
-          </view>
-          <view class="form-item">
-            <view class="form-label">背景颜色（可选；点击弹出颜色选择器，自定义首页公告栏背景）</view>
-            <view class="color-field" bindtap="openContentColorPicker" data-field="bgColor">
-              <view class="color-swatch" style="background: {{form.meta.bgColor || '#fffade'}};"></view>
-              <text class="color-value">{{form.meta.bgColor || '使用默认配色'}}</text>
-              <text class="color-action">选择 ›</text>
-            </view>
-          </view>
-          <view class="form-item">
-            <view class="form-label">文字颜色（可选；公告文字与右侧链接将使用该颜色）</view>
-            <view class="color-field" bindtap="openContentColorPicker" data-field="textColor">
-              <view class="color-swatch" style="background: {{form.meta.textColor || '#646566'}};"></view>
-              <text class="color-value">{{form.meta.textColor || '使用默认配色'}}</text>
-              <text class="color-action">选择 ›</text>
-            </view>
-          </view>
-          <view class="form-item">
-            <view class="form-label">实时预览（保存后首页公告栏按此效果展示）</view>
-            <view class="notice-preview" style="background: {{form.meta.bgColor || '#fffade'}}; color: {{form.meta.textColor || '#646566'}};">
-              <text class="notice-preview-text">{{form.title || '公告文字预览效果'}}</text>
-              <text class="notice-preview-link">{{form.meta.linkText || '点此查看'}}</text>
-              <text class="notice-preview-tail" wx:if="{{form.meta.tailText}}">{{form.meta.tailText}}</text>
-            </view>
-          </view>
-        </block>
-        <block wx:elif="{{form.type === 'tag'}}">
-          <view class="form-item">
-            <view class="form-label">标签名称 <text class="form-req">*</text>（启用后展示在发帖页标签选项中）</view>
-            <input data-key="title" value="{{form.title}}" maxlength="20" placeholder="例如：二手好物" bindinput="formInput"/>
-          </view>
-          <view class="form-item">
-            <view class="form-label">描述正文（可选，可留空）</view>
-            <textarea data-key="body" value="{{form.body}}" placeholder="标签的补充说明，可留空" bindinput="formInput"/>
-          </view>
-          <view class="form-item">
-            <view class="form-label">背景颜色（可选；点击弹出颜色选择器，配置列表将按此颜色展示标签）</view>
-            <view class="color-field" bindtap="openContentColorPicker" data-field="bgColor">
-              <view class="color-swatch" style="background: {{form.meta.bgColor || '#eef4ff'}};"></view>
-              <text class="color-value">{{form.meta.bgColor || '使用默认配色'}}</text>
-              <text class="color-action">选择 ›</text>
-            </view>
-          </view>
-          <view class="form-item">
-            <view class="form-label">文字颜色（可选；点击弹出颜色选择器）</view>
-            <view class="color-field" bindtap="openContentColorPicker" data-field="textColor">
-              <view class="color-swatch" style="background: {{form.meta.textColor || '#4a6b9c'}};"></view>
-              <text class="color-value">{{form.meta.textColor || '使用默认配色'}}</text>
-              <text class="color-action">选择 ›</text>
-            </view>
-          </view>
-          <view class="form-item">
-            <view class="form-label">实时预览（保存后配置列表中的标签按此效果展示）</view>
-            <view class="tag-chip-preview" style="background: {{form.meta.bgColor || '#eef4ff'}}; color: {{form.meta.textColor || '#4a6b9c'}};">{{form.title || '标签预览'}}</view>
-          </view>
-        </block>
-        <block wx:elif="{{form.type === 'banner'}}">
-          <view class="form-item">
-            <view class="form-label">主标题 <text class="form-req">*</text>（展示在首页轮播图上）</view>
-            <input data-key="title" value="{{form.title}}" maxlength="30" placeholder="例如：AI 课表助手" bindinput="formInput"/>
-          </view>
-          <view class="form-item">
-            <view class="form-label">轮播图片 <text class="form-req">*</text>（建议宽高比 16:9，点击图片可更换）</view>
-            <view class="upload-row" bindtap="chooseFormImage" data-key="image">
-              <image class="upload-thumb" wx:if="{{form.meta.image}}" src="{{form.meta.image}}" mode="aspectFill"></image>
-              <view wx:else class="upload-add">＋ 上传轮播图片</view>
-            </view>
-          </view>
-          <view class="form-item">
-            <view class="form-label">内容描述（可选）</view>
-            <input data-key="meta.subtitle" value="{{form.meta.subtitle}}" maxlength="40" placeholder="例如：上传课表截图，自动拆解课程" bindinput="formInput"/>
-          </view>
-          <view class="form-item">
-            <view class="form-label">角标（可选，展示在轮播图角落）</view>
-            <input data-key="meta.tag" value="{{form.meta.tag}}" maxlength="10" placeholder="例如：课表助手" bindinput="formInput"/>
-          </view>
-          <view class="form-item">
-            <view class="form-label">点击跳转路径（可选；小程序内部页面填 /pages/... 路径）</view>
-            <input data-key="meta.link" value="{{form.meta.link}}" placeholder="例如：/pages/schedule/index" bindinput="formInput"/>
-          </view>
-          <view class="form-item">
-            <view class="form-label">主题色（可选；点击弹出颜色选择器，展示在轮播图左上角色条）</view>
-            <view class="color-field" bindtap="openContentColorPicker" data-field="accent">
-              <view class="color-swatch" style="background: {{form.meta.accent || '#4A7AFF'}};"></view>
-              <text class="color-value">{{form.meta.accent || '使用默认主题色'}}</text>
-              <text class="color-action">选择 ›</text>
-            </view>
-          </view>
-          <view class="form-item">
-            <view class="form-label">实时预览（保存后首页轮播按此主题色展示）</view>
-            <view class="banner-accent-preview">
-              <view class="banner-accent-strip" style="background: {{form.meta.accent || '#4A7AFF'}};"></view>
-              <view class="banner-accent-main">
-                <text class="banner-accent-tag" wx:if="{{form.meta.tag}}">{{form.meta.tag}}</text>
-                <text class="banner-accent-title">{{form.title || '主标题预览'}}</text>
-                <text class="banner-accent-sub" wx:if="{{form.meta.subtitle}}">{{form.meta.subtitle}}</text>
-              </view>
-            </view>
-          </view>
-        </block>
-        <block wx:elif="{{form.type === 'publish_banner'}}">
-          <view class="form-item">
-            <view class="form-label">横幅文字 <text class="form-req">*</text>（展示在「发布帖子」「发布跑腿」页顶部）</view>
-            <input data-key="title" value="{{form.title}}" maxlength="40" placeholder="例如：禁止引导私下交易，违规封禁！" bindinput="formInput"/>
-          </view>
-          <view class="form-item">
-            <view class="form-label">预设配色（未设置自定义颜色时生效）</view>
-            <picker mode="selector" range="{{styleNames}}" value="{{form.meta.styleIndex}}" bindchange="onFormStyleChange">
-              <view class="picker-row"><text>颜色</text><text class="picker-value">{{styleNames[form.meta.styleIndex]}} ›</text></view>
-            </picker>
-          </view>
-          <view class="form-item">
-            <view class="form-label">背景颜色（可选；点击弹出颜色选择器，设置后优先于预设配色）</view>
-            <view class="color-field" bindtap="openContentColorPicker" data-field="bgColor">
-              <view class="color-swatch" style="background: {{form.meta.bgColor || '#f0f2f5'}};"></view>
-              <text class="color-value">{{form.meta.bgColor || '跟随预设配色'}}</text>
-              <text class="color-action">选择 ›</text>
-            </view>
-          </view>
-          <view class="form-item">
-            <view class="form-label">文字颜色（可选；点击弹出颜色选择器）</view>
-            <view class="color-field" bindtap="openContentColorPicker" data-field="textColor">
-              <view class="color-swatch" style="background: {{form.meta.textColor || '#f0f2f5'}};"></view>
-              <text class="color-value">{{form.meta.textColor || '跟随预设配色'}}</text>
-              <text class="color-action">选择 ›</text>
-            </view>
-          </view>
-          <view class="form-item">
-            <view class="form-label">实时预览（保存后在发布页顶部按此效果展示）</view>
-            <view class="banner-preview" style="background: {{form.meta.bgColor || styleBg[form.meta.style]}}; color: {{form.meta.textColor || styleFg[form.meta.style]}};">
-              <text class="banner-preview-icon" wx:if="{{form.meta.icon}}">{{form.meta.icon}}</text>
-              <text class="banner-preview-text">{{form.title || '横幅文字预览效果'}}</text>
-            </view>
-          </view>
-          <view class="form-item">
-            <view class="form-label">小图标（emoji，可选，展示在横幅文字前）</view>
-            <input data-key="meta.icon" value="{{form.meta.icon}}" maxlength="4" placeholder="例如：🚫 或 ⚠️" bindinput="formInput"/>
-          </view>
-          <view class="form-item">
-            <view class="form-label">跳转链接（可选；用户点击横幅后跳转，填 /pages/... 页面路径或 https 网页；留空则跳转横幅详情页）</view>
-            <input data-key="meta.link" value="{{form.meta.link}}" maxlength="200" placeholder="例如：/pages/service-all/index" bindinput="formInput"/>
-          </view>
-          <view class="form-item">
-            <view class="form-label">链接文字（可选；详情页底部相关链接的显示文字）</view>
-            <input data-key="meta.linkText" value="{{form.meta.linkText}}" maxlength="20" placeholder="例如：查看详情" bindinput="formInput"/>
-          </view>
-          <view class="form-item">
-            <view class="form-label">详情标题（可选；横幅详情页大标题）</view>
-            <input data-key="meta.detailTitle" value="{{form.meta.detailTitle}}" maxlength="60" placeholder="例如：规范发帖公告" bindinput="formInput"/>
-          </view>
-          <view class="form-item">
-            <view class="form-label">详情内容（可选；横幅详情页正文，换行分段）</view>
-            <textarea data-key="meta.detailContent" value="{{form.meta.detailContent}}" maxlength="2000" placeholder="向用户详细说明横幅内容…" bindinput="formInput"/>
-          </view>
-        </block>
-        <view class="form-item">
-          <view class="form-label">排序（数字越小越靠前）</view>
-          <input data-key="sortOrder" value="{{form.sortOrder}}" type="number" placeholder="0" bindinput="formInput"/>
-        </view>
-      </block>
-
-      <block wx:elif="{{form.kind === 'chatReview'}}">
-        <view class="form-guide">申请群名：{{form.applyName}}（仅支持微信群）</view>
-        <view class="form-item">
-          <view class="form-label">审核意见{{form.action === 'reject' ? '（驳回必填，用户端可见）' : '（选填）'}}</view>
-          <textarea data-key="reviewNote" value="{{form.reviewNote}}" maxlength="200" placeholder="例如：群二维码已过期，请补充有效二维码后再提交" bindinput="formInput"/>
-        </view>
-      </block>
-
-      <block wx:elif="{{form.kind === 'clubReview'}}">
-        <view class="form-guide">申请社团：{{form.applyName}}（审核通过后出现在用户端「社团&组织」的对应分类中）</view>
-        <view class="form-item">
-          <view class="form-label">审核意见{{form.action === 'reject' ? '（驳回必填，用户端可见）' : '（选填）'}}</view>
-          <textarea data-key="reviewNote" value="{{form.reviewNote}}" maxlength="200" placeholder="例如：社团介绍过于简略，请补充社团定位与招新说明后再提交" bindinput="formInput"/>
-        </view>
-      </block>
-
-      <block wx:elif="{{form.kind === 'activityAudit'}}">
-        <view class="form-guide">活动名称：{{form.activityTitle}}</view>
-        <view class="form-item">
-          <view class="form-label">审核意见（驳回必填，发起人在活动详情可见）</view>
-          <textarea data-key="reviewNote" value="{{form.reviewNote}}" maxlength="200" placeholder="例如：活动信息不完整，请补充活动时间与地点后再提交" bindinput="formInput"/>
-        </view>
-      </block>
-
-      <block wx:elif="{{form.kind === 'gcCategory'}}">
-        <view class="form-item">
-          <view class="form-label">类别名称 <text class="form-req">*</text>（展示在用户端群聊宫格与建群申请选择器）</view>
-          <input data-key="name" value="{{form.name}}" maxlength="12" placeholder="例如：学院群" bindinput="formInput"/>
-        </view>
-        <view class="form-item">
-          <view class="form-label">类别描述（宫格卡片副标题，可留空）</view>
-          <input data-key="description" value="{{form.description}}" maxlength="30" placeholder="例如：各学院群聊" bindinput="formInput"/>
-        </view>
-        <view class="form-item">
-          <view class="form-label">排序（数字越小越靠前）</view>
-          <input data-key="sortOrder" value="{{form.sortOrder}}" type="number" placeholder="0" bindinput="formInput"/>
-        </view>
-      </block>
-
-      <block wx:elif="{{form.kind === 'clubCategory'}}">
-        <view class="form-item">
-          <view class="form-label">分类名称 <text class="form-req">*</text>（展示在社团&组织页卡片）</view>
-          <input data-key="name" value="{{form.name}}" maxlength="20" placeholder="例如：艺术类" bindinput="formInput"/>
-        </view>
-        <view class="form-item">
-          <view class="form-label">图标字符（单字，展示在分类卡片的彩色图标上）</view>
-          <input data-key="iconChar" value="{{form.iconChar}}" maxlength="2" placeholder="例如：艺" bindinput="formInput"/>
-        </view>
-        <view class="form-item">
-          <view class="form-label">副标语（卡片第二行文字）</view>
-          <input data-key="slogan" value="{{form.slogan}}" maxlength="30" placeholder="例如：捕捉灵感，创造无限之美" bindinput="formInput"/>
-        </view>
-        <view class="form-item">
-          <view class="form-label">主题色（前端按此颜色自动生成渐变、浅色底与阴影）</view>
-          <view class="color-field" bindtap="openContentColorPicker" data-field="color">
-            <view class="color-swatch" style="background: {{form.meta.color || '#2E6BFF'}};"></view>
-            <text class="color-value">{{form.meta.color || '选择主题色'}}</text>
-            <text class="color-action">选择 ›</text>
-          </view>
-        </view>
-        <view class="form-item">
-          <view class="form-label">分类定位介绍（详情页第一板块）</view>
-          <textarea data-key="position" value="{{form.position}}" maxlength="1000" placeholder="介绍该分类的定位与整体情况…" bindinput="formInput"/>
-        </view>
-        <view class="form-item">
-          <view class="form-label">涵盖范围介绍</view>
-          <input data-key="scopeIntro" value="{{form.scopeIntro}}" maxlength="200" placeholder="对涵盖范围的整体说明" bindinput="formInput"/>
-        </view>
-        <view class="form-item">
-          <view class="form-label">涵盖范围（用顿号或逗号分隔）</view>
-          <textarea data-key="scopeText" value="{{form.scopeText}}" maxlength="500" placeholder="例如：街舞社、民乐团、吉他社、合唱团" bindinput="formInput"/>
-        </view>
-        <view class="form-item">
-          <view class="form-label">特色说明（每行一条，格式：标题|描述）</view>
-          <textarea data-key="featuresText" value="{{form.featuresText}}" maxlength="2000" placeholder="例如：舞台实践|每年承办迎新晚会、校园十佳歌手大赛等大型演出" bindinput="formInput"/>
-        </view>
-        <view class="form-item">
-          <view class="form-label">加入咨询文案（详情页底部展示，可复制）</view>
-          <input data-key="contact" value="{{form.contact}}" maxlength="100" placeholder="例如：艺术类招新咨询：大学生社团联合会" bindinput="formInput"/>
-        </view>
-        <view class="form-item">
-          <view class="form-label">排序（数字越小越靠前）</view>
-          <input data-key="sortOrder" value="{{form.sortOrder}}" type="number" placeholder="0" bindinput="formInput"/>
-        </view>
-      </block>
-
-      <block wx:elif="{{form.kind === 'club'}}">
-        <view class="form-item">
-          <view class="form-label">所属分类</view>
-          <picker mode="selector" range="{{clubCategoryNames}}" value="{{form.categoryIndex}}" bindchange="onClubCategoryChange">
-            <view class="picker-row"><text>分类</text><text class="picker-value">{{clubCategoryNames[form.categoryIndex] || '请选择'}} ›</text></view>
-          </picker>
-        </view>
-        <view class="form-item">
-          <view class="form-label">社团类型（当前仅支持学生社团）</view>
-          <view class="picker-row"><text>类型</text><text class="picker-value">{{form.clubType || '学生社团'}}</text></view>
-        </view>
-        <view class="form-item">
-          <view class="form-label">所属校区（用户端按校区筛选展示；「全部校区」在所有校区可见）</view>
-          <view class="campus-grid">
-            <view wx:for="{{campusOptions}}" wx:key="value" class="campus-option {{form.campus === item.value ? 'campus-option--active' : ''}}" data-value="{{item.value}}" bindtap="onFormCampus">{{item.label}}</view>
-          </view>
-        </view>
-        <view class="form-item">
-          <view class="form-label">社团名称 <text class="form-req">*</text></view>
-          <input data-key="name" value="{{form.name}}" maxlength="30" placeholder="例如：街舞社" bindinput="formInput"/>
-        </view>
-        <view class="form-item">
-          <view class="form-label">社团头像（申请时上传）</view>
-          <view class="upload-row" bindtap="chooseFormImage" data-key="avatarUrl">
-            <image class="upload-thumb" wx:if="{{form.meta.avatarUrl}}" src="{{form.meta.avatarUrl}}" mode="aspectFill"></image>
-            <view wx:else class="upload-add">＋ 上传社团头像</view>
-          </view>
-        </view>
-        <view class="form-item">
-          <view class="form-label">社团二维码（招新群/联系方式）</view>
-          <view class="upload-row" bindtap="chooseFormImage" data-key="qrcodeUrl">
-            <image class="upload-thumb" wx:if="{{form.meta.qrcodeUrl}}" src="{{form.meta.qrcodeUrl}}" mode="aspectFill"></image>
-            <view wx:else class="upload-add">＋ 上传社团二维码</view>
-          </view>
-        </view>
-        <view class="form-item">
-          <view class="form-label">负责人微信二维码</view>
-          <view class="upload-row" bindtap="chooseFormImage" data-key="adminQrcodeUrl">
-            <image class="upload-thumb" wx:if="{{form.meta.adminQrcodeUrl}}" src="{{form.meta.adminQrcodeUrl}}" mode="aspectFill"></image>
-            <view wx:else class="upload-add">＋ 上传负责人微信二维码</view>
-          </view>
-        </view>
-        <view class="form-item">
-          <view class="form-label">公众号二维码（选填）</view>
-          <view class="upload-row" bindtap="chooseFormImage" data-key="gzhQrcodeUrl">
-            <image class="upload-thumb" wx:if="{{form.meta.gzhQrcodeUrl}}" src="{{form.meta.gzhQrcodeUrl}}" mode="aspectFill"></image>
-            <view wx:else class="upload-add">＋ 上传公众号二维码</view>
-          </view>
-        </view>
-        <view class="form-item">
-          <view class="form-label">图片介绍（选填，最多 5 张）</view>
-          <view class="img-grid">
-            <view class="img-item" wx:for="{{form.meta.images}}" wx:key="index">
-              <image class="img-thumb" src="{{item}}" mode="aspectFill" data-url="{{item}}" bindtap="previewChatGroupImage"/>
-              <text class="img-remove" data-index="{{index}}" catchtap="removeChatGroupImage">×</text>
-            </view>
-            <view wx:if="{{form.meta.images.length < 5}}" class="upload-add upload-add--grid" bindtap="addChatGroupImage">＋</view>
-          </view>
-        </view>
-        <view class="form-item">
-          <view class="form-label">标签（用 · 分隔）</view>
-          <input data-key="tags" value="{{form.tags}}" maxlength="60" placeholder="例如：舞蹈 · 演出 · 斗舞赛" bindinput="formInput"/>
-        </view>
-        <view class="form-item">
-          <view class="form-label">社团简介</view>
-          <richtext-editor data-key="intro" value="{{form.intro}}" maxlength="1000" placeholder="社团详细介绍…" bindinput="formInput"></richtext-editor>
-        </view>
-        <view class="form-item">
-          <view class="form-label">招新说明</view>
-          <input data-key="recruit" value="{{form.recruit}}" maxlength="120" placeholder="例如：每年 9 月招新，零基础可加入训练营" bindinput="formInput"/>
-        </view>
-        <view class="form-item">
-          <view class="form-label">排序（数字越小越靠前）</view>
-          <input data-key="sortOrder" value="{{form.sortOrder}}" type="number" placeholder="0" bindinput="formInput"/>
-        </view>
-      </block>
-
-      <block wx:elif="{{form.kind === 'chatGroup'}}">
-        <view class="form-guide">操作指引：① 基础信息里「群聊名称 / 群类别 / 群介绍」为必填；② 群公告与群成员、进群权限按需维护；③ 进群方式选「扫码进群」时必须上传群二维码，否则用户无法进群；④ 打开底部「启用状态」；⑤ 点击「保存{{form.id ? '修改' : '并上架'}}」。下架后用户端「广轻群聊」立即不可见。</view>
-
-        <view class="form-group-title">基础信息</view>
-        <view class="form-item">
-          <view class="form-label">群聊名称 <text class="form-req">*</text><text class="form-counter">{{form.name.length || 0}}/30</text></view>
-          <input data-key="name" value="{{form.name}}" maxlength="30" placeholder="例如：2026 级新生交流群" bindinput="formInput"/>
-        </view>
-        <view class="form-item">
-          <view class="form-label">群类别 <text class="form-req">*</text>（决定用户端「广轻群聊」下的分类归属）</view>
-          <picker mode="selector" range="{{chatCategoryNames}}" value="{{form.categoryIndex}}" bindchange="onChatCategoryChange">
-            <view class="picker-row"><text>类别</text><text class="picker-value">{{chatCategoryNames[form.categoryIndex] || '请选择'}} ›</text></view>
-          </picker>
-        </view>
-        <view class="form-item">
-          <view class="form-label">所属校区（用户端按校区筛选展示；「全部校区」在所有校区可见）</view>
-          <view class="campus-grid campus-grid--triple">
-            <view wx:for="{{campusOptions}}" wx:key="value" class="campus-option {{form.campus === item.value ? 'campus-option--active' : ''}}" data-value="{{item.value}}" bindtap="onFormCampus">{{item.label}}</view>
-          </view>
-        </view>
-        <view class="form-item">
-          <view class="form-label">群介绍 <text class="form-req">*</text>（展示在用户端群聊列表，一句话说清这个群是干什么的）<text class="form-counter">{{form.intro.length || 0}}/300</text></view>
-          <textarea data-key="intro" value="{{form.intro}}" maxlength="300" placeholder="例如：为所有对桌游感兴趣的同学提供尽可能完整的桌游体验" bindinput="formInput"/>
-        </view>
-        <view class="form-item">
-          <view class="form-label">群公告（选填，展示在用户端群详情顶部，写进群须知、活动时间等）<text class="form-counter">{{form.notice.length || 0}}/500</text></view>
-          <richtext-editor data-key="notice" value="{{form.notice}}" maxlength="500" placeholder="例如：进群请先改备注为「年级-专业-昵称」；每周六晚 19:30 在社团活动室固定开局" bindinput="formInput"></richtext-editor>
-        </view>
-
-        <view class="form-group-title">群成员与进群权限</view>
-        <view class="form-config-hint">微信群成员在微信内管理，这里维护的是展示信息与进群规则，用户端群详情会据此提示。</view>
-        <view class="form-item">
-          <view class="form-label">群主 / 负责人（选填，展示在用户端群详情，便于成员知道找谁）<text class="form-counter">{{form.ownerName.length || 0}}/32</text></view>
-          <input data-key="ownerName" value="{{form.ownerName}}" maxlength="32" placeholder="例如：桌游社-小林" bindinput="formInput"/>
-        </view>
-        <view class="form-item">
-          <view class="form-label">群成员数（选填，仅用于展示，留空或 0 则不显示）</view>
-          <input data-key="memberCount" value="{{form.memberCount}}" type="number" maxlength="6" placeholder="例如：200" bindinput="formInput"/>
-        </view>
-        <view class="form-item">
-          <view class="form-label">进群方式（决定用户端「加入方式」区块的文案）</view>
-          <picker mode="selector" range="{{joinModeLabels}}" value="{{form.joinModeIndex}}" bindchange="onChatJoinModeChange">
-            <view class="picker-row"><text>方式</text><text class="picker-value">{{joinModeLabels[form.joinModeIndex]}} ›</text></view>
-          </picker>
-        </view>
-        <label class="switch-row"><text>进群需管理员审核（用户端会提示「进群后请等待管理员审核」）</text><switch checked="{{form.needAudit}}" color="#315CFF" bindchange="formNeedAudit"/></label>
-
-        <view class="form-group-title">展示素材</view>
-        <view class="form-item">
-          <view class="form-label">群头像（用户端列表与详情头像；未上传时按群名首字自动生成）</view>
-          <view class="upload-row" bindtap="chooseFormImage" data-key="avatarUrl">
-            <image class="upload-thumb" wx:if="{{form.meta.avatarUrl}}" src="{{form.meta.avatarUrl}}" mode="aspectFill"></image>
-            <view wx:else class="upload-add">＋ 上传群头像</view>
-          </view>
-          <view class="upload-clear" wx:if="{{form.meta.avatarUrl}}" catchtap="clearFormImage" data-key="avatarUrl">清除群头像</view>
-        </view>
-        <view class="form-item">
-          <view class="form-label">群二维码（用户端群详情「加入方式」展示，可长按保存）<text class="form-req" wx:if="{{joinModeLabels[form.joinModeIndex] === '扫码进群'}}">*</text></view>
-          <view class="upload-row upload-row--qr" bindtap="chooseFormImage" data-key="qrcodeUrl">
-            <image class="upload-thumb upload-thumb--qr" wx:if="{{form.meta.qrcodeUrl}}" src="{{form.meta.qrcodeUrl}}" mode="aspectFill"></image>
-            <view wx:else class="upload-add upload-add--qr">＋ 上传群二维码</view>
-          </view>
-          <view class="upload-clear" wx:if="{{form.meta.qrcodeUrl}}" catchtap="clearFormImage" data-key="qrcodeUrl">清除群二维码</view>
-          <view class="upload-tip" wx:if="{{joinModeLabels[form.joinModeIndex] === '扫码进群' && !form.meta.qrcodeUrl}}">当前进群方式为「扫码进群」，未上传群二维码用户将无法进群，保存时会被拦下。</view>
-        </view>
-        <view class="form-item">
-          <view class="form-label">公众号二维码（选填，用户端群详情「群管理」卡展示）</view>
-          <view class="upload-row upload-row--qr" bindtap="chooseFormImage" data-key="gzhQrcodeUrl">
-            <image class="upload-thumb upload-thumb--qr" wx:if="{{form.meta.gzhQrcodeUrl}}" src="{{form.meta.gzhQrcodeUrl}}" mode="aspectFill"></image>
-            <view wx:else class="upload-add upload-add--qr">＋ 上传公众号二维码</view>
-          </view>
-          <view class="upload-clear" wx:if="{{form.meta.gzhQrcodeUrl}}" catchtap="clearFormImage" data-key="gzhQrcodeUrl">清除公众号二维码</view>
-        </view>
-        <view class="form-item">
-          <view class="form-label">图片介绍（选填，最多 5 张，展示在用户端群聊详情）<text class="form-counter">{{form.meta.images.length || 0}}/5</text></view>
-          <view class="img-grid">
-            <view class="img-item" wx:for="{{form.meta.images}}" wx:key="index">
-              <image class="img-thumb" src="{{item}}" mode="aspectFill" data-url="{{item}}" bindtap="previewChatGroupImage"/>
-              <text class="img-remove" data-index="{{index}}" catchtap="removeChatGroupImage">×</text>
-            </view>
-            <view wx:if="{{form.meta.images.length < 5}}" class="upload-add upload-add--grid" bindtap="addChatGroupImage">＋</view>
-          </view>
-        </view>
-
-        <view class="form-group-title">展示与状态</view>
-        <label class="switch-row"><text>官方群标记（用户端群名右侧展示黑色「官方」徽标）</text><switch checked="{{form.isOfficial}}" color="#315CFF" bindchange="formOfficial"/></label>
-        <view class="form-item">
-          <view class="form-label">自定义标签（除「官方」外可手动输入并添加，展示在群名右侧，如：合作、福利）</view>
-          <view class="tag-input-row">
-            <input class="tag-input" data-key="customTag" value="{{form.customTag}}" maxlength="8" placeholder="输入自定义标签，可留空" bindinput="formInput"/>
-            <view wx:if="{{form.customTag}}" class="custom-tag">{{form.customTag}}</view>
-          </view>
-        </view>
-        <view class="form-item">
-          <view class="form-label">排序（数字越小越靠前，可填负数）</view>
-          <input data-key="sortOrder" value="{{form.sortOrder}}" type="number" placeholder="0" bindinput="formInput"/>
-        </view>
-      </block>
-
-      <block wx:elif="{{form.kind === 'activity'}}">
-        <view class="form-item">
-          <view class="form-label">活动标题 <text class="form-req">*</text></view>
-          <input data-key="title" value="{{form.title}}" maxlength="40" placeholder="活动标题" bindinput="formInput"/>
-        </view>
-        <view class="form-item">
-          <view class="form-label">报名时间（格式 YYYY-MM-DD HH:mm，留空为不限制）</view>
-          <input data-key="signupStart" value="{{form.signupStart}}" placeholder="报名开始，例如 2026-09-12 09:00" bindinput="formInput"/>
-          <input data-key="signupEnd" value="{{form.signupEnd}}" placeholder="报名截止，例如 2026-09-20 18:00" bindinput="formInput"/>
-        </view>
-        <view class="form-item">
-          <view class="form-label">活动时间（格式同上）</view>
-          <input data-key="activityStart" value="{{form.activityStart}}" placeholder="活动开始" bindinput="formInput"/>
-          <input data-key="activityEnd" value="{{form.activityEnd}}" placeholder="活动结束" bindinput="formInput"/>
-        </view>
-        <view class="form-item">
-          <view class="form-label">活动位置</view>
-          <input data-key="location" value="{{form.location}}" maxlength="30" placeholder="例如：体育馆" bindinput="formInput"/>
-        </view>
-        <view class="form-item">
-          <view class="form-label">详细地址</view>
-          <input data-key="address" value="{{form.address}}" maxlength="60" placeholder="详细地址（选填）" bindinput="formInput"/>
-        </view>
-        <view class="form-item">
-          <view class="form-label">所属校区（全部校区 = 所有校区可见）</view>
-          <view class="campus-grid">
-            <view wx:for="{{campusOptions}}" wx:key="value" class="campus-option {{form.campus === item.value ? 'campus-option--active' : ''}}" data-value="{{item.value}}" bindtap="onFormCampus">{{item.label}}</view>
-          </view>
-        </view>
-        <view class="form-item">
-          <view class="form-label">报名名额（0 或留空为不限）</view>
-          <input data-key="capacity" value="{{form.capacity}}" type="number" placeholder="0" bindinput="formInput"/>
-        </view>
-        <view class="form-item">
-          <view class="form-label">封面图片</view>
-          <view class="upload-row" bindtap="chooseFormImage" data-key="coverUrl">
-            <image class="upload-thumb" wx:if="{{form.meta.coverUrl}}" src="{{form.meta.coverUrl}}" mode="aspectFill"></image>
-            <view wx:else class="upload-add">＋ 上传封面图片</view>
-          </view>
-        </view>
-        <view class="form-item">
-          <view class="form-label">详细图片（选填，最多 5 张，与用户端发起活动一致）</view>
-          <view class="img-grid">
-            <view class="img-item" wx:for="{{form.meta.images}}" wx:key="index">
-              <image class="img-thumb" src="{{item}}" mode="aspectFill" data-url="{{item}}" bindtap="previewChatGroupImage"/>
-              <text class="img-remove" data-index="{{index}}" catchtap="removeChatGroupImage">×</text>
-            </view>
-            <view wx:if="{{form.meta.images.length < 5}}" class="upload-add upload-add--grid" bindtap="addChatGroupImage">＋</view>
-          </view>
-        </view>
-        <view class="form-item">
-          <view class="form-label">介绍标题</view>
-          <input data-key="detailTitle" value="{{form.detailTitle}}" maxlength="30" placeholder="详细介绍标题（选填）" bindinput="formInput"/>
-        </view>
-        <view class="form-item">
-          <view class="form-label">介绍内容</view>
-          <richtext-editor data-key="detailContent" value="{{form.detailContent}}" maxlength="2000" placeholder="活动流程、注意事项等…" bindinput="formInput"></richtext-editor>
-        </view>
-        <view class="form-item">
-          <view class="form-label">报名按钮标题</view>
-          <input data-key="signupTitle" value="{{form.signupTitle}}" maxlength="8" placeholder="默认「立即报名」" bindinput="formInput"/>
-        </view>
-        <view class="form-item">
-          <view class="form-label">报名提示内容</view>
-          <textarea data-key="signupContent" value="{{form.signupContent}}" maxlength="200" placeholder="报名成功后向参与者展示的提示（选填）" bindinput="formInput"/>
-        </view>
-      </block>
-
-      <block wx:elif="{{form.kind === 'post'}}">
-        <view class="form-item">
-          <view class="form-label">帖子标题</view>
-          <input data-key="title" value="{{form.title}}" placeholder="标题" bindinput="formInput"/>
-        </view>
-        <view class="form-item">
-          <view class="form-label">分类</view>
-          <input data-key="category" value="{{form.category}}" placeholder="分类" bindinput="formInput"/>
-        </view>
-        <view class="form-item">
-          <view class="form-label">正文</view>
-          <textarea data-key="content" value="{{form.content}}" placeholder="正文" bindinput="formInput"/>
-        </view>
-      </block>
-
-      <block wx:elif="{{form.kind === 'service'}}">
-        <view class="form-item">
-          <view class="form-label">服务名称 <text class="form-req">*</text></view>
-          <input data-key="name" value="{{form.name}}" maxlength="32" placeholder="例如：乘车码" bindinput="formInput"/>
-        </view>
-        <view class="form-item">
-          <view class="form-label">所属分类</view>
-          <picker mode="selector" range="{{serviceCategoryNames}}" value="{{form.categoryIndex}}" bindchange="onServiceCategoryChange">
-            <view class="picker-row"><text>分类</text><text class="picker-value">{{serviceCategoryNames[form.categoryIndex] || '请选择'}} ›</text></view>
-          </picker>
-        </view>
-        <view class="form-item">
-          <view class="form-label">图标 Emoji</view>
-          <input data-key="icon" value="{{form.icon}}" maxlength="4" placeholder="例如：🚌（本地图标可留空）" bindinput="formInput"/>
-        </view>
-        <view class="form-item">
-          <view class="form-label">本地图标路径（可选）</view>
-          <input data-key="iconPath" value="{{form.iconPath}}" placeholder="/assets/icons/xxx.png" bindinput="formInput"/>
-        </view>
-        <view class="form-item">
-          <view class="form-label">角标（可选）</view>
-          <input data-key="badge" value="{{form.badge}}" maxlength="8" placeholder="例如：推荐" bindinput="formInput"/>
-        </view>
-        <view class="form-item">
-          <view class="form-label">外部小程序 AppID（可选）</view>
-          <input data-key="miniAppId" value="{{form.miniAppId}}" maxlength="64" placeholder="wx 开头，跳转小程序优先于链接" bindinput="formInput"/>
-        </view>
-        <view class="form-item">
-          <view class="form-label">H5 链接（可选）</view>
-          <input data-key="link" value="{{form.link}}" placeholder="https:// 或 http://" bindinput="formInput"/>
-        </view>
-        <view class="form-item">
-          <view class="form-label">排序（越小越前）</view>
-          <input data-key="sortOrder" value="{{form.sortOrder}}" type="number" placeholder="0" bindinput="formInput"/>
-        </view>
-      </block>
-      <block wx:elif="{{form.kind === 'drivingSchool'}}">
-        <view class="form-item">
-          <view class="form-label">驾校名称 <text class="form-req">*</text></view>
-          <input data-key="name" value="{{form.name}}" maxlength="64" placeholder="例如：驾顺驾校" bindinput="formInput"/>
-        </view>
-        <view class="form-item">
-          <view class="form-label">校区归属 <text class="form-req">*</text>（用户端仅按两个主校区分类）</view>
-          <picker mode="selector" range="{{drivingSchoolCampusOptions}}" value="{{form.campusIndex}}" bindchange="onDrivingSchoolCampusChange">
-            <view class="picker-row"><text>校区</text><text class="picker-value">{{form.campus || '请选择'}} ›</text></view>
-          </picker>
-        </view>
-        <view class="form-item">
-          <view class="form-label">区域标签（可选，展示在校区后）</view>
-          <input data-key="region" value="{{form.region}}" maxlength="32" placeholder="例如：南海区" bindinput="formInput"/>
-        </view>
-        <view class="form-item">
-          <view class="form-label">训练场地址</view>
-          <input data-key="address" value="{{form.address}}" maxlength="255" placeholder="详细地址" bindinput="formInput"/>
-        </view>
-        <view class="form-item">
-          <view class="form-label">训练场位置（用户端「在地图查看」用，不选则不显示地图入口）</view>
-          <view class="picker-row" bindtap="chooseSchoolLocation">
-            <text>在地图上选点</text>
-            <text class="picker-value">{{form.lat && form.lng ? form.lat + ', ' + form.lng : '未选择 ›'}}</text>
-          </view>
-          <view wx:if="{{form.lat && form.lng}}" class="upload-clear" catchtap="clearSchoolLocation">清除坐标</view>
-        </view>
-        <view class="form-item">
-          <view class="form-label">联系方式（招生电话）</view>
-          <input data-key="phone" value="{{form.phone}}" maxlength="32" placeholder="例如：13380209901" bindinput="formInput"/>
-        </view>
-        <view class="form-item">
-          <view class="form-label">咨询微信昵称（选填，弹窗标题）</view>
-          <input data-key="contactName" value="{{form.contactName}}" maxlength="32" placeholder="例如：驾顺驾校客服" bindinput="formInput"/>
-        </view>
-        <view class="form-item">
-          <view class="form-label">咨询二维码（选填，用户端「立即咨询」直接弹这张）</view>
-          <view class="upload-row" bindtap="chooseSchoolQr">
-            <image class="upload-thumb" wx:if="{{form.contactQr}}" src="{{form.contactQr}}" mode="aspectFill"></image>
-            <view wx:else class="upload-add">＋ 上传二维码</view>
-          </view>
-          <view wx:if="{{form.contactQr}}" class="upload-clear" catchtap="clearSchoolQr">清除二维码</view>
-          <view class="config-hint">不上传则沿用全站管理员微信；上传后用户点「立即咨询」会直接弹出本驾校二维码，长按可识别。</view>
-        </view>
-        <view class="form-item">
-          <view class="form-label">可报名班型/车型</view>
-          <input data-key="carTypes" value="{{form.carTypes}}" maxlength="64" placeholder="例如：C1 C2" bindinput="formInput"/>
-        </view>
-        <view class="form-item">
-          <view class="form-label">价格</view>
-          <input data-key="price" value="{{form.price}}" maxlength="64" placeholder="例如：C1 全包 3200 元" bindinput="formInput"/>
-        </view>
-        <view class="form-item">
-          <view class="form-label">一句话简介</view>
-          <input data-key="intro" value="{{form.intro}}" maxlength="255" placeholder="例如：AAAA 驾校，费用全包，快至 45 天拿证" bindinput="formInput"/>
-        </view>
-        <view class="form-item">
-          <view class="form-label">通过率（0-100）</view>
-          <input data-key="passRate" value="{{form.passRate}}" type="number" placeholder="例如：92" bindinput="formInput"/>
-        </view>
-        <view class="form-item">
-          <view class="form-label">推荐等级</view>
-          <picker mode="selector" range="{{drivingSchoolLevelOptions}}" value="{{form.levelIndex}}" bindchange="onDrivingSchoolLevelChange">
-            <view class="picker-row"><text>等级</text><text class="picker-value">{{form.level || 'A'}} ›</text></view>
-          </picker>
-        </view>
-        <view class="form-item">
-          <view class="form-label">服务保障标签（逗号分隔）</view>
-          <input data-key="tags" value="{{form.tags}}" maxlength="80" placeholder="例如：免费试驾，包考试费，包接送" bindinput="formInput"/>
-          <view class="config-hint">多个标签用「，」「、」或空格分隔；每个标签不超过 16 字，超长会被服务端拒绝并提示（整句话请填到「驾校简介」里）。</view>
-        </view>
-        <view class="form-item">
-          <view class="form-label">距校（km，可选）</view>
-          <input data-key="distanceKm" value="{{form.distanceKm}}" type="digit" placeholder="例如：5.6" bindinput="formInput"/>
-        </view>
-        <view class="form-item">
-          <view class="form-label">封面图（列表卡片左侧，点击更换）</view>
-          <view class="upload-row" bindtap="chooseSchoolCover">
-            <image wx:if="{{form.cover}}" class="upload-thumb" src="{{form.cover}}" mode="aspectFill"></image>
-            <view wx:else class="upload-add">＋ 上传封面图</view>
-          </view>
-          <view wx:if="{{form.cover}}" class="upload-clear" catchtap="clearSchoolCover">清除封面</view>
-        </view>
-        <view class="form-item">
-          <view class="form-label">场地图片（详情页展示，最多 9 张）</view>
-          <view class="img-grid">
-            <view class="img-item" wx:for="{{form.images}}" wx:key="index">
-              <image class="img-thumb" src="{{item}}" mode="aspectFill"></image>
-              <text class="img-remove" data-index="{{index}}" catchtap="removeSchoolImage">×</text>
-            </view>
-            <view wx:if="{{form.images.length < 9}}" class="upload-add upload-add--grid" bindtap="addSchoolImage">＋</view>
-          </view>
-        </view>
-        <view class="form-item">
-          <view class="form-label">驾校概况（长文，详情页优先展示）</view>
-          <richtext-editor data-key="detail" value="{{form.detail}}" maxlength="5000" placeholder="公司简介、场地规模、教练配置等" bindinput="formInput"></richtext-editor>
-        </view>
-        <view class="form-item">
-          <view class="form-label">排序（越小越前）</view>
-          <input data-key="sortOrder" value="{{form.sortOrder}}" type="number" placeholder="0" bindinput="formInput"/>
-        </view>
-      </block>
-      <block wx:else>
-        <view class="form-item">
-          <view class="form-label">物品名称</view>
-          <input data-key="name" value="{{form.name}}" placeholder="物品名称" bindinput="formInput"/>
-        </view>
-        <view class="form-item">
-          <view class="form-label">价格（元）</view>
-          <input data-key="price" value="{{form.price}}" type="digit" placeholder="价格" bindinput="formInput"/>
-        </view>
-        <view class="form-item">
-          <view class="form-label">库存</view>
-          <input data-key="stock" value="{{form.stock}}" type="number" placeholder="库存" bindinput="formInput"/>
-        </view>
-        <view class="form-item">
-          <view class="form-label">封面地址（可选）</view>
-          <input data-key="coverUrl" value="{{form.coverUrl}}" placeholder="封面地址（可选）" bindinput="formInput"/>
-        </view>
-        <view class="form-item">
-          <view class="form-label">物品说明</view>
-          <textarea data-key="description" value="{{form.description}}" placeholder="物品说明" bindinput="formInput"/>
-        </view>
-      </block>
-
-      <label class="switch-row" wx:if="{{form.kind !== 'chatReview' && form.kind !== 'activityAudit'}}"><text>启用状态（关闭即对用户下线）</text><switch checked="{{form.status}}" color="#315CFF" bindchange="formStatus"/></label>
-      <view class="form-buttons" wx:if="{{form.kind !== 'chatReview' && form.kind !== 'activityAudit'}}"><button hover-class="press-spring" class="cancel-btn spring-btn" bindtap="closeForm" hover-stay-time="120">取消</button><button hover-class="press-spring" class="save-btn spring-btn" loading="{{saving}}" bindtap="saveForm" hover-stay-time="120">{{form.kind === 'chatGroup' ? (form.id ? '保存修改' : '创建群聊') : '保存并发布'}}</button></view>
-      <view class="form-buttons" wx:else><button hover-class="press-spring" class="cancel-btn spring-btn" bindtap="closeForm" hover-stay-time="120">取消</button><button hover-class="press-spring" class="save-btn spring-btn" loading="{{saving}}" bindtap="saveForm" hover-stay-time="120">{{form.kind === 'activityAudit' ? '确认驳回' : (form.action === 'approve' ? '确认通过' : '确认驳回')}}</button></view>
-    </view>
-  </view>
-
-  <color-picker show="{{colorPickerShow}}" value="{{colorPickerValue}}" title="{{colorPickerTitle}}" bind:close="onColorPickerClose" bind:confirm="onColorPickerConfirm" />
 
   <view wx:if="{{showCertModal}}" class="form-mask" bindtap="closeCertModal"><view class="form-card" catchtap="noop"><view class="form-title">编辑认证信息</view><input value="{{certDraft}}" placeholder="输入认证标签，留空则清除" maxlength="32" bindinput="onCertInput"/><view class="form-buttons"><button hover-class="press-spring" class="cancel-btn spring-btn" bindtap="closeCertModal" hover-stay-time="120">取消</button><button hover-class="press-spring" class="save-btn spring-btn" loading="{{savingCert}}" bindtap="saveCertLabel" hover-stay-time="120">保存</button></view></view></view>
 
   <view wx:if="{{showAdminModal}}" class="form-mask" bindtap="closeAdminModal"><view class="form-card" catchtap="noop"><view class="form-title">新增管理员</view><text class="form-hint">输入已有用户的 ID / 手机号 / 学号，将其提升为管理员。若匹配到多个用户，请改用用户 ID。</text><input value="{{adminQuery}}" placeholder="用户 ID / 手机号 / 学号" bindinput="onAdminQueryInput"/><picker mode="selector" range="{{adminRoleNames}}" value="{{adminRoleIndex}}" bindchange="onAdminRoleChange"><view class="picker-row"><text>角色</text><text class="picker-value">{{adminRoleNames[adminRoleIndex]}} ›</text></view></picker><view class="form-buttons"><button hover-class="press-spring" class="cancel-btn spring-btn" bindtap="closeAdminModal" hover-stay-time="120">取消</button><button hover-class="press-spring" class="save-btn spring-btn" loading="{{adminSaving}}" bindtap="submitAdminCreate" hover-stay-time="120">确认添加</button></view></view></view>
+
+  <!-- 解除接单冻结：自定义弹窗（wx.showModal 多行 content + editable 会截断显示不全） -->
+  <view wx:if="{{runnerConfirm.show}}" class="confirm-mask" bindtap="closeRunnerConfirm">
+    <view class="confirm-card" catchtap="noop">
+      <view class="confirm-title">解除接单冻结</view>
+      <text class="confirm-text">{{runnerConfirm.text}}</text>
+      <text class="confirm-note">解除后该用户可立即重新接单，历史完成率统计仍会保留。可填写解除原因（选填，会留痕）。</text>
+      <textarea value="{{runnerConfirm.note}}" maxlength="200" placeholder="解除原因（选填，会留痕）" bindinput="onRunnerNoteInput" auto-height="{{false}}"></textarea>
+      <view class="confirm-buttons">
+        <button hover-class="press-spring" class="cancel-btn spring-btn" bindtap="closeRunnerConfirm" hover-stay-time="120">取消</button>
+        <button hover-class="press-spring" class="save-btn spring-btn" loading="{{runnerConfirm.loading}}" disabled="{{runnerConfirm.loading}}" bindtap="submitRunnerConfirm" hover-stay-time="120">确认解除</button>
+      </view>
+    </view>
+  </view>
 </view>

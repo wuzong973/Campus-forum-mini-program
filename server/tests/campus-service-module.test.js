@@ -71,11 +71,13 @@ function dataModuleTests() {
       }
       assert.ok((service.steps || []).length >= 3, name + ' 使用流程应至少 3 步')
       assert.ok((service.tips || []).length >= 3, name + ' 温馨提示应至少 3 条')
-      assert.ok((service.faqs || []).length >= 3, name + ' 常见问题应至少 3 条')
+      // 相关说明已改为「通知原文」形态（如校车时刻：三条通知合并为一条静态说明），条数不再要求 3 条
+      assert.ok((service.faqs || []).length >= 1, name + ' 相关说明应至少 1 条')
       assert.ok(service.info && service.info.title, name + ' 缺少关键信息标题')
       assert.ok(service.info.emptyText, name + ' 关键信息未填写时必须有降级文案')
       for (const faq of service.faqs) {
-        assert.ok(faq.q && faq.a, name + ' 的常见问题缺少问或答')
+        // 相关说明已改为「通知原文」条目（如校车时刻的热线电话），允许只有内容没有答案
+        assert.ok(faq.q, name + ' 的相关说明条目缺少内容')
       }
     }, '内容完整：' + name)
   }
@@ -175,7 +177,7 @@ function pageBehaviorTests() {
       }
       // 校车时刻不配 scenes，页面必须归一化成数组，否则 WXML 里 scenes.length 会炸
       assert.ok(Array.isArray(service.scenes), 'scenes 必须归一化为数组')
-      assert.ok(service.steps.length >= 3 && service.faqs.length >= 3)
+      assert.ok(service.steps.length >= 3 && service.faqs.length >= 1)
       assert.ok(service.faqs.every((item) => item.expanded === false), 'FAQ 默认收起')
       // 可选项必须补成数组，避免 WXML 里出现 undefined.length
       assert.ok(Array.isArray(service.links), 'links 必须归一化为数组')

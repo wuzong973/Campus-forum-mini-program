@@ -2,6 +2,18 @@
   <view class="topbar" style="padding-top: {{statusBarHeight}}px;"><view class="topbar-inner" style="height: {{navBarHeight}}px;"><view class="back-pill spring-btn" hover-class="back-pill-hover press-spring" hover-stay-time="80" bindtap="goBack"><text class="back-pill-icon">‹</text><text>返回</text></view><text class="nav-title">广轻工论坛</text><view class="topbar-right"></view></view></view>
   <view class="nav-space" style="height: {{statusBarHeight + navBarHeight}}px;"></view>
 
+  <!-- 超过 30 分钟免费取消窗口：提前告知要走发单人审批，避免误以为点了就直接取消 -->
+  <view class="card free-window-tip" wx:if="{{role === 'acceptor' && freeWindowExpired}}">
+    <text class="tip-icon">ⓘ</text>
+    <text class="tip-text">接单已超过 30 分钟：本次取消将提交发单人确认，同意后订单才终止；仅接单后 30 分钟内因自身原因可直接取消。</text>
+  </view>
+
+  <!-- 发单方取消已被接单的订单：同样要走接单方审批 -->
+  <view class="card free-window-tip" wx:if="{{role === 'publisher' && orderAccepted}}">
+    <text class="tip-icon">ⓘ</text>
+    <text class="tip-text">该订单已被接单：本次取消需经接单方同意后订单才会终止，赏金将原路退回。请先在「联系接单方」中说明原因，避免产生纠纷。</text>
+  </view>
+
   <!-- 选择原因方 + 取消理由（图五版式，接单方/发单方通用） -->
   <view class="card">
     <text class="section-title"><text class="required">*</text> 选择原因方</text>
@@ -43,8 +55,8 @@
   </view>
   <view class="warm-tip" wx:else>
     <text class="tip-line">温馨提示：
-1、取消订单后，赏金将按原支付路径退回，订单无法恢复；
-2、订单已被接单时取消，请先与接单方沟通说明，避免产生纠纷；
+1、订单未被接单时取消，立即终止，赏金将按原支付路径退回；
+2、订单已被接单时取消，需经接单方同意后订单才终止并退款，请先与接单方沟通说明，避免产生纠纷；
 3、频繁取消订单将影响您的发单信用；
 4、严禁以任何形式引导用户私下交易。</text><text class="tip-link" catchtap="onReportReward">举报领奖</text>
   </view>

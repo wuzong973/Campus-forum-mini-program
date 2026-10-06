@@ -36,6 +36,13 @@
     </view>
   </view>
 
+  <!-- 投票摘要：作者添加了投票组件才显示，点击进详情参与投票（样式对齐参考图：★ + 问题 + 单选/多选） -->
+  <view class="post-poll-summary" wx:if="{{pollSummary}}" catchtap="onViewFull">
+    <text class="poll-summary-star">★</text>
+    <text class="poll-summary-question">{{pollSummary.question}}</text>
+    <text class="poll-summary-mode">{{pollSummary.modeText}}</text>
+  </view>
+
   <view class="post-footer" wx:if="{{showFooter}}">
     <view class="post-topic-meta">
       <view class="campus-tag">{{post.campus || '未设置校区'}}</view>

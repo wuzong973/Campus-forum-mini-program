@@ -104,7 +104,14 @@ def load_config():
     token = cp.get('server', 'bot_token', fallback='')
     # 群名分隔符：英文逗号、中文逗号、顿号、分号都支持（甲方手输容易打中文标点）
     raw_names = cp.get('groups', 'names', fallback='')
-    group_names = [x.strip() for x in re.split(r'[,，、;；]', raw_names) if x.strip()]
+    parsed = [x.strip() for x in re.split(r'[,，、;；]', raw_names) if x.strip()]
+    # 去重（保序）：同名写两遍会让机器人重复发两轮，还会触发搜索误输隐患
+    seen = set()
+    group_names = []
+    for n in parsed:
+        if n not in seen:
+            seen.add(n)
+            group_names.append(n)
     poll_seconds = cp.getint('timing', 'poll_seconds', fallback=20)
     search_wait = cp.getfloat('timing', 'search_wait', fallback=2.0)
     paste_wait = cp.getfloat('timing', 'paste_wait', fallback=1.2)
@@ -159,19 +166,43 @@ def screenshot(win, tag):
         log('  截图失败: %s' % e)
 
 
+def find_session_item(win, name):
+    """在左侧会话列表里按群名**精确**查找会话项（只读检测，不产生任何键盘输入）。
+    必须精确匹配：群名带编号（如「…群6️⃣」）时，前缀匹配会误开成其它编号的群。"""
+    patterns = ['^' + re.escape(name) + '$', '^' + re.escape(name) + r'\s*$']
+    for pattern in patterns:
+        try:
+            item = win.ListItemControl(searchDepth=12, RegexName=pattern)
+            if item.Exists(0.8, 0):
+                return item
+        except Exception:
+            continue
+    return None
+
+
 def open_group(win, name, idx):
-    """Ctrl+F 聚焦企微搜索 -> 输群名 -> 截图看搜索结果 -> 回车打开会话 -> 截图。"""
+    """打开目标群：优先点击左侧会话列表项（零键盘输入，群名不会误发进聊天）；
+    列表里没有时才回退到 Ctrl+F 搜索。"""
     win.SetActive()
     time.sleep(0.3)
+    item = find_session_item(win, name)
+    if item is not None:
+        item.Click(simulateMove=False)
+        time.sleep(0.8)
+        screenshot(win, 'opened_%d' % idx)
+        return
+    # 回退：搜索打开（若 Ctrl+F 未抢到焦点，输入会落进聊天输入框——
+    # 这是历史踩坑「群名被当消息发出去」的成因，故优先走上面的列表点击）
+    log('  会话列表未找到「%s」，回退用搜索打开' % name)
     win.SendKeys('{Ctrl}f')
-    time.sleep(0.5)
+    time.sleep(0.8)
     win.SendKeys(name, interval=0.03)
     time.sleep(SEARCH_WAIT)
     screenshot(win, 'search_%d' % idx)
     win.SendKeys('{Enter}')
     time.sleep(0.8)
     screenshot(win, 'opened_%d' % idx)
-    # 注意：此处不要盲点击窗口其他区域——搜索回车后焦点本就在输入框，
+    # 注意：此处不要盲点击窗口其他区域——打开会话后焦点本就在输入框，
     # 点歪（如点到聊天消息区）会把输入框焦点点没，导致粘贴落空（实测踩坑）。
 
 

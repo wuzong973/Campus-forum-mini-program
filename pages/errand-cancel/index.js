@@ -28,6 +28,8 @@ Page({
     presets: SIDE_PRESETS.self,
     reasonText: '',
     images: [],
+    freeWindowExpired: false,
+    orderAccepted: false,
     submitting: false
   },
 
@@ -43,6 +45,26 @@ Page({
       sides: role === 'publisher' ? ['自身原因', '接单人原因'] : ['自身原因', '发单人原因'],
       presets: role === 'publisher' ? PUBLISHER_SELF_PRESETS : SIDE_PRESETS.self
     })
+    this.loadFreeWindow()
+  },
+
+  // 免费取消窗口 / 是否已被接单：都取自订单详情，与「温馨提示」联动
+  loadFreeWindow() {
+    if (!this.data.id) return
+    const role = this.data.role
+    request.get('/errand/' + this.data.id, {}, true, { silent: true }).then((data) => {
+      const order = data && data.order
+      if (!order) return
+      // 发单人取消：被接单后需接单方同意（与服务端 cancel 口径一致）
+      if (role === 'publisher') {
+        if (order.status === 'accepted') this.setData({ orderAccepted: true })
+        return
+      }
+      if (role !== 'acceptor' || !order.accepted_at) return
+      const acceptedTs = new Date(String(order.accepted_at).replace(' ', 'T')).getTime()
+      const expired = Number.isNaN(acceptedTs) || Date.now() - acceptedTs > 30 * 60 * 1000
+      if (expired) this.setData({ freeWindowExpired: true })
+    }).catch(() => {})
   },
 
   onShow() {
@@ -141,12 +163,17 @@ Page({
       return
     }
     if (this.data.role === 'publisher') {
+      // 已被接单时取消不再是「直接终止」，而是提交给接单方审批 ——
+      // 弹窗文案必须如实说明，否则用户以为点完订单就没了
+      const needReview = !!this.data.orderAccepted
       wx.showModal({
-        title: '确认取消订单',
-        content: '取消后订单将终止，赏金会按原支付路径退回。',
+        title: needReview ? '提交取消申请' : '确认取消订单',
+        content: needReview
+          ? '订单已被接单，需接单方同意后订单才会终止并退还赏金。是否提交申请？'
+          : '取消后订单将终止，赏金会按原支付路径退回。',
         cancelText: '我再想想',
-        confirmText: '确认提交',
-        confirmColor: '#ee4444',
+        confirmText: needReview ? '提交申请' : '确认提交',
+        confirmColor: needReview ? '#347ff2' : '#ee4444',
         success: (r) => {
           if (r.confirm) this.doCancelOrder(reason)
         }
@@ -170,13 +197,19 @@ Page({
     this.doRelease(side, reason)
   },
 
-  // 发布者取消整个订单（赏金原路退回）
+  // 发布者取消整个订单：待接单时直接终止并退款；已被接单时改为提交「取消申请」给接单方审批
   doCancelOrder(reason) {
     this.setData({ submitting: true })
     this.uploadImages().then((images) => {
       const reasonSide = (this._sideKeys || ['self', 'accepter'])[this.data.sideIndex]
       return request.post('/errand/' + this.data.id + '/cancel', { reason, reasonSide, images }, true, { idempotencyKey: 'errand_cancel_' + this.data.id })
     }).then((data) => {
+      if (data && data.mode === 'requested') {
+        // 已被接单：仅提交申请，订单状态不变，等接单方同意
+        wx.showToast({ title: '已提交，等待接单方同意', icon: 'none' })
+        setTimeout(() => wx.navigateBack(), 1200)
+        return
+      }
       errandStatus.publish(this.data.id, 'cancelled')
       wx.showToast({ title: data && data.refundStatus ? '订单已取消，退款处理中' : '订单已取消', icon: 'success' })
       setTimeout(() => wx.navigateBack(), 900)

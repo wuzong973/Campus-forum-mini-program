@@ -7,6 +7,7 @@ const { success, fail } = require("../middleware/auth");
 const { safeMessage, clampPageSize, parseImages } = require("../utils/helpers");
 const { getAccessToken } = require("../utils/wechatToken");
 const { verifyJwAccount } = require("../services/jwScheduleSyncService");
+const { presentComponents } = require("./postController");
 // 默认头像/昵称与旧路径归一化：与 migrations 的历史数据修复共用同一套规则
 const {
   buildDefaultProfile,
@@ -35,9 +36,9 @@ function parseAnonymousIdentity(value) {
   return { nickName, avatarUrl };
 }
 
-function mapProfilePost(item) {
+function mapProfilePost(item, viewerId) {
   const anonymous = parseAnonymousIdentity(item.anonymous_identity);
-  return {
+  const post = {
     id: item.id,
     userId: item.user_id,
     nickName: anonymous ? anonymous.nickName : (item.nick_name || '校园同学'),
@@ -66,9 +67,13 @@ function mapProfilePost(item) {
     // 取不到时按 false 兜底（没有该列的查询，如「已删除帖子」列表，同样安全）。
     isLiked: !!item.isLiked,
     createdAt: item.created_at,
+    // 投票等帖内组件：post-card 的 observers 依赖 post.components，主页/我的帖子漏下发
+    // 会让卡片上的投票整块消失。复用 postController 的渲染视图（含投票人态），缺列安全。
+    components: presentComponents(item.components, viewerId || 0),
     isAnonymous: !!anonymous,
     isDeleted: Number(item.status) === 0,
   };
+  return post;
 }
 
 async function getWechatPhone(phoneCode) {
@@ -275,7 +280,7 @@ exports.getProfilePosts = async (req, res) => {
     ]);
     const total = Number(count[0].total);
     success(res, {
-      list: rows.map(mapProfilePost),
+      list: rows.map((row) => mapProfilePost(row, currentUserId)),
       total,
       page,
       hasMore: offset + rows.length < total,
@@ -296,7 +301,7 @@ exports.getMyDeletedPosts = async (req, res) => {
        LIMIT 50`,
       [req.userId],
     );
-    success(res, { list: rows.map(mapProfilePost) });
+    success(res, { list: rows.map((row) => mapProfilePost(row, req.userId || 0)) });
   } catch (e) {
     fail(res, safeMessage(e), 500);
   }

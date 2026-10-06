@@ -28,7 +28,12 @@ router.post('/:id/release', auth, idempotency, errandController.release)
 router.post('/:id/finish', auth, errandController.finish)
 router.post('/:id/confirm', auth, errandController.confirm)
 router.post('/:id/dispute', auth, contentSecurity, errandController.dispute)
-router.post('/:id/cancel', auth, idempotency, paymentController.cancelErrand)
+// ⚠ 发单人取消必须走 errandController.cancel（含「已被接单 → 需接单方同意」的审批流）。
+// 曾错绑到 paymentController.cancelErrand：那条路直接 UPDATE status='cancelled' + 退款，
+// 既不校验接单方意愿、也不写 errand_order_log、更不计统计，导致
+// 「接单后发单人照样单方面取消」（2026-10-06 实测 order 46/47 静默取消即由此产生）。
+// 退款本身仍由 errandController.cancel 内部调 paymentController.cancelErrandAndRefund 完成。
+router.post('/:id/cancel', auth, idempotency, errandController.cancel)
 router.post('/:id/review', auth, contentSecurity, errandController.review)
 
 module.exports = router

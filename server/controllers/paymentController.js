@@ -12,6 +12,31 @@ const toFen = (amount) => {
   return Number.isFinite(value) && value > 0 ? Math.round(value * 100) : 0
 }
 
+// 订单被置为 cancelled 时补写流水 + 关闭遗留待处理取消申请。
+// 为什么必须有：reserveErrandRefund 是「迟到的支付回调」「管理员裁决退款」等
+// 多条路径的共同下游，一旦它静默把 status 改成 cancelled，订单就看不出是被谁、
+// 因何取消的（2026-10-06 实测 order 29/46/47 只有 accepted 一条流水就变 cancelled）。
+// 幂等：调用方先用 hasCancelLog 判断，避免重复补写。
+async function logCancellation(conn, orderId, actorId, detail) {
+  await conn.query(
+    "INSERT INTO errand_order_log (order_id, actor_id, action, detail) VALUES (?, ?, 'cancelled', ?)",
+    [orderId, actorId || null, String(detail || '订单取消').slice(0, 255)]
+  )
+  // 遗留的待处理取消申请随订单一起关闭，否则会长期停在 pending（孤儿申请）
+  await conn.query(
+    "UPDATE errand_cancel_request SET status = 'rejected', handled_at = NOW() WHERE order_id = ? AND status = 'pending'",
+    [orderId]
+  )
+}
+
+async function hasCancelLog(conn, orderId) {
+  const [[row]] = await conn.query(
+    "SELECT COUNT(*) c FROM errand_order_log WHERE order_id = ? AND action IN ('cancelled','self_cancel','cancel_approved','timeout_cancelled','deadline_cancelled','dispute_approved')",
+    [orderId]
+  )
+  return Number(row && row.c) > 0
+}
+
 async function repairForUser(conn, orderId, userId, lock) {
   const [rows] = await conn.query(
     `SELECT r.*, u.openid, p.id payment_id, p.amount_fen, p.status payment_status, p.merchant_order_no, p.wx_transaction_id, p.paid_at
@@ -227,7 +252,18 @@ async function reserveErrandRefund(orderId, userId) {
     // disputed 一并放行：管理员裁决「异议成立」时会先把订单置为 cancelled 再发起退款，
     // 这里保留 disputed 兜底，避免状态判断把已确认要退款的订单挡在门外。
     if (!order || !['pending', 'accepted', 'cancelled', 'disputed'].includes(order.status)) { await conn.rollback(); return { error: 'Order is not cancellable', code: 409 } }
-    if (order.status !== 'cancelled') await conn.query("UPDATE errand_order SET status = 'cancelled' WHERE id = ?", [order.id])
+    if (order.status !== 'cancelled') {
+      await conn.query("UPDATE errand_order SET status = 'cancelled' WHERE id = ?", [order.id])
+      // 走到这里说明是「退款驱动的取消」（迟到支付回调 / 管理员裁决等），
+      // 业务侧没写过取消流水，这里补一条，保证任何 cancelled 订单都可由流水追溯原因。
+      if (!(await hasCancelLog(conn, order.id))) {
+        await logCancellation(conn, order.id, userId || order.publisher_id, '订单已取消，赏金原路退回')
+      } else {
+        await conn.query("UPDATE errand_cancel_request SET status = 'rejected', handled_at = NOW() WHERE order_id = ? AND status = 'pending'", [order.id])
+      }
+    } else if (!(await hasCancelLog(conn, order.id))) {
+      await logCancellation(conn, order.id, userId || order.publisher_id, '订单已取消，赏金原路退回')
+    }
     if (!order.payment_id || order.transaction_status !== 'SUCCESS') {
       await conn.commit()
       return { order, refund: null }

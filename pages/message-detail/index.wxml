@@ -1,21 +1,15 @@
 <view class="page">
-  <!-- 评论者信息区：圆形头像 + 加粗昵称 + 评论内容（保留原始排版）；真实用户头像可进主页，匿名不可点击 -->
+  <!-- 评论者信息区：圆形头像 + 加粗昵称 + 评论内容（保留原始排版）；此处不可点进用户主页，页面唯一跳转是「查看原帖」 -->
   <view class="actor-card">
-    <view
-      class="actor-head {{canViewProfile ? 'actor-link' : ''}} spring-btn"
-      bindtap="onActorProfile"
-      hover-class="{{canViewProfile ? 'actor-head-hover' : ''}}"
-      hover-stay-time="80"
-    >
+    <view class="actor-head">
       <image class="actor-avatar" src="{{actorAvatar || '/assets/icons/avatar.png'}}" mode="aspectFill" binderror="onAvatarError"></image>
       <view class="actor-info">
         <text class="actor-nick">{{actorNick || '校园同学'}}</text>
         <text class="actor-sub">{{actionTitle}}</text>
       </view>
       <text class="actor-time">{{time}}</text>
-      <text class="actor-arrow" wx:if="{{canViewProfile}}">›</text>
     </view>
-    <text class="actor-content" wx:if="{{content}}">{{content}}</text>
+    <text class="actor-content" wx:if="{{content}}" style="border-left: 6rpx solid #d7dee8; background: #f7f9fc; border-radius: 10rpx; padding: 12rpx 16rpx; margin-top: 20rpx;">{{content}}</text>
     <!-- 评论图片/视频：单图大图展示，多图网格；图片点击可全屏预览 -->
     <view class="actor-media" wx:if="{{mediaItems.length}}">
       <block wx:for="{{mediaItems}}" wx:key="url">

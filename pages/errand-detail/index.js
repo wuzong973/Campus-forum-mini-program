@@ -20,12 +20,15 @@ function toAppointmentText(value) {
 }
 
 // 订单记录动作 → 展示文案（与后端 errand_order_log.action 对应）
+// 订单流水文案：取消申请已改为「谁申请、对方批」的双向流程，同一个 action 双方都会用到。
+// 因此这几条一律写成方向中立的一句话，谁申请/谁同意由服务端写入的 detail 说明；
+// 取值顺序改为 detail 优先（见 showLogs），否则中立文案会把关键上下文盖掉。
 const LOG_LABELS = {
   created: '发布订单，等待同学接单',
   accepted: '同学接单，订单进行中',
-  cancel_requested: '接单方申请取消接单，等待发单人处理',
-  cancel_approved: '发单人同意取消接单，订单已终止，赏金原路退回',
-  cancel_rejected: '发单人拒绝取消接单，订单继续进行',
+  cancel_requested: '有新的取消申请，等待对方处理',
+  cancel_approved: '取消申请已同意，订单已终止，赏金原路退回',
+  cancel_rejected: '取消申请被拒绝，订单继续进行',
   self_cancel: '接单方因自身原因取消接单，订单已终止，赏金原路退回',
   finished: '订单完成',
   cancelled: '发布者取消订单，赏金原路退回',
@@ -133,9 +136,19 @@ Page({
     const status = order ? order.status : ''
     const role = order ? order.role : 'viewer'
     const requestPending = !!(cancelRequest && cancelRequest.status === 'pending' && status === 'accepted')
+    // 取消申请是「谁申请、对方批」：接单方申请 → 发单人处显按钮；发单人申请 → 接单方处显按钮。
+    // 用 requesterId 与订单双方比对（而不是看当前用户是发单人还是接单人），
+    // 否则发单人自己提交的申请会在自己页面上出现「同意取消」按钮，等于单方面取消。
+    const requestByPublisher = requestPending &&
+      Number(cancelRequest.requesterId || cancelRequest.requester_id) ===
+        Number(order && (order.publisherId || order.publisher_id))
+    const canHandleRequest = requestPending &&
+      ((requestByPublisher && role === 'acceptor') || (!requestByPublisher && role === 'publisher'))
     let bottomMode = ''
-    if (status === 'accepted') bottomMode = role === 'acceptor' ? 'acceptor' : (role === 'publisher' ? 'publisher' : '')
-    else if (status === 'finishing') {
+    if (status === 'accepted') {
+      if (role === 'acceptor') bottomMode = requestByPublisher ? 'acceptorReview' : 'acceptor'
+      else if (role === 'publisher') bottomMode = 'publisher'
+    } else if (status === 'finishing') {
       // 接单方已提交完成：发单人看到「提出异议 / 确认完成」，接单方等待发单人确认
       bottomMode = role === 'publisher' ? 'publisherConfirm' : (role === 'acceptor' ? 'acceptorFinishing' : '')
     } else if (status === 'disputed') {
@@ -159,11 +172,17 @@ Page({
       bottomMode,
       guideStep,
       requestPending,
-      canHandleRequest: requestPending && role === 'publisher',
+      requestByPublisher,
+      canHandleRequest,
+      requestRequesterLabel: requestByPublisher ? '发单人' : '接单方',
+      requestReviewerLabel: requestByPublisher ? '接单方' : '发单人',
       // 订单流水与联系方式只对当事人开放（后端 /logs 对第三方直接 403）；
       // 待接单订单的浏览者保留联系入口，点了走 onContact 的「先接单」引导。
       canViewLogs: role !== 'viewer',
       canContact: role === 'publisher' || role === 'acceptor' || status === 'pending',
+      // 隐私信息卡（收件人/电话/楼栋房号等）：接单后仅订单双方可见
+      privacyVisible: !!order && canViewRemark !== false &&
+        ['accepted', 'finishing', 'disputed', 'finished'].indexOf(status) > -1,
       contactPhoneText: this.buildContactPhoneText(order),
       showTakenPopup: showTaken,
       takenAcceptorName: (order && order.acceptorName) || '其他同学',
@@ -239,6 +258,12 @@ Page({
       receiverPhone: order.receiverPhone || order.receiver_phone || '',
       deliveryBuilding: order.deliveryBuilding || order.delivery_building || '',
       deliveryRoom: order.deliveryRoom || order.delivery_room || '',
+      // 发布页「隐私信息」（取件码/门牌号等）：仅订单双方可见，服务端对 viewer 剔除
+      privateInfo: order.privateInfo || order.private_info || '',
+      // 发布页「隐私信息」区上传的图片（仅接单者可见）：与公开 images 完全分开
+      privateImages: Array.isArray(order.privateImages || order.private_images)
+        ? (order.privateImages || order.private_images)
+        : [],
       description: order.description || order.desc || '',
       genderRequirement: order.genderRequirement || order.gender_requirement || '',
       pickupTimeType: order.pickupTimeType || order.pickup_time_type || '尽快',
@@ -445,6 +470,23 @@ Page({
     })
   },
 
+  // 复制隐私信息字段（收件人/电话/地址等）：data-text 由 WXML 传入
+  copyPrivacy(e) {
+    const text = String((e.currentTarget && e.currentTarget.dataset.text) || '').trim()
+    if (!text) return
+    wx.setClipboardData({
+      data: text,
+      success: () => wx.showToast({ title: '已复制', icon: 'none' })
+    })
+  },
+
+  // 拨打隐私信息里的电话（data-phone 由 WXML 传入）
+  onDialPrivacy(e) {
+    const phone = String((e.currentTarget && e.currentTarget.dataset.phone) || '').trim()
+    if (!phone || !/^[\d\-+ ]+$/.test(phone)) return
+    wx.makePhoneCall({ phoneNumber: phone, fail: () => {} })
+  },
+
   previewFinishImage(e) {
     const current = e.currentTarget.dataset.src
     if (!current) return
@@ -455,6 +497,13 @@ Page({
     const current = e.currentTarget.dataset.src
     if (!current) return
     wx.previewImage({ current, urls: this.data.order.orderImages || [] })
+  },
+
+  // 隐私信息图片预览（取件码截图等，仅接单者可见）
+  previewPrivateImage(e) {
+    const current = e.currentTarget.dataset.src
+    if (!current) return
+    wx.previewImage({ current, urls: this.data.order.privateImages || [] })
   },
 
   // 长按图片：统一二维码识别菜单（识别 / 预览），完成凭证图与取消凭证图共用
@@ -471,7 +520,9 @@ Page({
       this.setData({
         logs: list.map((item) => ({
           id: item.id,
-          text: (item.actor_name ? item.actor_name + '　' : '') + (LOG_LABELS[item.action] || item.detail || item.action),
+          // detail 优先：服务端写入的流水已含「谁申请、什么原因、是否同意」，
+          // 比这里的通用文案更准确（双向取消申请尤其依赖它）
+          text: (item.actor_name ? item.actor_name + '　' : '') + (item.detail || LOG_LABELS[item.action] || item.action),
           timeText: toDashText(item.created_at)
         })),
         showLogs: true
@@ -483,21 +534,25 @@ Page({
     this.setData({ showLogs: false })
   },
 
-  // 发单人处理取消接单申请
+  // 处理取消申请（谁申请、对方批）：接单方申请→发单人处理；发单人申请→接单方处理
   respondRequest(e) {
     const request_ = this.data.cancelRequest
     if (!request_ || !this.data.canHandleRequest) return
     const approve = e.currentTarget.dataset.approve === '1'
+    const byPublisher = !!this.data.requestByPublisher
+    const requesterLabel = byPublisher ? '发单人' : '接单方'
     wx.showModal({
-      title: approve ? '同意取消接单' : '拒绝取消接单',
-      content: approve ? '同意后订单将终止，赏金将按原支付路径退回给你。' : '拒绝后订单继续进行，该同学需按要求完成订单。',
+      title: approve ? `同意${requesterLabel}取消` : `拒绝${requesterLabel}取消`,
+      content: approve
+        ? `同意后订单将终止，赏金将按原支付路径退回。`
+        : `拒绝后订单继续进行，${requesterLabel}需按要求完成订单。`,
       cancelText: '再想想',
       confirmText: approve ? '同意取消' : '确认拒绝',
       confirmColor: approve ? '#347ff2' : '#ee4444',
       success: (r) => {
         if (!r.confirm) return
         request.post('/errand/cancel-requests/' + request_.id + '/review', { approve }, true).then(() => {
-          wx.showToast({ title: approve ? '已同意取消接单' : '已拒绝该申请', icon: 'success' })
+          wx.showToast({ title: approve ? '已同意取消' : '已拒绝该申请', icon: 'success' })
           this.loadOrder()
         }).catch(() => {})
       }

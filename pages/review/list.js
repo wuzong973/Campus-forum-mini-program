@@ -24,8 +24,6 @@ Page({
     mode: 'root',
     parentId: 0,
     parentName: '',
-    // child 模式：顶部父条目入口文案（食堂/商圈本身也能单独评分，需要入口进详情）
-    parentEntryText: '',
     childEmptyText: '',
     isCanteen: false,
     // course：学历层次 + 次导航
@@ -96,7 +94,6 @@ Page({
       const floor = decodeURIComponent(options.floor || '')
       data.tabs = REVIEW_FLOORS
       data.activeTab = REVIEW_FLOORS.indexOf(floor) >= 0 ? floor : REVIEW_FLOORS[0]
-      data.parentEntryText = category === 'canteen' ? '看食堂评分与评价 ›' : '看商圈评分与评价 ›'
       data.childEmptyText = category === 'canteen'
         ? '这里还没有窗口，点右下角 ✏️ 添加一个吧'
         : '这里还没有店铺，点右下角 ✏️ 添加一个吧'
@@ -302,12 +299,6 @@ Page({
       return
     }
     wx.navigateTo({ url: '/pages/review/target?id=' + id })
-  },
-
-  // 子级页顶部的父条目入口：食堂/商圈本身也要能单独评分、看评价
-  onParentTap() {
-    if (!this.data.parentId) return
-    wx.navigateTo({ url: '/pages/review/target?id=' + this.data.parentId })
   },
 
   // 发布评分对象（与食堂评价相同的添加方式）

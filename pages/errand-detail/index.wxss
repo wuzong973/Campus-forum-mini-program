@@ -28,7 +28,9 @@
 .contact-icon{font-size:30rpx}
 .finish-desc{font-size:27rpx;color:#4a5a6e;background:#f7f8fa;border-radius:10rpx;padding:16rpx}
 .finish-images{display:flex;flex-wrap:wrap;gap:12rpx;margin-top:16rpx}
-.finish-images image,.request-images image{width:150rpx;height:150rpx;border-radius:10rpx;background:#f0f2f5}
+.finish-images image,.request-images image,.private-images image{width:150rpx;height:150rpx;border-radius:10rpx;background:#f0f2f5}
+/* 隐私信息图片（取件码截图等，仅接单者可见）：单独一行，与公开图区分 */
+.private-images{display:flex;flex-wrap:wrap;gap:12rpx;margin-top:16rpx}
 .request-card{background:#fff;border:1rpx solid #ffe3b8}
 .request-head{display:flex;align-items:center;justify-content:space-between}
 .request-tag{font-size:22rpx;color:#e69329;background:#fff5e2;border-radius:8rpx;padding:4rpx 14rpx}
@@ -158,3 +160,9 @@
 .taken-illus{font-size:180rpx;line-height:1.25}
 .taken-btn{width:100%;margin-top:18rpx;height:88rpx;line-height:88rpx;border-radius:44rpx;background:#347ff2;color:#fff;font-size:30rpx}
 .taken-btn::after{border:0}
+
+/* 隐私信息卡（接单后仅双方可见） */
+.privacy-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8rpx; }
+.privacy-tag { flex-shrink: 0; padding: 2rpx 12rpx; border-radius: 999rpx; background: #eef4fe; color: #3478f6; font-size: 20rpx; }
+.privacy-tip { display: block; margin-top: 14rpx; color: #9aa7b6; font-size: 22rpx; line-height: 1.5; }
+.dial-btn { border-color: #3478f6; background: #3478f6; color: #ffffff; }

@@ -33,10 +33,17 @@ assert.ok(/router\.delete\('\/services\/:id', requireAdmin\('config\.manage'\), 
 const adminApi = read('pkg-admin', 'utils', 'admin.js')
 assert.ok(/services: \(\) => get\('\/services'\)/.test(adminApi) && /createService:/.test(adminApi) && /deleteService:/.test(adminApi), 'admin.js 应有服务方法')
 const adminJs = read('pkg-admin', 'admin', 'index.js')
-assert.ok(/key: 'services'/.test(adminJs) && /loadServices\(\)/.test(adminJs) && /form\.kind === 'service'/.test(adminJs), '后台页应有服务标签/加载/保存接线')
+assert.ok(/key: 'services'/.test(adminJs) && /loadServices\(\)/.test(adminJs), '后台页应有服务标签/加载接线')
 assert.ok(/beginServiceCreate|beginServiceEdit|toggleService|deleteService/.test(adminJs), '后台页应有服务操作方法')
 const adminWxml = read('pkg-admin', 'admin', 'index.wxml')
-assert.ok(/activeTab === 'services'/.test(adminWxml) && /form.kind === 'service'/.test(adminWxml), '后台 WXML 应有服务列表与表单块')
+assert.ok(/activeTab === 'services'/.test(adminWxml), '后台 WXML 应有服务列表块')
+// 服务表单已从抽屉迁到独立编辑页：入口跳转 + 编辑页按 scope 渲染 + 保存校验
+assert.ok(/navigateTo\(\{ url: '\/pkg-admin\/admin\/edit\/index\?scope=service'/.test(adminJs),
+  '后台服务新建/编辑入口应跳独立编辑页')
+const editJs = read('pkg-admin', 'admin', 'edit', 'index.js')
+const editWxml = read('pkg-admin', 'admin', 'edit', 'index.wxml')
+assert.ok(/scope === 'service'/.test(editJs) && /scope === 'service'/.test(editWxml),
+  '独立编辑页应有 service 分支（加载 + 校验 + 表单）')
 
 // ---- L-2 后台销量误导移除 ----
 assert.ok(!/SUM\(sales_count\)/.test(adminCtl), '概览统计不应再 SUM(sales_count)')

@@ -56,10 +56,10 @@
 }
 
 /* 子级页顶部父条目条：当前食堂/商圈 + 进入其详情的入口 */
+/* 子级页顶部：当前所在食堂/商圈名称（容器本身不可评分，仅作层级标识，不可点击） */
 .parent-bar {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 16rpx;
   margin-bottom: 20rpx;
   background: #ffffff;
@@ -68,19 +68,10 @@
   box-shadow: 0 4rpx 14rpx rgba(28, 43, 86, 0.04);
 }
 
-.parent-bar--hover {
-  background: #f7f8fa;
- transform: scale(0.96); box-shadow: inset 0 2rpx 6rpx rgba(16, 32, 64, 0.16), inset 0 -1rpx 2rpx rgba(255, 255, 255, 0.08); }
-
 .parent-bar-name {
   font-size: 30rpx;
   font-weight: 600;
   color: #1f2329;
-}
-
-.parent-bar-link {
-  font-size: 24rpx;
-  color: #576b95;
 }
 
 /* 次导航 */

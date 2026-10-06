@@ -368,6 +368,9 @@
   <view class="float-btn spring-btn" wx:if="{{dailyHotVisible}}" hover-class="float-btn-pressed press-spring" hover-stay-time="120" aria-label="每日热榜" bindtap="onTodayHotTap">
     <text class="iconfont float-icon icon-remen float-icon-hot"></text>
   </view>
+  <view class="float-btn spring-btn" hover-class="float-btn-pressed press-spring" hover-stay-time="120" aria-label="信息推送群" bindtap="goPushGroups">
+    <text class="iconfont float-icon icon-weixin float-icon-wechat"></text>
+  </view>
   <view class="float-btn spring-btn" hover-class="float-btn-pressed press-spring" hover-stay-time="120" aria-label="消息通知" bindtap="goMessages">
     <text class="iconfont float-icon icon-xiaoxi1 float-icon-msg"></text>
     <view class="float-badge" wx:if="{{unreadCount > 0}}">{{unreadCount > 99 ? '99+' : unreadCount}}</view>

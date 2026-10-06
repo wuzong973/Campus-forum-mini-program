@@ -1,0 +1,9 @@
+{
+  "navigationBarTitleText": "编辑",
+  "navigationBarBackgroundColor": "#315CFF",
+  "navigationBarTextStyle": "white",
+  "usingComponents": {
+    "color-picker": "/components/color-picker/index",
+    "richtext-editor": "/components/richtext-editor/richtext-editor"
+  }
+}

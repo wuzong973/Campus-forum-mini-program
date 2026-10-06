@@ -12,11 +12,12 @@ Page({
     isLogin: false,
     isAdmin: false,
     unreadCount: 0,
+    adminPending: 0,
     shortcuts: [
       { icon: '/assets/icons/wallet.png', name: '钱包', route: '/pages/wallet/index', subscribe: 'withdraw' },
       { icon: '/assets/icons/order.png', name: '订单', route: '/pages/errand-order/index', subscribe: 'withdraw' },
       { icon: '/assets/icons/ic-lock-purple.png', name: '黑名单管理', route: '/pages/blacklist/index', iconDark: true },
-      { icon: '/assets/icons/menu.png', name: '管理后台', route: '/pkg-admin/admin/index', adminOnly: true }
+      { icon: '/assets/icons/menu.png', name: '管理后台', route: '/pkg-admin/admin/index', adminOnly: true, adminBadge: true }
     ],
     interactionStats: { liked: 0, shared: 0, commented: 0, favorited: 0 },
     sections: [
@@ -30,10 +31,10 @@ Page({
           { icon: '/assets/icons/star-outline.png', name: '已收藏', route: '/pages/my-interactions/index?type=favorited', stat: 'favorited' }
         ],
         items: [
-          { fontIcon: 'if-tiezi', fontColor: '#4a7aff', name: '我的帖子', route: '/pages/my-posts/index' },
-          { icon: '/assets/icons/heart.png', name: '点赞我的', route: '/pages/my-messages/index?tab=2' },
-          { icon: '/assets/icons/comment.png', name: '评论我的', route: '/pages/my-messages/index?tab=1' },
-          { fontIcon: 'if-xiaoxitongzhi', fontColor: '#4a90f8', name: '消息通知', route: '/pages/my-messages/index?tab=5', badge: 'unread', subscribe: 'message' }
+          { uiIcon: 'post', uiLive: false, name: '我的帖子', route: '/pages/my-posts/index' },
+          { uiIcon: 'like', uiLive: true, name: '点赞我的', route: '/pages/my-messages/index?tab=2' },
+          { uiIcon: 'comment', uiLive: false, name: '评论我的', route: '/pages/my-messages/index?tab=1' },
+          { uiIcon: 'notice', uiLive: true, name: '消息通知', route: '/pages/my-messages/index?tab=5', badge: 'unread', subscribe: 'message' }
         ]
       },
       {
@@ -43,7 +44,7 @@ Page({
           { fontIcon: 'if-gengxingonggao', fontColor: '#faad14', name: '更新公告', route: '/pages/announcements/index' },
           { fontIcon: 'if-guanyuwomen', fontColor: '#52c41a', name: '关于我们', route: '/pages/about/index' },
           { icon: '/assets/icons/rider.png', name: '骑手认证', route: '/pages/rider-verify/index', subscribe: 'riderVerify' },
-          { fontIcon: 'if-gerenzhongxin', fontColor: '#ff7a45', name: '个人中心', route: '/pages/profile-edit/index' }
+          { uiIcon: 'profile', uiLive: false, name: '个人中心', route: '/pages/profile-edit/index' }
         ]
       },
       {
@@ -51,7 +52,7 @@ Page({
         columns: 4,
         items: [
           { fontIcon: 'if-xitongshezhi', fontColor: '#315cff', name: '系统设置', route: '/pages/settings/index' },
-          { fontIcon: 'if-yijian', fontColor: '#12b8a6', name: '意见(必回)', route: '/pages/feedback/index' },
+          { uiIcon: 'feedback', uiLive: true, name: '意见(必回)', route: '/pages/feedback/index' },
           { fontIcon: 'if-lianxikefu', fontColor: '#5e6675', name: '联系客服', type: 'contact' },
           { icon: '/assets/icons/help.png', name: '常见问题', route: '/pages/help/index' }
         ]
@@ -70,8 +71,32 @@ Page({
     })
   },
 
+  onHide() { this.stopAdminPendingPolling() },
+
   onUnload() {
     if (this.unsubscribe) this.unsubscribe()
+    this.stopAdminPendingPolling()
+  },
+
+  // ===== 管理后台入口角标：未处理审核数量 =====
+  // 进入页面拉一次 + 每 30 秒轮询；从管理后台处理完返回时 onShow 会立即刷新。
+  // 数量为 0 时角标整体隐藏；非管理员/接口失败时保持隐藏。
+  startAdminPendingPolling() {
+    this.stopAdminPendingPolling()
+    this.loadAdminPending()
+    if (!this.data.isAdmin) return
+    this._pendingTimer = setInterval(() => this.loadAdminPending(), 30000)
+  },
+
+  stopAdminPendingPolling() {
+    if (this._pendingTimer) { clearInterval(this._pendingTimer); this._pendingTimer = null }
+  },
+
+  loadAdminPending() {
+    if (!this.data.isAdmin) { this.setData({ adminPending: 0 }); return }
+    api.getAdminPendingCount().then((d) => {
+      this.setData({ adminPending: Number(d && d.total) || 0 })
+    }).catch(() => {})
   },
 
   onShow() {
@@ -93,6 +118,7 @@ Page({
     this.loadInteractionStats()
     this.loadMsgBanner()
     this.refreshUserInfo()
+    this.startAdminPendingPolling()
   },
 
   // 本地缓存的头像/昵称可能已过期（比如在别的设备上改过资料），

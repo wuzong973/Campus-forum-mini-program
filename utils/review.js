@@ -135,9 +135,20 @@ function decorateAvatar(item) {
   }
 }
 
-// 列表卡片展示字段拼装
+// 列表卡片展示字段拼装。
+// 根级食堂 / 商圈（非课程）是容器，本身不可评分：不显示分数，计数改为
+// 「有 x 条评论」——x 为其全部档口 / 店铺的评论条数之和（服务端 commentTotal 下发）。
+// 课程与子级档口 / 店铺保持「分数 + x人已评」。
 function decorateTarget(item) {
   const base = decorateAvatar(item)
+  const container = !item.parentId && item.category !== 'course'
+  if (container) {
+    return Object.assign({}, item, base, {
+      scoreText: '',
+      ratedCountText: '有 ' + Number(item.commentTotal || 0) + ' 条评论',
+      hotComment: String(item.hotComment || '').trim()
+    })
+  }
   return Object.assign({}, item, base, {
     scoreText: Number(item.ratingCount || 0) > 0 ? Number(item.ratingAvg || 0).toFixed(1) : '暂无',
     ratedCountText: (Number(item.ratingCount || 0)) + '人已评',

@@ -305,6 +305,10 @@ function sourceGuardTests() {
   const adminWxml = read('pkg-admin/admin/index.wxml')
   const adminJs = read('pkg-admin/admin/index.js')
   const adminWxss = read('pkg-admin/admin/index.wxss')
+  // 群聊编辑表单已从抽屉迁到独立编辑页
+  const editWxml = read('pkg-admin/admin/edit/index.wxml')
+  const editJs = read('pkg-admin/admin/edit/index.js')
+  const editWxss = read('pkg-admin/admin/edit/index.wxss')
   const detailWxml = read('pages/group-chat/detail.wxml')
 
   // 迁移是给存量库补列、init.sql 是全新库建表，两处类型必须一致，
@@ -348,11 +352,11 @@ function sourceGuardTests() {
     ['群头像', 'data-key="avatarUrl"'],
     ['群二维码', 'data-key="qrcodeUrl"'],
     ['公众号二维码', 'data-key="gzhQrcodeUrl"'],
-    ['图片介绍', 'addChatGroupImage']
+    ['图片介绍', 'data-max="5"']
   ]
   for (const [label, needle] of adminFields) {
     check(() => {
-      assert.ok(adminWxml.indexOf(needle) >= 0, '后台群聊表单缺少字段：' + label)
+      assert.ok(editWxml.indexOf(needle) >= 0, '后台群聊表单缺少字段：' + label)
     }, '后台表单字段：' + label)
   }
 
@@ -360,32 +364,35 @@ function sourceGuardTests() {
     // 长表单按四组分区，且分组标题样式存在
     const groups = ['基础信息', '群成员与进群权限', '展示素材', '展示与状态']
     for (const name of groups) {
-      assert.ok(adminWxml.indexOf('class="form-group-title">' + name) >= 0, '缺少分组标题：' + name)
+      assert.ok(editWxml.indexOf('class="form-group-title">' + name) >= 0, '缺少分组标题：' + name)
     }
-    assert.ok(adminWxss.indexOf('.form-group-title') >= 0, '缺少分组标题样式')
+    assert.ok(editWxss.indexOf('.form-group-title') >= 0, '缺少分组标题样式')
   }, '后台表单分组结构')
 
   check(() => {
-    assert.ok(adminJs.indexOf('群成员数只能填写整数') >= 0, '缺少成员数校验')
-    assert.ok(adminJs.indexOf('进群方式为「扫码进群」时请先上传群二维码') >= 0, '缺少二维码条件必填校验')
-    assert.ok(adminJs.indexOf('请选择群类别') >= 0, '缺少类别校验')
-    assert.ok(adminJs.indexOf('请填写群介绍') >= 0, '缺少群介绍校验')
-    assert.ok(adminJs.indexOf('排序需填写整数') >= 0, '缺少排序校验')
+    assert.ok(editJs.indexOf('群成员数只能填写整数') >= 0, '缺少成员数校验')
+    assert.ok(editJs.indexOf('进群方式为「扫码进群」时请先上传群二维码') >= 0, '缺少二维码条件必填校验')
+    assert.ok(editJs.indexOf('请选择群类别') >= 0, '缺少类别校验')
+    assert.ok(editJs.indexOf('请填写群介绍') >= 0, '缺少群介绍校验')
+    assert.ok(editJs.indexOf('排序需填写整数') >= 0, '缺少排序校验')
   }, '后台表单校验完整')
 
   check(() => {
-    assert.ok(adminJs.indexOf('installFormSnapshot') >= 0, '缺少表单快照钩子')
-    assert.ok(adminJs.indexOf('放弃修改') >= 0, '取消时缺少未保存修改确认')
-    assert.match(adminJs, /async closeForm\(\)/, 'closeForm 应改为异步以支持二次确认')
+    // 独立编辑页以快照对比实现「未保存修改」拦截（等价于旧抽屉的 installFormSnapshot）
+    assert.ok(editJs.indexOf('_saveSnapshot') >= 0 && editJs.indexOf('_snapshot') >= 0, '缺少表单快照钩子')
+    assert.ok(editJs.indexOf('放弃修改') >= 0, '取消时缺少未保存修改确认')
+    assert.match(editJs, /onCancel\(\)/, '编辑页取消/返回需接入未保存拦截')
   }, '取消操作有未保存修改确认')
 
   check(() => {
-    assert.ok(adminWxml.indexOf('campus-grid--triple') >= 0, '校区选项应改用三列网格')
-    assert.ok(adminWxss.indexOf('.campus-grid--triple') >= 0, '缺少三列网格样式')
+    assert.ok(editWxml.indexOf('campus-grid--triple') >= 0, '校区选项应改用三列网格')
+    assert.ok(editWxss.indexOf('.campus-grid--triple') >= 0, '缺少三列网格样式')
   }, '校区三项不再错位')
 
   check(() => {
-    assert.ok(adminWxml.indexOf("form.id ? '保存修改' : '创建群聊'") >= 0, '保存按钮文案未区分新建/编辑')
+    // 独立编辑页把文案收敛到 _saveLabel(scope, id)：群聊新建=创建群聊、编辑=保存修改
+    assert.ok(editJs.indexOf("if (scope === 'chatGroup') return id ? '保存修改' : '创建群聊'") >= 0,
+      '保存按钮文案未区分新建/编辑')
   }, '保存按钮文案区分新建与编辑')
 
   check(() => {

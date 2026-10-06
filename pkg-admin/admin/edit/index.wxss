@@ -1,0 +1,88 @@
+/* 独立编辑页样式：整体沿用 `pages/banner-detail` 编辑态的整页表单风格，
+   表单控件样式从 pkg-admin/admin/index.wxss 的 `.form-*` 一节原样搬过来，
+   保证抽屉改整页后控件外观零回归。 */
+
+page { background: #f5f7fa; }
+
+.edit-page { min-height: 100vh; padding: 24rpx 24rpx 180rpx; box-sizing: border-box; background: #f5f7fa; }
+
+.loading { padding: 120rpx 0; color: var(--text-tertiary, #98a2b3); font-size: 26rpx; text-align: center; }
+
+/* 加载失败：给出明确返回入口，避免用户卡在空白页 */
+.load-error { margin-top: 120rpx; text-align: center; }
+.load-error-text { display: block; margin-bottom: 30rpx; color: #e34d4d; font-size: 28rpx; line-height: 1.6; }
+.load-error-btn { display: inline-block; padding: 0 60rpx; line-height: 76rpx; border-radius: 12rpx; background: #315cff; color: #fff; font-size: 28rpx; }
+
+/* ===== 表单骨架 ===== */
+.form-guide { margin-bottom: 24rpx; padding: 16rpx 20rpx; border-radius: 12rpx; background: #eef4ff; color: #4a6b9c; font-size: 23rpx; line-height: 1.6; }
+.form-item { margin-bottom: 24rpx; }
+.form-item .form-label { display: block; margin-bottom: 12rpx; color: #667085; font-size: 25rpx; line-height: 1.5; }
+.form-req { color: #ff5a5f; }
+.form-item input { width: 100%; height: 84rpx; margin-bottom: 0; padding: 0 20rpx; border: 1rpx solid #e4e9f2; border-radius: 12rpx; background: #f8fafc; color: var(--text-primary, #1f2329); font-size: 26rpx; box-sizing: border-box; }
+.form-item textarea { width: 100%; min-height: 140rpx; margin-bottom: 0; padding: 18rpx 20rpx; border: 1rpx solid #e4e9f2; border-radius: 12rpx; background: #f8fafc; color: var(--text-primary, #1f2329); font-size: 26rpx; line-height: 1.6; box-sizing: border-box; }
+.form-item .picker-row { margin-bottom: 0; background: #f8fafc; }
+
+.form-group-title { margin: 34rpx 0 18rpx; padding-left: 18rpx; border-left: 6rpx solid #315cff; color: #1f2a44; font-size: 27rpx; font-weight: 700; line-height: 1.4; }
+.form-config-hint { margin: -4rpx 0 18rpx; padding: 12rpx 18rpx; border-radius: 10rpx; background: #f5f7fb; color: #6b7891; font-size: 22rpx; line-height: 1.55; }
+.form-counter { float: right; margin-left: 12rpx; color: #98a2b3; font-size: 22rpx; font-weight: 400; }
+
+.switch-row { display: flex; align-items: center; justify-content: space-between; margin: 10rpx 0 22rpx; color: var(--text-secondary, #6b7891); font-size: 26rpx; }
+
+.picker-row { display: flex; align-items: center; justify-content: space-between; min-height: 76rpx; margin-bottom: 16rpx; padding: 16rpx; border: 1rpx solid #e4e9f2; border-radius: 12rpx; font-size: 26rpx; color: var(--text-primary, #1f2329); }
+.picker-value { color: var(--text-secondary, #6b7891); }
+
+.config-hint { margin: 0 0 16rpx; padding: 14rpx 18rpx; border-radius: 10rpx; background: #eef4ff; color: #4a6b9c; font-size: 22rpx; line-height: 1.5; }
+
+/* ===== 图片上传 ===== */
+.upload-row { margin-bottom: 16rpx; }
+.upload-thumb { width: 320rpx; height: 180rpx; border-radius: 10rpx; background: #f2f4f8; }
+.upload-add { display: flex; align-items: center; justify-content: center; width: 320rpx; height: 180rpx; border: 1rpx dashed #d9dee8; border-radius: 10rpx; color: var(--text-tertiary, #98a2b3); font-size: 24rpx; }
+.upload-add--grid { width: 150rpx; height: 150rpx; font-size: 40rpx; }
+.upload-thumb--qr, .upload-add--qr { width: 240rpx; height: 240rpx; }
+.upload-clear { display: inline-block; margin: -4rpx 0 6rpx; padding: 8rpx 24rpx; border-radius: 999rpx; background: #fff1f1; color: #d9483b; font-size: 22rpx; }
+.upload-tip { margin-top: 10rpx; padding: 12rpx 18rpx; border-radius: 10rpx; background: #fff8e8; color: #a2732a; font-size: 22rpx; line-height: 1.55; }
+
+.img-grid { display: flex; flex-wrap: wrap; gap: 14rpx; margin-bottom: 16rpx; }
+.img-item { position: relative; width: 150rpx; height: 150rpx; }
+.img-thumb { width: 100%; height: 100%; border-radius: 10rpx; background: #f2f4f8; }
+.img-remove { position: absolute; top: -12rpx; right: -12rpx; width: 36rpx; height: 36rpx; display: flex; align-items: center; justify-content: center; border-radius: 50%; background: rgba(0, 0, 0, 0.55); color: #fff; font-size: 26rpx; line-height: 1; }
+
+/* ===== 颜色字段 + 实时预览 ===== */
+.color-field { display: flex; align-items: center; gap: 16rpx; min-height: 76rpx; padding: 14rpx 20rpx; border: 1rpx solid #e4e9f2; border-radius: 12rpx; background: #f8fafc; box-sizing: border-box; }
+.color-swatch { flex-shrink: 0; width: 44rpx; height: 44rpx; border: 1rpx solid rgba(0, 0, 0, .08); border-radius: 8rpx; }
+.color-value { flex: 1; min-width: 0; overflow: hidden; color: var(--text-primary, #1f2329); font-size: 25rpx; white-space: nowrap; text-overflow: ellipsis; }
+.color-action { flex-shrink: 0; color: var(--text-secondary, #6b7891); font-size: 24rpx; }
+.banner-preview { display: flex; align-items: center; gap: 12rpx; min-height: 72rpx; padding: 0 24rpx; border-radius: 36rpx; font-size: 26rpx; box-sizing: border-box; }
+.banner-preview-icon { flex-shrink: 0; }
+.banner-preview-text { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.tag-chip-preview { display: inline-block; padding: 12rpx 32rpx; border-radius: 999rpx; font-size: 26rpx; font-weight: 500; }
+.notice-preview { display: flex; align-items: center; gap: 16rpx; min-height: 72rpx; padding: 16rpx 22rpx; border-radius: 14rpx; box-sizing: border-box; }
+.notice-preview-text { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 24rpx; }
+.notice-preview-link { flex-shrink: 0; margin-left: -8rpx; color: #3478f6; font-size: 24rpx; font-weight: 600; }
+.notice-preview-tail { flex-shrink: 0; padding: 4rpx 14rpx; border-radius: 999rpx; background: rgba(0, 0, 0, .06); font-size: 20rpx; }
+.banner-accent-preview { display: flex; align-items: stretch; gap: 16rpx; padding: 20rpx; border: 1rpx solid #e4e9f2; border-radius: 12rpx; background: #f8fafc; box-sizing: border-box; }
+.banner-accent-strip { flex-shrink: 0; width: 10rpx; border-radius: 6rpx; background: #4A7AFF; }
+.banner-accent-main { flex: 1; min-width: 0; }
+.banner-accent-tag { display: inline-block; margin-bottom: 6rpx; padding: 2rpx 12rpx; border-radius: 6rpx; background: rgba(74, 122, 255, .12); color: #4A7AFF; font-size: 20rpx; }
+.banner-accent-title { display: block; overflow: hidden; color: var(--text-primary, #1f2329); font-size: 27rpx; font-weight: 600; white-space: nowrap; text-overflow: ellipsis; }
+.banner-accent-sub { display: block; margin-top: 4rpx; overflow: hidden; color: var(--text-secondary, #6b7891); font-size: 22rpx; white-space: nowrap; text-overflow: ellipsis; }
+
+/* ===== 校区 / 标签 ===== */
+.campus-grid { margin-top: 14rpx; display: grid; grid-template-columns: repeat(2, 1fr); gap: 18rpx; }
+.campus-grid--triple { grid-template-columns: repeat(3, 1fr); }
+.campus-option { height: 80rpx; border-radius: 12rpx; background: #f2f3f5; border: 3rpx solid transparent; color: var(--text-secondary, #4a5468); font-size: 26rpx; font-weight: 600; display: flex; align-items: center; justify-content: center; transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease; }
+.campus-option--active { background: #eef4ff; border-color: #315cff; color: #315cff; }
+.tag-input-row { display: flex; align-items: center; gap: 16rpx; }
+.tag-input { flex: 1; min-width: 200rpx; height: 56rpx; padding: 0 20rpx; border: 1rpx dashed #cdd8ea; border-radius: 999rpx; background: #fff; color: var(--text-primary, #1f2329); font-size: 24rpx; box-sizing: border-box; }
+.custom-tag { margin-left: 12rpx; font-size: 20rpx; font-weight: 600; color: #2e6bff; background: rgba(46, 107, 255, 0.10); border-radius: 8rpx; padding: 3rpx 10rpx; vertical-align: middle; }
+
+/* ===== 底部固定操作条（对应抽屉原来的 .form-buttons） ===== */
+.action-bar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 9; display: flex; gap: 20rpx; padding: 18rpx 24rpx calc(18rpx + env(safe-area-inset-bottom)); background: #fff; box-shadow: 0 -4rpx 20rpx rgba(33, 55, 88, .08); }
+.action-btn { flex: 1; height: 88rpx; display: flex; align-items: center; justify-content: center; border-radius: 12rpx; font-size: 30rpx; font-weight: 600; }
+.action-cancel { background: #f2f3f5; color: var(--text-primary, #1f2329); }
+.action-save { background: #315cff; color: #fff; }
+
+/* 弹簧按压动效：与全站 `.spring-btn` 契约一致（必须含 transform: scale(0.96)，
+   否则 press-spring-shared.test.js 会失败） */
+.spring-btn { transition: transform .12s cubic-bezier(.4, 0, .2, 1), opacity .12s ease; }
+.press-spring { transform: scale(0.96); opacity: .88; }

@@ -35,6 +35,7 @@
     "pages/post-detail/index",
     "pages/hot-rank/index",
     "pages/share/index",
+    "pages/push-groups/index",
     "pages/poster/index",
     "pages/chat/index",
     "pages/profile/index",
@@ -68,7 +69,7 @@
   "subPackages": [
     {
       "root": "pkg-admin",
-      "pages": ["admin/index"]
+      "pages": ["admin/index", "admin/edit/index"]
     },
   {
     "root": "pkg-schedule",

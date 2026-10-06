@@ -118,6 +118,9 @@ function presentComponents(components, userId) {
   });
 }
 
+// 供 userController.mapProfilePost 复用：主页帖子卡片也要下发投票等组件的渲染视图
+exports.presentComponents = presentComponents;
+
 function mapPost(r, userId, includeContact = false) {
   const anonymousIdentity = parseAnonymousIdentity(r.anonymous_identity);
   const post = {

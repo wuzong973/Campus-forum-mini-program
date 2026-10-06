@@ -85,6 +85,8 @@ const fakePool = {
     const text = String(sql).replace(/\s+/g, ' ').trim()
     SQL_LOG.push({ sql: text, params: params || [] })
     if (/SELECT id, user_id, title FROM forum_post WHERE id = \?/.test(text)) return [[POST_ROW]]
+    // 评论插入返回真实 insertId：通知的来源评论锚点就是它
+    if (/^INSERT INTO forum_comment/.test(text)) return [{ insertId: 777 }]
     if (/SELECT id, nick_name, avatar_url FROM sys_user WHERE id = \?/.test(text)) {
       return [[{ id: COMMENTER_ID, nick_name: '小明', avatar_url: '/assets/avatar2/avatar_02.jpg' }]]
     }
@@ -162,6 +164,8 @@ async function main() {
       assert.strictEqual(authorNotif.type, 'comment', '作者收到的是 comment 类型')
       assert.strictEqual(authorNotif.relatedId, POST_ID, '通知应关联原帖')
       assert.strictEqual(authorNotif.postTitle, POST_ROW.title, '通知应带帖子标题快照')
+      assert.strictEqual(authorNotif.sourceCommentId, 777,
+        'comment 通知必须带来源评论 id，否则点消息进原帖定不了位（前端锚点/高亮/配色全靠它）')
     }, '作者收到评论通知')
 
     check(() => {
@@ -171,6 +175,9 @@ async function main() {
       assert.strictEqual(squatNotif.title, '你蹲的帖子有新评论')
       assert.strictEqual(squatNotif.relatedId, POST_ID)
       assert.strictEqual(squatNotif.actorNick, '小明', '通知应带评论者昵称')
+      // 与作者那条指向同一条评论（都是 777）：唯一键必须含 user_id，否则 fan-out 的
+      // 第二个收件人会被 ER_DUP_ENTRY 静默吞掉（迁移侧护栏见 1b）
+      assert.strictEqual(squatNotif.sourceCommentId, 777, '蹲贴通知应指向同一条评论')
     }, '蹲贴者收到蹲贴通知')
 
     check(() => {
@@ -179,6 +186,22 @@ async function main() {
         '作者不应同时收到 comment 与 follow 两条重复通知')
       assert.strictEqual(notifications.filter((n) => n.userId === AUTHOR_ID).length, 1, '作者只应收到 1 条')
     }, '去重与自我排除')
+  }
+
+  // ===== 1b) 唯一键范围护栏（读 migrations.js 原文）=====
+  {
+    const fs = require('fs')
+    const migrations = fs.readFileSync(path.join(__dirname, '..', 'utils', 'migrations.js'), 'utf8')
+    check(() => {
+      assert.ok(
+        !/ensureUniqueIndex\('system_notification', 'uk_notification_source_comment', '\(source_comment_id\)'\)/.test(migrations),
+        'uk_notification_source_comment 不得再按单列 (source_comment_id) 建：会吞掉同一条评论的多个收件人通知'
+      )
+      assert.ok(
+        /ensureUniqueIndexColumns\(\s*'system_notification',\s*'uk_notification_source_comment',\s*\[\s*'user_id',\s*'type',\s*'source_comment_id'\s*\]/.test(migrations),
+        '唯一键应扩成 (user_id, type, source_comment_id)，并按列集合重建（ensureUniqueIndex 只认索引名、改了定义不会重建）'
+      )
+    }, '来源评论唯一键范围')
   }
 
   // ===== 2) 切换蹲贴：明细表 + 计数器双写 =====

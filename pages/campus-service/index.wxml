@@ -129,9 +129,10 @@
       <view class="faq-item" wx:for="{{service.faqs}}" wx:key="q">
         <view class="faq-q" data-index="{{index}}" bindtap="onToggleFaq">
           <text class="faq-q-text">{{item.q}}</text>
-          <text class="faq-arrow {{item.expanded ? 'expanded' : ''}}">⌄</text>
+          <!-- 通知原文类条目（无答案）为纯静态说明，不渲染展开箭头 -->
+          <text class="faq-arrow {{item.expanded ? 'expanded' : ''}}" wx:if="{{item.a}}">⌄</text>
         </view>
-        <view class="faq-a {{item.expanded ? 'show' : ''}}">
+        <view class="faq-a {{item.expanded ? 'show' : ''}}" wx:if="{{item.a}}">
           <text class="faq-a-text">{{item.a}}</text>
         </view>
       </view>

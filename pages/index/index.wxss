@@ -669,6 +669,10 @@
   color: #4a90f8;
 }
 
+.float-icon-wechat {
+  color: #28c445;
+}
+
 /* 私信未读数徽章：与 tabBar / 「我的」页角标同一样式，右上角悬浮 */
 .float-badge {
   position: absolute;

@@ -1,0 +1,184 @@
+.page {
+  padding: 28rpx 32rpx calc(40rpx + env(safe-area-inset-bottom));
+}
+
+.group-card {
+  display: flex;
+  align-items: center;
+  gap: 26rpx;
+  padding: 34rpx 30rpx;
+  margin-bottom: 28rpx;
+  border-radius: 24rpx;
+  border: 2rpx solid transparent;
+  transition: transform 0.2s ease;
+}
+
+.card-pressed { transform: scale(0.96); }
+
+.card-icon {
+  flex-shrink: 0;
+  width: 88rpx;
+  height: 88rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 52rpx;
+  border-radius: 20rpx;
+  background: rgba(255, 255, 255, 0.7);
+}
+
+/* 「微信」关键字渲染成 iconfont 微信绿标（公众号/墙墙微信两卡） */
+.card-icon-wechat { color: #28c445; font-size: 58rpx; }
+
+/* 上传的图片图标：铺满图标槽位，圆角与卡片一致 */
+.card-icon-img { width: 100%; height: 100%; border-radius: 20rpx; }
+
+.card-body { flex: 1; min-width: 0; }
+
+.card-title {
+  font-size: 32rpx;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.card-desc {
+  margin-top: 10rpx;
+  font-size: 27rpx;
+  line-height: 1.5;
+  opacity: 0.85;
+}
+
+/* 五套配色（与后台「信息推送群」编辑里的色系一一对应） */
+.theme-orange { background: #fff6e5; border-color: #f5c87e; }
+.theme-orange .card-title { color: #b25b00; }
+.theme-orange .card-desc { color: #a36418; }
+
+.theme-green { background: #edf7e9; border-color: #b5dba8; }
+.theme-green .card-title { color: #3a7d2c; }
+.theme-green .card-desc { color: #5a8f4c; }
+
+.theme-blue { background: #eaf3ff; border-color: #a9c8f5; }
+.theme-blue .card-title { color: #2e5fa3; }
+.theme-blue .card-desc { color: #4d76ad; }
+
+.theme-purple { background: #f3eefb; border-color: #c9b8ec; }
+.theme-purple .card-title { color: #6b3fa0; }
+.theme-purple .card-desc { color: #8261ae; }
+
+.theme-teal { background: #e8f7f6; border-color: #a3d9d4; }
+.theme-teal .card-title { color: #1f7a6e; }
+.theme-teal .card-desc { color: #439085; }
+
+.tip {
+  text-align: center;
+  color: #8b93a3;
+  font-size: 26rpx;
+  padding: 60rpx 0;
+}
+
+/* ===================== 二维码弹窗（口径对齐 components/contact-admin 的 QR 弹层） ===================== */
+.qr-mask {
+  position: fixed;
+  z-index: 2000;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  background: rgba(15, 25, 42, 0.52);
+}
+
+.qr-dialog {
+  position: fixed;
+  z-index: 2001;
+  top: 50%;
+  left: 50%;
+  box-sizing: border-box;
+  width: calc(100vw - 72rpx);
+  max-width: 680rpx;
+  padding: 30rpx 30rpx 34rpx;
+  transform: translate(-50%, -50%);
+  border-radius: 28rpx;
+  background: #fff;
+  box-shadow: 0 18rpx 60rpx rgba(16, 33, 58, 0.2);
+}
+
+.qr-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.qr-head-text { flex: 1; min-width: 0; }
+
+.qr-title {
+  display: block;
+  color: #18263d;
+  font-size: 34rpx;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.qr-desc {
+  display: block;
+  margin-top: 8rpx;
+  color: #8b97a8;
+  font-size: 23rpx;
+}
+
+.qr-close {
+  flex-shrink: 0;
+  width: 58rpx;
+  height: 58rpx;
+  margin-left: 16rpx;
+  line-height: 52rpx;
+  border-radius: 50%;
+  background: #f3f5f8;
+  color: #667386;
+  text-align: center;
+  font-size: 44rpx;
+  font-weight: 300;
+}
+
+.qr-close:active { opacity: 0.65; }
+
+.qr-img {
+  display: block;
+  width: 100%;
+  max-width: 560rpx;
+  height: auto;
+  margin: 24rpx auto 0;
+}
+
+.qr-empty {
+  margin-top: 24rpx;
+  padding: 60rpx 0;
+  border-radius: 20rpx;
+  background: #f7f9fc;
+  color: #8b93a3;
+  font-size: 26rpx;
+  text-align: center;
+}
+
+.qr-btn {
+  /* 覆盖微信 button 默认样式（width: 184px / margin: auto），保证与弹窗同宽 */
+  width: 100% !important;
+  height: 88rpx;
+  margin: 26rpx 0 0 !important;
+  padding: 0;
+  border-radius: 44rpx;
+  background: #25b978;
+  color: #fff;
+  font-size: 28rpx;
+  font-weight: 600;
+  line-height: 88rpx;
+}
+
+.qr-btn::after { border: none; }
+.qr-btn:active { opacity: 0.85; }
+
+.qr-tip {
+  margin-top: 18rpx;
+  color: #8995a5;
+  font-size: 23rpx;
+  text-align: center;
+}

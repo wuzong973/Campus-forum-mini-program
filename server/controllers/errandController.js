@@ -20,6 +20,8 @@ const CAMPUS_GROUPS = {
 const FREE_CANCEL_MINUTES = 30
 const FREEZE_MIN_RECORDS = 3
 const FREEZE_RATE = 0.5
+// 冻结冷却期：到期自动恢复接单资格（不设的话等于永久封禁，见 isRunnerFrozen 注释）
+const FREEZE_COOLDOWN_DAYS = 7
 
 // 接单方提交完成后，发单方需在此时间内确认；逾期系统自动确认完成并把赏金结算给接单方
 const AUTO_CONFIRM_HOURS = 2
@@ -60,6 +62,15 @@ async function logOrder(conn, orderId, actorId, action, detail) {
   )
 }
 
+// 冻结到期时间的展示文案（只用于给用户看的 403 提示，不进库）
+function fmtFrozenUntil(value) {
+  if (!value) return ''
+  const d = new Date(value)
+  if (Number.isNaN(d.getTime())) return ''
+  const p = (n) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`
+}
+
 async function bumpStat(conn, userId, field) {
   if (!['finished_count', 'self_cancel_count'].includes(field)) return
   await conn.query(
@@ -68,13 +79,40 @@ async function bumpStat(conn, userId, field) {
   )
 }
 
-// 完成率过低判定：完成+自身取消满 FREEZE_MIN_RECORDS 单且完成率低于 FREEZE_RATE
+// 完成率过低判定：完成+自身取消满 FREEZE_MIN_RECORDS 单且完成率低于 FREEZE_RATE。
+//
+// ⚠ 冻结必须能解除，且不能只靠「再完成几单」：
+//   冻结期间 accept 直接 403 → finished_count 永远不再增长 → 完成率永远低于阈值。
+//   也就是说「不设期限的冻结」在数学上是永久封禁，用户没有任何自救路径
+//   （2026-10-06 实测：两个测试号 67 被锁死，另一个号在它的订单上无法推进）。
+// 因此冻结带冷却期 FREEZE_COOLDOWN_DAYS：到期自动恢复；管理员也可手动解冻（写 frozen_until = 过去）。
+function freezeStats(stat) {
+  const finished = Number(stat.finished_count) || 0
+  const selfCancel = Number(stat.self_cancel_count) || 0
+  const total = finished + selfCancel
+  const rate = total ? finished / total : 1
+  const overThreshold = total >= FREEZE_MIN_RECORDS && rate < FREEZE_RATE
+  const until = stat.frozen_until ? new Date(stat.frozen_until).getTime() : 0
+  // 手动解冻会把 frozen_until 写成当前时间之前 → overThreshold 仍可能为真，
+  // 但 frozen_until 已过期，视为已解冻（管理员解冻对「完成率本身」不做粉饰）。
+  const inCooldown = overThreshold && until > Date.now()
+  return { finished, selfCancel, total, rate, overThreshold, frozenUntil: stat.frozen_until || null, frozen: inCooldown }
+}
+
 async function isRunnerFrozen(conn, userId) {
-  const [rows] = await conn.query('SELECT finished_count, self_cancel_count FROM errand_stat WHERE user_id = ?', [userId])
+  const [rows] = await conn.query('SELECT * FROM errand_stat WHERE user_id = ?', [userId])
   const stat = rows[0]
   if (!stat) return false
-  const total = Number(stat.finished_count) + Number(stat.self_cancel_count)
-  return total >= FREEZE_MIN_RECORDS && Number(stat.finished_count) / total < FREEZE_RATE
+  const info = freezeStats(stat)
+  // 首次判定为「应冻结但还没写冷却期」→ 补写冻结开始/到期时间（惰性一次，幂等）
+  if (info.overThreshold && !info.frozenUntil) {
+    const now = new Date()
+    const until = new Date(now.getTime() + FREEZE_COOLDOWN_DAYS * 24 * 60 * 60 * 1000)
+    await conn.query('UPDATE errand_stat SET frozen_at = ?, frozen_until = ? WHERE user_id = ?', [now, until, userId])
+    info.frozenUntil = until
+    info.frozen = true
+  }
+  return info.frozen
 }
 
 // 接单方取消接单（或发单人同意取消）后订单终止，赏金由 paymentController 原路退回
@@ -281,7 +319,9 @@ exports.list = async (req, res) => {
 exports.create = async (req, res) => {
   const body = req.body || {}
   const reward = Number(body.reward || body.totalAmount || body.baseAmount)
-  const title = String(body.title || '').trim() || `${String(body.type || '跑腿').trim()}代拿`
+  // 标题不再由前端单独填写：优先取传入值，否则由公开描述（remark）派生，
+  // 保证大厅卡片与详情页展示同一份内容；两处都为空才落到「XX代拿」兜底
+  const title = String(body.title || '').trim() || String(body.remark || '').trim().slice(0, 50) || `${String(body.type || '跑腿').trim()}代拿`
   const receiverName = String(body.receiverName || '').trim()
   const receiverPhone = String(body.receiverPhone || '').trim()
   const deliveryBuilding = String(body.deliveryBuilding || '').trim()
@@ -296,6 +336,10 @@ exports.create = async (req, res) => {
   }
   try {
     const images = Array.isArray(body.images) ? body.images.filter((item) => typeof item === 'string' && item).slice(0, 3) : []
+    // 隐私信息区的图片与公开 images 分开存：仅接单者可见，不进大厅
+    const privateImages = Array.isArray(body.privateImages)
+      ? body.privateImages.filter((item) => typeof item === 'string' && item).slice(0, 3)
+      : []
     // 截止接单时间（可选）：仅接受「当前时间 ~ 5 天内」的有效时间，格式化为 DATETIME 存库
     let acceptDeadline = null
     if (body.acceptDeadline) {
@@ -307,9 +351,9 @@ exports.create = async (req, res) => {
       }
     }
     const [result] = await pool.query(
-      `INSERT INTO errand_order (publisher_id, type, title, description, reward, pickup_addr, delivery_addr, campus, gender_requirement, pickup_time_type, appointment_time, accept_deadline, receiver_name, receiver_phone, delivery_building, delivery_room, remark, images, is_large_item, is_urgent, payment_status)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'UNPAID')`,
-      [req.userId, String(body.type || '').trim(), title, String(body.description || '').trim(), reward, String(body.pickupAddr || '').trim(), String(body.deliveryAddr || '').trim(), String(body.campus).trim(), String(body.genderRequirement).trim(), body.pickupTimeType || '尽快', body.pickupTimeType === '预约' ? body.appointmentTime : null, acceptDeadline, receiverName, receiverPhone, deliveryBuilding, deliveryRoom, String(body.remark || '').trim(), JSON.stringify(images), body.isLargeItem ? 1 : 0, body.isUrgent ? 1 : 0]
+      `INSERT INTO errand_order (publisher_id, type, title, description, reward, pickup_addr, delivery_addr, campus, gender_requirement, pickup_time_type, appointment_time, accept_deadline, receiver_name, receiver_phone, delivery_building, delivery_room, remark, private_info, private_images, images, is_large_item, is_urgent, payment_status)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'UNPAID')`,
+      [req.userId, String(body.type || '').trim(), title, String(body.description || '').trim(), reward, String(body.pickupAddr || '').trim(), String(body.deliveryAddr || '').trim(), String(body.campus).trim(), String(body.genderRequirement).trim(), body.pickupTimeType || '尽快', body.pickupTimeType === '预约' ? body.appointmentTime : null, acceptDeadline, receiverName, receiverPhone, deliveryBuilding, deliveryRoom, String(body.remark || '').trim(), String(body.privateInfo || '').trim().slice(0, 200), JSON.stringify(privateImages), JSON.stringify(images), body.isLargeItem ? 1 : 0, body.isUrgent ? 1 : 0]
     )
     success(res, { id: result.insertId })
   } catch (e) {
@@ -332,9 +376,13 @@ exports.accept = async (req, res) => {
       await conn.rollback()
       return fail(res, '您的骑手认证尚未通过审核，请耐心等待', 403)
     }
-    if (await isRunnerFrozen(conn, req.userId)) {
+    const [statRows] = await conn.query('SELECT * FROM errand_stat WHERE user_id = ?', [req.userId])
+    if (statRows.length && freezeStats(statRows[0]).frozen) {
       await conn.rollback()
-      return fail(res, '您因多次取消接单，完成率过低，接单功能已被冻结，请联系客服处理', 403)
+      const info = freezeStats(statRows[0])
+      // 文案必须给出「什么时候能恢复」，否则用户只被告知"永久冻结"却毫无出路
+      const untilText = info.frozenUntil ? fmtFrozenUntil(info.frozenUntil) : ''
+      return fail(res, `您因多次取消接单，完成率过低（${info.finished}/${info.total}），接单功能已暂时冻结${untilText ? '至 ' + untilText : ''}，到期自动恢复；也可联系客服申请提前解除`, 403)
     }
     const [rows] = await conn.query("SELECT * FROM errand_order WHERE id = ? AND status = 'pending' AND payment_status = 'SUCCESS' FOR UPDATE", [req.params.id])
     if (!rows.length) { await conn.rollback(); return fail(res, '订单不存在或已被接单') }
@@ -431,26 +479,62 @@ exports.dispute = async (req, res) => {
 exports.cancel = async (req, res) => {
   const body = req.body || {}
   const reason = String(body.reason || '').trim().slice(0, 255)
+  const images = cleanImages(body.images)
+  const conn = await pool.getConnection()
   try {
-    const [rows] = await pool.query("SELECT * FROM errand_order WHERE id = ? AND status IN ('pending', 'accepted')", [req.params.id])
-    if (!rows.length) return fail(res, '订单状态不允许取消')
+    await conn.beginTransaction()
+    const [rows] = await conn.query(
+      "SELECT * FROM errand_order WHERE id = ? AND status IN ('pending', 'accepted') FOR UPDATE",
+      [req.params.id]
+    )
+    if (!rows.length) { await conn.rollback(); return fail(res, '订单状态不允许取消') }
     const order = rows[0]
-    if (Number(order.publisher_id) !== Number(req.userId)) return fail(res, '无权取消订单', 403)
-    const [result] = await pool.query("UPDATE errand_order SET status = 'cancelled' WHERE id = ? AND status IN ('pending', 'accepted')", [order.id])
-    if (!result.affectedRows) return fail(res, '订单状态不允许取消')
+    if (Number(order.publisher_id) !== Number(req.userId)) { await conn.rollback(); return fail(res, '无权取消订单', 403) }
+
+    // 已有人接单：取消会直接损害接单方的付出（人家可能已经在路上），
+    // 因此必须走「发单人申请 → 接单方同意」的审批流，不能单方面终止。
+    // 与接单方的 release 完全对称：待接单(pending)无人受影响，仍可直接取消。
+    if (order.status === 'accepted') {
+      const [existing] = await conn.query(
+        "SELECT id FROM errand_cancel_request WHERE order_id = ? AND status = 'pending' LIMIT 1 FOR UPDATE",
+        [order.id]
+      )
+      if (existing.length) { await conn.rollback(); return fail(res, '你已提交过取消申请，请等待接单方处理', 409) }
+      if (!reason) { await conn.rollback(); return fail(res, '请填写取消订单理由') }
+      await conn.query(
+        "INSERT INTO errand_cancel_request (order_id, requester_id, reason_side, reason, images) VALUES (?, ?, 'publisher', ?, ?)",
+        [order.id, req.userId, reason, JSON.stringify(images)]
+      )
+      await logOrder(conn, order.id, req.userId, 'cancel_requested', `发单人申请取消订单（${body.reasonSide === 'accepter' ? '接单人原因' : '自身原因'}）：${reason}`)
+      await conn.commit()
+      await notify(
+        order.acceptor_id,
+        '收到取消订单申请',
+        `“${order.title}”的发单人申请取消订单（${body.reasonSide === 'accepter' ? '接单人原因' : '自身原因'}：${reason}），请前往订单详情处理`,
+        order.id,
+        'none'
+      )
+      return success(res, { mode: 'requested' }, '已提交申请，请等待接单方同意')
+    }
+
+    const [result] = await conn.query("UPDATE errand_order SET status = 'cancelled' WHERE id = ? AND status = 'pending'", [order.id])
+    if (!result.affectedRows) { await conn.rollback(); return fail(res, '订单状态不允许取消') }
     const sideLabel = body.reasonSide === 'accepter' ? '接单人原因' : '自身原因'
     const reasonDetail = reason ? `（${sideLabel}：${reason}）` : ''
-    await logOrder(pool, order.id, req.userId, 'cancelled', `发布者取消订单${reasonDetail}，赏金将原路退回`)
+    await logOrder(conn, order.id, req.userId, 'cancelled', `发布者取消订单${reasonDetail}，赏金将原路退回`)
     // 取消后遗留的待处理取消申请一并关闭
-    await pool.query("UPDATE errand_cancel_request SET status = 'rejected', handled_at = NOW() WHERE order_id = ? AND status = 'pending'", [order.id])
-    if (order.acceptor_id) await notify(order.acceptor_id, '跑腿订单已取消', `“${order.title}”已被发布者取消，赏金将原路退回发单人`, order.id, 'cancelled')
+    await conn.query("UPDATE errand_cancel_request SET status = 'rejected', handled_at = NOW() WHERE order_id = ? AND status = 'pending'", [order.id])
+    await conn.commit()
     // 发布者取消同样要发起赏金退款（与接单方取消/同意取消申请路径保持一致）
     const refundStatus = await refundOrderTolerant(order.id)
-    success(res, { refundStatus }, refundStatus === 'FAILED'
+    success(res, { mode: 'cancelled', refundStatus }, refundStatus === 'FAILED'
       ? '订单已取消，退款发起失败，系统会自动重试，也可联系客服处理'
       : '订单已取消，赏金将原路退回')
   } catch (e) {
+    await conn.rollback()
     fail(res, safeMessage(e), 500)
+  } finally {
+    conn.release()
   }
 }
 
@@ -503,7 +587,8 @@ exports.release = async (req, res) => {
   }
 }
 
-// 发单人处理取消接单申请：approve=true 同意（订单终止并原路退款），false 拒绝（订单继续进行）
+// 处理取消申请：接单方申请 → 发单人审批；发单人申请 → 接单方审批。
+// approve=true 同意（订单终止并原路退款），false 拒绝（订单继续进行）
 exports.reviewCancelRequest = async (req, res) => {
   const requestId = Number(req.params.id)
   const approve = !!(req.body && req.body.approve)
@@ -512,13 +597,21 @@ exports.reviewCancelRequest = async (req, res) => {
   try {
     await conn.beginTransaction()
     const [rows] = await conn.query(
-      `SELECT r.*, e.title, e.publisher_id, e.status AS order_status
+      `SELECT r.*, e.title, e.publisher_id, e.acceptor_id, e.status AS order_status
        FROM errand_cancel_request r JOIN errand_order e ON r.order_id = e.id
        WHERE r.id = ? FOR UPDATE`, [requestId]
     )
     const request = rows[0]
     if (!request) { await conn.rollback(); return fail(res, '取消申请不存在', 404) }
-    if (Number(request.publisher_id) !== Number(req.userId)) { await conn.rollback(); return fail(res, '仅发单人可以处理该申请', 403) }
+    // 审批人 = 申请的对方：接单方申请由发单人批，发单人申请由接单方批。
+    // 判据用 requester_id 与订单双方比对，而不是看当前用户是谁 —— 否则
+    // 发单人自己就能把自己的取消申请「批」掉，等于绕回「单方面取消」。
+    const isPublisherRequester = Number(request.requester_id) === Number(request.publisher_id)
+    const reviewerId = isPublisherRequester ? request.acceptor_id : request.publisher_id
+    const reviewerLabel = isPublisherRequester ? '接单方' : '发单人'
+    const requesterLabel = isPublisherRequester ? '发单人' : '接单方'
+    if (!reviewerId) { await conn.rollback(); return fail(res, '订单尚无对方，无需处理') }
+    if (Number(reviewerId) !== Number(req.userId)) { await conn.rollback(); return fail(res, `仅${reviewerLabel}可以处理该申请`, 403) }
     if (request.status !== 'pending') { await conn.rollback(); return fail(res, '该申请已处理过，请勿重复操作', 409) }
     if (approve && request.order_status !== 'accepted') {
       await conn.query("UPDATE errand_cancel_request SET status = 'rejected', handled_at = NOW() WHERE id = ?", [requestId])
@@ -528,18 +621,18 @@ exports.reviewCancelRequest = async (req, res) => {
     if (approve) {
       await terminateOrder(conn, request.order_id)
       await conn.query("UPDATE errand_cancel_request SET status = 'approved', handled_at = NOW() WHERE id = ?", [requestId])
-      // 自身原因导致的取消计入接单方完成率统计
-      if (request.reason_side === 'self') await bumpStat(conn, request.requester_id, 'self_cancel_count')
-      await logOrder(conn, request.order_id, req.userId, 'cancel_approved', '发单人同意取消接单，订单已终止，赏金原路退回')
+      // 接单方因自身原因取消接单才计入完成率；发单人申请取消不影响接单方完成率
+      if (!isPublisherRequester && request.reason_side === 'self') await bumpStat(conn, request.requester_id, 'self_cancel_count')
+      await logOrder(conn, request.order_id, req.userId, 'cancel_approved', `${reviewerLabel}同意${requesterLabel}的取消申请，订单已终止，赏金原路退回`)
       await conn.commit()
       const refundStatus = await refundOrderTolerant(request.order_id)
-      await notify(request.requester_id, '取消接单申请已通过', `“${request.title}”的发单人同意了你的取消申请，订单已终止，赏金将退回发单人`, request.order_id, 'cancelled')
-      return success(res, { status: 'approved', refundStatus }, '已同意取消接单，订单已终止')
+      await notify(request.requester_id, '取消申请已通过', `“${request.title}”的${reviewerLabel}同意了你的取消申请，订单已终止，赏金将退回发单人`, request.order_id, 'cancelled')
+      return success(res, { status: 'approved', refundStatus }, `已同意取消，订单已终止`)
     }
     await conn.query("UPDATE errand_cancel_request SET status = 'rejected', handled_at = NOW() WHERE id = ?", [requestId])
-    await logOrder(conn, request.order_id, req.userId, 'cancel_rejected', '发单人拒绝了取消接单申请，订单继续进行')
+    await logOrder(conn, request.order_id, req.userId, 'cancel_rejected', `${reviewerLabel}拒绝了${requesterLabel}的取消申请，订单继续进行`)
     await conn.commit()
-    await notify(request.requester_id, '取消接单申请被拒绝', `“${request.title}”的发单人拒绝了你的取消申请，请继续完成订单`, request.order_id, 'none')
+    await notify(request.requester_id, '取消申请被拒绝', `“${request.title}”的${reviewerLabel}拒绝了你的取消申请，请继续完成订单`, request.order_id, 'none')
     success(res, { status: 'rejected' }, '已拒绝该申请')
   } catch (e) {
     await conn.rollback()
@@ -605,11 +698,12 @@ exports.detail = async (req, res) => {
     order.role = role
     if (!canViewPrivate) {
       // 第三方浏览者只能看到公开发布时展示的信息（标题/报酬/地址/校区等）。
-      // 注意 remark 与 description 同为需求正文（前端 desc-box 是 `remark || description || title`），
-      // 早先只删了 description，viewer 会经由 remark 拿到完整需求内容；
+      // remark 即发布页的「公开描述」（表单标注◎所有人可见，大厅列表本就对所有人展示），
+      // 对 viewer 同样下发 —— 否则详情 desc-box 退回 title，与大厅卡片显示不一致。
+      // description 是历史遗留字段（现发布流程不再写入），继续对 viewer 隐藏；
       // finish_submitted_at 则是「已等待 xx」计时器的数据源，同样属交接阶段的私密进度。
       ;[
-        'description', 'remark',
+        'description', 'private_info', 'private_images',
         'receiver_name', 'receiver_phone', 'delivery_building', 'delivery_room',
         'finish_description', 'finish_images', 'finish_submitted_at',
         'dispute_reason', 'dispute_note', 'dispute_result', 'disputed_at', 'dispute_handled_at',
@@ -618,12 +712,22 @@ exports.detail = async (req, res) => {
     }
     let cancelRequest = null
     if (canViewPrivate) {
-      // 待处理的取消接单申请（接单方与发单人都需要看到）
+      // 待处理的取消申请（申请方与审批方都需要看到）
       const [requestRows] = await pool.query(
         "SELECT id, requester_id, reason_side, reason, images, status, created_at FROM errand_cancel_request WHERE order_id = ? AND status = 'pending' ORDER BY id DESC LIMIT 1",
         [order.id]
       )
-      if (requestRows.length) cancelRequest = requestRows[0]
+      if (requestRows.length) {
+        const row = requestRows[0]
+        // 端上读的是驼峰键（requesterId / reasonSide），而库里是蛇形；
+        // 不转的话端上只能拿到 reason，reasonSide 恒 undefined（原因方标签永远显示"自身原因"）、
+        // images 恒 undefined（凭证图不渲染，且模板里 .length 取不到）。两个键都下发，兼容历史端。
+        cancelRequest = Object.assign({}, row, {
+          requesterId: row.requester_id,
+          reasonSide: row.reason_side,
+          images: Array.isArray(row.images) ? row.images : []
+        })
+      }
       // 联系电话：接单方联系发单人，发单人联系接单方
       const peerId = role === 'publisher' ? order.acceptor_id : order.publisher_id
       if (peerId) {

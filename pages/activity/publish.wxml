@@ -120,7 +120,7 @@
       </view>
       <view class="form-row form-row--column">
         <text class="form-label">介绍内容</text>
-        <textarea class="form-textarea" value="{{detailContent}}" maxlength="2000" placeholder="活动流程、注意事项等详细介绍…" bindinput="onDetailContentInput"/>
+        <richtext-editor value="{{detailContent}}" maxlength="2000" placeholder="活动流程、注意事项等详细介绍…" bindinput="onDetailContentInput"/>
       </view>
     </view>
 

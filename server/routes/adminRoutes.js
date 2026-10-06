@@ -14,6 +14,8 @@ const { auth, requireAdmin } = require('../middleware/auth')
 router.use(auth)
 router.get('/me', requireAdmin('stats.view'), controller.me)
 router.get('/stats', requireAdmin('stats.view'), controller.stats)
+// 入口角标：全部待审核数量的汇总（我的页「管理后台」入口轮询用）
+router.get('/pending-count', requireAdmin('stats.view'), controller.pendingCount)
 router.get('/reports', requireAdmin('content.manage'), controller.listReports)
 router.put('/reports/:id', requireAdmin('content.manage'), controller.updateReport)
 router.get('/posts', requireAdmin('content.manage'), controller.listPosts)
@@ -67,6 +69,9 @@ router.get('/errand-orders', requireAdmin('admin.manage'), controller.listErrand
 router.get('/errand-orders/:id', requireAdmin('admin.manage'), controller.errandOrderDetail)
 // 异议订单裁决：approve=异议成立（订单取消并原路退款）/ reject=异议不成立（订单成立并结算给接单方）
 router.post('/errand-disputes/:id/review', requireAdmin('admin.manage'), controller.reviewErrandDispute)
+// 接单完成率与冻结名单：冻结是「冷却期」而不是永久封禁，管理员可手动提前解冻
+router.get('/errand-runners', requireAdmin('admin.manage'), controller.listErrandRunners)
+router.post('/errand-runners/:userId/unfreeze', requireAdmin('admin.manage'), controller.unfreezeErrandRunner)
 
 // 社团&组织管理（config.manage 权限）
 router.get('/club/categories', requireAdmin('config.manage'), clubController.adminListCategories)

@@ -8,6 +8,7 @@ const del = (path, data) => request.del('/admin' + path, data || {}, true)
 module.exports = {
   me: () => get('/me'),
   stats: () => get('/stats'),
+  pendingCount: () => request.get('/admin/pending-count', {}, true, { silent: true }).then((d) => d || null),
   reports: (data) => get('/reports', data),
   updateReport: (id, status, note) => put('/reports/' + id, { status, note: note || '' }),
   posts: (data) => get('/posts', data),
@@ -28,6 +29,11 @@ module.exports = {
   campusCardPages: () => request.get('/config/campus-card-pages', {}, true, { silent: true }).then((d) => (d && d.list) || []),
   updateCampusCardPage: (id, data) => request.put('/config/campus-card-page/' + id, data, true),
   deleteCampusCardPage: (id) => request.del('/config/campus-card-page/' + id, {}, true),
+  // 信息推送群卡片（config.manage）：首页悬浮微信入口落地页的内容维护
+  pushGroups: () => request.get('/config/push-groups', {}, true, { silent: true }).then((d) => (d && d.list) || []),
+  createPushGroup: (data) => request.post('/config/push-group', data, true),
+  savePushGroup: (id, data) => request.put('/config/push-group/' + id, data, true),
+  deletePushGroup: (id) => request.del('/config/push-group/' + id, {}, true),
   // 驾校运营位（config.manage）：列表页横幅、筛选标签池、学车指南自定义页
   drivingPromo: () => request.get('/config/driving-promo', {}, true, { silent: true }),
   saveDrivingPromo: (data) => request.put('/config/driving-promo', data, true),
@@ -66,6 +72,9 @@ module.exports = {
   errandOrderDetail: (id) => get('/errand-orders/' + id),
   // 异议订单裁决：approve=异议成立（订单取消并原路退款）/ reject=异议不成立（订单成立并结算给接单方）
   reviewErrandDispute: (id, action, note) => post('/errand-disputes/' + id + '/review', { action, note: note || '' }),
+  // 接单完成率与冻结名单（冻结为冷却期，可手动提前解除）
+  errandRunners: (data) => get('/errand-runners', data),
+  unfreezeErrandRunner: (userId, note) => post('/errand-runners/' + userId + '/unfreeze', { note: note || '' }),
   // 社团&组织管理
   clubCategories: () => get('/club/categories'),
   createClubCategory: (data) => post('/club/categories', data),

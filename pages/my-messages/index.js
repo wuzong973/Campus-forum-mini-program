@@ -370,25 +370,32 @@ Page({
     request.put('/notification/' + id + '/read', {}, true, { silent: true }).catch(() => {}).finally(() => {
       messageStore.syncUnreadCount()
     })
-    // 评论/点赞通知进入消息详情页（展示评论者、评论内容与原帖完整信息），详情页内可跳转原帖
-    // 评论内容可能较长，经 globalData 交接避免 URL 传参截断
-    if (target && target.postId) {
-      const app = getApp()
-      app.__messageDetail = {
-        nick: target.actorNick || '',
-        avatar: target.actorAvatar || '',
-        // actorUserId>0 为真实用户（头像可进主页）；匿名形象/占位用户为 0（不可点击）
-        actorUserId: target.actorUserId || 0,
-        content: target.content || '',
-        time: target.time || '',
-        title: target.title || '',
-        postTitle: target.postTitle || '',
-        commentImages: target.commentImages || [],
-        // 来源评论 id：详情页「查看原帖」跳帖子后直接定位到该条评论/回复
-        sourceCommentId: target.sourceCommentId || 0
-      }
-      wx.navigateTo({ url: '/pages/message-detail/index?id=' + target.postId })
+    if (!target) return
+    // 互动通知（评论/点赞/蹲贴/回复）直接进原帖并定位到来源评论：
+    // 点消息 = 立刻看到「就是这条」，不再经过消息详情中间页（多一跳才需要用户再点一次「查看原帖」）。
+    // 来源评论 id 经 URL 传给 post-detail，由它的评论锚点逻辑滚动 + 高亮。
+    if (target.postId) {
+      const commentId = Number(target.sourceCommentId) || 0
+      wx.navigateTo({
+        url: '/pages/post-detail/index?id=' + target.postId +
+          (commentId ? '&commentId=' + commentId : ''),
+        fail: () => wx.showToast({ title: '打开原帖失败，请稍后重试', icon: 'none' })
+      })
+      return
     }
+    // 无关联帖子的通知（系统/跑腿/报修等）：仍走消息详情展示完整快照
+    const app = getApp()
+    app.__messageDetail = {
+      nick: target.actorNick || '',
+      avatar: target.actorAvatar || '',
+      content: target.content || '',
+      time: target.time || '',
+      title: target.title || '',
+      postTitle: target.postTitle || '',
+      commentImages: target.commentImages || [],
+      sourceCommentId: target.sourceCommentId || 0
+    }
+    wx.navigateTo({ url: '/pages/message-detail/index?id=' + (target.postId || '') })
   },
 
   setInteractionMessages(messages) {

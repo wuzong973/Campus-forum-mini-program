@@ -96,6 +96,9 @@ exports.like = async (req, res) => {
           title: '你的评论收到了点赞',
           content: withMediaPlaceholder(String(comments[0].content || '').slice(0, 200), parseJson(comments[0].images)),
           relatedId: comments[0].post_id,
+          // 锚点：点这条消息进原帖时直接定位并高亮「被点赞的那条评论」。
+          // 缺失时用户只能在评论区里手动翻，等于「定不了位」。
+          sourceCommentId: commentId,
           actorUserId: actor ? actor.id : null,
           actorNick: actor ? actor.nickName : '',
           actorAvatar: actor ? actor.avatarUrl : '',
@@ -191,6 +194,8 @@ exports.create = async (req, res) => {
         title: '你的帖子有新评论',
         content: commentContent,
         relatedId: postId,
+        // 锚点：点这条消息进原帖时定位并高亮「就是这条评论」，配色也按它取（两边同色）
+        sourceCommentId: result.insertId,
         postTitle,
         commentImages: Array.isArray(images) ? images : []
       }, actorSnapshot)).catch(() => {})
@@ -214,6 +219,8 @@ exports.create = async (req, res) => {
         title: '你蹲的帖子有新评论',
         content: commentContent,
         relatedId: postId,
+        // 与作者那条同源：同一条评论 fan-out 给多个蹲贴者，靠唯一键含 user_id 才不会被吞
+        sourceCommentId: result.insertId,
         postTitle,
         commentImages: Array.isArray(images) ? images : []
       }, actorSnapshot)).catch(() => {})
