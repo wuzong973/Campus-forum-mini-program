@@ -9,7 +9,7 @@
  * 却从未写进返回值，公开接口因此永远不下发社团列表；用户端 mapServerCategory 把
  * 缺失的 clubs 兜底成 []，导致每张分类卡片都显示「0 个重点社团」——管理端因为
  * 手写 `clubs: grouped[row.id] || []` 而正常，所以只有用户端看不见。
- * 详见 docs/修复说明_2026-09-10_社团列表未下发.md
+ * 详见 docs/03_业务功能_社区与内容.md（§2 社团模块）
  */
 const assert = require('assert')
 const path = require('path')
@@ -79,7 +79,7 @@ function filterClubs(sql, params) {
 const POOL_PATH = require.resolve('../config/pool')
 require.cache[POOL_PATH] = { id: POOL_PATH, filename: POOL_PATH, loaded: true, exports: fakePool }
 const clubController = require('../controllers/clubController')
-const { mapServerCategory } = require('../../utils/club-data')
+const { mapServerCategory } = require('../../pkg-feature/utils/club-data')
 
 function makeRes() {
   return {

@@ -11,7 +11,7 @@
     <!-- 学期进度条 -->
     <block wx:if="{{phase === 'semester'}}">
       <view class="progress-track">
-        <view class="progress-fill" style="width: {{weekProgress}}%"></view>
+        <view class="progress-fill" style="width: {{weekProgress + '%'}}"></view>
       </view>
       <view class="progress-meta">
         <text class="progress-text">第 {{weekNo}} / {{totalWeeks}} 周</text>
@@ -39,7 +39,7 @@
       </view>
       <text class="sem-range">{{item.range}}</text>
       <view class="sem-track">
-        <view class="sem-fill" style="width: {{item.progress}}%"></view>
+        <view class="sem-fill" style="width: {{item.progress + '%'}}"></view>
       </view>
     </view>
   </view>

@@ -21,7 +21,7 @@ function check(fn, message) {
 function run() {
   const postController = read('server', 'controllers', 'postController.js')
   const publishJs = read('pages', 'post-publish', 'index.js')
-  const posterJs = read('pages', 'poster', 'index.js')
+  const posterJs = read('pkg-feature', 'pages', 'poster', 'index.js')
 
   // A. 匿名帖校区：沿用普通帖取数（不再因匿名置空），未设置校区时同样返回空串由前端统一显示
   check(() => {

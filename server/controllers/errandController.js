@@ -352,11 +352,15 @@ exports.create = async (req, res) => {
     }
     const [result] = await pool.query(
       `INSERT INTO errand_order (publisher_id, type, title, description, reward, pickup_addr, delivery_addr, campus, gender_requirement, pickup_time_type, appointment_time, accept_deadline, receiver_name, receiver_phone, delivery_building, delivery_room, remark, private_info, private_images, images, is_large_item, is_urgent, payment_status)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'UNPAID')`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'UNPAID')`,
       [req.userId, String(body.type || '').trim(), title, String(body.description || '').trim(), reward, String(body.pickupAddr || '').trim(), String(body.deliveryAddr || '').trim(), String(body.campus).trim(), String(body.genderRequirement).trim(), body.pickupTimeType || '尽快', body.pickupTimeType === '预约' ? body.appointmentTime : null, acceptDeadline, receiverName, receiverPhone, deliveryBuilding, deliveryRoom, String(body.remark || '').trim(), String(body.privateInfo || '').trim().slice(0, 200), JSON.stringify(privateImages), JSON.stringify(images), body.isLargeItem ? 1 : 0, body.isUrgent ? 1 : 0]
     )
     success(res, { id: result.insertId })
   } catch (e) {
+    // safeMessage 对 ER_* 一律只说「数据库操作失败」，真实原因必须落到日志里。
+    // 2026-10-07 建单 100% 失败（ER_WRONG_VALUE_COUNT_ON_ROW）时日志里空无一物，
+    // 排障只能靠「连上生产库、在事务里复现这条 INSERT」—— 补上这行，下次不必再这么绕。
+    console.error('[errand.create] 建单失败:', (e && e.code) || '', (e && e.message) || e)
     fail(res, safeMessage(e), 500)
   }
 }

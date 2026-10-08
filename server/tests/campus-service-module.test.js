@@ -212,7 +212,7 @@ function pageBehaviorTests() {
     page.onLoad({ id: 'campus-guide' })
     const links = page.data.service.links
     assert.ok(links.length >= 1, '轻友指南应有相关入口')
-    assert.strictEqual(links[0].url, '/pages/campus-map/index', '轻友指南应能跳到校园地图')
+    assert.strictEqual(links[0].url, '/pkg-feature/pages/campus-map/index', '轻友指南应能跳到校园地图')
   }, '相关入口（轻友指南 → 校园地图）')
 }
 
@@ -222,7 +222,7 @@ function pageBehaviorTests() {
 function sourceGuardTests() {
   const appJson = JSON.parse(read('app.json'))
   const indexJs = read('pages/index/index.js')
-  const serviceAllJs = read('pages/service-all/index.js')
+  const serviceAllJs = read('pkg-feature/pages/service-all/index.js')
   const pageWxml = read('pages/campus-service/index.wxml')
 
   check(() => {
@@ -242,7 +242,7 @@ function sourceGuardTests() {
   }, '首页宫格路由接线')
 
   check(() => {
-    assert.ok(serviceAllJs.indexOf("require('../../utils/campus-services')") >= 0, '全部服务页未引入数据源')
+    assert.ok(serviceAllJs.indexOf("require('../../../utils/campus-services')") >= 0, '全部服务页未引入数据源')
     assert.match(serviceAllJs, /CAMPUS_SERVICE_IDS\[item\.name\]/, '全部服务页缺少按名字取 id 的分支')
     for (const [name] of EXPECTED) {
       assert.ok(serviceAllJs.indexOf("'" + name + "': '/pages/campus-service/index'") >= 0, '全部服务页未登记：' + name)

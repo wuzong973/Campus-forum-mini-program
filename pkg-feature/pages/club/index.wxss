@@ -1,0 +1,371 @@
+/* 卡片视觉共享层（静态旋转描边）。@import 必须在其他规则之前。 */
+@import "../../../styles/card-fx.wxss";
+
+.page {
+  min-height: 100vh;
+  background: #f2f3f5;
+}
+
+/* ===== 顶部返回 ===== */
+.topbar {
+  padding-left: 24rpx;
+  padding-right: 24rpx;
+}
+
+/* ===== 标题区 ===== */
+.content {
+  padding: 24rpx 32rpx 60rpx;
+}
+
+.page-title {
+  margin-top: 20rpx;
+  font-size: 44rpx;
+  font-weight: 800;
+  color: #1f2a44;
+  line-height: 1.3;
+}
+
+.page-sub {
+  margin-top: 10rpx;
+  font-size: 26rpx;
+  color: #7a8494;
+}
+
+/* ===== 校区选择器（与群聊分类页同款：白色胶囊，选中蓝色高亮） ===== */
+.campus-bar {
+  margin-top: 22rpx;
+  display: inline-flex;
+  align-items: center;
+  gap: 12rpx;
+  background: #ffffff;
+  border: 1rpx solid #eef0f4;
+  border-radius: 40rpx;
+  padding: 14rpx 24rpx;
+  box-shadow: 0 6rpx 16rpx rgba(31, 42, 68, 0.05);
+}
+
+.campus-bar--hover {
+  background: #f7f9fc;
+ transform: scale(0.96); box-shadow: inset 0 2rpx 6rpx rgba(16, 32, 64, 0.16), inset 0 -1rpx 2rpx rgba(255, 255, 255, 0.08); }
+
+.campus-bar-label {
+  font-size: 24rpx;
+  color: #9aa3b2;
+}
+
+.campus-bar-value {
+  font-size: 26rpx;
+  font-weight: 700;
+  color: #1f2a44;
+}
+
+.campus-bar-arrow {
+  font-size: 22rpx;
+  color: #9aa3b2;
+}
+
+/* ===== 分类宫格（与群聊分类页同款：两列白卡 + 彩色字符图标） ===== */
+.club-grid {
+  margin-top: 30rpx;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 22rpx;
+}
+
+.club-card {
+  /* 共享层 token：圆角按本卡实际值覆盖；主色由 wxml 按分类 theme.deep 内联下发 */
+  --fx-r: 28rpx;
+  background: #ffffff;
+  border: 1rpx solid #f0f1f4;
+  border-radius: 28rpx;
+  /* padding 挪到 .fx-body：描边环是绝对定位的，包含块是 padding box，
+     卡自身留 padding 会把整圈描边推进去、不贴卡边 */
+  padding: 0;
+  /* 唯一在流子元素是 .fx-body：列向 flex 让它撑满宫格拉伸出的行高，
+     多出来的高度落在 body 内部（白底），不会露出描边方块的纯色 */
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 10rpx 28rpx rgba(31, 42, 68, 0.05);
+  transition: transform 0.35s cubic-bezier(0.34, 1.42, 0.6, 1), box-shadow 0.35s cubic-bezier(0.34, 1.42, 0.6, 1);
+  will-change: transform;
+}
+
+/* 内容层样式。position/inset/居中位移均由共享层默认值给出，此处只填本页内容样式 */
+.club-card .fx-body {
+  flex: 1 1 auto;
+  padding: 26rpx 24rpx 24rpx;
+  background: #ffffff;
+}
+
+.club-card--hover { transform: scale(0.96); box-shadow: inset 0 2rpx 6rpx rgba(16, 32, 64, 0.16), inset 0 -1rpx 2rpx rgba(255, 255, 255, 0.08); }
+
+.club-icon {
+  width: 92rpx;
+  height: 92rpx;
+  border-radius: 26rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.club-icon-char {
+  color: #ffffff;
+  font-size: 42rpx;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.club-name {
+  margin-top: 22rpx;
+  font-size: 30rpx;
+  font-weight: 700;
+  color: #1f2a44;
+  line-height: 1.35;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.club-desc {
+  margin-top: 6rpx;
+  font-size: 22rpx;
+  color: #9aa3b2;
+  line-height: 1.5;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ===== 我的社团申请 ===== */
+.my-applies {
+  margin-top: 40rpx;
+  background: #ffffff;
+  border-radius: 20rpx;
+  padding: 26rpx 24rpx;
+}
+
+.section-title {
+  font-size: 28rpx;
+  font-weight: 700;
+  color: #1f2a44;
+}
+
+.apply-row {
+  margin-top: 20rpx;
+  padding-top: 20rpx;
+  border-top: 1rpx solid #f0f1f3;
+}
+
+.apply-main {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16rpx;
+}
+
+.apply-name {
+  font-size: 27rpx;
+  color: #2a3247;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.apply-status {
+  flex-shrink: 0;
+  font-size: 22rpx;
+  font-weight: 600;
+  border-radius: 8rpx;
+  padding: 4rpx 12rpx;
+}
+
+.apply-status--pending {
+  color: #e8940a;
+  background: rgba(245, 167, 10, 0.14);
+}
+
+.apply-status--approved {
+  color: #16b364;
+  background: rgba(22, 182, 100, 0.12);
+}
+
+.apply-status--rejected {
+  color: #f04438;
+  background: rgba(240, 68, 56, 0.10);
+}
+
+.apply-note {
+  display: block;
+  margin-top: 8rpx;
+  font-size: 23rpx;
+  color: #9aa3b2;
+  line-height: 1.5;
+}
+
+/* ===== 右下角申请入口（与群聊分类页同款；fixed 元素放在带动画容器外，避免 transform 影响） ===== */
+.create-btn {
+  position: fixed;
+  right: 40rpx;
+  bottom: calc(60rpx + env(safe-area-inset-bottom));
+  width: 108rpx;
+  height: 108rpx;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #5ba8ff 0%, #2e6bff 100%);
+  box-shadow: 0 14rpx 30rpx rgba(46, 107, 255, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.35s cubic-bezier(0.34, 1.42, 0.6, 1), box-shadow 0.35s cubic-bezier(0.34, 1.42, 0.6, 1);
+  z-index: 50;
+}
+
+.create-btn--hover {
+  transform: scale(0.96);
+  box-shadow: 0 8rpx 20rpx rgba(46, 107, 255, 0.32);
+ box-shadow: inset 0 2rpx 6rpx rgba(16, 32, 64, 0.16), inset 0 -1rpx 2rpx rgba(255, 255, 255, 0.08); }
+
+.create-pencil {
+  position: relative;
+  width: 10rpx;
+  height: 38rpx;
+  background: #ffffff;
+  border-radius: 5rpx;
+  transform: rotate(-45deg);
+}
+
+.create-pencil::before {
+  content: '';
+  position: absolute;
+  top: -10rpx;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 5rpx solid transparent;
+  border-right: 5rpx solid transparent;
+  border-bottom: 10rpx solid #ffffff;
+}
+
+/* ===== 首次入驻弹窗 ===== */
+.modal-mask {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 56rpx;
+}
+
+.modal-dialog {
+  width: 100%;
+  background: #ffffff;
+  border-radius: 24rpx;
+  overflow: hidden;
+}
+
+.modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 30rpx 30rpx 24rpx;
+  border-bottom: 1rpx solid #f0f1f3;
+}
+
+.modal-title {
+  font-size: 32rpx;
+  font-weight: 800;
+  color: #1f2a44;
+}
+
+.modal-close {
+  font-size: 28rpx;
+  color: #9aa3b2;
+  padding: 4rpx 8rpx;
+}
+
+.modal-body {
+  padding: 28rpx 30rpx 30rpx;
+}
+
+.modal-intro {
+  display: block;
+  font-size: 27rpx;
+  color: #3a4356;
+  line-height: 1.75;
+  text-align: justify;
+}
+
+.modal-label {
+  margin-top: 24rpx;
+  font-size: 26rpx;
+  color: #9aa3b2;
+}
+
+.modal-tip {
+  margin-top: 8rpx;
+  font-size: 26rpx;
+  color: #c2c8d1;
+  line-height: 1.6;
+}
+
+.modal-join-btn {
+  margin-top: 22rpx;
+  height: 88rpx;
+  border-radius: 14rpx;
+  background: #f2f3f5;
+  color: #4a5468;
+  font-size: 28rpx;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.16s ease, transform 0.35s cubic-bezier(0.34, 1.42, 0.6, 1), box-shadow 0.35s cubic-bezier(0.34, 1.42, 0.6, 1);
+}
+
+.modal-join-btn--hover {
+  background: #e8eaee;
+ transform: scale(0.96); box-shadow: inset 0 2rpx 6rpx rgba(16, 32, 64, 0.16), inset 0 -1rpx 2rpx rgba(255, 255, 255, 0.08); }
+
+.modal-foot {
+  display: flex;
+  gap: 20rpx;
+  padding: 10rpx 30rpx 32rpx;
+}
+
+.modal-btn {
+  height: 88rpx;
+  border-radius: 14rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28rpx;
+  font-weight: 600;
+  transition: opacity 0.16s ease, transform 0.35s cubic-bezier(0.34, 1.42, 0.6, 1), box-shadow 0.35s cubic-bezier(0.34, 1.42, 0.6, 1);
+}
+
+.modal-btn-plain {
+  flex: 1;
+  background: #f2f3f5;
+  color: #1f2a44;
+}
+
+.modal-btn-plain--hover {
+  background: #e8eaee;
+ transform: scale(0.96); box-shadow: inset 0 2rpx 6rpx rgba(16, 32, 64, 0.16), inset 0 -1rpx 2rpx rgba(255, 255, 255, 0.08); }
+
+.modal-btn-dark {
+  flex: 1.5;
+  background: #1a1c20;
+  color: #ffffff;
+}
+
+.modal-btn-dark--hover {
+  opacity: 0.86;
+  transform: scale(0.96);
+ box-shadow: inset 0 2rpx 6rpx rgba(16, 32, 64, 0.16), inset 0 -1rpx 2rpx rgba(255, 255, 255, 0.08); }

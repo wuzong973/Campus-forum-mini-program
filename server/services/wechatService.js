@@ -81,7 +81,7 @@ async function notifyRepairAdmins(order) {
   }
   const results = await Promise.allSettled(openids.map((touser) => axios.post(
     `https://api.weixin.qq.com/cgi-bin/message/subscribe/send?access_token=${token}`,
-    { touser, template_id: templateId, page: process.env.WX_REPAIR_TEMPLATE_PAGE || 'pages/repair/index', data },
+    { touser, template_id: templateId, page: process.env.WX_REPAIR_TEMPLATE_PAGE || 'pkg-feature/pages/repair/index', data },
     { timeout: 8000 },
   ).then(({ data: response }) => {
     if (response.errcode) throw new Error(`${response.errcode}: ${response.errmsg}`)
@@ -103,7 +103,7 @@ async function notifyRepairTechnician(order, technician) {
   }
   const { data: response } = await axios.post(
     `https://api.weixin.qq.com/cgi-bin/message/subscribe/send?access_token=${token}`,
-    { touser: technician.openid, template_id: templateId, page: process.env.WX_REPAIR_TEMPLATE_PAGE || 'pages/repair/index', data },
+    { touser: technician.openid, template_id: templateId, page: process.env.WX_REPAIR_TEMPLATE_PAGE || 'pkg-feature/pages/repair/index', data },
     { timeout: 8000 }
   )
   if (response.errcode) throw new Error(`${response.errcode}: ${response.errmsg}`)

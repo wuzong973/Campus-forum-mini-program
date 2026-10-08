@@ -18,7 +18,7 @@ const path = require('path')
 const vm = require('vm')
 
 const MINI_PROGRAM_ROOT = path.join(__dirname, '..', '..')
-const PAGE_DIR = path.join(MINI_PROGRAM_ROOT, 'pages', 'activity')
+const PAGE_DIR = path.join(MINI_PROGRAM_ROOT, 'pkg-feature', 'pages', 'activity')
 
 let testCount = 0
 function check(fn, message) {

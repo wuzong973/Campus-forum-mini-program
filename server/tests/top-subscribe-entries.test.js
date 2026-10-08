@@ -66,11 +66,11 @@ const TRIGGERS = [
 
 // 页面接线清单：入口结构 + 原有触发点必须仍在
 const PAGE_WIRING = [
-  { page: '钱包页', file: 'pages/wallet/index', trigger: 'withdraw', visibleKey: 'showWithdrawSubscribeEntry', checkedKey: 'withdrawSubscribeChecked', tap: 'onWithdrawSubscribeTap', refresh: 'refreshWithdrawSubscribeEntry', title: '订阅提现结果提醒', legacy: "subscribe.requestTriggerByTap('withdraw')", legacyCount: 1 },
-  { page: '校园活动页', file: 'pages/activity/index', trigger: 'activityIndex', visibleKey: 'showActivityIndexSubscribeEntry', checkedKey: 'activityIndexSubscribeChecked', tap: 'onActivityIndexSubscribeTap', refresh: 'refreshActivityIndexSubscribeEntry', title: '订阅活动消息提醒', legacy: "subscribe.requestTriggerByTap('activityIndex')", legacyCount: 2 },
-  { page: '发布活动页', file: 'pages/activity/publish', trigger: 'activityPublish', visibleKey: 'showActivityPublishSubscribeEntry', checkedKey: 'activityPublishSubscribeChecked', tap: 'onActivityPublishSubscribeTap', refresh: 'refreshActivityPublishSubscribeEntry', title: '订阅活动审核提醒', legacy: "subscribe.requestTriggerByTap('activityPublish')", legacyCount: 1 },
-  { page: '活动详情页', file: 'pages/activity/detail', trigger: 'activitySignup', visibleKey: 'showActivitySignupSubscribeEntry', checkedKey: 'activitySignupSubscribeChecked', tap: 'onActivitySignupSubscribeTap', refresh: 'refreshActivitySignupSubscribeEntry', title: '订阅活动结果提醒', legacy: "subscribe.requestTriggerByTap('activitySignup')", legacyCount: 1 },
-  { page: '骑手认证页', file: 'pages/rider-verify/index', trigger: 'riderVerify', visibleKey: 'showRiderVerifySubscribeEntry', checkedKey: 'riderVerifySubscribeChecked', tap: 'onRiderVerifySubscribeTap', refresh: 'refreshRiderVerifySubscribeEntry', title: '订阅审核结果提醒', legacy: "subscribe.requestTriggerByTap('riderVerify')", legacyCount: 2 },
+  { page: '钱包页', file: 'pkg-feature/pages/wallet/index', trigger: 'withdraw', visibleKey: 'showWithdrawSubscribeEntry', checkedKey: 'withdrawSubscribeChecked', tap: 'onWithdrawSubscribeTap', refresh: 'refreshWithdrawSubscribeEntry', title: '订阅提现结果提醒', legacy: "subscribe.requestTriggerByTap('withdraw')", legacyCount: 1 },
+  { page: '校园活动页', file: 'pkg-feature/pages/activity/index', trigger: 'activityIndex', visibleKey: 'showActivityIndexSubscribeEntry', checkedKey: 'activityIndexSubscribeChecked', tap: 'onActivityIndexSubscribeTap', refresh: 'refreshActivityIndexSubscribeEntry', title: '订阅活动消息提醒', legacy: "subscribe.requestTriggerByTap('activityIndex')", legacyCount: 2 },
+  { page: '发布活动页', file: 'pkg-feature/pages/activity/publish', trigger: 'activityPublish', visibleKey: 'showActivityPublishSubscribeEntry', checkedKey: 'activityPublishSubscribeChecked', tap: 'onActivityPublishSubscribeTap', refresh: 'refreshActivityPublishSubscribeEntry', title: '订阅活动审核提醒', legacy: "subscribe.requestTriggerByTap('activityPublish')", legacyCount: 1 },
+  { page: '活动详情页', file: 'pkg-feature/pages/activity/detail', trigger: 'activitySignup', visibleKey: 'showActivitySignupSubscribeEntry', checkedKey: 'activitySignupSubscribeChecked', tap: 'onActivitySignupSubscribeTap', refresh: 'refreshActivitySignupSubscribeEntry', title: '订阅活动结果提醒', legacy: "subscribe.requestTriggerByTap('activitySignup')", legacyCount: 1 },
+  { page: '骑手认证页', file: 'pkg-feature/pages/rider-verify/index', trigger: 'riderVerify', visibleKey: 'showRiderVerifySubscribeEntry', checkedKey: 'riderVerifySubscribeChecked', tap: 'onRiderVerifySubscribeTap', refresh: 'refreshRiderVerifySubscribeEntry', title: '订阅审核结果提醒', legacy: "subscribe.requestTriggerByTap('riderVerify')", legacyCount: 2 },
   { page: '发布跑腿页', file: 'pages/errand-publish/index', trigger: 'errandPublish', visibleKey: 'showErrandPublishSubscribeEntry', checkedKey: 'errandPublishSubscribeChecked', tap: 'onErrandPublishSubscribeTap', refresh: 'refreshErrandPublishSubscribeEntry', title: '订阅跑腿订单提醒', legacy: "subscribe.requestTriggerByTap('errandPublish')", legacyCount: 1 },
   { page: '消息列表页', file: 'pages/my-messages/index', trigger: 'message', visibleKey: 'showMessageSubscribeEntry', checkedKey: 'messageSubscribeChecked', tap: 'onMessageSubscribeTap', refresh: 'refreshMessageSubscribeEntry', title: '订阅私信消息提醒', keepJs: ['loadConversations()', 'loadInteractMessages(', 'messageStore.syncUnreadCount()', 'TAB_INDEX_SQUAT'], keepWxml: ['bindtap="onTab"', 'bindtap="onOpenChat"', 'class="conv-list"'] },
   { page: '发布帖子页', file: 'pages/post-publish/index', trigger: 'postPublish', visibleKey: 'showCommentSubscribeEntry', checkedKey: 'commentSubscribeChecked', tap: 'onTapCommentSubscribe', refresh: 'refreshCommentSubscribeEntry', title: '订阅评论消息提醒', legacy: "subscribe.requestTriggerByTap('postPublish')", legacyCount: 1 }
@@ -429,7 +429,7 @@ async function run() {
 
 // 加载设置页，取出真实的通知渠道结构（名称 + 子开关），用于与 TRIGGER_CHANNEL 对齐
 function loadSettingsChannels() {
-  const source = fs.readFileSync(path.join(ROOT, 'pages', 'settings', 'index.js'), 'utf8')
+  const source = fs.readFileSync(path.join(ROOT, 'pkg-user', 'pages', 'settings', 'index.js'), 'utf8')
   const state = { storage: {} }
   const wxStub = {
     getStorageSync: (key) => state.storage[key],
@@ -455,7 +455,7 @@ function loadSettingsChannels() {
     module: { exports: {} },
     exports: {}
   }
-  vm.runInNewContext(source, sandbox, { filename: 'pages/settings/index.js' })
+  vm.runInNewContext(source, sandbox, { filename: 'pkg-user/pages/settings/index.js' })
   assert.ok(pageConfig && pageConfig.data && Array.isArray(pageConfig.data.notifyChannels), '设置页必须定义 notifyChannels')
   // subs 是 { key, name } 结构，这里统一归一成 channel.name + channel.subKeys
   return pageConfig.data.notifyChannels.map((ch) => ({ name: ch.name, subKeys: (ch.subs || []).map((s) => s.key) }))

@@ -150,6 +150,18 @@
       {
         "value": "broadcast-bot-交付包.zip",
         "type": "file"
+      },
+      {
+        "value": "project.private.config.json",
+        "type": "file"
+      },
+      {
+        "value": "\\.mimosa",
+        "type": "regexp"
+      },
+      {
+        "value": ".zcodeignore",
+        "type": "file"
       }
     ],
     "include": []

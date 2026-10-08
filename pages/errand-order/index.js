@@ -104,7 +104,7 @@ Page({
   },
 
   goWallet() {
-    wx.navigateTo({ url: '/pages/wallet/index' })
+    wx.navigateTo({ url: '/pkg-feature/pages/wallet/index' })
   },
 
   goLogin() {

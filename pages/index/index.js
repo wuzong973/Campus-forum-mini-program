@@ -14,6 +14,8 @@ const { runPullDownRefresh } = require('../../utils/refresh')
 const subscribe = require('../../utils/subscribe')
 const scheduleUtils = require('../../utils/schedule')
 const avatarUtil = require('../../utils/avatar')
+// 站内跳转统一入口：识别分包路径 + tabBar 走 switchTab
+const link = require('../../utils/link')
 
 // 评论媒体按扩展名区分图片/视频（与 pages/post-detail 同一口径）
 const COMMENT_VIDEO_RE = /\.(mp4|m4v|mov|3gp|mkv|flv|avi|wmv|webm)(\?|#|$)/i
@@ -717,18 +719,36 @@ Page({
     wx.showToast({ title: '已刷新', icon: 'success' })
   },
 
+  // 轮播点击跳转。链接是后台「编辑首页轮播」里配的，可能是任意站内路径
+  // （主包 /pages/... 或分包 /pkg-feature/pages/...），也可能是外链。
+  //
+  // 这里曾经是一串硬编码 if/else（只认 post-detail / errand / schedule / index 四种），
+  // 那是给内置三张轮播写的白名单。管理员配了别的路径就会静默无反应；
+  // 更糟的是用 `indexOf('index') > -1` 判首页，会把 /pkg-feature/pages/activity/index
+  // 这种正确路径也误跳回首页。现在统一交给 utils/link。
   onBannerTap(e) {
-    const link = e.currentTarget.dataset.link || ''
+    const target = String(e.currentTarget.dataset.link || '').trim()
     wx.vibrateShort({ type: 'light' })
-    if (link.indexOf('/pages/post-detail/') === 0) {
-      wx.navigateTo({ url: link })
-    } else if (link.indexOf('errand') > -1) {
-      wx.switchTab({ url: '/pages/errand/index' })
-    } else if (link.indexOf('schedule') > -1) {
-      wx.switchTab({ url: '/pages/schedule/index' })
-    } else if (link.indexOf('index') > -1) {
-      wx.switchTab({ url: '/pages/index/index' })
+    if (!target) return
+    if (link.openPath(target, { fail: () => wx.showToast({ title: '该页面暂不可用', icon: 'none' }) })) return
+    if (link.isWebUrl(target)) {
+      wx.navigateTo({
+        url: '/pages/webview/index?url=' + encodeURIComponent(target),
+        fail: () => wx.showToast({ title: '打开失败，请稍后重试', icon: 'none' })
+      })
+      return
     }
+    // 既不是站内路径也不是外链（例如运营误填了 #小程序:// 短链或一句文案）。
+    // 复制兜底比点了没反应好，但光说「已复制」看不出为什么跳不了 —— 分两种情况给原因，
+    // 方便一眼认出是后台填错了什么。
+    const why = link.linkRejectReason(target)
+    wx.setClipboardData({
+      data: target,
+      success: () => wx.showToast({
+        title: why ? '该链接无法跳转，已复制' : '链接已复制',
+        icon: 'none'
+      })
+    })
   },
 
   onBannerChange(e) {
@@ -813,7 +833,7 @@ Page({
   },
 
   goServiceAll() {
-    wx.navigateTo({ url: '/pages/service-all/index' })
+    wx.navigateTo({ url: '/pkg-feature/pages/service-all/index' })
   },
 
   goSchedule() {
@@ -858,7 +878,7 @@ Page({
       wx.vibrateShort({ type: 'light' })
       const auth = require('../../utils/auth')
       auth.requireFeatureAccess('校园评价', { autoBack: false }).then((ok) => {
-        if (ok) wx.navigateTo({ url: '/pages/review/index' })
+        if (ok) wx.navigateTo({ url: '/pkg-feature/pages/review/index' })
       })
       return
     }
@@ -873,11 +893,11 @@ Page({
       return
     }
     if (item.name === '广轻义修') {
-      wx.navigateTo({ url: '/pages/repair/index' })
+      wx.navigateTo({ url: '/pkg-feature/pages/repair/index' })
       return
     }
     if (item.name === '校园地图') {
-      wx.navigateTo({ url: '/pages/campus-map/index' })
+      wx.navigateTo({ url: '/pkg-feature/pages/campus-map/index' })
       return
     }
     // 校园活动：进入活动列表页面（统一访问控制：已登录且教务登录/骑手认证任一满足）
@@ -885,7 +905,7 @@ Page({
       wx.vibrateShort({ type: 'light' })
       const auth = require('../../utils/auth')
       auth.requireFeatureAccess('校园活动', { autoBack: false }).then((ok) => {
-        if (ok) wx.navigateTo({ url: '/pages/activity/index' })
+        if (ok) wx.navigateTo({ url: '/pkg-feature/pages/activity/index' })
       })
       return
     }
@@ -894,7 +914,7 @@ Page({
       wx.vibrateShort({ type: 'light' })
       const auth = require('../../utils/auth')
       auth.requireFeatureAccess('广轻群聊', { autoBack: false }).then((ok) => {
-        if (ok) wx.navigateTo({ url: '/pages/group-chat/index' })
+        if (ok) wx.navigateTo({ url: '/pkg-feature/pages/group-chat/index' })
       })
       return
     }
@@ -903,7 +923,7 @@ Page({
       wx.vibrateShort({ type: 'light' })
       const auth = require('../../utils/auth')
       auth.requireFeatureAccess('社团&组织', { autoBack: false }).then((ok) => {
-        if (ok) wx.navigateTo({ url: '/pages/club/index' })
+        if (ok) wx.navigateTo({ url: '/pkg-feature/pages/club/index' })
       })
       return
     }
@@ -917,13 +937,13 @@ Page({
     // 找驾校：端上静态内容页（学车流程 / 报名材料 / 班型参考 / 常见问题），无需登录
     if (item.name === '找驾校') {
       wx.vibrateShort({ type: 'light' })
-      wx.navigateTo({ url: '/pages/driving-school/index' })
+      wx.navigateTo({ url: '/pkg-feature/pages/driving-school/index' })
       return
     }
     // 校园市场：进入市场页（租赁服务 / 校园数码 / 校园家政 / DIY电脑 四个后台可编辑分类）
     if (item.name === '校园市场') {
       wx.vibrateShort({ type: 'light' })
-      wx.navigateTo({ url: '/pages/market/index' })
+      wx.navigateTo({ url: '/pkg-feature/pages/market/index' })
       return
     }
     // 跳转到外部小程序（乘车码 / 零食店 等）

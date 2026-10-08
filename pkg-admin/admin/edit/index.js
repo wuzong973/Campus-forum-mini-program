@@ -10,6 +10,10 @@
 
 const admin = require('../../utils/admin')
 const wechat = require('../../../utils/wechat')
+// 可跳转链接的统一判定（与 server/utils/link.js 同规则）
+const link = require('../../../utils/link')
+// 可跳转页面清单：后台让运营「选页面」而不是「手打路径」
+const pageList = require('../../../utils/page-list')
 const meta = require('../../utils/admin-edit-meta')
 
 const {
@@ -83,6 +87,8 @@ Page({
     drivingSchoolLevelOptions: DRIVING_SCHOOL_LEVEL_OPTIONS,
     contentFormTitle: '',
     contentFormGuide: '',
+    // 跳转路径的「选页面 / 选帖子 / 手动输入」三模式全在 components/link-picker 里，
+    // 各入口只接它的 change 事件，不再各自维护一份状态（曾经各写一份，行为必然分叉）。
     // 下拉数据源（编辑页自己拉，不依赖后台列表已在内存里）
     serviceCategoryNames: [],
     clubCategoryNames: [],
@@ -178,6 +184,8 @@ Page({
       const body = item.type === 'tag' ? (m.text || '') : (item.body || '')
       form = Object.assign({ kind: 'content' }, item, { body, meta: m })
     }
+    // 跳转路径的回显交给 components/link-picker 自己处理（它按 value 判断该落在哪个模式），
+    // 这里只要把 form 塞进 data 即可。
     this.setData({ form, contentFormTitle: info.title, contentFormGuide: info.guide })
   },
 
@@ -432,6 +440,27 @@ Page({
     const index = Number(e.detail.value) || 0
     this.setData({ 'form.meta.styleIndex': index, 'form.meta.style': BANNER_STYLE_VALUES[index] })
   },
+
+  // ===== 跳转路径 =====
+  // 选页面 / 选帖子 / 手动输入 三模式全在 components/link-picker 里，
+  // 各入口只负责把组件回传的路径写进自己的表单字段 —— 这样五处跳转配置
+  // （首页轮播 / 发布横幅 / 公告右侧链接 / 推送群卡片 / 自定义页面）行为完全一致。
+  onLinkPicked(e) {
+    this.setData({ 'form.meta.link': (e.detail && e.detail.value) || '' })
+  },
+
+  onNoticeLinkPicked(e) {
+    this.setData({ 'form.meta.linkUrl': (e.detail && e.detail.value) || '' })
+  },
+
+  onPublishBannerLinkPicked(e) {
+    this.setData({ 'form.meta.link': (e.detail && e.detail.value) || '' })
+  },
+
+  onPushGroupLinkPicked(e) {
+    this.setData({ 'form.link': (e.detail && e.detail.value) || '' })
+  },
+
   onServiceCategoryChange(e) {
     const idx = Number(e.detail.value)
     const cats = this._serviceCategories || []
@@ -647,11 +676,27 @@ Page({
     }
 
     if (scope === 'content') {
+      // 首页轮播的跳转路径先归一化（去 .html / 补分包前缀 / 去站点域名 / 补斜杠），
+      // 校验与落库都用修正后的值 —— 运营不必记格式规则，改了什么也会在表单里提示。
+      if (form.type === 'banner') {
+        const fixed = link.normalizePagePath(form.meta && form.meta.link)
+        if (fixed.changed) form.meta.link = fixed.value
+      }
       const payload = Object.assign({}, form)
       if (form.type === 'banner' || form.type === 'notice' || form.type === 'publish_banner') payload.body = JSON.stringify(form.meta || {})
       if (form.type === 'tag') payload.body = JSON.stringify({ text: String(form.body || ''), bgColor: form.meta.bgColor || '', textColor: form.meta.textColor || '' })
       if (form.type === 'banner' && (!String(form.title || '').trim() || !(form.meta && form.meta.image))) return toast('请填写标题并上传轮播图片')
       if (form.type === 'notice' && !String(form.title || '').trim()) return toast('请填写公告文字')
+      // 首页轮播的跳转链接：先查格式（#小程序:// 短链、javascript: 等），再查页面是否真的存在。
+      // 用 showModal 而不是 showToast：原因较长，toast 会截断。
+      if (form.type === 'banner') {
+        const value = form.meta && form.meta.link
+        const reason = link.linkRejectReason(value) || pageList.pageExistenceReason(value)
+        if (reason) {
+          wx.showModal({ title: '跳转链接不可用', content: reason, showCancel: false, confirmText: '知道了' })
+          return false
+        }
+      }
       form.id ? await admin.updateContent(form.id, payload) : await admin.createContent(payload)
       return true
     }

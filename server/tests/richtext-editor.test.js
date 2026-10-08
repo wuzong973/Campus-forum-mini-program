@@ -163,8 +163,8 @@ check('插入后光标交回宿主且受字数上限保护', () => {
 })
 
 check('后台四处正文框都换成共享编辑器', () => {
-  const wxml = read('pages/banner-detail/index.wxml')
-  const json = JSON.parse(read('pages/banner-detail/index.json'))
+  const wxml = read('pkg-feature/pages/banner-detail/index.wxml')
+  const json = JSON.parse(read('pkg-feature/pages/banner-detail/index.json'))
   assert.ok(wxml.indexOf('<richtext-editor') >= 0, 'banner-detail 正文框应换成组件，而不是各页自造工具栏')
   assert.strictEqual(json.usingComponents['richtext-editor'], '/components/richtext-editor/richtext-editor',
     '未在 json 注册会整块静默不渲染')
@@ -409,9 +409,9 @@ check('四个自定义页面共用底部跳转按钮组件，且都接了 link/l
   // 也不能只加输入框而用户端不渲染（管理员配了没人看得到）。两头都要钉住。
   const PAGES = [
     ['pages/campus-service/index', 'servicePage'],
-    ['pages/driving-school/guide', 'page'],
-    ['pages/driving-school/landing', 'page'],
-    ['pages/market/index', 'page']
+    ['pkg-feature/pages/driving-school/guide', 'page'],
+    ['pkg-feature/pages/driving-school/landing', 'page'],
+    ['pkg-feature/pages/market/index', 'page']
   ]
   PAGES.forEach(([base, obj]) => {
     const wxml = read(base + '.wxml')
@@ -448,17 +448,26 @@ check('四个自定义页面共用底部跳转按钮组件，且都接了 link/l
   assert.ok(/meta\.link = link\b/.test(buildBody), 'buildServicePagePayload 未把 link 写入 meta')
   assert.ok(/meta\.linkText = link \? rawLinkText : ''/.test(buildBody),
     'buildServicePagePayload 未把 linkText 写入 meta（且链接为空时应一并清空文字）')
-  assert.ok(/SERVICE_PAGE_LINK_RE/.test(buildBody), '链接未做取值校验（javascript: 等会被落库）')
+  // 断言调用表达式本身（不是只出现标识符）。
+  // 2026-10-08：校验抽成 server/utils/link.js 的 isNavigableLink，
+  // 口径扩到分包 /pkg-feature/pages/...，见 tests/miniprogram-link-routing.test.js
+  assert.ok(/isNavigableLink\(link\)/.test(buildBody),
+    '链接未做取值校验（javascript: 等会被落库）')
 
   // 表单：自定义页面与横幅共用同一组输入框（不得再被 !isCard 挡掉）
-  const editorWxml = read('pages/banner-detail/index.wxml')
-  assert.ok(editorWxml.indexOf('data-field="link"') >= 0 && editorWxml.indexOf('data-field="linkText"') >= 0,
-    '编辑表单缺 link/linkText 输入框')
-  const cardOnly = /<block wx:if="\{\{!isCard\}\}">[\s\S]{0,600}data-field="link"/.test(editorWxml)
-  assert.ok(!cardOnly, '跳转链接仍被 !isCard 挡住，自定义页面（校园卡等）表单里看不到这两个输入框')
+  const editorWxml = read('pkg-feature/pages/banner-detail/index.wxml')
+  // 跳转链接改成 components/link-picker（选页面 / 选帖子 / 手动输入），
+  // 不再是裸 input —— 但「表单里必须有这两个字段」这件事不变，断言跟着改成组件形态。
+  assert.ok(editorWxml.indexOf('value="{{form.link}}"') >= 0,
+    '编辑表单缺跳转链接字段（应接 components/link-picker 的 value）')
+  assert.ok(editorWxml.indexOf('data-field="linkText"') >= 0,
+    '编辑表单缺链接文字输入框')
+  // 自定义页面（校园卡等）也要能看到：不能只给横幅显示
+  const cardOnly = /<block wx:if="\{\{!isCard\}\}">[\s\S]{0,600}value="\{\{form\.link\}\}"/.test(editorWxml)
+  assert.ok(!cardOnly, '跳转链接仍被 !isCard 挡住，自定义页面（校园卡等）表单里看不到它')
 
   // 编辑器回填不得把 link 清空（曾硬编码 link:'' 导致保存后链接消失）
-  const editorJs = read('pages/banner-detail/index.js')
+  const editorJs = read('pkg-feature/pages/banner-detail/index.js')
   assert.ok(/link: raw\.link \|\| ''/.test(editorJs), 'loadBanner 回填时清空了 link，管理员保存后链接会丢')
   assert.ok(/link, linkText \}/.test(editorJs), '自定义页面的 payload 未带上 link/linkText')
 })

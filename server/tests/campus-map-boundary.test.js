@@ -3,7 +3,7 @@
 const assert = require('assert')
 const fs = require('fs')
 const path = require('path')
-const src = fs.readFileSync(path.join(__dirname, '..', '..', 'pages', 'campus-map', 'index.js'), 'utf8')
+const src = fs.readFileSync(path.join(__dirname, '..', '..', 'pkg-feature', 'pages', 'campus-map', 'index.js'), 'utf8')
 
 // 1) 不再出现带 alpha 的十六进制 fillColor（微信 map polygon.fillColor 只认 #RRGGBB）
 assert.ok(!/fillColor:\s*'#?[0-9A-Fa-f]{8}'/.test(src), '不应再用 8 位十六进制 fillColor')

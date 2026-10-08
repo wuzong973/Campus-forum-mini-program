@@ -205,7 +205,7 @@ async function authBranchTests() {
   env.actionSheetCalls[0].success({ tapIndex: 1 })
   check(() => {
     assert.deepStrictEqual(env.navCalls.slice(-2),
-      ['/pkg-schedule/schedule-login/index', '/pages/rider-verify/index'],
+      ['/pkg-schedule/schedule-login/index', '/pkg-feature/pages/rider-verify/index'],
       '两个选项应分别跳教务登录页 / 骑手认证页')
   }, '二选一跳转')
 
@@ -330,15 +330,15 @@ function makePageSandbox(pagePath, stubs) {
       if (/utils\/club-data$/.test(key)) {
         // 真实 club-data 内部引用宿主 realm 的真实 api（会触发 wx.request），
         // 这里用桥接桩：沿用真实模块的静态分类数据，数据请求转发到测试 api 桩
-        const realClubData = require('../../utils/club-data')
+        const realClubData = require('../../pkg-feature/utils/club-data')
         return {
           CLUB_CATEGORIES: realClubData.CLUB_CATEGORIES,
           fetchCategories: (campus) => stubs.api.getClubCategories(campus)
         }
       }
-      if (/utils\/group-chat$/.test(key)) return require('../../utils/group-chat')
+      if (/utils\/group-chat$/.test(key)) return require('../../pkg-feature/utils/group-chat')
       if (/utils\/campus$/.test(key)) return require('../../utils/campus')
-      if (/utils\/review$/.test(key)) return require('../../utils/review')
+      if (/utils\/review$/.test(key)) return require('../../pkg-feature/utils/review')
       if (/utils\/subscribe$/.test(key)) {
         // 活动页 2026-09-12 新增依赖：本测试只关心访问守卫，订阅模块用静默桩
         return {
@@ -400,7 +400,7 @@ async function pageWiringTests() {
         return Promise.resolve({ list: [], total: 0, hasMore: false })
       }
     }
-    const first = makePageSandbox('pages/activity/index.js', { api: apiStub, guardPass: false, apiCallsLog })
+    const first = makePageSandbox('pkg-feature/pages/activity/index.js', { api: apiStub, guardPass: false, apiCallsLog })
     const page = createPage(first.pageDefinition)
     await page.onShow()
     check(() => {
@@ -409,7 +409,7 @@ async function pageWiringTests() {
       assert.strictEqual(page.data.loaded, false)
     }, '活动页守卫拦截')
 
-    const second = makePageSandbox('pages/activity/index.js', { api: apiStub, guardPass: true, apiCallsLog })
+    const second = makePageSandbox('pkg-feature/pages/activity/index.js', { api: apiStub, guardPass: true, apiCallsLog })
     const page2 = createPage(second.pageDefinition)
     await page2.onShow()
     check(() => {
@@ -433,7 +433,7 @@ async function pageWiringTests() {
         return Promise.resolve({ list: [] })
       }
     }
-    const first = makePageSandbox('pages/group-chat/index.js', { api: apiStub, guardPass: false, apiCallsLog })
+    const first = makePageSandbox('pkg-feature/pages/group-chat/index.js', { api: apiStub, guardPass: false, apiCallsLog })
     const page = createPage(first.pageDefinition, { onLoad: true })
     const beforeB2 = apiCallsLog.length
     await page.onShow()
@@ -442,7 +442,7 @@ async function pageWiringTests() {
       assert.strictEqual(apiCallsLog.length, beforeB2, '守卫不通过不得加载群聊数据')
     }, '群聊页守卫拦截')
 
-    const second = makePageSandbox('pages/group-chat/index.js', { api: apiStub, guardPass: true, apiCallsLog })
+    const second = makePageSandbox('pkg-feature/pages/group-chat/index.js', { api: apiStub, guardPass: true, apiCallsLog })
     const page2 = createPage(second.pageDefinition, { onLoad: true })
     const beforeB2b = apiCallsLog.length
     await page2.onShow()
@@ -463,7 +463,7 @@ async function pageWiringTests() {
         return Promise.resolve({ list: [] })
       }
     }
-    const first = makePageSandbox('pages/club/index.js', { api: apiStub, guardPass: false, apiCallsLog })
+    const first = makePageSandbox('pkg-feature/pages/club/index.js', { api: apiStub, guardPass: false, apiCallsLog })
     const page = createPage(first.pageDefinition, { onLoad: true })
     const beforeB3 = apiCallsLog.length
     await page.onShow()
@@ -472,7 +472,7 @@ async function pageWiringTests() {
       assert.strictEqual(apiCallsLog.length, beforeB3, '守卫不通过不得加载社团数据')
     }, '社团页守卫拦截')
 
-    const second = makePageSandbox('pages/club/index.js', { api: apiStub, guardPass: true, apiCallsLog })
+    const second = makePageSandbox('pkg-feature/pages/club/index.js', { api: apiStub, guardPass: true, apiCallsLog })
     const page2 = createPage(second.pageDefinition, { onLoad: true })
     const beforeB3b = apiCallsLog.length
     await page2.onShow()
@@ -483,7 +483,7 @@ async function pageWiringTests() {
 
   // B4. 校园评价
   {
-    const first = makePageSandbox('pages/review/index.js', { api: {}, guardPass: false })
+    const first = makePageSandbox('pkg-feature/pages/review/index.js', { api: {}, guardPass: false })
     const page = createPage(first.pageDefinition, { onLoad: true })
     await page.onShow()
     check(() => {
@@ -497,13 +497,13 @@ async function pageWiringTests() {
 // =====================================================================
 function entryWiringTests() {
   const indexSource = require('fs').readFileSync(path.join(MINI_PROGRAM_ROOT, 'pages', 'index', 'index.js'), 'utf8')
-  const serviceAllSource = require('fs').readFileSync(path.join(MINI_PROGRAM_ROOT, 'pages', 'service-all', 'index.js'), 'utf8')
+  const serviceAllSource = require('fs').readFileSync(path.join(MINI_PROGRAM_ROOT, 'pkg-feature', 'pages', 'service-all', 'index.js'), 'utf8')
 
   const entries = [
-    ['校园活动', '/pages/activity/index'],
-    ['广轻群聊', '/pages/group-chat/index'],
-    ['社团&组织', '/pages/club/index'],
-    ['校园评价', '/pages/review/index']
+    ['校园活动', '/pkg-feature/pages/activity/index'],
+    ['广轻群聊', '/pkg-feature/pages/group-chat/index'],
+    ['社团&组织', '/pkg-feature/pages/club/index'],
+    ['校园评价', '/pkg-feature/pages/review/index']
   ]
   for (const [name, url] of entries) {
     check(() => {
@@ -516,9 +516,9 @@ function entryWiringTests() {
 
   check(() => {
     assert.match(serviceAllSource, /FEATURE_GUARDS/)
-    assert.ok(serviceAllSource.indexOf("'\/pages\/club\/index': '社团&组织'") >= 0)
-    assert.ok(serviceAllSource.indexOf("'\/pages\/group-chat\/index': '广轻群聊'") >= 0)
-    assert.ok(serviceAllSource.indexOf("'\/pages\/activity\/index': '校园活动'") >= 0)
+    assert.ok(serviceAllSource.indexOf("'\/pkg-feature\/pages\/club\/index': '社团&组织'") >= 0)
+    assert.ok(serviceAllSource.indexOf("'\/pkg-feature\/pages\/group-chat\/index': '广轻群聊'") >= 0)
+    assert.ok(serviceAllSource.indexOf("'\/pkg-feature\/pages\/activity\/index': '校园活动'") >= 0)
     assert.match(serviceAllSource, /requireFeatureAccess\(guardName, \{ autoBack: false \}\)/)
   }, '全部服务页入口接线')
 }

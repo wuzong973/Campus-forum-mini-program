@@ -119,11 +119,11 @@ Page({
       const path = link.charAt(0) === '/' ? link : '/' + link
       wx.navigateTo({
         url: path,
-        fail: () => wx.switchTab({ url: path, fail: () => wx.navigateTo({ url: '/pages/banner-detail/index?scope=publish&id=' + (banner.id || '') }) })
+        fail: () => wx.switchTab({ url: path, fail: () => wx.navigateTo({ url: '/pkg-feature/pages/banner-detail/index?scope=publish&id=' + (banner.id || '') }) })
       })
       return
     }
-    wx.navigateTo({ url: '/pages/banner-detail/index?scope=publish&id=' + (banner.id || '') })
+    wx.navigateTo({ url: '/pkg-feature/pages/banner-detail/index?scope=publish&id=' + (banner.id || '') })
   },
   onClosePublishBanner(e) {
     const index = Number(e.currentTarget.dataset.index)
@@ -238,7 +238,7 @@ Page({
   removePollOption(e) { if (this.data.poll.options.length <= 2) return; const options = this.data.poll.options.slice(); options.splice(e.currentTarget.dataset.index, 1); this.setData({ 'poll.options': options }) },
   setPollMode(e) { this.setData({ 'poll.mode': e.currentTarget.dataset.mode }) },
   isPollValid() { const poll = this.data.poll || {}; return !!poll.question.trim() && poll.options.filter((item) => item.value.trim()).length >= 2 },
-  openRules() { wx.navigateTo({ url: '/pages/rules/index' }) }, onTempTagSelect(e) { this.setData({ tempCategoryIndex: e.currentTarget.dataset.index }) },
+  openRules() { wx.navigateTo({ url: '/pkg-feature/pages/rules/index' }) }, onTempTagSelect(e) { this.setData({ tempCategoryIndex: e.currentTarget.dataset.index }) },
   confirmTag() { this.setData({ categoryIndex: this.data.tempCategoryIndex, showTagPicker: false }); this.refreshCanSubmit(); this.saveDraft() },
   onChooseImage() {
     imageUtil.chooseAndCompress(9 - this.data.mediaList.length).then((files) => {

@@ -7,6 +7,12 @@ Component({
     color: "#969799",
     selectedColor: "#4A7AFF",
     unreadCount: 0,
+    // 全屏浮层（如二维码放大态）需要临时隐藏 tabBar：自定义 tabBar 由框架渲染在页面内容
+    // 之上（官方推荐用 cover-view 以保证层级，本项目是普通 view，同样在页面之上），
+    // position:fixed 的遮罩 z-index 再高也盖不住它 —— 只能整块不渲染。
+    // ⚠ 默认 false；由浮层通过 getTabBar().setData({ hidden }) 控制，
+    //   且**必须保证恢复**（漏一个恢复点 = 该 tab 页的 tabBar 消失）。
+    hidden: false,
     list: [
       { pagePath: "/pages/index/index", text: "首页", iconPath: "/assets/tabbar/home.png", selectedIconPath: "/assets/tabbar/home-active.png" },
       { pagePath: "/pages/schedule/index", text: "课程表", iconPath: "/assets/tabbar/schedule.png", selectedIconPath: "/assets/tabbar/schedule-active.png" },

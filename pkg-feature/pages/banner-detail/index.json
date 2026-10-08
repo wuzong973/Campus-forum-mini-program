@@ -1,0 +1,11 @@
+{
+  "navigationBarTitleText": "公告详情",
+  "navigationBarBackgroundColor": "#D7EFFF",
+  "backgroundColor": "#F5F7FA",
+  "usingComponents": {
+    "color-picker": "/components/color-picker/index",
+    "richtext-content": "/components/richtext-content/richtext-content",
+    "richtext-editor": "/components/richtext-editor/richtext-editor",
+    "link-picker": "/components/link-picker/link-picker"
+  }
+}

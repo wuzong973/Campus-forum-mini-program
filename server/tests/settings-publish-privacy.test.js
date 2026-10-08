@@ -48,7 +48,7 @@ function read(p) {
 }
 
 function loadSettingsPage() {
-  const source = read('pages/settings/index.js')
+  const source = read('pkg-user/pages/settings/index.js')
   const state = { storage: {} }
   const wxStub = {
     getStorageSync: (key) => state.storage[key],
@@ -124,7 +124,7 @@ function run() {
 
   // B. commentPublic/anonymousMessage 已按用户要求恢复（2026-09-12：先删后恢复，恢复语义见 C/F）
   check(() => {
-    const settingsJs = read('pages/settings/index.js')
+    const settingsJs = read('pkg-user/pages/settings/index.js')
     assert.ok(settingsJs.indexOf("commentPublic: false") > -1, 'DEFAULT_SETTINGS 含 commentPublic（默认关闭）')
     assert.ok(settingsJs.indexOf("anonymousMessage: false") > -1, 'DEFAULT_SETTINGS 含 anonymousMessage（默认关闭）')
     assert.ok(settingsJs.indexOf("key: 'commentPublic'") > -1 && settingsJs.indexOf('评论默认不开启分身') > -1, 'UI 恢复「评论默认不开启分身」')
@@ -172,7 +172,7 @@ function run() {
     assert.ok(userController.indexOf('if (Number((targetUsers[0] || {}).hide_profile_posts) === 1 && Number(currentUserId) !== profileId)') > -1,
       'getProfilePosts 对访客返回空列表')
     assert.ok(userController.indexOf('fields.push("hide_profile_posts = ?")') > -1, 'updateInfo 落库 hide_profile_posts')
-    const settingsJs = read('pages/settings/index.js')
+    const settingsJs = read('pkg-user/pages/settings/index.js')
     assert.ok(settingsJs.indexOf("request.put('/user/info', { hideProfilePosts: value ? 1 : 0 }") > -1, '设置页开关同步服务端')
   }, 'D. hideProfilePosts 已接线（设置页落库 + 服务端过滤访客 + 个人主页访客视角）')
 

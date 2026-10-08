@@ -1,6 +1,6 @@
 /**
  * 社团分类详情页测试（无需真机 / 无需数据库）
- * 用 vm 加载真实页面文件 pages/club/detail.js，注入假 wx / getApp。
+ * 用 vm 加载真实页面文件 pkg-feature/pages/club/detail.js，注入假 wx / getApp。
  *
  * 覆盖：能正常 onLoad（回归：此前引用了 campus.js 里并不存在的 CAMPUS_OPTIONS，
  * 一进详情页就抛 TypeError: Cannot read properties of undefined (reading 'indexOf')）、
@@ -16,7 +16,7 @@ const path = require('path')
 const vm = require('vm')
 
 const MINI_PROGRAM_ROOT = path.join(__dirname, '..', '..')
-const DETAIL_PAGE = path.join(MINI_PROGRAM_ROOT, 'pages', 'club', 'detail.js')
+const DETAIL_PAGE = path.join(MINI_PROGRAM_ROOT, 'pkg-feature', 'pages', 'club', 'detail.js')
 const source = fs.readFileSync(DETAIL_PAGE, 'utf8')
 
 let testCount = 0
@@ -80,7 +80,7 @@ sandbox.Page = (definition) => { pageDefinition = definition }
 vm.createContext(sandbox)
 
 check(() => {
-  vm.runInNewContext(source, sandbox, { filename: 'pages/club/detail.js' })
+  vm.runInNewContext(source, sandbox, { filename: 'pkg-feature/pages/club/detail.js' })
   assert.ok(pageDefinition, '应调用 Page() 注册页面')
 }, '页面加载')
 
@@ -208,7 +208,7 @@ async function main() {
     page.onClubTap({ currentTarget: { dataset: { id: 7, name: '武术社' } } })
     check(() => {
       assert.ok(navigatedTo, '点击社团应触发跳转')
-      assert.strictEqual(navigatedTo, '/pages/club/club-detail?id=7&name=' + encodeURIComponent('武术社'),
+      assert.strictEqual(navigatedTo, '/pkg-feature/pages/club/club-detail?id=7&name=' + encodeURIComponent('武术社'),
         '应带上社团唯一标识 id 与名称跳转（名称用于先占住导航栏标题）')
     }, '跳转社团详情页')
   }
@@ -261,8 +261,8 @@ async function main() {
 
   // 9) wxml/wxss 不应再保留就地展开区（已改为整行跳转）
   {
-    const wxml = fs.readFileSync(path.join(MINI_PROGRAM_ROOT, 'pages', 'club', 'detail.wxml'), 'utf8')
-    const wxss = fs.readFileSync(path.join(MINI_PROGRAM_ROOT, 'pages', 'club', 'detail.wxss'), 'utf8')
+    const wxml = fs.readFileSync(path.join(MINI_PROGRAM_ROOT, 'pkg-feature', 'pages', 'club', 'detail.wxml'), 'utf8')
+    const wxss = fs.readFileSync(path.join(MINI_PROGRAM_ROOT, 'pkg-feature', 'pages', 'club', 'detail.wxss'), 'utf8')
     check(() => {
       assert.doesNotMatch(wxml, /onToggleClub|club-detail-inner/,
         '分类页不应再有就地展开逻辑（已改为跳转社团详情页）')
@@ -275,7 +275,7 @@ async function main() {
   // 10) 社团详情页必须为简介留出完整高度：不得用 max-height + overflow 折叠长简介
   //     （分类页旧实现曾写死 560rpx 把长简介裁掉，新页面不能重蹈覆辙）
   {
-    const rawDetailWxss = fs.readFileSync(path.join(MINI_PROGRAM_ROOT, 'pages', 'club', 'club-detail.wxss'), 'utf8')
+    const rawDetailWxss = fs.readFileSync(path.join(MINI_PROGRAM_ROOT, 'pkg-feature', 'pages', 'club', 'club-detail.wxss'), 'utf8')
     // 先去掉 css 注释：注释里会出现「不设 max-height」之类的说明文字，不剥离会误判
     const detailWxss = rawDetailWxss.replace(/\/\*[\s\S]*?\*\//g, '')
     const controllerSrc = fs.readFileSync(path.join(__dirname, '..', 'controllers', 'clubController.js'), 'utf8')

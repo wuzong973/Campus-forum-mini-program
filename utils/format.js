@@ -51,4 +51,21 @@ function stripMediaPlaceholder(str) {
   return String(str || '').replace(/\s*\[(?:图片|视频)\]\s*$/, '').trim()
 }
 
-module.exports = { formatTime, formatDateTime, formatRelativeTime, formatPrice, truncate, stripMediaPlaceholder }
+// 论坛帖的显示标题。
+//
+// ⚠ `title` **绝大多数是空的**（2026-10-08 实测：forum_post 353 行里 352 行 title 为空），
+// 论坛帖的主字段是 `content`。所以这里优先取 title，没有就截正文摘要 ——
+// 曾经后台「选帖子」只读 title，结果一屏全是「（无标题）」，根本认不出是哪条。
+//
+// 正文要先剥掉末尾的「[图片]/[视频]」占位、把换行与连续空白压成单个空格，
+// 否则列表里会出现大段空白或换行撑高行高。
+function postTitle(row, max) {
+  const r = row || {}
+  const limit = Number(max) > 0 ? Number(max) : 40
+  const title = String(r.title || '').trim()
+  if (title) return truncate(title, limit)
+  const body = stripMediaPlaceholder(String(r.content || '')).replace(/\s+/g, ' ').trim()
+  return truncate(body, limit)
+}
+
+module.exports = { formatTime, formatDateTime, formatRelativeTime, formatPrice, truncate, stripMediaPlaceholder, postTitle }

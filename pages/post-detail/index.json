@@ -3,6 +3,7 @@
   "navigationBarBackgroundColor": "#D7EFFF",
   "navigationBarTextStyle": "black",
   "usingComponents": {
-    "share-popup": "/components/share-popup/share-popup"
+    "share-popup": "/components/share-popup/share-popup",
+    "avatar-sheet": "/components/avatar-sheet/index"
   }
 }

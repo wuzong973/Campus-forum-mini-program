@@ -18,7 +18,7 @@ const ROOT = path.join(__dirname, '..', '..')
 const read = (p) => fs.readFileSync(path.join(ROOT, p), 'utf8')
 
 const INDEX_JS = read('pages/index/index.js')
-const SERVICE_ALL_JS = read('pages/service-all/index.js')
+const SERVICE_ALL_JS = read('pkg-feature/pages/service-all/index.js')
 const API_JS = read('utils/api.js')
 const APP_JSON = JSON.parse(read('app.json'))
 const SCHEDULE_HOME_JS = read('pkg-schedule/schedule-home/index.js')
@@ -54,13 +54,13 @@ const PENDING_ENTRIES = []
 
 // 端上页面型入口：首页源码里必须出现对应跳转目标
 const PAGE_ENTRIES = [
-  ['找驾校', '/pages/driving-school/index'],
-  ['校园活动', '/pages/activity/index'],
-  ['广轻群聊', '/pages/group-chat/index'],
-  ['社团&组织', '/pages/club/index'],
-  ['校园评价', '/pages/review/index'],
-  ['广轻义修', '/pages/repair/index'],
-  ['校园地图', '/pages/campus-map/index'],
+  ['找驾校', '/pkg-feature/pages/driving-school/index'],
+  ['校园活动', '/pkg-feature/pages/activity/index'],
+  ['广轻群聊', '/pkg-feature/pages/group-chat/index'],
+  ['社团&组织', '/pkg-feature/pages/club/index'],
+  ['校园评价', '/pkg-feature/pages/review/index'],
+  ['广轻义修', '/pkg-feature/pages/repair/index'],
+  ['校园地图', '/pkg-feature/pages/campus-map/index'],
   ['考试安排', '/pkg-schedule/schedule-exam/index'],
   ['成绩查询', '/pkg-schedule/schedule-grade/index'],
   ['教务系统', '/pkg-schedule/schedule-home/index'],
@@ -75,7 +75,7 @@ const PAGE_ENTRIES = [
   ['返乡大巴', '/pages/campus-service/index'],
   ['特惠寄件', '/pages/campus-service/index'],
   // 校园市场：独立的市场页（租赁服务 / 校园数码 / 校园家政 / DIY电脑 四个后台可编辑分类）
-  ['校园市场', '/pages/market/index']
+  ['校园市场', '/pkg-feature/pages/market/index']
 ]
 
 // 映射到首页分类的入口
@@ -174,16 +174,22 @@ function entryDestinationTests() {
   const EXT_FILES = ['index.js', 'index.wxml', 'index.wxss', 'index.json']
   for (const page of ['driving-school', 'campus-service']) {
     check(() => {
-      for (const file of EXT_FILES) {
-        const target = path.join(ROOT, 'pages', page, file)
-        assert.ok(fs.existsSync(target), '缺少文件 pages/' + page + '/' + file)
-      }
+      // 页面可能位于主包 pages/ 或分包 pkg-feature/pages/（找驾校已拆入分包）
+      const roots = [
+        { dir: path.join(ROOT, 'pages', page), reg: 'pages/' + page },
+        { dir: path.join(ROOT, 'pkg-feature', 'pages', page), reg: 'pkg-feature/pages/' + page }
+      ]
+      const hit = roots.find((r) => EXT_FILES.every((file) => fs.existsSync(path.join(r.dir, file))))
+      assert.ok(hit, '缺少文件 pages/' + page + '/ 或 pkg-feature/pages/' + page + '/')
     }, '页面文件齐备：pages/' + page)
 
     check(() => {
+      const registered = APP_JSON.pages.concat(
+        (APP_JSON.subPackages || []).reduce((all, sp) => all.concat((sp.pages || []).map((pp) => sp.root + '/' + pp)), [])
+      )
       assert.ok(
-        APP_JSON.pages.indexOf('pages/' + page + '/index') >= 0,
-        'app.json 未注册 pages/' + page + '/index'
+        registered.indexOf('pages/' + page + '/index') >= 0 || registered.indexOf('pkg-feature/pages/' + page + '/index') >= 0,
+        'app.json 未注册 pages/' + page + '/index 或 pkg-feature/pages/' + page + '/index'
       )
     }, '页面已在 app.json 注册：pages/' + page)
   }

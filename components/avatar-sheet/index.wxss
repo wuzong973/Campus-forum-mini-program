@@ -1,0 +1,24 @@
+/* 头像功能卡片（统一弹窗）—— 样式 1:1 取自原 pages/post-detail 内联实现 */
+
+.anon-sheet-mask { position: fixed; z-index: 1100; inset: 0; background: rgba(0, 0, 0, .45); }
+.anon-sheet { position: fixed; z-index: 1101; left: 0; right: 0; bottom: 0; background: #f4f4f6; border-radius: 36rpx 36rpx 0 0; padding: 44rpx 40rpx calc(56rpx + env(safe-area-inset-bottom)); }
+.anon-sheet-close { position: absolute; top: 36rpx; right: 32rpx; width: 64rpx; height: 64rpx; border-radius: 50%; background: #e9e9ec; color: #7c7c82; font-size: 40rpx; line-height: 60rpx; text-align: center; }
+.anon-sheet-user { display: flex; align-items: center; }
+.anon-sheet-avatar { width: 108rpx; height: 108rpx; border-radius: 26rpx; background: #fff; flex: 0 0 auto; }
+.anon-sheet-nick { margin-left: 24rpx; font-size: 36rpx; font-weight: 700; color: #1a1a1a; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.anon-sheet-owner { position: relative; flex: 0 0 auto; margin-left: 14rpx; padding: 3rpx 12rpx; background: #f43a26; border-radius: 8rpx; }
+.anon-sheet-owner-text { color: #fff; font-size: 22rpx; font-weight: 700; }
+.anon-sheet-owner-op { position: absolute; top: -12rpx; right: -10rpx; padding: 0 6rpx; background: #ffd54a; border-radius: 6rpx 6rpx 6rpx 0; color: #6b4a00; font-size: 18rpx; font-weight: 800; line-height: 22rpx; }
+.anon-sheet-msg-btn { display: block; margin: 76rpx auto 0; width: 330rpx; height: 90rpx; line-height: 90rpx; padding: 0; border-radius: 45rpx; background: #f8503a; color: #fff; font-size: 32rpx; font-weight: 600; text-align: center; }
+.anon-sheet-msg-btn::after { border: none; }
+.anon-sheet-tip { display: block; margin-top: 44rpx; text-align: center; color: #9b9ba1; font-size: 28rpx; }
+
+/* 普通用户头像弹出的选择层（个人主页 / 分身私信） */
+.author-sheet-badge { flex: 0 0 auto; margin-left: 14rpx; padding: 4rpx 14rpx; background: #52b0a8; border-radius: 8rpx; }
+.author-sheet-badge-text { color: #fff; font-size: 22rpx; font-weight: 600; }
+.author-sheet-actions { display: flex; margin-top: 60rpx; }
+.author-sheet-btn { flex: 1; height: 90rpx; line-height: 90rpx; padding: 0; margin: 0; border-radius: 45rpx; font-size: 32rpx; font-weight: 600; text-align: center; }
+.author-sheet-btn + .author-sheet-btn { margin-left: 28rpx; }
+.author-sheet-btn::after { border: none; }
+.author-sheet-btn.ghost { background: #fff; color: #333; border: 1rpx solid #e3e3e8; }
+.author-sheet-btn.primary { background: #f8503a; color: #fff; }

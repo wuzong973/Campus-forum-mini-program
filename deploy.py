@@ -12,6 +12,7 @@ SERVER = "193.112.187.95"
 USER = "root"
 PASS = "Wzl@88888"
 REMOTE_BASE = "/home/springboot/server"
+APP_VERSION = os.getenv("DEPLOY_APP_VERSION", "")
 # nginx 直接托管的静态站点目录（小程序 web-view 用的 H5 页面、微信业务域名校验文件放这里）
 STATIC_REMOTE_BASE = "/www/wwwroot/payun01.cn"
 LOCAL_BASE = r"d:\校园论坛小程序"
@@ -36,7 +37,9 @@ files = [
     # 维修预约：用户端 repairRoutes + 管理端「日志 → 维修信息」的 adminListOrders 都在 repairController，
     # 两者必须同批上传（只传路由会 MODULE_NOT_FOUND）
     ("server/controllers/repairController.js", "controllers/repairController.js"),
+    ("server/controllers/reviewController.js", "controllers/reviewController.js"),
     ("server/routes/repairRoutes.js", "routes/repairRoutes.js"),
+    ("server/routes/reviewRoutes.js", "routes/reviewRoutes.js"),
     ("server/routes/userRoutes.js", "routes/userRoutes.js"),
     ("server/routes/postRoutes.js", "routes/postRoutes.js"),
     ("server/routes/feedbackRoutes.js", "routes/feedbackRoutes.js"),
@@ -44,6 +47,7 @@ files = [
     ("server/controllers/feedbackController.js", "controllers/feedbackController.js"),
     ("server/services/errandExpiryService.js", "services/errandExpiryService.js"),
     ("server/services/subscribeService.js", "services/subscribeService.js"),
+    ("server/services/wechatService.js", "services/wechatService.js"),
     # 订阅消息路由与控制器：本轮新增了 POST /subscribe/throttled（上报「命中弹窗节流」），
     # 缺这两个文件会出现「客户端上报 404、后台「命中节流」永远为空」。
     ("server/controllers/subscribeController.js", "controllers/subscribeController.js"),
@@ -123,6 +127,21 @@ if args.static_only:
     ssh.close()
     print("Done (static only)!")
     sys.exit(0)
+
+if APP_VERSION:
+    if not __import__("re").fullmatch(r"\d+\.\d+\.\d+", APP_VERSION):
+        raise ValueError("DEPLOY_APP_VERSION 必须是 x.y.z 格式")
+    print(f"Updating APP_VERSION to {APP_VERSION}...")
+    version_cmd = (
+        f"cd {REMOTE_BASE} && cp .env .env.bak-$(date +%Y%m%d%H%M%S) && "
+        f"if grep -q '^APP_VERSION=' .env; then "
+        f"sed -i 's/^APP_VERSION=.*/APP_VERSION={APP_VERSION}/' .env; "
+        f"else printf '\\nAPP_VERSION={APP_VERSION}\\n' >> .env; fi"
+    )
+    stdin, stdout, stderr = ssh.exec_command(version_cmd)
+    err = stderr.read().decode()
+    if err:
+        raise RuntimeError(err)
 
 # Restart server
 print("\nRestarting server...")

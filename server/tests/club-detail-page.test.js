@@ -1,6 +1,6 @@
 /**
  * 社团详情页测试（无需真机 / 无需数据库）
- * 用 vm 加载真实页面文件 pages/club/club-detail.js，注入假 wx 与假 api 桩。
+ * 用 vm 加载真实页面文件 pkg-feature/pages/club/club-detail.js，注入假 wx 与假 api 桩。
  *
  * 覆盖：
  *   - 无 id（深链被截断）→ 直接空态且不打接口
@@ -16,7 +16,7 @@ const path = require('path')
 const vm = require('vm')
 
 const MINI_PROGRAM_ROOT = path.join(__dirname, '..', '..')
-const source = require('fs').readFileSync(path.join(MINI_PROGRAM_ROOT, 'pages', 'club', 'club-detail.js'), 'utf8')
+const source = require('fs').readFileSync(path.join(MINI_PROGRAM_ROOT, 'pkg-feature', 'pages', 'club', 'club-detail.js'), 'utf8')
 
 let testCount = 0
 function check(fn, message) {
@@ -34,7 +34,7 @@ function plain(value) {
 }
 
 // ===== 桩 =====
-const realClubData = require('../../utils/club-data')
+const realClubData = require('../../pkg-feature/utils/club-data')
 
 let apiCalls = []
 let apiResult = null
@@ -81,7 +81,7 @@ const sandbox = {
 let pageDefinition = null
 sandbox.Page = (definition) => { pageDefinition = definition }
 vm.createContext(sandbox)
-vm.runInNewContext(source, sandbox, { filename: 'pages/club/club-detail.js' })
+vm.runInNewContext(source, sandbox, { filename: 'pkg-feature/pages/club/club-detail.js' })
 
 check(() => {
   assert.ok(pageDefinition, '应调用 Page() 注册页面')
@@ -293,7 +293,7 @@ async function main() {
     navigatedTo = null
     page.onActivityTap({ currentTarget: { dataset: { id: 106 } } })
     check(() => {
-      assert.strictEqual(navigatedTo, '/pages/activity/detail?id=106', '应跳转到活动详情页')
+      assert.strictEqual(navigatedTo, '/pkg-feature/pages/activity/detail?id=106', '应跳转到活动详情页')
     }, '活动跳转')
   }
 

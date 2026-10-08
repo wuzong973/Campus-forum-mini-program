@@ -119,7 +119,7 @@ const SERVICES = [
       { q: '校外周边商家信息也会收录吗？', a: '会，周边常去的商家、打印店、快递点都在整理范围内，欢迎反馈补充。' }
     ],
     // 相关入口：跳转到站内已有页面，避免重复造页面
-    links: [{ label: '打开校园地图', url: '/pages/campus-map/index' }]
+    links: [{ label: '打开校园地图', url: '/pkg-feature/pages/campus-map/index' }]
   },
   {
     id: 'campus-card',

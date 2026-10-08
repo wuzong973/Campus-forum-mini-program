@@ -75,7 +75,7 @@ function loadHotRank() {
 
 // 加载真实设置页（hot-rank 用上面同源沙箱实例，保证联动可断言）
 function loadSettingsPage(hotRankReal, hotState, hotAppStub) {
-  const source = require('fs').readFileSync(path.join(MINI_PROGRAM_ROOT, 'pages', 'settings', 'index.js'), 'utf8')
+  const source = require('fs').readFileSync(path.join(MINI_PROGRAM_ROOT, 'pkg-user', 'pages', 'settings', 'index.js'), 'utf8')
   const state = { storage: hotState.storage }
   const wxStub = {
     getStorageSync: (key) => state.storage[key],
@@ -249,7 +249,7 @@ async function run() {
     assert.ok(rankJs.indexOf('isDailyHotVisible()') > -1, '热榜页 onShow 校验偏好')
     assert.ok(rankJs.indexOf('navigateBack') > -1, '关闭时退出热榜页')
     // 设置页
-    const settingsWxml = read('pages/settings/index.wxml')
+    const settingsWxml = read('pkg-user/pages/settings/index.wxml')
     assert.ok(settingsWxml.indexOf("item.key === 'dailyHot' ? dailyHotVisible") > -1, '设置页每日热榜开关绑定用户偏好字段')
   }, 'C. 五个页面与设置页的接线护栏（偏好隐藏逻辑不被误删）')
 }

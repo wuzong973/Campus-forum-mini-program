@@ -6,7 +6,7 @@ const path = require('path')
 
 const read = (...seg) => fs.readFileSync(path.join(__dirname, '..', '..', ...seg), 'utf8')
 const index = read('pages', 'index', 'index.js')
-const serviceAll = read('pages', 'service-all', 'index.js')
+const serviceAll = read('pkg-feature', 'pages', 'service-all', 'index.js')
 const api = read('utils', 'api.js')
 const campus = read('utils', 'campus-services.js')
 

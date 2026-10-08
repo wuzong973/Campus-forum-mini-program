@@ -220,7 +220,7 @@ function loadDetailPage(group, extra) {
   }, extra || {})
   if (!detailPageDef) {
     global.Page = (def) => { detailPageDef = def }
-    require(path.join(ROOT, 'pages', 'group-chat', 'detail.js'))
+    require(path.join(ROOT, 'pkg-feature', 'pages', 'group-chat', 'detail.js'))
   }
   const page = Object.create(detailPageDef)
   page.data = JSON.parse(JSON.stringify(detailPageDef.data))
@@ -309,7 +309,7 @@ function sourceGuardTests() {
   const editWxml = read('pkg-admin/admin/edit/index.wxml')
   const editJs = read('pkg-admin/admin/edit/index.js')
   const editWxss = read('pkg-admin/admin/edit/index.wxss')
-  const detailWxml = read('pages/group-chat/detail.wxml')
+  const detailWxml = read('pkg-feature/pages/group-chat/detail.wxml')
 
   // 迁移是给存量库补列、init.sql 是全新库建表，两处类型必须一致，
   // 否则新库与老库的列定义会漂移（init.sql 里带 int(11)/引号默认值，这里只比基础类型）

@@ -145,15 +145,15 @@ check('对齐与缩进是行级指令，与块级标记互不覆盖', () => {
 // ============ 九个消费端接线 ============
 // 两种喂法都要覆盖到：改数据流的用 blocks，只换标签的用 content（组件内部解析）
 const CONSUMERS = [
-  ['pages/banner-detail/index', 'blocks'],
+  ['pkg-feature/pages/banner-detail/index', 'blocks'],
   ['pages/campus-service/index', 'blocks'],
-  ['pages/driving-school/guide', 'blocks'],
-  ['pages/driving-school/landing', 'blocks'],
-  ['pages/market/index', 'blocks'],
-  ['pages/activity/detail', 'content'],
-  ['pages/driving-school/detail', 'content'],
-  ['pages/club/club-detail', 'content'],
-  ['pages/group-chat/detail', 'content']
+  ['pkg-feature/pages/driving-school/guide', 'blocks'],
+  ['pkg-feature/pages/driving-school/landing', 'blocks'],
+  ['pkg-feature/pages/market/index', 'blocks'],
+  ['pkg-feature/pages/activity/detail', 'content'],
+  ['pkg-feature/pages/driving-school/detail', 'content'],
+  ['pkg-feature/pages/club/club-detail', 'content'],
+  ['pkg-feature/pages/group-chat/detail', 'content']
 ]
 
 CONSUMERS.forEach(([base, mode]) => {
@@ -174,8 +174,8 @@ CONSUMERS.forEach(([base, mode]) => {
 
 check('原先自带 user-select 的正文位仍可选字', () => {
   // 这几处改造前是 <text user-select>，换成组件后必须靠 selectable 保住，否则长按复制静默失效
-  ;['pages/market/index.wxml', 'pages/driving-school/landing.wxml', 'pages/group-chat/detail.wxml',
-    'pages/club/club-detail.wxml', 'pages/activity/detail.wxml'].forEach((f) => {
+  ;['pkg-feature/pages/market/index.wxml', 'pkg-feature/pages/driving-school/landing.wxml', 'pkg-feature/pages/group-chat/detail.wxml',
+    'pkg-feature/pages/club/club-detail.wxml', 'pkg-feature/pages/activity/detail.wxml'].forEach((f) => {
     const wxml = read(f)
     const tag = /<richtext-content[^>]*>/.exec(wxml)
     assert.ok(tag, f + ' 找不到 richtext-content 标签')
@@ -188,11 +188,11 @@ check('各页排印通过组件变量交回宿主，不被组件写死', () => {
   assert.ok(/\.richtext-content\s*\{[^}]*var\(--rt-size/.test(css), '组件字号必须走 --rt-size，否则会把各页字号统一改掉')
   assert.ok(/\.richtext-content\s*\{[^}]*var\(--rt-color/.test(css), '组件颜色必须走 --rt-color（群公告原本是棕字）')
   // 棕色公告卡、藏蓝正文这些差异必须留在页面侧
-  assert.ok(/\.notice-text[^}]*--rt-color: #6b5423/.test(read('pages/group-chat/detail.wxss')), '群公告的棕色不能丢')
+  assert.ok(/\.notice-text[^}]*--rt-color: #6b5423/.test(read('pkg-feature/pages/group-chat/detail.wxss')), '群公告的棕色不能丢')
 })
 
 check('复制正文类出口要剥标记', () => {
-  const js = read('pages/club/club-detail.js')
+  const js = read('pkg-feature/pages/club/club-detail.js')
   assert.ok(js.indexOf('richtext.stripMarks(club.intro)') >= 0 || js.indexOf('stripMarks(club.intro)') >= 0,
     '社团介绍的「复制」不能把 ** 这类记号一起复制出去')
 })

@@ -10,7 +10,7 @@
  *
  * 做法：
  *   A. 真实加载 utils/review.js 与 reviewController 的镜像常量做一致性断言
- *   B. vm 加载真实 pages/review/list.js / target.js / index.js（假 wx / 假 api / 假 auth）
+ *   B. vm 加载真实 pkg-feature/pages/review/list.js / target.js / index.js（假 wx / 假 api / 假 auth）
  *      断言三种模式的查询参数、次导航切换、权限拦截与乐观更新
  *   C. 假池加载 reviewController，断言 SQL 约束与「? 个数 === 参数个数」
  */
@@ -31,7 +31,7 @@ function check(fn, message) {
   }
 }
 
-const review = require('../../utils/review')
+const review = require('../../pkg-feature/utils/review')
 const { getDefaultCampus } = require('../../utils/campus')
 
 // =====================================================================
@@ -117,11 +117,13 @@ function makeSandbox(stubs) {
       // 评价页新增分身开关依赖匿名身份工具：桩返回固定分身身份
       if (/utils\/anonymousIdentity$/.test(key)) return stubs.anonymousIdentity || { generate: () => ({ nickName: '分身同学', avatarUrl: '/assets/avatar1/1.jpg' }) }
       if (/utils\/campus$/.test(key)) return require('../../utils/campus')
-      if (/utils\/review$/.test(key)) return require('../../utils/review')
+      if (/utils\/review$/.test(key)) return require('../../pkg-feature/utils/review')
       // 评论「…」菜单的拉黑走 utils/request.post('/message/block')，
       // 因此评价页现在直接依赖 request 模块。桩返回固定成功响应即可 ——
       // 这里不校验拉黑请求本身（那是 review-comment-parity.test.js 的职责）。
       if (/utils\/request$/.test(key)) return stubs.request || { get: () => Promise.resolve({}), post: () => Promise.resolve({}) }
+      // 长按评论图识码依赖 utils/qr：桩返回固定成功，识码逻辑本身由 qr 模块的用例覆盖
+      if (/utils\/qr$/.test(key)) return stubs.qr || { recognize: () => {} }
       throw new Error('测试桩未覆盖的模块：' + key)
     },
     getApp: () => ({ globalData: {} }),
@@ -177,7 +179,7 @@ const listApiStub = {
     return Promise.resolve({ target: { id: 9, name: '瓦罐饭' } })
   }
 }
-const listPageDef = loadPage('pages/review/list.js', { api: listApiStub })
+const listPageDef = loadPage('pkg-feature/pages/review/list.js', { api: listApiStub })
 
 async function listPageTests() {
   // 课程模式：次导航 = 通识课 + 本科年级；查询带 grade+level、绝不带 campus（规则二）
@@ -264,27 +266,31 @@ async function listPageTests() {
   }
 }
 
-// ----- B1b. 列表卡片文案：容器「有 x 条评论」/ 子级「分数 + x人已评」-----
-// 根级食堂 / 商圈不可评分：卡片不显示分数，计数为聚合后的评论条数。
+// ----- B1b. 列表卡片文案：容器「x人已评（去重）+ 聚合评论数」/ 子级「分数 + x人已评」-----
+// 根级食堂 / 商圈不可评分：卡片不显示分数；「x人已评」取 raterTotal（全部子级评论的
+// 去重用户数，服务端 fillContainerRaterTotals 下发）；右侧 💬 计数取聚合评论条数 commentTotal。
 function listCardTextTests() {
   check(() => {
-    // 容器（根级食堂）：无分数，「有 x 条评论」取 commentTotal
+    // 容器（根级食堂）：无分数，「x人已评」取 raterTotal，💬 取 commentTotal
     const container = review.decorateTarget({
-      id: 9, category: 'canteen', name: '一饭堂', parentId: null, ratingCount: 0, ratingAvg: 0, commentTotal: 6
+      id: 9, category: 'canteen', name: '一饭堂', parentId: null, ratingCount: 0, ratingAvg: 0, commentTotal: 6, raterTotal: 4
     })
     assert.strictEqual(container.scoreText, '', '根级食堂不得显示分数')
-    assert.strictEqual(container.ratedCountText, '有 6 条评论', '根级食堂计数应为聚合评论数')
+    assert.strictEqual(container.ratedCountText, '4人已评', '根级食堂应为去重评论人数')
+    assert.strictEqual(container.countText, 6, '根级食堂右侧计数应为聚合评论条数')
 
     // 容器（根级商圈）同样处理
     const biz = review.decorateTarget({
-      id: 11, category: 'business', name: '万科里', parentId: null, ratingCount: 0, ratingAvg: 0, commentTotal: 3
+      id: 11, category: 'business', name: '万科里', parentId: null, ratingCount: 0, ratingAvg: 0, commentTotal: 3, raterTotal: 3
     })
     assert.strictEqual(biz.scoreText, '', '根级商圈不得显示分数')
-    assert.strictEqual(biz.ratedCountText, '有 3 条评论')
+    assert.strictEqual(biz.ratedCountText, '3人已评')
+    assert.strictEqual(biz.countText, 3)
 
-    // 无子级评论 → 0
+    // 无子级评论 → 0（不得显示「暂无」）
     const empty = review.decorateTarget({ id: 10, category: 'canteen', name: '2饭', parentId: null, commentTotal: 0 })
-    assert.strictEqual(empty.ratedCountText, '有 0 条评论', '无评论也要给出 0，不得显示「暂无」')
+    assert.strictEqual(empty.ratedCountText, '0人已评', '无评论也要给出 0，不得显示「暂无」')
+    assert.strictEqual(empty.countText, 0)
 
     // 子级档口：保留自身分数与评分人数
     const child = review.decorateTarget({
@@ -292,6 +298,7 @@ function listCardTextTests() {
     })
     assert.strictEqual(child.scoreText, '3.0', '子级档口显示自身分数')
     assert.strictEqual(child.ratedCountText, '2人已评', '子级档口保留评分人数口径')
+    assert.strictEqual(child.countText, 6, '子级档口右侧计数为自身评论数')
 
     // 课程：不受影响（parentId 为 null 但 category=course）
     const course = review.decorateTarget({
@@ -304,16 +311,16 @@ function listCardTextTests() {
     const noScore = review.decorateTarget({ id: 8, category: 'course', name: '新课程', parentId: null, ratingCount: 0 })
     assert.strictEqual(noScore.scoreText, '暂无', '无评分课程应显示暂无')
     assert.strictEqual(noScore.ratedCountText, '0人已评')
-  }, '列表卡片文案（容器「有 x 条评论」/ 子级「分数 + x人已评」）')
+  }, '列表卡片文案（容器「x人已评 + 聚合评论数」/ 子级「分数 + x人已评」）')
 }
 
 // ----- B1c. 静态护栏：父级评分入口已彻底移除 -----
 function parentEntryRemovedTests() {
   const fs = require('fs')
   const read = (rel) => fs.readFileSync(path.join(MINI_PROGRAM_ROOT, rel), 'utf8')
-  const listWxml = read('pages/review/list.wxml')
-  const listJs = read('pages/review/list.js')
-  const listWxss = read('pages/review/list.wxss')
+  const listWxml = read('pkg-feature/pages/review/list.wxml')
+  const listJs = read('pkg-feature/pages/review/list.js')
+  const listWxss = read('pkg-feature/pages/review/list.wxss')
 
   check(() => {
     assert.ok(!/看食堂评分与评价/.test(listJs + listWxml), '「看食堂评分与评价」入口必须已删除')
@@ -359,7 +366,7 @@ const targetApiStub = {
     return Promise.resolve({ liked: true, likeCount: 4 })
   }
 }
-const targetPageDef = loadPage('pages/review/target.js', { api: targetApiStub })
+const targetPageDef = loadPage('pkg-feature/pages/review/target.js', { api: targetApiStub })
 
 async function targetPageTests() {
   rateCalls = []
@@ -379,7 +386,7 @@ async function targetPageTests() {
   // 未登录：不允许评分，也不打接口（auth.requireLogin 返回 false 的独立桩）
   {
     const denyAuth = { isLoggedIn: () => false, requireLogin: () => false }
-    const denyPageDef = loadPage('pages/review/target.js', { api: targetApiStub, auth: denyAuth })
+    const denyPageDef = loadPage('pkg-feature/pages/review/target.js', { api: targetApiStub, auth: denyAuth })
     const page2 = createPage(denyPageDef, { id: '7' })
     await new Promise((resolve) => setTimeout(resolve, 0))
     rateCalls.length = 0
@@ -442,7 +449,7 @@ async function containerDetailTests() {
   // 容器：rateable=false → scoreText / ratingCountText 置空（WXML 据 target.rateable 隐藏星级卡）
   {
     const page = createPage(
-      loadPage('pages/review/target.js', {
+      loadPage('pkg-feature/pages/review/target.js', {
         api: makeStub({
           id: 9, category: 'canteen', name: '一饭堂', campus: '佛山校区', parentId: null,
           rateable: false, ratingCount: 0, ratingAvg: 0, commentCount: 6, likeCount: 0
@@ -459,7 +466,7 @@ async function containerDetailTests() {
     }, '详情页容器不显示评分卡')
 
     // 星级卡在 WXML 里必须按 rateable 隐藏（静态断言）
-    const wxml = require('fs').readFileSync(path.join(MINI_PROGRAM_ROOT, 'pages/review/target.wxml'), 'utf8')
+    const wxml = require('fs').readFileSync(path.join(MINI_PROGRAM_ROOT, 'pkg-feature/pages/review/target.wxml'), 'utf8')
     check(() => {
       const rateCard = wxml.slice(wxml.indexOf('class="rate-card"') - 120, wxml.indexOf('class="rate-card"') + 20)
       assert.match(rateCard, /target\.rateable !== false/, '星级卡必须按 target.rateable 隐藏')
@@ -471,7 +478,7 @@ async function containerDetailTests() {
   // 子级档口：rateable=true → 正常显示分数与评分人数
   {
     const page = createPage(
-      loadPage('pages/review/target.js', {
+      loadPage('pkg-feature/pages/review/target.js', {
         api: makeStub({
           id: 31, category: 'canteen', name: '泰岛蛋', campus: '佛山校区', parentId: 9, parentName: '一饭堂', floor: '1层',
           rateable: true, ratingCount: 2, ratingAvg: 3, commentCount: 6, likeCount: 1
@@ -494,7 +501,7 @@ function makeReplyApiStub(state) {
   const flatComments = [
     { id: 11, nickName: '甲', content: '顶层评价', parentId: 0, likeCount: 0, liked: false, createdAt: '2025-01-16 17:22:00' },
     { id: 12, nickName: '乙', content: '回复顶层', parentId: 11, likeCount: 0, liked: false, createdAt: '2025-01-16 17:23:00' },
-    { id: 13, nickName: '丙', content: '回复乙', parentId: 11, likeCount: 0, liked: false, createdAt: '2025-01-16 17:24:00' }
+    { id: 13, nickName: '丙', content: '回复乙', parentId: 12, likeCount: 0, liked: false, createdAt: '2025-01-16 17:24:00' }
   ]
   return {
     calls: state.calls,
@@ -510,9 +517,9 @@ function makeReplyApiStub(state) {
     addReviewComment(id, content, images, anonymous, parentId) {
       const requested = Number(parentId) || 0
       state.calls.push({ id, content, parentId: requested })
-      // 服务端两级收口：回复「回复」时挂到其所属顶层评价下（此处 12/13 的顶层都是 11）
-      const parent = flatComments.find((c) => c.id === requested)
-      const pid = parent ? (Number(parent.parentId) || Number(parent.id)) : 0
+      // 服务端存「实际被回复的那条」（不再收口成顶层）—— 这样端上才能算出「回复 xxx」前缀；
+      // 展示层级由端上沿父链上溯归并（只两级展示）
+      const pid = requested
       return Promise.resolve({
         // 服务端回传的是全量重算结果，端上不得自行 +1
         comment: { id: 14, nickName: '我', content, likeCount: 0, liked: false, parentId: pid, createdAt: '2025-01-16 18:00:00' },
@@ -526,28 +533,28 @@ function makeReplyApiStub(state) {
 
 async function replyPageTests() {
   const state = { calls: [] }
-  const page = createPage(loadPage('pages/review/target.js', { api: makeReplyApiStub(state) }), { id: '7' })
+  const page = createPage(loadPage('pkg-feature/pages/review/target.js', { api: makeReplyApiStub(state) }), { id: '7' })
   await new Promise((resolve) => setTimeout(resolve, 0))
 
   check(() => {
     const actual = page.data.comments[0].replies.map((r) => Number(r.parentId))
     assert.strictEqual(actual.length, 2, '应有 2 条回复')
-    assert.strictEqual(actual[0], 11, '第 1 条回复的 parentId 指向顶层评价')
-    assert.strictEqual(actual[1], 11, '第 2 条回复的 parentId 指向顶层评价')
-  }, '回复的 parentId 指向顶层评价')
+    assert.strictEqual(actual[0], 11, '第 1 条直接回复顶层评价 → parentId = 11')
+    assert.strictEqual(actual[1], 12, '第 2 条回复的是「回复」→ parentId = 12（存真实父级，不得收口成顶层）')
+  }, '回复的 parentId 指向「实际被回复的那条」')
 
   check(() => {
     assert.strictEqual(page.data.comments.length, 1, '两级树：只剩 1 条顶层评价')
-    assert.strictEqual(page.data.comments[0].replyCount, 2, '两条回复都挂在顶层评价下')
+    assert.strictEqual(page.data.comments[0].replyCount, 2, '两条回复（含回复的回复）都上溯归并到顶层评价下')
     assert.strictEqual(page.data.commentCount, 3, '评论计数应取服务端 total，不得本地累加')
-  }, '评价回复两级树构建')
+  }, '评价回复两级树构建（回复的回复上溯归并）')
 
   // 「回复 xxx」前缀只在回复「回复」时出现：直接回复顶层评价不带前缀
   check(() => {
-    page.data.comments[0].replies.forEach((reply) => {
-      assert.strictEqual(reply.replyToNick, '', '直接回复顶层评价不应带「回复 xxx」前缀')
-    })
-  }, '回复顶层评价不带前缀')
+    const replies = page.data.comments[0].replies
+    assert.strictEqual(replies[0].replyToNick, '', '直接回复顶层评价不应带「回复 xxx」前缀')
+    assert.strictEqual(replies[1].replyToNick, '乙', '回复「回复」必须带「回复 乙」前缀 —— 这是本次修复的回归点')
+  }, '「回复 xxx」前缀：仅回复「回复」时出现')
 
   // 点击某条回复 → 进入回复态（replyTo + 前缀昵称 + 聚焦）
   page.onReplyComment({ currentTarget: { dataset: { id: 12, nick: '乙' } } })
@@ -595,12 +602,14 @@ async function replyToReplyPrefixTests() {
       list: [
         { id: 31, nickName: '甲', content: '顶层', parentId: 0, likeCount: 0, liked: false, createdAt: '2025-01-16 10:00:00' },
         { id: 32, nickName: '乙', content: '回复顶层', parentId: 31, likeCount: 0, liked: false, createdAt: '2025-01-16 10:01:00' },
-        { id: 33, nickName: '丙', content: '回复乙', parentId: 32, likeCount: 0, liked: false, createdAt: '2025-01-16 10:02:00' }
+        { id: 33, nickName: '丙', content: '回复乙', parentId: 32, likeCount: 0, liked: false, createdAt: '2025-01-16 10:02:00' },
+        // 三级链：parent_id 存真实父级后链可以更深，端上必须**循环**上溯（只往一层会让它掉成顶层）
+        { id: 34, nickName: '丁', content: '回复丙', parentId: 33, likeCount: 0, liked: false, createdAt: '2025-01-16 10:03:00' }
       ],
-      total: 3, hasMore: false
+      total: 4, hasMore: false
     })
   }
-  const page = createPage(loadPage('pages/review/target.js', { api }), { id: '7' })
+  const page = createPage(loadPage('pkg-feature/pages/review/target.js', { api }), { id: '7' })
   await new Promise((resolve) => setTimeout(resolve, 0))
   check(() => {
     const root = page.data.comments[0]
@@ -610,9 +619,19 @@ async function replyToReplyPrefixTests() {
     assert.strictEqual(reply33.parentId, 32, '服务端原样下发二级 parentId')
     assert.strictEqual(reply33.replyToNick, '乙', '回复「回复」时应显示「回复 xxx」前缀')
   }, '回复的回复带前缀')
+  check(() => {
+    // 三级链：必须仍归并到顶层 31 下（循环上溯），不能掉成顶层评价
+    assert.strictEqual(page.data.comments.length, 1, '三级链也只能有 1 条顶层评价')
+    const root = page.data.comments[0]
+    assert.strictEqual(root.replyCount, 3, '三条回复（含三级链）都应挂在顶层下')
+    const reply34 = root.replies.find((r) => Number(r.id) === 34)
+    assert.ok(reply34, '三级链的回复不得掉成顶层')
+    assert.strictEqual(reply34.parentId, 33, '三级链保留真实父级')
+    assert.strictEqual(reply34.replyToNick, '丙', '三级链应显示「回复 丙」前缀')
+  }, '三级链循环上溯（只往一层会掉成顶层）')
 }
 
-// 超过 2 条回复：默认折叠为 2 条，展开态按顶层评价 id 记忆（翻页/重排不丢）
+// 超过 3 条回复：默认折叠为 3 条（与帖子详情页同款），展开态按顶层评价 id 记忆（翻页/重排不丢）
 async function replyFoldTests() {
   const list = [{ id: 41, nickName: '楼主', content: '顶层', parentId: 0, likeCount: 0, liked: false, createdAt: '2025-01-16 10:00:00' }]
   for (let i = 0; i < 4; i++) {
@@ -622,14 +641,14 @@ async function replyFoldTests() {
     getReviewTargetDetail: () => Promise.resolve({ target: { id: 7, category: 'canteen', name: 'X', commentCount: 5, ratingCount: 0, likeCount: 0 } }),
     getReviewComments: () => Promise.resolve({ list: list.slice(), total: 5, hasMore: false })
   }
-  const page = createPage(loadPage('pages/review/target.js', { api }), { id: '7' })
+  const page = createPage(loadPage('pkg-feature/pages/review/target.js', { api }), { id: '7' })
   await new Promise((resolve) => setTimeout(resolve, 0))
   check(() => {
     const root = page.data.comments[0]
     assert.strictEqual(root.replyCount, 4)
-    assert.strictEqual(root.visibleReplies.length, 2, '超过 2 条回复默认只显示 2 条')
+    assert.strictEqual(root.visibleReplies.length, 3, '超过 3 条回复默认只显示 3 条')
     assert.strictEqual(root.expandedReplies, false)
-  }, '回复默认折叠（>2 条）')
+  }, '回复默认折叠（>3 条）')
 
   page.onToggleReplies({ currentTarget: { dataset: { index: 0 } } })
   check(() => {
@@ -641,7 +660,7 @@ async function replyFoldTests() {
 
   page.onToggleReplies({ currentTarget: { dataset: { index: 0 } } })
   check(() => {
-    assert.strictEqual(page.data.comments[0].visibleReplies.length, 2, '再次点击折叠')
+    assert.strictEqual(page.data.comments[0].visibleReplies.length, 3, '再次点击折叠（默认展示 3 条）')
     assert.strictEqual(page.data.expandedReplyIds[41], false)
   }, '折叠回复')
 }
@@ -649,7 +668,7 @@ async function replyFoldTests() {
 // ----- B3. 分类页：校区仅主校区（广州/佛山）选择 + 课程入口不带校区、食堂/商圈入口带校区 -----
 {
   const store = { review_campus: '南海北' } // 旧版扁平值：迁移并归入所属主校区「佛山校区」
-  const indexPageDef = loadPage('pages/review/index.js', {
+  const indexPageDef = loadPage('pkg-feature/pages/review/index.js', {
     api: {},
     wx: {
       getStorageSync: (key) => store[key] || '',
@@ -754,7 +773,7 @@ async function controllerTests() {
         { id: 9, category: 'canteen', parent_id: null, name: '一饭堂', campus: '佛山校区', rating_count: 0, rating_sum: 0, comment_count: 0, like_count: 0, hot_comment: '' },
         { id: 10, category: 'canteen', parent_id: null, name: '2饭', campus: '佛山校区', rating_count: 0, rating_sum: 0, comment_count: 0, like_count: 0, hot_comment: '' }
       ]],
-      [[]],                          // 热门评价（空）
+      [[{ own_id: 31, parent_id: 9, content: '泰岛蛋排队要两小时' }]], // 热门评价（子级评论）
       [[{ parent_id: 9, total: 6 }]] // 容器评论数聚合：一饭堂 = 6
     ]
     const res = makeRes()
@@ -783,7 +802,17 @@ async function controllerTests() {
       assert.strictEqual(one.commentTotal, 6, '一饭堂 commentTotal 应为其档口评论数之和')
       assert.strictEqual(two.commentTotal, 0, '无档口评论的食堂 commentTotal 为 0')
       assert.strictEqual(one.rateable, false, '根级食堂不可评分')
-    }, '食堂根级 SQL 契约（主校区 + 容器评论数聚合）')
+
+      // 摘录冒泡：档口的高赞评价要出现在食堂根级卡片上（否则根级永远没有摘录）
+      assert.strictEqual(one.hotComment, '泰岛蛋排队要两小时',
+        '根级食堂应显示其档口里点赞最高的评价摘录')
+      assert.strictEqual(two.hotComment, '', '没有档口评论的食堂不显示摘录')
+      const hotQuery = fakePool.queries.find((q) => /FROM review_comment c/.test(q.sql) && /JOIN review_target t/.test(q.sql))
+      assert.ok(hotQuery, '热门评价必须 JOIN review_target，否则拿不到子级评论的归属')
+      assert.match(hotQuery.sql, /t\.parent_id IN/, '容器要按「子级所属父对象」取评论')
+      assert.strictEqual(countPlaceholders(hotQuery.sql), hotQuery.params.length,
+        '热门评价查询两组占位符必须配平（ids 传两遍）')
+    }, '食堂根级 SQL 契约（主校区 + 容器评论数聚合 + 摘录冒泡）')
 
     // 分校区：精确命中
     fakePool.queries.length = 0
@@ -964,8 +993,9 @@ async function controllerTests() {
     fakePool.queue = [
       [[{ id: 7, category: 'course', parent_id: null }]], // 对象存在（课程：可评分叶子）
       [{ affectedRows: 1 }],                          // upsert
-      [{ affectedRows: 1 }],                          // 聚合刷新
-      [[{ rating_sum: 226, rating_count: 50 }]]       // 读回聚合（[rows] 形状）
+      [[]],                                           // refreshRating：读明细
+      [{ affectedRows: 1 }],                          // refreshRating：写聚合
+      [[{ rating_sum: 226, rating_count: 50, dim_sums: null, dim_count: 0 }]] // 读回聚合（[rows] 形状）
     ]
     const ok = makeRes()
     await reviewController.rate({ userId: 21, params: { id: 7 }, body: { score: 5 } }, ok)
@@ -973,9 +1003,54 @@ async function controllerTests() {
       assert.strictEqual(ok.body.code, 200)
       const upsert = fakePool.queries.find((q) => /ON DUPLICATE KEY UPDATE/.test(q.sql))
       assert.ok(upsert, '重复评分必须走 upsert（再次点击可以重新评分）')
-      assert.deepStrictEqual(upsert.params, [7, 21, 5])
+      // 单一星级路径：dims 写 null（不计入维度统计），score 口径与旧版一致
+      assert.deepStrictEqual(upsert.params, [7, 21, 5, null])
       assert.strictEqual(ok.body.data.ratingAvg, 4.52)
     }, '评分 upsert')
+
+    // ===== 多维度评分（食堂 / 商圈，2026-10-07 新增）=====
+    fakePool.queries.length = 0
+    fakePool.queue = [
+      [[{ id: 11, category: 'canteen', parent_id: 9 }]], // 子级档口：可评分
+      [{ affectedRows: 1 }],                              // upsert（含 dims）
+      [[]],                                               // refreshRating：读明细
+      [{ affectedRows: 1 }],                              // refreshRating：写聚合
+      [[{ rating_sum: 4.6, rating_count: 1, dim_sums: '{"taste":5,"env":4,"service":5,"value":4}', dim_count: 1 }]]
+    ]
+    const dimRes = makeRes()
+    await reviewController.rate(
+      { userId: 21, params: { id: 11 }, body: { dims: { taste: 5, env: 4, service: 5, value: 4 } } },
+      dimRes
+    )
+    check(() => {
+      assert.strictEqual(dimRes.body.code, 200)
+      const upsert = fakePool.queries.find((q) => /ON DUPLICATE KEY UPDATE/.test(q.sql))
+      assert.ok(upsert, '多维度评分同样走 upsert')
+      assert.deepStrictEqual(
+        JSON.parse(upsert.params[3]),
+        { taste: 5, env: 4, service: 5, value: 4 },
+        '四维明细必须整组入库'
+      )
+      // 加权：5×40 + 4×20 + 5×20 + 4×20 = 460 → /100 = 4.6
+      assert.strictEqual(dimRes.body.data.score, 4.6, '综合分必须按权重计算')
+      assert.strictEqual(dimRes.body.data.dimensions.length, 4, '应下发四维定义')
+      assert.strictEqual(dimRes.body.data.dimAverages.taste, 5, '应下发各维度均分')
+    }, '多维度评分：加权综合分与维度明细')
+
+    // 维度分不合法（缺一项 / 越界 / 非整数）→ 400，且不得写库
+    fakePool.queries.length = 0
+    const badDim1 = makeRes()
+    const badDim2 = makeRes()
+    const badDim3 = makeRes()
+    await reviewController.rate({ userId: 21, params: { id: 11 }, body: { dims: { taste: 5, env: 4, service: 5 } } }, badDim1)
+    await reviewController.rate({ userId: 21, params: { id: 11 }, body: { dims: { taste: 6, env: 4, service: 5, value: 4 } } }, badDim2)
+    await reviewController.rate({ userId: 21, params: { id: 11 }, body: { dims: { taste: 5, env: 4.5, service: 5, value: 4 } } }, badDim3)
+    check(() => {
+      assert.strictEqual(badDim1.body.code, 400, '缺维度的评分应 400')
+      assert.strictEqual(badDim2.body.code, 400, '维度分越界应 400')
+      assert.strictEqual(badDim3.body.code, 400, '非整数维度分应 400')
+      assert.strictEqual(fakePool.queries.length, 0, '非法维度分不得打到数据库')
+    }, '多维度评分：非法维度分被拦截')
 
     // 根级食堂 / 商圈是容器（挂档口 / 店铺），本身不可评分 → 400，不得写库
     fakePool.queries.length = 0
@@ -994,9 +1069,10 @@ async function controllerTests() {
     fakePool.queries.length = 0
     fakePool.queue = [
       [[{ id: 31, category: 'canteen', parent_id: 9 }]],
-      [{ affectedRows: 1 }],
-      [{ affectedRows: 1 }],
-      [[{ rating_sum: 6, rating_count: 2 }]]
+      [{ affectedRows: 1 }],   // upsert
+      [[]],                    // refreshRating：读明细
+      [{ affectedRows: 1 }],   // refreshRating：写聚合
+      [[{ rating_sum: 6, rating_count: 2, dim_sums: null, dim_count: 0 }]]
     ]
     const child = makeRes()
     await reviewController.rate({ userId: 21, params: { id: 31 }, body: { score: 3 } }, child)
@@ -1121,8 +1197,9 @@ async function controllerTests() {
 }
 
 // =====================================================================
-// C2. 评价回复（服务端）：两级收口 + 计数全量重算
-// 回归点：① 回复必须写入 parent_id；② 回复「回复」要收口到顶层，不产生三级；
+// C2. 评价回复（服务端）：存真实父级 + 计数全量重算
+// 回归点：① 回复必须写入 parent_id；② 回复「回复」要存「实际被回复的那条」，**不得收口成顶层**
+//         （收口会丢掉「回复的是谁」，端上「回复 xxx」前缀永远显示不出来）；
 //         ③ 计数一律全量重算，绝不 ±1；④ 分页单元是顶层评价，回复不会变孤儿。
 // =====================================================================
 async function reviewReplyControllerTests() {
@@ -1198,7 +1275,7 @@ async function reviewReplyControllerTests() {
       [{ insertId: 53 }],
       [{ affectedRows: 1 }],
       [{ affectedRows: 1 }],
-      [[{ id: 53, target_id: 7, parent_id: 51, user_id: 21, content: '回复的回复', images: null, anonymous_identity: null, like_count: 0, created_at: '2026-10-02 10:02:00', nick_name: '丙', avatar_url: '', cert_label: '' }]],
+      [[{ id: 53, target_id: 7, parent_id: 52, user_id: 21, content: '回复的回复', images: null, anonymous_identity: null, like_count: 0, created_at: '2026-10-02 10:02:00', nick_name: '丙', avatar_url: '', cert_label: '' }]],
       [[{ id: 21, nick_name: '丙', avatar_url: '' }]],
       [{ insertId: 901 }],
       [[]],
@@ -1209,9 +1286,9 @@ async function reviewReplyControllerTests() {
     check(() => {
       assert.strictEqual(res.body.code, 200)
       const insert = fakePool.queries.find((q) => /INSERT INTO review_comment/.test(q.sql))
-      assert.strictEqual(insert.params[1], 51, '回复「回复」必须收口到顶层评价（51），不得挂三级')
-      assert.strictEqual(res.body.data.parentId, 51)
-    }, '回复的回复两级收口')
+      assert.strictEqual(insert.params[1], 52, '回复「回复」必须存「实际被回复的那条」（52）—— 收口成顶层会丢掉「回复的是谁」，端上「回复 xxx」前缀永远显示不出来')
+      assert.strictEqual(res.body.data.parentId, 52)
+    }, '回复的回复存真实父级（前缀可显示）')
   }
 
   // 跨对象挂载：被回复评价不属于当前评分对象 → 拒绝且不写库
@@ -1255,6 +1332,57 @@ async function reviewReplyControllerTests() {
     }, '空评论拦截')
   }
 
+  // ===== 删除：顶层评价必须**逐层**收集后代 =====
+  // parent_id 存的是「实际被回复的那条」，回复「回复」会形成两级以上的链，
+  // 只写 `WHERE parent_id = ?` 只能删到第一层，更深的回复会变成点不到的孤儿。
+  {
+    await settle()
+    fakePool.queries.length = 0
+    fakePool.queue = [
+      [[{ id: 51, target_id: 7, parent_id: 0, user_id: 21, content: '顶层' }]], // 目标：顶层评价
+      [[{ id: 52 }]],                    // BFS 第 1 层后代
+      [[{ id: 53 }]],                    // BFS 第 2 层后代（回复的回复）
+      [[]],                              // BFS 第 3 层：无
+      [{ affectedRows: 3 }],             // 批量软删
+      [{ affectedRows: 1 }],             // refreshCommentCount
+      [{ affectedRows: 1 }],             // refreshHotComment
+      [[{ comment_count: 0 }]]           // commentCountOf
+    ]
+    const res = makeRes()
+    await reviewController.deleteComment({ userId: 21, params: { id: '51' } }, res)
+    check(() => {
+      assert.strictEqual(res.body.code, 200, '顶层评价应可删除')
+      const del = fakePool.queries.find((q) => /UPDATE review_comment SET deleted = 1 WHERE id IN/.test(q.sql))
+      assert.ok(del, '删除必须走 IN (...) 的批量软删')
+      assert.deepStrictEqual(del.params, [51, 52, 53],
+        '必须逐层收集全部后代（含「回复的回复」）—— 只删一层会留下点不到的孤儿回复')
+    }, '删除顶层评价：逐层收集后代')
+  }
+
+  // 删除单条回复：只删自身，不牵连别人、也不需要遍历后代
+  {
+    await settle()
+    fakePool.queries.length = 0
+    fakePool.queue = [
+      [[{ id: 52, target_id: 7, parent_id: 51, user_id: 21, content: '回复' }]],
+      [{ affectedRows: 1 }],             // 批量软删（只含自身）
+      [{ affectedRows: 1 }],             // refreshCommentCount
+      [{ affectedRows: 1 }],             // refreshHotComment
+      [[{ comment_count: 2 }]]
+    ]
+    const res = makeRes()
+    await reviewController.deleteComment({ userId: 21, params: { id: '52' } }, res)
+    check(() => {
+      assert.strictEqual(res.body.code, 200)
+      const del = fakePool.queries.find((q) => /UPDATE review_comment SET deleted = 1 WHERE id IN/.test(q.sql))
+      assert.deepStrictEqual(del.params, [52], '删除回复只删自身，不得牵连他人')
+      assert.ok(
+        !fakePool.queries.some((q) => /SELECT id FROM review_comment WHERE parent_id IN/.test(q.sql)),
+        '删除单条回复不需要遍历后代'
+      )
+    }, '删除单条回复：只删自身')
+  }
+
   // 评论列表：分页单元是「顶层评价」，查询必须带 parent_id = 0，且回复一并下发
   {
     await settle()
@@ -1284,6 +1412,40 @@ async function reviewReplyControllerTests() {
       assert.strictEqual(res.body.data.hasMore, false, '顶层已出完 → 无下一页')
     }, '评论列表按顶层评价分页')
   }
+}
+
+// =====================================================================
+// 部署一致性：控制器引用的列必须由 migrations.js 创建
+//
+// 2026-10-07 线上 500 事故的**相邻风险**：那次根因是「部署漏传了 migrations.js」——
+// 测试覆盖不到部署动作本身；但「代码引用了列、迁移里却忘了建」是同类且**可测**的失败模式，
+// 一旦发生同样是 Unknown column → 500。这条护栏把两者绑在一起。
+// =====================================================================
+{
+  const fs = require('fs')
+  const mig = fs.readFileSync(path.join(MINI_PROGRAM_ROOT, 'server', 'utils', 'migrations.js'), 'utf8')
+  const ctrl = fs.readFileSync(path.join(MINI_PROGRAM_ROOT, 'server', 'controllers', 'reviewController.js'), 'utf8')
+  check(() => {
+    ;[
+      ['review_rating', 'dims'],
+      ['review_target', 'dim_sums'],
+      ['review_target', 'dim_count']
+    ].forEach(([table, col]) => {
+      assert.ok(
+        new RegExp("ensureColumn\\(\\s*['\"]" + table + "['\"]\\s*,\\s*['\"]" + col + "['\"]").test(mig),
+        'migrations.js 必须创建 ' + table + '.' + col + ' —— 否则部署后接口 500（Unknown column）'
+      )
+      assert.ok(ctrl.indexOf(col) > -1, '控制器应确实用到 ' + table + '.' + col + '（若已不用请同步删掉迁移）')
+    })
+    assert.ok(
+      /ensureColumnTypeIn\(\s*['"]review_rating['"]\s*,\s*['"]score['"]/.test(mig),
+      'migrations.js 必须把 review_rating.score 改为 DECIMAL（加权综合分含小数）'
+    )
+    assert.ok(
+      /ensureColumnTypeIn\(\s*['"]review_target['"]\s*,\s*['"]rating_sum['"]/.test(mig),
+      'migrations.js 必须把 review_target.rating_sum 改为 DECIMAL'
+    )
+  }, '多维度评分：控制器引用的列必须由 migrations.js 创建')
 }
 
 // =====================================================================

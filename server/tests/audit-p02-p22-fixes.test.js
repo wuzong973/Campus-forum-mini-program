@@ -113,14 +113,14 @@ check('P11 消息状态只允许对应一方按序推进', () => {
 
 // ---------- P12 海报失败可见 ----------
 check('P12 海报加载/绘制失败有错误态与重试入口', () => {
-  const page = readRoot('pages', 'poster', 'index.js')
+  const page = readRoot('pkg-feature', 'pages', 'poster', 'index.js')
   assert.match(page, /loadError: ''/, 'data 应有 loadError')
   assert.match(page, /console\.warn\('\[poster\] 加载失败:'/, '详情请求要有 catch')
   assert.match(page, /fail\(message\) \{/, '应有统一失败出口')
   assert.match(page, /retry\(\) \{/, '应提供重试')
   assert.match(page, /console\.warn\('\[poster\] 绘制失败:'/, '绘制异常也收进错误态')
-  assert.match(readRoot('pages', 'poster', 'index.wxml'), /bindtap="retry"/, 'WXML 有重试按钮')
-  assert.match(readRoot('pages', 'poster', 'index.wxss'), /\.poster-retry-btn/, '错误态按钮有样式')
+  assert.match(readRoot('pkg-feature', 'pages', 'poster', 'index.wxml'), /bindtap="retry"/, 'WXML 有重试按钮')
+  assert.match(readRoot('pkg-feature', 'pages', 'poster', 'index.wxss'), /\.poster-retry-btn/, '错误态按钮有样式')
 })
 
 // ---------- P13 活动提醒占位时机 ----------

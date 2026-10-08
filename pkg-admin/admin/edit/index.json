@@ -4,6 +4,7 @@
   "navigationBarTextStyle": "white",
   "usingComponents": {
     "color-picker": "/components/color-picker/index",
-    "richtext-editor": "/components/richtext-editor/richtext-editor"
+    "richtext-editor": "/components/richtext-editor/richtext-editor",
+    "link-picker": "/components/link-picker/link-picker"
   }
 }

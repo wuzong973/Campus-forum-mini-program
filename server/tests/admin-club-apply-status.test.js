@@ -7,7 +7,7 @@
  * 背景：此前的缺陷是 index.js 里引用了未定义的常量 CLUB_APPLY_STATUS_TEXT
  * （只定义了群聊的 GC_APPLY_STATUS_TEXT），进入「社团审核」页即抛
  * ReferenceError: CLUB_APPLY_STATUS_TEXT is not defined，列表恒为空。
- * 详见 docs/修复说明_2026-09-10_社团审核状态常量未定义.md
+ * 详见 docs/03_业务功能_社区与内容.md（§2 社团模块）
  */
 const assert = require('assert')
 const fs = require('fs')

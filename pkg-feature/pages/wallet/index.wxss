@@ -1,0 +1,284 @@
+/* 卡片动效共享层（旋转描边 + 呼吸背光），见 docs/02_前端与UI交互.md（§四 卡片动效共享层 card-fx）。
+   必须留在文件最顶部：@import 在前，本文件后面那些覆盖 --fx-* token 的规则才生效（同权重后者胜）。 */
+@import "../../../styles/card-fx.wxss";
+
+.page {
+  min-height: 100vh;
+  padding: 24rpx;
+  background:
+    radial-gradient(ellipse at 14% -6%, rgba(137, 202, 255, 0.28) 0%, rgba(137, 202, 255, 0) 48%),
+    linear-gradient(180deg, #d7efff 0%, #eaf6ff 18%, #f5f9fd 46%, #f7f8fb 72%, #f4f6fa 100%);
+}
+
+/* 主色复用余额卡自己的品牌蓝，不用共享层默认蓝（描边与背光共用同一个 token）。
+   .fx-stage / .fx-card 都各自重新声明了 --fx-accent 默认值，所以两层都要覆盖，
+   只写在 .balance-card 上的话背光层拿不到色。 */
+.balance-stage,
+.balance-card {
+  --fx-accent: #3d7bfa;
+}
+
+.balance-card {
+  /* 几何不变式核对（§2.3）：卡宽 702rpx（750 - 页面左右各 24），卡高约 442rpx（内容驱动，
+     含提现按钮与「审核/转账中」那一行）。442 ≤ 702 × 1.375，170% 方块边长 1193rpx
+     盖得住对角线 830rpx，所以不需要用 --fx-side 显式给边长。 */
+  --fx-r: 16rpx;
+  border-radius: 16rpx;
+  /* 描边占位改由卡片的 padding 出，四周各留 --fx-w；卡高继续由内容驱动（§2.6）。
+     原本挂在卡片上的 48rpx 32rpx 内边距移到下面的 .fx-body，避免双重留白。 */
+  padding: var(--fx-w);
+  margin-bottom: 32rpx;
+  box-shadow: 0 8rpx 24rpx rgba(61, 123, 250, 0.28);
+  /* 覆盖全局 .gradient-nav 浅蓝背景这件事改到下面的 .fx-body 上做：
+     描边环是不透明的，背景留在卡片上等于被整圈盖住，画了也看不见。
+     gradient-nav 本身一个字不改，它还要给首页导航栏和 errand-order 用。 */
+}
+
+/* 卡面 = 内容层。共享层默认把 .fx-body 做成四边内缩的绝对定位，那要求父级有确定高度；
+   余额卡的高度随「审核/转账中」那一行的出现与否变化，写死就会静默裁字（首页踩过，§2.6）。
+   这里改成随流：内缩已经由 .balance-card 的 padding 提供，视觉与共享层等效，
+   但高度由内容自己撑出来，扣不掉也不会多。 */
+.balance-card .fx-body {
+  position: relative;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  padding: 48rpx 32rpx;
+  background: linear-gradient(135deg, #3d7bfa 0%, #5b8cff 100%);
+}
+
+.balance-label {
+  color: rgba(255,255,255,0.8);
+  font-size: 26rpx;
+}
+
+.balance-value {
+  display: block;
+  color: #fff;
+  font-size: 72rpx;
+  font-weight: 700;
+  margin: 16rpx 0;
+}
+
+.balance-meta {
+  display: flex;
+  flex-direction: column;
+  color: rgba(255, 255, 255, 0.86);
+  font-size: 24rpx;
+  line-height: 1.6;
+}
+
+.withdraw-btn {
+  width: 100%;
+  margin-top: 28rpx;
+  color: #3264d9;
+  background: #fff;
+  border-radius: 8rpx;
+  font-size: 28rpx;
+}
+
+.withdraw-btn::after, .sheet-actions button::after { border: none; }
+
+.balance-actions {
+  display: flex;
+  gap: 24rpx;
+}
+
+.action-btn {
+  flex: 1;
+  background: #fff;
+  color: #4A7AFF;
+  border-radius: 40rpx;
+  font-size: 28rpx;
+  border: none;
+}
+
+.action-btn.outline {
+  background: transparent;
+  color: #fff;
+  border: 2rpx solid rgba(255,255,255,0.6);
+}
+
+.action-btn::after { border: none; }
+
+/* 提现规则说明区域 */
+.rules-section {
+  /* 背光层是 z-index:0 的定位元素，而 .fx-stage 不构成 stacking context：
+     下溢的 56rpx 会画在本应盖住它的普通流元素之上。余额卡下方空隙 32rpx（≥24 才上背光），
+     这里抬一层把多出的 24rpx 接住（§2.5，首页 .notice-bar 同样处理）。
+     不要压背光到 z-index:-1，那会连页面底色一起垫到下面去。 */
+  position: relative;
+  z-index: 1;
+  margin-bottom: 32rpx;
+  padding: 28rpx 24rpx;
+}
+
+.rules-header {
+  margin-bottom: 20rpx;
+  padding-bottom: 16rpx;
+  border-bottom: 1rpx solid #f0f2f5;
+}
+
+.rules-title {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.rules-list {
+  display: flex;
+  flex-direction: column;
+  gap: 20rpx;
+}
+
+.rule-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 16rpx;
+  padding: 16rpx 0;
+}
+
+.rule-icon-wrap {
+  width: 64rpx;
+  height: 64rpx;
+  border-radius: 14rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.rule-icon-balance { background: #e8f4fd; }
+.rule-icon-limit { background: #e8f8f0; }
+.rule-icon-time { background: #fff8e1; }
+.rule-icon-arrival { background: #f3e8ff; }
+.rule-icon-fee { background: #fce4ec; }
+
+.rule-icon {
+  font-size: 32rpx;
+}
+
+.rule-content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6rpx;
+}
+
+.rule-label {
+  font-size: 26rpx;
+  font-weight: 600;
+  color: #323233;
+}
+
+.rule-value {
+  font-size: 22rpx;
+  color: #8a94a6;
+  line-height: 1.5;
+}
+
+.section-title {
+  margin-bottom: 16rpx;
+}
+
+.record-list {
+  padding: 0 24rpx;
+}
+
+.record-item {
+  padding: 24rpx 0;
+  border-bottom: 1rpx solid #F5F7FA;
+}
+
+.record-title {
+  display: block;
+}
+
+.record-detail {
+  display: block;
+  margin-top: 4rpx;
+  color: #8A94A6;
+}
+
+.record-time {
+  display: block;
+  margin-top: 8rpx;
+}
+
+.record-amount {
+  font-size: 32rpx;
+  font-weight: 600;
+}
+
+.record-amount.income { color: #52C41A; }
+.record-amount.expense { color: #E64340; }
+
+.record-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 12rpx;
+  flex-shrink: 0;
+  margin-left: 16rpx;
+}
+
+.confirm-btn {
+  margin: 0;
+  padding: 0 26rpx;
+  height: 52rpx;
+  line-height: 52rpx;
+  border-radius: 999rpx;
+  background: #07C160;
+  color: #ffffff;
+  font-size: 23rpx;
+  font-weight: 500;
+}
+
+.empty {
+  text-align: center;
+  padding: 48rpx;
+}
+
+.mask { position: fixed; inset: 0; z-index: 10; background: rgba(0, 0, 0, .42); }
+.withdraw-sheet { position: fixed; z-index: 11; bottom: 0; left: 0; right: 0; box-sizing: border-box; padding: 36rpx 32rpx 48rpx; background: #fff; border-radius: 16rpx 16rpx 0 0; }
+.sheet-title { font-size: 34rpx; font-weight: 600; color: #1f2937; }
+.amount-input-row { display: flex; align-items: center; margin-top: 28rpx; border-bottom: 2rpx solid #e5e7eb; font-size: 48rpx; color: #1f2937; }
+.amount-input-row input { flex: 1; height: 90rpx; margin-left: 16rpx; font-size: 40rpx; }
+.available-tip { display: block; margin-top: 16rpx; font-size: 24rpx; color: #8a94a6; }
+
+/* 提现弹窗内的规则说明 */
+.sheet-rules {
+  display: flex;
+  flex-direction: column;
+  gap: 8rpx;
+  margin-top: 20rpx;
+  padding: 16rpx;
+  background: #f7f8fa;
+  border-radius: 12rpx;
+}
+
+.sheet-rule-text {
+  font-size: 22rpx;
+  color: #8a94a6;
+  line-height: 1.6;
+}
+
+.sheet-actions { display: flex; gap: 20rpx; margin-top: 40rpx; }
+.sheet-actions button { flex: 1; border-radius: 8rpx; font-size: 28rpx; }
+.sheet-cancel { color: #596579; background: #f1f4f8; }
+.sheet-submit { color: #fff; background: #4a7aff; }
+
+/* ===== 订阅消息提醒弹窗（提现提交成功后） ===== */
+.sub-mask { position: fixed; z-index: 100; inset: 0; background: rgba(0, 0, 0, .58); }
+.sub-dialog { position: fixed; z-index: 101; top: 50%; left: 50%; width: 600rpx; transform: translate(-50%, -50%); padding: 40rpx 32rpx 32rpx; border-radius: 28rpx; background: #ffffff; box-sizing: border-box; }
+.sub-title { display: block; color: #15233a; font-size: 36rpx; font-weight: 700; text-align: center; }
+.sub-desc { display: block; margin: 14rpx 0 6rpx; color: #8a94a6; font-size: 25rpx; text-align: center; }
+.sub-row { display: flex; align-items: center; justify-content: space-between; min-height: 104rpx; border-bottom: 1rpx solid #f0f2f5; }
+.sub-row-label { display: block; color: #10213a; font-size: 30rpx; }
+.sub-row-hint { display: block; margin-top: 4rpx; color: #8a94a6; font-size: 22rpx; }
+.sub-actions { display: flex; margin-top: 32rpx; }
+.sub-btn-skip, .sub-btn-confirm { display: flex; align-items: center; justify-content: center; height: 88rpx; border-radius: 44rpx; font-size: 30rpx; }
+.sub-btn-skip { flex: 1; margin-right: 20rpx; background: #f6f7f9; color: #5a6572; }
+.sub-btn-confirm { flex: 1.6; background: #3478f6; color: #ffffff; font-weight: 600; }

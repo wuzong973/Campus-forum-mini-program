@@ -1,4 +1,6 @@
-<view class="tab-bar">
+<!-- hidden 由全屏浮层（二维码放大态）通过 getTabBar().setData({ hidden: true }) 控制：
+     自定义 tabBar 渲染在页面内容之上，遮罩盖不住，只能整块不渲染 -->
+<view class="tab-bar" wx:if="{{!hidden}}">
   <block wx:for="{{list}}" wx:for-item="tab" wx:for-index="tabIndex" wx:key="pagePath">
     <view class="tab-item" hover-class="tab-item--hover" hover-stay-time="120" wx:if="{{tabIndex < 2}}" data-index="{{tabIndex}}" bindtap="onChange">
       <view class="tab-icon-wrap">

@@ -62,6 +62,76 @@ const VALID_GRADES = [GENERAL_COURSE].concat(Object.keys(GRADE_LEVEL_MAP))
 const SORTS = ['all', 'rating', 'hot']
 const COMMENT_SORTS = ['time', 'likes']
 
+// ===== 多维度评分（与 utils/review.js 的 REVIEW_DIMENSIONS 镜像）=====
+// 统一四维，权重 40/20/20/20；课程评分不启用维度（保持单一星级）。
+// 服务端是「校验与计算口径」：维度分合法性、加权综合分、维度聚合都以这里为准。
+const DIMENSIONS = [
+  { key: 'taste', weight: 40, label: '口味', labelByCategory: { business: '品质' } },
+  { key: 'env', weight: 20, label: '环境' },
+  { key: 'service', weight: 20, label: '服务' },
+  { key: 'value', weight: 20, label: '性价比', labelByCategory: { business: '价格' } }
+]
+const DIMENSION_CATEGORIES = ['canteen', 'business']
+const DIMENSION_WEIGHT_TOTAL = DIMENSIONS.reduce((s, d) => s + Number(d.weight), 0)
+
+function supportsDimensions(category) {
+  return DIMENSION_CATEGORIES.indexOf(String(category || '')) >= 0
+}
+
+// 该分类下的维度定义（套用分类措辞）；不支持则返回 []
+function dimensionsFor(category) {
+  if (!supportsDimensions(category)) return []
+  return DIMENSIONS.map((d) => ({
+    key: d.key,
+    weight: d.weight,
+    label: (d.labelByCategory && d.labelByCategory[category]) || d.label
+  }))
+}
+
+// 校验四维分：必须齐全且均为 1-5 整数。合法返回 null，否则返回错误文案。
+function validateDims(dims) {
+  const source = dims || {}
+  for (const d of DIMENSIONS) {
+    const v = Number(source[d.key])
+    if (!Number.isInteger(v) || v < 1 || v > 5) return `${d.label}评分需为 1-5 星`
+  }
+  return null
+}
+
+// 加权综合分：Σ(维度分 × 权重) / Σ权重，保留 2 位小数。
+// 与「单一星级」的 score 语义一致 → rating_sum / rating_count / ratingAvg 口径不变。
+function weightedScore(dims) {
+  const source = dims || {}
+  if (!DIMENSION_WEIGHT_TOTAL) return 0
+  const sum = DIMENSIONS.reduce((s, d) => s + Number(source[d.key] || 0) * Number(d.weight), 0)
+  return Number((sum / DIMENSION_WEIGHT_TOTAL).toFixed(2))
+}
+
+// 解析库里存的 dims（JSON 列在 mysql2 下可能是对象、字符串或 null）
+function parseDims(value) {
+  if (!value) return null
+  if (typeof value === 'object') return value
+  try {
+    const parsed = JSON.parse(String(value))
+    return parsed && typeof parsed === 'object' ? parsed : null
+  } catch (e) {
+    return null
+  }
+}
+
+// 由 dim_sums / dim_count 求各维度均分；无维度数据时返回 null（端上据此隐藏维度明细）
+function dimAveragesOf(row) {
+  const count = Number(row.dim_count || 0)
+  const sums = parseDims(row.dim_sums)
+  if (!count || !sums) return null
+  const out = {}
+  DIMENSIONS.forEach((d) => {
+    const sum = Number(sums[d.key] || 0)
+    out[d.key] = Number((sum / count).toFixed(2))
+  })
+  return out
+}
+
 function intId(value) {
   const id = Number(value)
   return Number.isInteger(id) && id > 0 ? id : 0
@@ -122,32 +192,51 @@ function mapTargetRow(row) {
     ratingSum: Number(row.rating_sum || 0),
     ratingCount,
     ratingAvg: ratingCount > 0 ? Number(((Number(row.rating_sum || 0)) / ratingCount).toFixed(2)) : 0,
+    // 根级食堂 / 商圈的评论总数 = 其全部子级（档口 / 店铺）的 comment_count 之和（fillContainerCommentTotals 填充）
     commentCount: Number(row.comment_count || 0),
+    raterTotal: 0,
     // 子级自身打分 / 评论；根级容器用聚合值（targets 里填 commentTotal），非容器与 commentCount 相同
     commentTotal: container ? 0 : Number(row.comment_count || 0),
     // 根级食堂 / 商圈（非课程）不可评分：端上据此隐藏星级卡、评分人数
     rateable: !container || row.category === 'course',
+    // 多维度评分：该分类的维度定义（含权重与分类措辞）+ 各维度均分。
+    // dimAverages 为 null 表示「尚无带维度明细的评分」（如全部是历史单一星级数据），端上据此隐藏维度明细。
+    dimensions: dimensionsFor(row.category),
+    dimAverages: dimAveragesOf(row),
+    dimCount: Number(row.dim_count || 0),
     likeCount: Number(row.like_count || 0),
     createdAt: toDateTimeText(row.created_at)
   }
 }
 
-// 卡片上的热门评价摘录：按点赞数取每个对象的第一条评价
+// 卡片上的热门评价摘录：按点赞数取每个对象的第一条评价。
+//
+// 根级食堂 / 商圈是「容器」，评价都挂在它下面的档口 / 店铺上（review_comment.target_id 指子级），
+// 缓存列 review_target.hot_comment 与 refreshHotComment 又只刷「评价所属的那个对象」，
+// 所以容器自己永远取不到摘录 —— 必须把子级的高赞评价冒泡上来。
+// 行已按 like_count 倒序，同一条既记到「评价所属对象」也记到「它的父对象」，
+// 每个 key 第一次命中即为最高赞，叶子与容器共用一张表。
 async function fillHotComments(targets) {
   const ids = targets.map((t) => t.id)
   if (!ids.length) return
   const placeholders = ids.map(() => '?').join(',')
   const [rows] = await pool.query(
-    `SELECT target_id, content FROM review_comment
-     WHERE target_id IN (${placeholders}) AND deleted = 0 AND status = 1
-     ORDER BY like_count DESC, id DESC`,
-    ids
+    `SELECT c.target_id AS own_id, t.parent_id AS parent_id, c.content
+     FROM review_comment c
+     JOIN review_target t ON c.target_id = t.id
+     WHERE (t.id IN (${placeholders}) OR t.parent_id IN (${placeholders}))
+       AND c.deleted = 0 AND c.status = 1
+     ORDER BY c.like_count DESC, c.id DESC`,
+    ids.concat(ids)
   )
-  const map = {}
+  const best = {}
   for (const row of rows) {
-    if (!map[row.target_id]) map[row.target_id] = String(row.content || '')
+    const content = String(row.content || '')
+    if (!content) continue
+    if (!best[row.own_id]) best[row.own_id] = content
+    if (row.parent_id && !best[row.parent_id]) best[row.parent_id] = content
   }
-  targets.forEach((t) => { if (!t.hotComment) t.hotComment = map[t.id] || '' })
+  targets.forEach((t) => { if (!t.hotComment) t.hotComment = best[t.id] || '' })
 }
 
 // 根级食堂 / 商圈的评论总数 = 其全部子级（档口 / 店铺）的 comment_count 之和。
@@ -174,6 +263,22 @@ async function fillContainerCommentTotals(targets) {
       t.commentTotal = map[t.id] || 0
     }
   })
+}
+
+// 根级食堂 / 商圈的「已评人数」= 其全部子级（档口 / 店铺）评论的去重用户数。
+// 与 commentTotal（评论条数）是两个口径：一人可在一个食堂下评论多个档口，人数要去重。
+// SQL 保持全静态单字符串（无 IN 拼装）：取全部子级评论的 (父级, 用户) 对，去重在 JS 侧完成。
+async function fillContainerRaterTotals(targets) {
+  const containers = targets.filter((t) => t.parentId === null || t.parentId === undefined)
+  if (!containers.length) return
+  const wanted = {}
+  containers.forEach((t) => { wanted[t.id] = new Set() })
+  const [rows] = await pool.query('SELECT t.parent_id AS parent_id, c.user_id AS user_id FROM review_target t JOIN review_comment c ON c.target_id = t.id WHERE t.parent_id IS NOT NULL AND c.deleted = 0 AND c.status = 1')
+  for (const row of rows) {
+    const set = wanted[row.parent_id]
+    if (set) set.add(Number(row.user_id))
+  }
+  containers.forEach((t) => { t.raterTotal = wanted[t.id] ? wanted[t.id].size : 0 })
 }
 
 // 列表接口：按分类 + 次导航维度筛选
@@ -256,7 +361,7 @@ exports.targets = async (req, res) => {
     ])
     const total = Number(count[0].total || 0)
     const list = rows.map(mapTargetRow)
-    await Promise.all([fillHotComments(list), fillContainerCommentTotals(list)])
+    await Promise.all([fillHotComments(list), fillContainerCommentTotals(list), fillContainerRaterTotals(list)])
     success(res, { list, total, page, hasMore: offset + rows.length < total })
   } catch (e) { fail(res, safeMessage(e), 500) }
 }
@@ -275,13 +380,18 @@ exports.detail = async (req, res) => {
     if (!rows.length) return fail(res, '评分对象不存在或已下架', 404)
     const target = mapTargetRow(rows[0])
     target.myRating = null
+    // 我提交过的维度明细（无则 null）：端上据此回填四行星级
+    target.myDims = null
     target.liked = false
     if (req.userId) {
       const [rated] = await pool.query(
-        'SELECT score FROM review_rating WHERE target_id = ? AND user_id = ? LIMIT 1',
+        'SELECT score, dims FROM review_rating WHERE target_id = ? AND user_id = ? LIMIT 1',
         [id, req.userId]
       )
-      if (rated.length) target.myRating = Number(rated[0].score)
+      if (rated.length) {
+        target.myRating = Number(rated[0].score)
+        target.myDims = parseDims(rated[0].dims)
+      }
       const [liked] = await pool.query(
         'SELECT id FROM review_target_like WHERE target_id = ? AND user_id = ? LIMIT 1',
         [id, req.userId]
@@ -416,22 +526,54 @@ exports.random = async (req, res) => {
 }
 
 // 重算对象评分聚合（明细表为准，幂等）
+// 重算某对象的评分聚合（明细表为准，幂等）。
+// 综合分口径与原来完全一致（rating_sum / rating_count / ratingAvg），
+// 额外把「带维度明细的评分」聚合进 dim_sums / dim_count，供各维度均分使用。
+// 用 JS 聚合而非 JSON SQL：新增维度时只改 DIMENSIONS 一处，不必动 SQL。
 async function refreshRating(targetId) {
+  const [rows] = await pool.query('SELECT score, dims FROM review_rating WHERE target_id = ?', [targetId])
+  let sum = 0
+  let count = 0
+  let dimCount = 0
+  const dimSums = {}
+  DIMENSIONS.forEach((d) => { dimSums[d.key] = 0 })
+  for (const r of rows) {
+    sum += Number(r.score || 0)
+    count += 1
+    const dims = parseDims(r.dims)
+    if (!dims) continue
+    dimCount += 1
+    DIMENSIONS.forEach((d) => { dimSums[d.key] += Number(dims[d.key] || 0) })
+  }
   await pool.query(
-    `UPDATE review_target t SET
-       t.rating_sum = (SELECT COALESCE(SUM(r.score), 0) FROM review_rating r WHERE r.target_id = t.id),
-       t.rating_count = (SELECT COUNT(*) FROM review_rating r WHERE r.target_id = t.id)
-     WHERE t.id = ?`,
-    [targetId]
+    'UPDATE review_target SET rating_sum = ?, rating_count = ?, dim_sums = ?, dim_count = ? WHERE id = ?',
+    [Number(sum.toFixed(2)), count, JSON.stringify(dimSums), dimCount, targetId]
   )
 }
 
-// 评分（需登录）：1-5 分，可重复评分（覆盖旧值，「再次点击可以重新评分」）
+// 评分（需登录）：可重复评分（覆盖旧值，「再次点击可以重新评分」）。
+// 两种入参都支持：
+//   ① 多维度（食堂 / 商圈）：{ dims: { taste, env, service, value } } 各 1-5，
+//      综合分由加权公式算出（weightedScore），明细存入 dims 列；
+//   ② 单一星级（课程评分，或旧版客户端）：{ score } 1-5，dims 存 NULL（不计入维度统计）。
 exports.rate = async (req, res) => {
   const id = intId(req.params.id)
-  const score = Number((req.body || {}).score)
   if (!id) return fail(res, 'Invalid target id')
-  if (!Number.isInteger(score) || score < 1 || score > 5) return fail(res, '评分需为 1-5 星')
+  const body = req.body || {}
+  const rawDims = body.dims
+  const useDims = rawDims && typeof rawDims === 'object'
+  let dims = null
+  let score = 0
+  if (useDims) {
+    const dimError = validateDims(rawDims)
+    if (dimError) return fail(res, dimError)
+    dims = {}
+    DIMENSIONS.forEach((d) => { dims[d.key] = Number(rawDims[d.key]) })
+    score = weightedScore(dims)
+  } else {
+    score = Number(body.score)
+    if (!Number.isInteger(score) || score < 1 || score > 5) return fail(res, '评分需为 1-5 星')
+  }
   try {
     const [targets] = await pool.query(
       'SELECT id, category, parent_id FROM review_target WHERE id = ? AND deleted = 0 AND status = 1 LIMIT 1',
@@ -443,14 +585,20 @@ exports.rate = async (req, res) => {
     const isContainer = row.parent_id === null || row.parent_id === undefined
     if (isContainer && row.category !== 'course') return fail(res, '该对象不支持直接评分，请对具体窗口/店铺评分')
     await pool.query(
-      'INSERT INTO review_rating (target_id, user_id, score) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE score = VALUES(score)',
-      [id, req.userId, score]
+      'INSERT INTO review_rating (target_id, user_id, score, dims) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE score = VALUES(score), dims = VALUES(dims)',
+      [id, req.userId, score, dims ? JSON.stringify(dims) : null]
     )
     await refreshRating(id)
-    const [rows] = await pool.query('SELECT rating_sum, rating_count FROM review_target WHERE id = ?', [id])
+    const [rows] = await pool.query(
+      'SELECT rating_sum, rating_count, dim_sums, dim_count FROM review_target WHERE id = ?',
+      [id]
+    )
     const ratingCount = Number(rows[0].rating_count || 0)
     success(res, {
       score,
+      dims,
+      dimensions: dimensionsFor(row.category),
+      dimAverages: dimAveragesOf(rows[0]),
       ratingCount,
       ratingAvg: ratingCount > 0 ? Number((Number(rows[0].rating_sum) / ratingCount).toFixed(2)) : 0
     })
@@ -501,6 +649,9 @@ function mapCommentRow(row, parentNickName) {
     avatarUrl: anonymousIdentity ? anonymousIdentity.avatarUrl : normalizeLegacyAvatarUrl(row.avatar_url),
     certLabel: anonymousIdentity ? '' : (row.cert_label || ''),
     isAnonymous: !!anonymousIdentity,
+    // 对方是否允许分身私信：端上据此决定头像卡片按钮文案（「分身私信」/「私信」）。
+    // 缺省 true（与 postController 同口径）；真正的拦截在 messageController（服务端为准）。
+    allowAnonymousPm: row.allow_anonymous_pm === undefined ? true : !!row.allow_anonymous_pm,
     content: row.content || '',
     images,
     likeCount: Number(row.like_count || 0),
@@ -543,7 +694,7 @@ exports.comments = async (req, res) => {
         [id, pageSize, offset]
       ),
       pool.query(
-        `SELECT c.*, u.nick_name, u.avatar_url, u.cert_label,
+        `SELECT c.*, u.nick_name, u.avatar_url, u.cert_label, u.allow_anonymous_pm,
            (SELECT COALESCE(JSON_UNQUOTE(JSON_EXTRACT(pc.anonymous_identity, '$.nickName')), pu.nick_name)
               FROM review_comment pc LEFT JOIN sys_user pu ON pu.id = pc.user_id
              WHERE pc.id = c.parent_id) AS parent_nick_name
@@ -557,19 +708,38 @@ exports.comments = async (req, res) => {
     const total = Number(count[0].total || 0)
     const rootTotal = Number(rootCount[0].total || 0)
     const all = rows.map((row) => mapCommentRow(row, row.parent_nick_name))
-    // 端上按 parentId 自行拼两级树，这里只需保证「本页顶层 + 其全部回复」都下发。
-    // 回复的父级必为顶层评价（写入口已收口），因此每页只需捞出本页顶层的直接回复。
+    // 端上按 parentId 自行拼两级树，这里只需保证「本页顶层 + 其全部后代」都下发。
+    // ⚠ parent_id 存的是「实际被回复的那条」，可能是另一条回复（回复的回复），
+    //   所以不能再用 `rootIdSet[c.parentId]` 直接判断归属 —— 必须沿父链上溯到顶层。
+    //   （旧实现假定 parent_id 恒为顶层，改存真实父级后会把回复的回复整条漏掉。）
+    const byId = {}
+    all.forEach((c) => { byId[Number(c.id)] = c })
+    const rootIdCache = {}
+    const rootIdOf = (comment) => {
+      const key = Number(comment.id)
+      if (rootIdCache[key] !== undefined) return rootIdCache[key]
+      let current = comment
+      const seen = {}
+      while (current && current.parentId && byId[Number(current.parentId)] && !seen[current.id]) {
+        seen[current.id] = true
+        current = byId[Number(current.parentId)]
+      }
+      rootIdCache[key] = Number(current.id)
+      return rootIdCache[key]
+    }
     const rootIds = rootRows.map((row) => Number(row.id))
     const rootIdSet = {}
     const rootOrder = {}
     rootIds.forEach((rid, index) => { rootIdSet[rid] = true; rootOrder[rid] = index })
-    const list = all.filter((c) => rootIdSet[c.id] || (c.parentId && rootIdSet[c.parentId]))
-    // 保持「顶层按排序 + 回复接在其后」的稳定顺序，端上可按顺序渲染
+    // 只下发「所属顶层在本页」的条目（含其全部后代），顶层按排序、其下按 id 升序
+    const list = all.filter((c) => rootIdSet[rootIdOf(c)])
     list.sort((a, b) => {
-      const diff = rootOrder[a.parentId ? a.parentId : a.id] - rootOrder[b.parentId ? b.parentId : b.id]
+      const diff = rootOrder[rootIdOf(a)] - rootOrder[rootIdOf(b)]
       if (diff) return diff
-      if (a.parentId === b.parentId) return a.id - b.id
-      return a.parentId ? 1 : -1
+      const aIsRoot = Number(a.id) === rootIdOf(a)
+      const bIsRoot = Number(b.id) === rootIdOf(b)
+      if (aIsRoot !== bIsRoot) return aIsRoot ? -1 : 1
+      return Number(a.id) - Number(b.id)
     })
     if (req.userId && list.length) {
       const ids = list.map((c) => c.id)
@@ -612,8 +782,10 @@ async function refreshCommentCount(targetId) {
 }
 
 // 发布评价 / 回复评价（需登录）
-// parentId 语义与论坛评论一致：0 = 顶层评价；>0 = 回复该条评价。
-// 两级收口：被回复对象若本身也是回复，则挂到其所属的顶层评价下（端上按 replyToNick 显示「回复 xxx」）。
+// parentId 语义与论坛评论一致：0 = 顶层评价；>0 = **实际被回复的那条**（可能是另一条回复）。
+// ⚠ 不做「两级收口」：早期实现会把「回复的回复」的 parent_id 压平成顶层，
+//   那样会永久丢掉「回复的是谁」，端上的「回复 xxx」前缀就永远显示不出来。
+//   展示层级（只两级）由端上沿父链上溯归并，存储保持保真。
 exports.addComment = async (req, res) => {
   const id = intId(req.params.id)
   if (!id) return fail(res, 'Invalid target id')
@@ -647,14 +819,29 @@ exports.addComment = async (req, res) => {
       if (!parents.length) return fail(res, '被回复的评价不存在或已删除', 404)
       const parent = parents[0]
       if (Number(parent.target_id) !== id) return fail(res, '被回复的评价不属于当前评分对象')
-      // 两级收口：回复「回复」时挂到顶层评价，避免出现三级以上的深链
-      parentId = Number(parent.parent_id) || Number(parent.id)
+      // 存「实际被回复的那条」的 id —— 与论坛评论 commentController 同款。
+      // ⚠ 不要在这里收口成顶层：那样会丢掉「回复的是谁」，端上的「回复 xxx」前缀就永远显示不出来
+      //   （端上判据是「父级本身也是回复」，父级恒为顶层时该条件恒假）。
+      // 展示层级由端上 buildCommentTree 沿父链上溯归并到顶层（只两级展示），不需要服务端压平 parent_id。
+      parentId = Number(parent.id)
       parentAuthorId = Number(parent.user_id) || 0
+    }
+
+    // 同一评分对象身份一致性：该用户在此对象下已有匿名评论时，一律复用首次存档的分身身份，
+    // 不再采用客户端本次随机生成的，避免同一评论区每条评论头像昵称各不相同（与论坛评论同款）
+    let effectiveIdentity = anonymousIdentity
+    if (effectiveIdentity) {
+      const [archived] = await pool.query(
+        'SELECT anonymous_identity FROM review_comment WHERE target_id = ? AND user_id = ? AND anonymous_identity IS NOT NULL ORDER BY id DESC LIMIT 1',
+        [id, req.userId]
+      )
+      const existingIdentity = archived.length ? parseAnonymousIdentity(archived[0].anonymous_identity) : null
+      if (existingIdentity) effectiveIdentity = existingIdentity
     }
 
     const [result] = await pool.query(
       'INSERT INTO review_comment (target_id, parent_id, user_id, content, images, anonymous_identity) VALUES (?, ?, ?, ?, ?, ?)',
-      [id, parentId, req.userId, content, images.length ? JSON.stringify(images) : null, anonymousIdentity ? JSON.stringify(anonymousIdentity) : null]
+      [id, parentId, req.userId, content, images.length ? JSON.stringify(images) : null, effectiveIdentity ? JSON.stringify(effectiveIdentity) : null]
     )
     await refreshCommentCount(id)
     await refreshHotComment(id)
@@ -670,8 +857,8 @@ exports.addComment = async (req, res) => {
     // 自己回复自己不通知；匿名回复用分身形象快照，避免通知里泄露真实身份。
     if (parentId && parentAuthorId && parentAuthorId !== Number(req.userId)) {
       let actorSnapshot = null
-      if (anonymousIdentity) {
-        actorSnapshot = { actorUserId: null, actorNick: anonymousIdentity.nickName, actorAvatar: anonymousIdentity.avatarUrl }
+      if (effectiveIdentity) {
+        actorSnapshot = { actorUserId: null, actorNick: effectiveIdentity.nickName, actorAvatar: effectiveIdentity.avatarUrl }
       } else {
         const [actors] = await pool.query('SELECT id, nick_name, avatar_url FROM sys_user WHERE id = ?', [req.userId])
         if (actors.length) {
@@ -689,7 +876,8 @@ exports.addComment = async (req, res) => {
       }, actorSnapshot || {})).catch(() => {})
     }
 
-    success(res, { comment, parentId, commentCount: await commentCountOf(id) })
+    // 返回实际生效的匿名身份：客户端乐观上屏时用它纠偏，保证显示与服务端存档一致（与论坛评论同款）
+    success(res, { comment, parentId, commentCount: await commentCountOf(id), anonymousIdentity: effectiveIdentity })
   } catch (e) { fail(res, safeMessage(e), 500) }
 }
 
@@ -777,11 +965,28 @@ exports.deleteComment = async (req, res) => {
     const isAdmin = hasPermission((req.user || {}).role, 'content.manage')
     if (!isOwner && !isAdmin) return fail(res, '无权删除该评价', 403)
 
-    // 顶层评价（parent_id = 0）连带其回复；回复只删自身。
+    // 顶层评价（parent_id = 0）连带其下**全部后代**；回复只删自身。
+    // ⚠ 必须逐层收集后代：parent_id 存的是「实际被回复的那条」，回复「回复」会形成两级以上的链，
+    //   只写 `WHERE parent_id = ?` 只能删到第一层，更深的回复会变成点不到的孤儿。
+    //   （与论坛评论 commentController.deleteComment 同款做法。）
     const isRoot = !Number(comment.parent_id)
-    const [result] = isRoot
-      ? await pool.query('UPDATE review_comment SET deleted = 1 WHERE id = ? OR parent_id = ?', [id, id])
-      : await pool.query('UPDATE review_comment SET deleted = 1 WHERE id = ?', [id])
+    const removedIds = [id]
+    if (isRoot) {
+      let frontier = [id]
+      while (frontier.length) {
+        const [children] = await pool.query(
+          `SELECT id FROM review_comment WHERE parent_id IN (${frontier.map(() => '?').join(', ')}) AND deleted = 0`,
+          frontier
+        )
+        if (!children.length) break
+        frontier = children.map((item) => Number(item.id))
+        removedIds.push(...frontier)
+      }
+    }
+    const [result] = await pool.query(
+      `UPDATE review_comment SET deleted = 1 WHERE id IN (${removedIds.map(() => '?').join(', ')}) AND deleted = 0`,
+      removedIds
+    )
 
     await refreshCommentCount(comment.target_id)
     await refreshHotComment(comment.target_id)

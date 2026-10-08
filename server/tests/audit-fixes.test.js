@@ -5,10 +5,10 @@ const path = require('path')
 const read = (...seg) => fs.readFileSync(path.join(__dirname, '..', '..', ...seg), 'utf8')
 
 // ---- M-1 campus-map onMarkerTap ----
-const map = read('pages', 'campus-map', 'index.js')
+const map = read('pkg-feature', 'pages', 'campus-map', 'index.js')
 assert.ok(/onMarkerTap\(e\)/.test(map), 'campus-map 应定义 onMarkerTap')
 assert.ok(/markerId/.test(map) && /selectedPlace/.test(map), 'onMarkerTap 应据 markerId 更新 selectedPlace')
-const mapWxml = read('pages', 'campus-map', 'index.wxml')
+const mapWxml = read('pkg-feature', 'pages', 'campus-map', 'index.wxml')
 assert.ok(/bindmarkertap="onMarkerTap"/.test(mapWxml), 'wxml 绑定应与已定义方法对应')
 
 // ---- M-2 服务可配置化：schema ----

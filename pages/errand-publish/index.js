@@ -140,11 +140,11 @@ Page({
       const path = link.charAt(0) === '/' ? link : '/' + link
       wx.navigateTo({
         url: path,
-        fail: () => wx.switchTab({ url: path, fail: () => wx.navigateTo({ url: '/pages/banner-detail/index?scope=publish&id=' + (banner.id || '') }) })
+        fail: () => wx.switchTab({ url: path, fail: () => wx.navigateTo({ url: '/pkg-feature/pages/banner-detail/index?scope=publish&id=' + (banner.id || '') }) })
       })
       return
     }
-    wx.navigateTo({ url: '/pages/banner-detail/index?scope=publish&id=' + (banner.id || '') })
+    wx.navigateTo({ url: '/pkg-feature/pages/banner-detail/index?scope=publish&id=' + (banner.id || '') })
   },
   onClosePublishBanner(e) {
     const index = Number(e.currentTarget.dataset.index)
@@ -346,7 +346,7 @@ Page({
   },
 
   openAgreement() {
-    wx.navigateTo({ url: '/pages/agreement/index?type=errand' })
+    wx.navigateTo({ url: '/pkg-feature/pages/agreement/index?type=errand' })
   },
 
   // ===== 截止接单时间选择 =====

@@ -95,11 +95,11 @@ Page({
 
   // 跳转到协议页面
   goAgreement() {
-    wx.navigateTo({ url: '/pages/agreement/index' });
+    wx.navigateTo({ url: '/pkg-feature/pages/agreement/index' });
   },
 
   goPrivacy() {
-    wx.navigateTo({ url: '/pages/privacy/index' });
+    wx.navigateTo({ url: '/pkg-feature/pages/privacy/index' });
   },
 
   // 取消登录，返回首页

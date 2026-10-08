@@ -14,9 +14,9 @@ Page({
     unreadCount: 0,
     adminPending: 0,
     shortcuts: [
-      { icon: '/assets/icons/wallet.png', name: '钱包', route: '/pages/wallet/index', subscribe: 'withdraw' },
+      { icon: '/assets/icons/wallet.png', name: '钱包', route: '/pkg-feature/pages/wallet/index', subscribe: 'withdraw' },
       { icon: '/assets/icons/order.png', name: '订单', route: '/pages/errand-order/index', subscribe: 'withdraw' },
-      { icon: '/assets/icons/ic-lock-purple.png', name: '黑名单管理', route: '/pages/blacklist/index', iconDark: true },
+      { icon: '/assets/icons/ic-lock-purple.png', name: '黑名单管理', route: '/pkg-user/pages/blacklist/index', iconDark: true },
       { icon: '/assets/icons/menu.png', name: '管理后台', route: '/pkg-admin/admin/index', adminOnly: true, adminBadge: true }
     ],
     interactionStats: { liked: 0, shared: 0, commented: 0, favorited: 0 },
@@ -41,20 +41,20 @@ Page({
         title: '更新公告',
         columns: 4,
         items: [
-          { fontIcon: 'if-gengxingonggao', fontColor: '#faad14', name: '更新公告', route: '/pages/announcements/index' },
-          { fontIcon: 'if-guanyuwomen', fontColor: '#52c41a', name: '关于我们', route: '/pages/about/index' },
-          { icon: '/assets/icons/rider.png', name: '骑手认证', route: '/pages/rider-verify/index', subscribe: 'riderVerify' },
-          { uiIcon: 'profile', uiLive: false, name: '个人中心', route: '/pages/profile-edit/index' }
+          { fontIcon: 'if-gengxingonggao', fontColor: '#faad14', name: '更新公告', route: '/pkg-feature/pages/announcements/index' },
+          { fontIcon: 'if-guanyuwomen', fontColor: '#52c41a', name: '关于我们', route: '/pkg-feature/pages/about/index' },
+          { icon: '/assets/icons/rider.png', name: '骑手认证', route: '/pkg-feature/pages/rider-verify/index', subscribe: 'riderVerify' },
+          { uiIcon: 'profile', uiLive: false, name: '个人中心', route: '/pkg-user/pages/profile-edit/index' }
         ]
       },
       {
         title: '系统设置',
         columns: 4,
         items: [
-          { fontIcon: 'if-xitongshezhi', fontColor: '#315cff', name: '系统设置', route: '/pages/settings/index' },
-          { uiIcon: 'feedback', uiLive: true, name: '意见(必回)', route: '/pages/feedback/index' },
+          { fontIcon: 'if-xitongshezhi', fontColor: '#315cff', name: '系统设置', route: '/pkg-user/pages/settings/index' },
+          { uiIcon: 'feedback', uiLive: true, name: '意见(必回)', route: '/pkg-feature/pages/feedback/index' },
           { fontIcon: 'if-lianxikefu', fontColor: '#5e6675', name: '联系客服', type: 'contact' },
-          { icon: '/assets/icons/help.png', name: '常见问题', route: '/pages/help/index' }
+          { icon: '/assets/icons/help.png', name: '常见问题', route: '/pkg-feature/pages/help/index' }
         ]
       }
     ]
@@ -168,7 +168,7 @@ Page({
 
   goBannerDetail() {
     if (!this.data.msgBanner || !this.data.msgBanner.text) return
-    wx.navigateTo({ url: '/pages/banner-detail/index' })
+    wx.navigateTo({ url: '/pkg-feature/pages/banner-detail/index' })
   },
 
   goLogin() {
@@ -179,7 +179,7 @@ Page({
     wx.navigateTo({ url: '/pages/profile/index?id=' + (this.data.userInfo.id || '') })
   },
 
-  goSettings() { wx.navigateTo({ url: '/pages/account-settings/index' }) },
+  goSettings() { wx.navigateTo({ url: '/pkg-user/pages/account-settings/index' }) },
 
   onShortcutTap(e) {
     const route = e.currentTarget.dataset.route

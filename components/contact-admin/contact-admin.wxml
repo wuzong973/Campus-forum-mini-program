@@ -37,18 +37,37 @@
   </root-portal>
 
   <root-portal wx:if="{{showQr}}">
-    <view class="contact-admin-mask" catchtap="closeQr"></view>
-    <view class="contact-admin-qr-dialog" catchtap="stopPropagation">
-      <view class="contact-admin-qr-head">
+    <view class="contact-admin-mask {{qrExpanded ? 'is-zoom' : ''}}" catchtap="closeQr"></view>
+    <view class="contact-admin-qr-dialog {{qrExpanded ? 'is-expanded' : ''}}" catchtap="stopPropagation">
+      <!-- 放大态整条标题栏隐藏：放大后就是一张满屏的二维码大图（对齐微信图片查看器，零 UI）。
+           退出方式随之改为「点弹层任意处」——stopPropagation() 在放大态收起，
+           所以这里不再需要「点击可缩小」的提示文案。 -->
+      <view class="contact-admin-qr-head" wx:if="{{!qrExpanded}}">
         <view>
           <text class="contact-admin-qr-title">{{qrTitle}}</text>
-          <text class="contact-admin-qr-desc">长按二维码保存图片</text>
+          <text class="contact-admin-qr-desc">长按图片可保存或识别，点击可放大</text>
         </view>
         <view class="contact-admin-close" catchtap="closeQr">×</view>
       </view>
-      <image class="contact-admin-qr" src="{{qrImage}}" mode="widthFix" show-menu-by-longpress="{{true}}"></image>
-      <button hover-class="press-spring" class="contact-admin-qr-btn spring-btn" bindtap="openQrPage" hover-stay-time="120">点击此处即可跳转</button>
-      <view class="contact-admin-qr-tip">如果是二维码的话长按图片即可识别</view>
+      <!-- 长按 = 微信原生菜单（保存图片 / 发送给朋友 / 收藏 / 识别）。
+           放大**必须留在页面内**：show-menu-by-longpress 只作用于页面里的 <image>，
+           一旦改走 wx.previewImage（微信自带查看器），长按菜单就由微信决定、
+           小程序注入不进去 —— 用户实测「放大后长按没菜单」就是这么来的。
+           所以点击只做同一张图的尺寸切换，mode 在 widthFix/aspectFit 间换，不影响长按菜单。
+           ⚠ 点击必须用 catchtap，不能改回 bindtap：放大态整层绑了 catchtap="stopPropagation"
+           （点弹层任意处退出放大），bindtap 会冒泡上去，刚放大就被同一层立刻收起，
+           端上表现成「点击后无法放大」。 -->
+      <image
+        class="contact-admin-qr {{qrExpanded ? 'is-full' : ''}}"
+        src="{{qrImage}}"
+        mode="{{qrExpanded ? 'aspectFit' : 'widthFix'}}"
+        show-menu-by-longpress="{{true}}"
+        catchtap="toggleQrZoom"
+      ></image>
+      <block wx:if="{{!qrExpanded}}">
+        <button hover-class="press-spring" class="contact-admin-qr-btn spring-btn" bindtap="openQrPage" hover-stay-time="120">点击此处即可跳转</button>
+        <view class="contact-admin-qr-tip">个人好友码在小程序内识别不出（微信限制）：请长按选「保存图片」，再用微信「扫一扫 → 相册」选这张图添加</view>
+      </block>
     </view>
   </root-portal>
 </view>

@@ -169,9 +169,9 @@ function run() {
   }, 'E2. 每一处「联系客服」→ riderVerify（审核结果通知）')
 
   // ===== F. 活动审核（activityPublish）=====
-  const activity = read('pages/activity/index.js')
+  const activity = read('pkg-feature/pages/activity/index.js')
   check(() => {
-    assertCalls(activity, 'onCreate', "requestTriggerByTap('activityPublish')", 'pages/activity')
+    assertCalls(activity, 'onCreate', "requestTriggerByTap('activityPublish')", 'pkg-feature/pages/activity')
   }, 'F. 「发起活动」→ activityPublish（活动审核通知）')
 
   // ===== G. 活动结果（activitySignup）+ 活动订阅（activityIndex）=====
@@ -181,7 +181,7 @@ function run() {
     assert.ok(/key === 'all' \|\| key === 'mine'/.test(chooseTab), 'pages/activity：只有「全部活动」与「我的参与」触发活动结果组')
     assert.ok(/key === 'signing'/.test(chooseTab), 'pages/activity：「报名中」必须保留原有 activityIndex 触发方式')
     // 活动卡片按需求归到「活动订阅」组（activityIndex），与「报名中」同组
-    assertCalls(activity, 'onActivityTap', "requestTriggerByTap('activityIndex')", 'pages/activity')
+    assertCalls(activity, 'onActivityTap', "requestTriggerByTap('activityIndex')", 'pkg-feature/pages/activity')
   }, 'G. 全部活动 / 我的参与 → activitySignup；活动卡片 / 报名中 → activityIndex')
 
   // ===== H. 原有触发方式必须原样保留 =====
@@ -189,12 +189,12 @@ function run() {
     const cases = [
       ['pages/post-publish/index.js', 'onSubmit', "requestTriggerByTap('postPublish')", '发帖成功'],
       ['pages/errand-publish/index.js', null, "requestTriggerByTap('errandPublish')", '发布跑腿成功'],
-      ['pages/wallet/index.js', null, "requestTriggerByTap('withdraw')", '提现提交成功'],
+      ['pkg-feature/pages/wallet/index.js', null, "requestTriggerByTap('withdraw')", '提现提交成功'],
       ['pages/chat/index.js', null, "requestTriggerByTap('message')", '聊天页发送'],
-      ['pages/rider-verify/index.js', null, "requestTriggerByTap('riderVerify')", '骑手提交认证'],
-      ['pages/activity/publish.js', null, "requestTriggerByTap('activityPublish')", '发布活动成功'],
-      ['pages/activity/detail.js', null, "requestTriggerByTap('activitySignup')", '活动报名成功'],
-      ['pages/activity/index.js', null, "requestTriggerByTap('activityIndex')", '活动页「报名中」'],
+      ['pkg-feature/pages/rider-verify/index.js', null, "requestTriggerByTap('riderVerify')", '骑手提交认证'],
+      ['pkg-feature/pages/activity/publish.js', null, "requestTriggerByTap('activityPublish')", '发布活动成功'],
+      ['pkg-feature/pages/activity/detail.js', null, "requestTriggerByTap('activitySignup')", '活动报名成功'],
+      ['pkg-feature/pages/activity/index.js', null, "requestTriggerByTap('activityIndex')", '活动页「报名中」'],
     ]
     cases.forEach(([file, method, expected, label]) => {
       const src = read(file)

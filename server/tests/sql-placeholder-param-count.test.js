@@ -158,6 +158,44 @@ function countArrayElements(arrText) {
   return count
 }
 
+/** 复用数组计数逻辑，数任意「顶层逗号分隔」片段的元素个数 */
+function countTopLevelItems(inner) {
+  return countArrayElements('[' + inner + ']')
+}
+
+/**
+ * INSERT 的「列清单个数」必须等于「每行 VALUES 的值的个数」。
+ *
+ * 这一条专治 A 组判据的盲区：只比 `?` 与参数时，若**改了列清单却漏改值列表**
+ * （例如从列里删掉一列、却忘了删对应参数），`?` 与参数仍可能配平，
+ * 但 列数 ≠ 值数，MySQL 照样抛 ER_WRONG_VALUE_COUNT_ON_ROW。
+ * 2026-10-07 线上「发布跑腿」全挂就是这一类（加 2 列只加 1 个占位符）。
+ * 返回 null 表示无问题或该语句不是静态可解析的 INSERT...VALUES。
+ */
+function insertColumnValueMismatch(sql) {
+  const m = /INSERT\s+INTO\s+[`\w]+\s*\(/i.exec(sql)
+  if (!m) return null
+  const colOpen = m.index + m[0].length - 1
+  const cols = readBalanced(sql, colOpen, '(', ')')
+  const vm = /^\s*VALUES\s*\(/i.exec(sql.slice(cols.end))
+  if (!vm) return null // INSERT ... SET / INSERT ... SELECT，不在本判据范围
+  const colCount = countTopLevelItems(cols.text.slice(1, -1))
+  let pos = cols.end + vm[0].length - 1
+  while (pos < sql.length) {
+    const grp = readBalanced(sql, pos, '(', ')')
+    const valCount = countTopLevelItems(grp.text.slice(1, -1))
+    if (valCount !== colCount) return { colCount, valCount }
+    let k = grp.end
+    while (k < sql.length && /\s/.test(sql[k])) k++
+    if (sql[k] !== ',') break
+    k++
+    while (k < sql.length && /\s/.test(sql[k])) k++
+    if (sql[k] !== '(') break // 多行 VALUES：(...), (...)
+    pos = k
+  }
+  return null
+}
+
 function lineOf(src, index) {
   return src.slice(0, index).split(/\r?\n/).length
 }
@@ -171,7 +209,10 @@ function extractCalls(src) {
     let i = m.index + m[0].length
     while (i < src.length && /\s/.test(src[i])) i++
     const quote = src[i]
-    if (quote !== '"' && quote !== "'") continue
+    // ⚠ 必须同时支持模板字符串（反引号）：errandController 的建单 INSERT 就是模板字符串，
+    // 旧版只认 " 与 ' 会把整条调用跳过 → 护栏形同虚设。
+    // 2026-10-07 线上「发布跑腿」100% 失败（ER_WRONG_VALUE_COUNT_ON_ROW）正是从这个盲区漏过去的。
+    if (quote !== '"' && quote !== "'" && quote !== '`') continue
     let j = i + 1
     while (j < src.length && src[j] !== quote) {
       if (src[j] === '\\') j++
@@ -179,6 +220,8 @@ function extractCalls(src) {
     }
     if (j >= src.length) continue
     const sql = src.slice(i + 1, j)
+    // 含 ${} 插值的模板串是动态拼 SQL（如 `${where}` / `${field}`），静态数 ? 不可靠 → 跳过
+    if (quote === '`' && sql.indexOf('${') > -1) continue
 
     let k = j + 1
     while (k < src.length && /\s/.test(src[k])) k++
@@ -212,6 +255,7 @@ const files = walk(SERVER_ROOT, [])
 assert.ok(files.length > 20, '应扫描到 server 下的源文件（实际 ' + files.length + ' 个）')
 
 const mismatches = []
+const insertMismatches = []
 for (const file of files) {
   const src = fs.readFileSync(file, 'utf8')
   for (const call of extractCalls(src)) {
@@ -221,6 +265,16 @@ for (const file of files) {
         line: call.line,
         marks: call.marks,
         params: call.params,
+        sql: call.sql.replace(/\s+/g, ' ').slice(0, 130),
+      })
+    }
+    const iv = insertColumnValueMismatch(call.sql)
+    if (iv) {
+      insertMismatches.push({
+        file: path.relative(SERVER_ROOT, file).replace(/\\/g, '/'),
+        line: call.line,
+        colCount: iv.colCount,
+        valCount: iv.valCount,
         sql: call.sql.replace(/\s+/g, ' ').slice(0, 130),
       })
     }
@@ -234,6 +288,14 @@ check(() => {
     'SQL 占位符个数必须与参数个数一致，否则 mysql2 静默错位 + ER_PARSE_ERROR（被 safeMessage 说成「数据库操作失败」）'
   )
 }, '全仓静态扫描：query/execute 的 ? 个数 == 参数数组长度')
+
+check(() => {
+  assert.deepStrictEqual(
+    insertMismatches.map((x) => x.file + ':' + x.line + ' → 列 ' + x.colCount + ' 个 / 值 ' + x.valCount + ' 个｜' + x.sql),
+    [],
+    'INSERT 的列清单个数必须等于 VALUES 每行的值的个数，否则 ER_WRONG_VALUE_COUNT_ON_ROW（同样被 safeMessage 说成「数据库操作失败」）'
+  )
+}, '全仓静态扫描：INSERT 列数 == 每行 VALUES 值数')
 
 // ======================= B. 动态渲染校验 =======================
 
@@ -374,6 +436,22 @@ async function main() {
     assert.strictEqual(res3.statusCode, 409, '已通过骑手认证应返回 409，实际 ' + res3.statusCode)
     assert.strictEqual(QUERIES.length, 1, '已通过时应只查一次 rider_verification')
   }, '已通过骑手认证 → 409 提前返回')
+
+  // ======================= C. 可诊断性 =======================
+  // 本次事故真正的排障障碍不是 bug 本身，而是「真实错误被 safeMessage 吞掉、catch 又不落日志」——
+  // 线上只剩一句「数据库操作失败」，日志里空无一物，只能连生产库复现 SQL 才定位到。
+  // 断言的是调用表达式本身（console.error(），不是「文案里提到日志」。
+  check(() => {
+    const src = fs.readFileSync(path.join(SERVER_ROOT, 'controllers', 'errandController.js'), 'utf8')
+    const start = src.indexOf('exports.create = async')
+    assert.ok(start > -1, 'errandController 必须导出 create')
+    const next = src.indexOf('\nexports.', start + 10)
+    const body = src.slice(start, next > -1 ? next : src.length)
+    assert.ok(
+      /console\.error\(/.test(body),
+      'errandController.create 的 catch 必须把原始错误写进日志，否则线上只能看到「数据库操作失败」'
+    )
+  }, '关键写路径的 catch 必须落原始错误日志（可诊断性）')
 
   console.log(testCount + ' tests passed.')
 }

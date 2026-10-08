@@ -47,7 +47,7 @@ function run() {
 
   check(() => {
     const index = read('pages/index/index.js')
-    const serviceAll = read('pages/service-all/index.js')
+    const serviceAll = read('pkg-feature/pages/service-all/index.js')
     for (const source of [index, serviceAll]) {
       assert.ok(source.indexOf("item.name === '自助购电'") > -1, '缺少购电专属分支')
       assert.ok(source.indexOf('该服务需在微信内打开') > -1, '缺少复制链接引导')

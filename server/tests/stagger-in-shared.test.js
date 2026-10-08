@@ -2,7 +2,7 @@
 //
 // 与 card-fx-shared.test.js 同一类问题：动画属于「漏接不报错、只是静默没效果」的接线，
 // 用源码断言锁住共享层的关键属性与接入页清单。
-// 设计说明见 docs/2026-09-30_列表入场交错动画清单与实现.md。
+// 设计说明见 docs/02_前端与UI交互.md §五。
 const assert = require('assert')
 const fs = require('fs')
 const path = require('path')
@@ -54,27 +54,27 @@ const SURFACES = [
   { file: 'pages/errand/index', name: '跑腿接单大厅' },
   { file: 'pages/errand-order/index', name: '我的跑腿订单' },
   { file: 'pages/errand-message/index', name: '跑腿会话列表' },
-  { file: 'pages/activity/index', name: '活动列表' },
-  { file: 'pages/club/detail', name: '社团分类下社团列表' },
-  { file: 'pages/club/club-detail', name: '社团成员/近期活动' },
-  { file: 'pages/group-chat/list', name: '群聊列表' },
-  { file: 'pages/driving-school/index', name: '驾校列表' },
+  { file: 'pkg-feature/pages/activity/index', name: '活动列表' },
+  { file: 'pkg-feature/pages/club/detail', name: '社团分类下社团列表' },
+  { file: 'pkg-feature/pages/club/club-detail', name: '社团成员/近期活动' },
+  { file: 'pkg-feature/pages/group-chat/list', name: '群聊列表' },
+  { file: 'pkg-feature/pages/driving-school/index', name: '驾校列表' },
   { file: 'pages/campus-service/index', name: '校园卡入口卡' },
-  { file: 'pages/feedback/index', name: '意见反馈列表' },
-  { file: 'pages/wallet/index', name: '钱包收益明细' },
+  { file: 'pkg-feature/pages/feedback/index', name: '意见反馈列表' },
+  { file: 'pkg-feature/pages/wallet/index', name: '钱包收益明细' },
   { file: 'pages/my-messages/index', name: '我的消息三个 tab' },
   { file: 'pages/my-posts/index', name: '我的帖子四个子列表' },
   { file: 'pages/my-interactions/index', name: '我的互动记录' },
   { file: 'pages/profile/index', name: '个人主页帖子' },
   { file: 'pages/post-detail/index', name: '帖子详情评论区' },
-  { file: 'pages/review/list', name: '评价广场' },
-  { file: 'pages/review/target', name: '评价详情评论' },
-  { file: 'pages/announcements/index', name: '更新公告' },
-  { file: 'pages/blacklist/index', name: '黑名单两个 tab' },
-  { file: 'pages/help/index', name: 'FAQ 列表' },
-  { file: 'pages/rules/index', name: '校规列表' },
-  { file: 'pages/repair/index', name: '维修预约订单' },
-  { file: 'pages/service-all/index', name: '服务广场分区' },
+  { file: 'pkg-feature/pages/review/list', name: '评价广场' },
+  { file: 'pkg-feature/pages/review/target', name: '评价详情评论' },
+  { file: 'pkg-feature/pages/announcements/index', name: '更新公告' },
+  { file: 'pkg-user/pages/blacklist/index', name: '黑名单两个 tab' },
+  { file: 'pkg-feature/pages/help/index', name: 'FAQ 列表' },
+  { file: 'pkg-feature/pages/rules/index', name: '校规列表' },
+  { file: 'pkg-feature/pages/repair/index', name: '维修预约订单' },
+  { file: 'pkg-feature/pages/service-all/index', name: '服务广场分区' },
   { file: 'pkg-admin/admin/index', name: '后台管理列表' },
   { file: 'pkg-schedule/schedule-exam/index', name: '考试安排' },
   { file: 'pkg-schedule/schedule-grade/index', name: '成绩列表' },

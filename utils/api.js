@@ -788,8 +788,11 @@ function getRandomReviewTarget(query) {
   return request.get("/review/random", query || {}, false, { silent: true });
 }
 
-function rateReviewTarget(id, score) {
-  return request.post("/review/target/" + id + "/rate", { score }, true);
+// 评分：payload 传对象 = 多维度（食堂 / 商圈，四维 {taste,env,service,value}）；
+// 传数字 = 单一星级（课程评分，或兼容旧调用）。服务端两种入参都支持。
+function rateReviewTarget(id, payload) {
+  const body = (payload && typeof payload === "object") ? { dims: payload } : { score: payload };
+  return request.post("/review/target/" + id + "/rate", body, true);
 }
 
 function likeReviewTarget(id) {

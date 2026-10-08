@@ -16,6 +16,9 @@
 // 不含任何记号的行会落到 p 分支，渲染结果与引入本模块之前逐行切段的效果一致。
 // 纯函数、不依赖 wx / getApp，便于 Node 侧直接 require 做单元测试。
 
+// 站内跳转统一入口：识别 /pages/... 与分包 /pkg-xxx/pages/...，tabBar 页走 switchTab
+const link = require('./link')
+
 const COLOR_MAP = { 蓝: '#2e6bff', 红: '#e5484d', 绿: '#1a9d5a', 橙: '#f5a70a' }
 
 // 字色标记的 key 除了登记的颜色名，还允许直接写 6 位 hex（如 {文字|#c0392b}），
@@ -504,7 +507,10 @@ function insertImage(text, cursor, url, alt) {
 }
 
 // 正文链接的点击约定：站内路径直接跳转，http(s) 走 webview 页，其余退化为复制。
-// 与 pages/banner-detail 顶部横幅的 onOpenLink 同一套行为，三个消费端共用一份。
+// 与 pages/banner-detail 顶部横幅的 onOpenLink 同一套行为，多个消费端共用一份。
+//
+// 站内路径必须交给 utils/link 判定 —— 只认 `/pages/` 前缀会把分包页面
+// （/pkg-feature/pages/...，本项目 35 个页面在那里）误判成外链、直接复制到剪贴板。
 function copyRichLink(text) {
   wx.setClipboardData({
     data: text,
@@ -515,11 +521,8 @@ function copyRichLink(text) {
 function openLink(href) {
   const url = String(href || '').trim()
   if (!url) return
-  if (url.indexOf('/pages/') === 0) {
-    wx.navigateTo({ url, fail: () => copyRichLink(url) })
-    return
-  }
-  if (/^https?:\/\//i.test(url)) {
+  if (link.openPath(url, { fail: () => copyRichLink(url) })) return
+  if (link.isWebUrl(url)) {
     wx.navigateTo({ url: '/pages/webview/index?url=' + encodeURIComponent(url), fail: () => copyRichLink(url) })
     return
   }

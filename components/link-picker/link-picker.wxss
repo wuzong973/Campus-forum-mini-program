@@ -1,0 +1,36 @@
+/* 跳转路径选择器。组件样式默认隔离，宿主的 .form-item input 不会生效，
+   所以这里自带全套样式，保证在任何宿主页面里长得一样。 */
+
+.lp-root { width: 100%; }
+
+/* 模式切换：默认「选页面」 */
+.lp-mode { display: flex; margin-bottom: 12rpx; border: 1rpx solid #e4e9f2; border-radius: 12rpx; overflow: hidden; }
+.lp-mode-item { flex: 1; padding: 18rpx 0; text-align: center; background: #f8fafc; color: #6b7891; font-size: 25rpx; }
+.lp-mode-item.is-on { background: #eef4ff; color: #315cff; font-weight: 600; }
+
+/* 输入框（搜索框与手动输入共用外形，与后台表单一致） */
+.lp-search, .lp-manual {
+  width: 100%;
+  height: 84rpx;
+  padding: 0 20rpx;
+  border: 1rpx solid #e4e9f2;
+  border-radius: 12rpx;
+  background: #f8fafc;
+  color: var(--text-primary, #1f2329);
+  font-size: 26rpx;
+  box-sizing: border-box;
+}
+.lp-search { margin-bottom: 12rpx; }
+
+/* 结果列表：页面有 50+ 项，固定高度可滚 */
+.lp-list { height: 420rpx; border: 1rpx solid #e4e9f2; border-radius: 12rpx; background: #fff; }
+.lp-item { display: flex; align-items: center; justify-content: space-between; min-height: 84rpx; padding: 14rpx 20rpx; border-bottom: 1rpx solid #f0f3f8; box-sizing: border-box; }
+.lp-item:last-child { border-bottom: none; }
+.lp-item.is-on { background: #f5f8ff; }
+.lp-item--post { display: block; }
+.lp-item-label { flex: 1; color: var(--text-primary, #1f2329); font-size: 26rpx; line-height: 1.45; }
+.lp-item-sub { display: block; margin-top: 6rpx; color: #98a2b3; font-size: 22rpx; }
+.lp-item-tag { margin-left: 12rpx; color: #315cff; font-size: 22rpx; }
+
+.lp-empty { padding: 28rpx 20rpx; border: 1rpx dashed #e4e9f2; border-radius: 12rpx; color: #98a2b3; font-size: 23rpx; text-align: center; }
+.lp-hint { margin-top: 12rpx; padding: 12rpx 18rpx; border-radius: 10rpx; background: #f5f7fb; color: #6b7891; font-size: 22rpx; line-height: 1.55; }

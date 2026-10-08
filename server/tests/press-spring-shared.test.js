@@ -1,7 +1,7 @@
 // 按钮弹性按压反馈的接入护栏（与 card-fx-shared.test.js 同款源码断言思路）。
 // 按压/回弹属于「漏接不报错、只是静默没手感」的接线：元素少挂 spring-btn、
 // hover 类没按压样式、页面级 transition 顶掉弹性过渡，都会无声失效。
-// 设计说明见 docs/2026-09-30_按钮弹性按压反馈.md。
+// 设计说明见 docs/02_前端与UI交互.md §六。
 const assert = require('assert')
 const fs = require('fs')
 const path = require('path')
@@ -50,7 +50,7 @@ assert.ok(/\.anim-stagger\s*\{[^}]*backwards/.test(app) && !/\.anim-stagger\s*\{
 
 // ===== 全站接入扫描 =====
 
-const DIRS = ['pages', 'pkg-admin', 'pkg-schedule', 'components']
+const DIRS = ['pages', 'pkg-feature', 'pkg-admin', 'pkg-schedule', 'components']
 
 function walkFiles(baseRel, ext, o) {
   const base = safeJoin(root, baseRel)

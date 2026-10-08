@@ -7,6 +7,8 @@
 // 不用 admin 的 QR_PAGE_URL 之外的方式：小程序内长按只能识别小程序码，
 // 个人微信二维码必须进 H5 页长按识别，故「点击此处即可跳转」走 webview → web-static/wechat-qr.html。
 const api = require('../../utils/api')
+// 站内跳转统一入口：识别分包路径 /pkg-xxx/pages/... 并让 tabBar 页走 switchTab
+const linkUtil = require('../../utils/link')
 
 const QR_PAGE_URL = 'https://payun01.cn/wechat-qr.html'
 
@@ -25,11 +27,18 @@ Page({
     loadFailed: false,
     // 二维码弹窗：qrCard 为当前展示的卡片对象，null 即关闭
     qrCard: null,
-    qrImage: ''
+    qrImage: '',
+    // 放大状态：在页面内放大同一张 <image>，不走 wx.previewImage
+    qrExpanded: false
   },
 
   onLoad() {
     this.loadCards()
+  },
+
+  // 兜底恢复：页面被切走时别把 tabBar 留在隐藏态（放大态点右上角胶囊会走到这里）
+  onHide() {
+    this.setTabBarHidden(false)
   },
 
   onPullDownRefresh() {
@@ -53,15 +62,34 @@ Page({
     if (!card) return
     const images = Array.isArray(card.images) ? card.images : []
     // 二维码取配图第 1 张：与「添加微信」场景一致，管理员把它当二维码传
-    this.setData({ qrCard: card, qrImage: images[0] || '' })
+    this.setData({ qrCard: card, qrImage: images[0] || '', qrExpanded: false })
   },
 
   closeQr() {
-    this.setData({ qrCard: null, qrImage: '' })
+    this.setData({ qrCard: null, qrImage: '', qrExpanded: false })
+    this.setTabBarHidden(false)
   },
 
-  // 弹层内容区吞掉点击，避免穿透到遮罩把弹窗关掉
-  stopPropagation() {},
+  // 弹层内容区吞掉点击，避免穿透到遮罩把弹窗关掉。
+  // 放大态例外：弹层已铺满全屏，点任意处 = 退出放大 —— 放大态没有关闭按钮，
+  // 这是唯一出口，对齐微信原生图片查看器的「点一下退出」。
+  stopPropagation() {
+    if (this.data.qrExpanded) {
+      this.setData({ qrExpanded: false })
+      this.setTabBarHidden(false)
+    }
+  },
+
+  // 放大态要「真正全屏」，而自定义 tabBar 由框架渲染在页面内容之上、z-index 盖不住它
+  // （见 custom-tab-bar/index.js 的 hidden 字段），只能临时整块隐藏。
+  // ⚠ 本页不是 tab 页，getTabBar() 会返回 undefined —— 必须判空；恢复点必须齐全
+  //    （收起放大 / 关闭弹窗 / 页面 hide），漏一个 tabBar 就永久消失。
+  setTabBarHidden(hidden) {
+    const pages = getCurrentPages()
+    const cur = pages[pages.length - 1]
+    const tabBar = cur && typeof cur.getTabBar === 'function' ? cur.getTabBar() : null
+    if (tabBar && typeof tabBar.setData === 'function') tabBar.setData({ hidden: !!hidden })
+  },
 
   // 「点击此处即可跳转」：进 H5 页长按识别；未配二维码图时按 link / copyText 兜底
   onOpenQrPage() {
@@ -82,12 +110,11 @@ Page({
     }
 
     // 没配二维码图：直接按卡片的跳转链接走（口径与 utils/richtext.openLink 一致）
-    if (link.indexOf('/pages/') === 0) {
+    if (linkUtil.openPath(link, { fail: () => wx.showToast({ title: '该页面暂不可用', icon: 'none' }) })) {
       this.closeQr()
-      wx.navigateTo({ url: link, fail: () => wx.showToast({ title: '该页面暂不可用', icon: 'none' }) })
       return
     }
-    if (/^https?:\/\//i.test(link)) {
+    if (linkUtil.isWebUrl(link)) {
       this.closeQr()
       wx.navigateTo({
         url: '/pages/webview/index?url=' + encodeURIComponent(link),
@@ -112,11 +139,17 @@ Page({
     wx.showToast({ title: '尚未配置二维码或跳转链接', icon: 'none' })
   },
 
-  // 长按弹窗里的二维码：小程序内长按只能识别小程序码，个人微信二维码识别不了，
-  // 所以这里不接管，交给 <image show-menu-by-longpress> 由微信自行处理（保存图片）。
-  previewQr() {
-    const image = String(this.data.qrImage || '')
-    if (!image) return
-    wx.previewImage({ current: image, urls: [image] })
+  // 长按 = 微信原生菜单（保存图片 / 发送给朋友 / 收藏 / 识别）。
+  // 旧注释曾断言「show-menu-by-longpress 在 mode=widthFix 下失效」，与官方文档不符
+  // （2.7.0 起支持、无域名限制、不受 mode 影响），本仓库 pkg-schedule 也一直在用它。
+  // 但「小程序内长按只能识别小程序码」是真的：个人好友码识别不出，故提示给出
+  // 「保存图片 → 扫一扫 → 相册」这条可靠路径。
+  // 点击 = 在同一张 <image> 上就地放大/缩小。
+  // 不能再走 wx.previewImage：那是微信自带的查看器，长按菜单由微信决定，
+  // 页面里的 show-menu-by-longpress 注入不进去 —— 用户实测「放大后长按没菜单」。
+  toggleQrZoom() {
+    const next = !this.data.qrExpanded
+    this.setData({ qrExpanded: next })
+    this.setTabBarHidden(next)
   }
 })

@@ -1,0 +1,73 @@
+<!-- 跳转路径选择器：选页面 / 选帖子 / 手动输入。
+     三个模式都只往宿主回传最终路径，运营不必知道 /pkg-feature 前缀、也不会写出 .html。
+     页面有 50+ 项，原生 picker 不能搜索，所以用「搜索框 + 结果列表」。 -->
+<view class="lp-root">
+  <view class="lp-mode">
+    <view class="lp-mode-item {{mode === 'pick' ? 'is-on' : ''}}" data-mode="pick" bindtap="onModeChange">选页面</view>
+    <view class="lp-mode-item {{mode === 'post' ? 'is-on' : ''}}" data-mode="post" bindtap="onModeChange" wx:if="{{postMode}}">选帖子</view>
+    <view class="lp-mode-item {{mode === 'manual' ? 'is-on' : ''}}" data-mode="manual" bindtap="onModeChange">手动输入</view>
+  </view>
+
+  <!-- 模式一：搜页面 -->
+  <block wx:if="{{mode === 'pick'}}">
+    <input
+      class="lp-search"
+      value="{{pageKeyword}}"
+      placeholder="搜索页面名，如「活动」「课表」"
+      confirm-type="search"
+      bindinput="onPageSearch"
+    />
+    <scroll-view class="lp-list" scroll-y wx:if="{{pageResults.length}}">
+      <view
+        class="lp-item {{item.path === innerValue ? 'is-on' : ''}}"
+        wx:for="{{pageResults}}"
+        wx:key="path"
+        data-path="{{item.path}}"
+        bindtap="onPagePickItem"
+      >
+        <text class="lp-item-label">{{item.label}}</text>
+        <text class="lp-item-tag" wx:if="{{item.path === innerValue}}">已选</text>
+      </view>
+    </scroll-view>
+    <view class="lp-empty" wx:else>没有匹配的页面，换个词试试</view>
+  </block>
+
+  <!-- 模式二：搜帖子（详情页要 id，搜出来点一下就不用填了） -->
+  <block wx:elif="{{mode === 'post'}}">
+    <input
+      class="lp-search"
+      value="{{postKeyword}}"
+      placeholder="搜索帖子标题 / 正文 / 作者"
+      confirm-type="search"
+      bindinput="onPostSearchInput"
+      bindconfirm="searchPosts"
+    />
+    <scroll-view class="lp-list" scroll-y wx:if="{{postResults.length}}">
+      <view
+        class="lp-item lp-item--post"
+        wx:for="{{postResults}}"
+        wx:key="id"
+        data-id="{{item.id}}"
+        bindtap="onPostPickItem"
+      >
+        <text class="lp-item-label">{{item.title}}</text>
+        <text class="lp-item-sub">{{item.subText}}</text>
+      </view>
+    </scroll-view>
+    <view class="lp-empty" wx:elif="{{postLoading}}">搜索中…</view>
+    <view class="lp-empty" wx:elif="{{postSearched}}">没搜到帖子，换个关键词试试</view>
+    <view class="lp-empty" wx:else>输入关键词，选中后自动填好帖子详情页路径</view>
+  </block>
+
+  <!-- 模式三：手动输入（外链、带参数的详情页） -->
+  <input
+    wx:else
+    class="lp-manual"
+    value="{{innerValue}}"
+    placeholder="{{placeholder}}"
+    bindinput="onManualInput"
+    bindblur="onManualBlur"
+  />
+
+  <view class="lp-hint" wx:if="{{hint}}">{{hint}}</view>
+</view>

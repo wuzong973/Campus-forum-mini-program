@@ -1,6 +1,6 @@
 // 液态标签指示条（elastic tab indicator）接入护栏。
 // 与 card-fx-shared.test.js 同款源码断言思路：漏接不报错、只是静默没效果。
-// 设计文档：docs/2026-09-30_液态标签指示条.md
+// 设计文档：docs/02_前端与UI交互.md §七
 const assert = require('assert')
 const fs = require('fs')
 const path = require('path')

@@ -91,7 +91,7 @@ function loadRealSubscribe(wxStub, state) {
 
 // 加载设置页，subscribe 依赖换成真实模块（否则测不到 granted 落库路径）
 function loadSettingsPage(wxStub, realSubscribe, state) {
-  const source = fs.readFileSync(path.join(ROOT, 'pages', 'settings', 'index.js'), 'utf8')
+  const source = fs.readFileSync(path.join(ROOT, 'pkg-user', 'pages', 'settings', 'index.js'), 'utf8')
   const hotRankStub = { isDailyHotVisible: () => true, setDailyHotVisible: () => {} }
   let pageConfig = null
   const sandbox = {
@@ -116,7 +116,7 @@ function loadSettingsPage(wxStub, realSubscribe, state) {
     module: { exports: {} },
     exports: {}
   }
-  vm.runInNewContext(source, sandbox, { filename: 'pages/settings/index.js' })
+  vm.runInNewContext(source, sandbox, { filename: 'pkg-user/pages/settings/index.js' })
   assert.ok(pageConfig, 'Page() 未被调用')
   const inst = Object.assign({}, pageConfig, { data: plain(pageConfig.data) })
   inst.setData = function (patch, cb) {

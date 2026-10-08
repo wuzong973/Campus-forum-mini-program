@@ -43,14 +43,14 @@ assert.ok(/--fx-w:\s*\d+rpx/.test(fx) && /--fx-r:\s*\d+rpx/.test(fx),
 // noLive: 该文件内不得出现任何 is-live —— 只在整页都是列表项时使用
 const SURFACES = [
   { file: 'pages/index/index', name: '轮播卡', glow: true, live: true },
-  { file: 'pages/wallet/index', name: '余额卡', glow: true, live: true },
+  { file: 'pkg-feature/pages/wallet/index', name: '余额卡', glow: true, live: true },
   { file: 'pkg-admin/admin/index', name: '后台 hero', glow: false, live: true },
   { file: 'pages/hot-rank/index', name: '热榜海报', glow: false, live: true },
   // promo 开无限自转、school-card 是列表项只开进场一圈，同文件所以不能用 noLive
-  { file: 'pages/driving-school/index', name: 'promo + 驾校卡', glow: true, live: true, entry: true },
-  { file: 'pages/club/index', name: '社团卡（列表）', glow: false, entry: true, noLive: true },
-  { file: 'pages/group-chat/index', name: '群聊卡（列表）', glow: false, entry: true, noLive: true },
-  { file: 'pages/activity/index', name: '活动卡（列表）', glow: false, entry: true, noLive: true },
+  { file: 'pkg-feature/pages/driving-school/index', name: 'promo + 驾校卡', glow: true, live: true, entry: true },
+  { file: 'pkg-feature/pages/club/index', name: '社团卡（列表）', glow: false, entry: true, noLive: true },
+  { file: 'pkg-feature/pages/group-chat/index', name: '群聊卡（列表）', glow: false, entry: true, noLive: true },
+  { file: 'pkg-feature/pages/activity/index', name: '活动卡（列表）', glow: false, entry: true, noLive: true },
   { file: 'pages/campus-service/index', name: '服务条目（列表）', glow: false, entry: true, noLive: true }
 ]
 

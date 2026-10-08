@@ -1,0 +1,145 @@
+<view class="page page-enter">
+  <view class="content">
+    <!-- 课程：学历层次切换（专科 / 本科 / 专升本） -->
+    <view wx:if="{{mode === 'course'}}" class="level-bar">
+      <view
+        wx:for="{{levels}}"
+        wx:key="*this"
+        class="level-chip {{level === item ? 'level-chip--active' : ''}}"
+        data-level="{{item}}"
+        bindtap="onLevelTap"
+      >{{item}}</view>
+    </view>
+
+    <!-- 子级页顶部：当前所在食堂/商圈名称（容器本身不可评分，仅作层级标识） -->
+    <view wx:if="{{mode === 'child'}}" class="parent-bar">
+      <text class="parent-bar-name">{{parentName}}</text>
+    </view>
+
+    <!-- 搜索 -->
+    <view class="search-bar">
+      <text class="search-icon">🔍</text>
+      <input
+        class="search-input"
+        placeholder="搜索评分对象"
+        placeholder-class="search-placeholder"
+        value="{{keyword}}"
+        confirm-type="search"
+        bindinput="onKeywordInput"
+        bindconfirm="onSearch"
+      />
+    </view>
+
+    <!-- 次导航：课程=通识课+年级 / 食堂商圈=校区 / 子级=楼层 -->
+    <scroll-view class="tab-scroll" scroll-x enhanced show-scrollbar="{{false}}">
+      <view class="tab-bar">
+        <view
+          wx:for="{{tabs}}"
+          wx:key="*this"
+          class="tab-chip {{activeTab === item ? 'tab-chip--active' : ''}}"
+          data-tab="{{item}}"
+          bindtap="onTabTap"
+        >{{item}}</view>
+      </view>
+    </scroll-view>
+
+    <!-- 排序 -->
+    <view class="sort-bar">
+      <view
+        wx:for="{{sortOptions}}"
+        wx:key="key"
+        class="sort-chip {{sort === item.key ? 'sort-chip--active' : ''}}"
+        data-sort="{{item.key}}"
+        bindtap="onSortTap"
+      >{{item.label}}</view>
+    </view>
+
+    <!-- 评分对象列表 -->
+    <view class="target-list">
+      <view
+        wx:for="{{list}}"
+        wx:key="id"
+        class="target-card anim-stagger spring-btn"
+        style="--i: {{index < 6 ? index : 0}}"
+        data-id="{{item.id}}"
+        bindtap="onTargetTap"
+        hover-class="target-card--hover press-spring"
+        hover-stay-time="100"
+      >
+        <image wx:if="{{item.avatar}}" class="target-avatar" src="{{item.avatar}}" mode="aspectFill" lazy-load />
+        <view wx:else class="target-avatar target-avatar--char" style="background:{{item.avatarBg}};color:{{item.avatarColor}};">
+          <text>{{item.char}}</text>
+        </view>
+        <view class="target-main">
+          <view class="target-name">{{item.name}}</view>
+          <view wx:if="{{item.hotComment}}" class="target-quote">"{{item.hotComment}}"</view>
+          <view class="target-meta">{{item.ratedCountText}}</view>
+        </view>
+        <view class="target-side">
+          <view wx:if="{{item.scoreText && item.scoreText !== '暂无'}}" class="score-badge">★ {{item.scoreText}}</view>
+          <view class="target-count"><text class="count-icon">💬</text><text>{{item.countText}}</text></view>
+        </view>
+      </view>
+
+      <view wx:if="{{loaded && !list.length}}" class="empty-tip">
+        <text>{{mode === 'child' ? childEmptyText : '暂无评分对象，点右下角 ✏️ 添加一个吧'}}</text>
+      </view>
+    </view>
+
+    <!-- 随机抽取（食堂 / 商圈） -->
+    <view wx:if="{{mode === 'root' && list.length}}" class="random-btn spring-btn" bindtap="onRandom" hover-class="random-btn--hover press-spring" hover-stay-time="100">
+      {{randomLabel}}
+    </view>
+  </view>
+</view>
+
+<!-- 发布入口（fixed 放在带动画容器外，避免 transform 裁剪） -->
+<view class="publish-fab spring-btn" bindtap="onPublish" hover-class="publish-fab--hover press-spring" hover-stay-time="120">
+  <view class="publish-pencil"></view>
+</view>
+
+<!-- 随机抽取筛选弹层（食堂 = 抽取今日美食 / 商圈 = 随机逛一逛） -->
+<view class="random-mask" wx:if="{{randomSheetVisible}}" bindtap="onRandomClose">
+  <view class="random-sheet" catchtap="noop">
+    <view class="random-head">
+      <text class="random-title">{{isCanteen ? '抽取今日美食' : '随机逛一逛'}}</text>
+      <text class="random-close" bindtap="onRandomClose">✕</text>
+    </view>
+    <view class="random-block">
+      <view class="random-label">选择范围</view>
+      <view class="random-select" data-dropdown="scope" bindtap="onRandomDropdownToggle">
+        <text class="random-select-value">{{randomScopeOptions[randomScopeIndex].name}}</text>
+        <text class="random-select-arrow">{{randomDropdown === 'scope' ? '▴' : '▾'}}</text>
+      </view>
+      <view class="random-options" wx:if="{{randomDropdown === 'scope'}}">
+        <view
+          wx:for="{{randomScopeOptions}}"
+          wx:key="id"
+          class="random-option {{randomScopeIndex === index ? 'random-option--active' : ''}}"
+          data-index="{{index}}"
+          bindtap="onRandomScopePick"
+        >{{item.name}}</view>
+      </view>
+    </view>
+    <view class="random-block">
+      <view class="random-label">评分限制</view>
+      <view class="random-rating-row">
+        <text class="random-rating-prefix">高于</text>
+        <view class="random-chip-select" data-dropdown="rating" bindtap="onRandomDropdownToggle">
+          <text class="random-chip-value">{{randomRatingOptions[randomRatingIndex]}}</text>
+          <text class="random-select-arrow">{{randomDropdown === 'rating' ? '▴' : '▾'}}</text>
+        </view>
+      </view>
+      <view class="random-options random-options--rating" wx:if="{{randomDropdown === 'rating'}}">
+        <view
+          wx:for="{{randomRatingOptions}}"
+          wx:key="*this"
+          class="random-option {{randomRatingIndex === index ? 'random-option--active' : ''}}"
+          data-index="{{index}}"
+          bindtap="onRandomRatingPick"
+        >{{item}}</view>
+      </view>
+    </view>
+    <view class="random-draw-btn {{drawing ? 'random-draw-btn--busy' : ''}}" bindtap="onRandomDraw">{{drawing ? '抽取中...' : '开始抽取'}}</view>
+  </view>
+</view>

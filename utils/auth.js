@@ -96,7 +96,7 @@ function requirePublishReady() {
     success(res) {
       if (res.confirm) {
         // 直接进入完善资料弹窗，并携带缺失字段列表：设置页会自动弹窗并高亮待补项
-        wx.navigateTo({ url: '/pages/account-settings/index?profile=1&focus=' + focus })
+        wx.navigateTo({ url: '/pkg-user/pages/account-settings/index?profile=1&focus=' + focus })
       }
     }
   })
@@ -125,7 +125,7 @@ function requireRunnerReady() {
     cancelText: '取消',
     confirmText: '前往',
     success(res) {
-      if (res.confirm) wx.navigateTo({ url: '/pages/rider-verify/index' })
+      if (res.confirm) wx.navigateTo({ url: '/pkg-feature/pages/rider-verify/index' })
     }
   })
   return false
@@ -217,7 +217,7 @@ function requireFeatureAccess(featureName, options) {
                 wx.navigateTo({
                   url: choice.tapIndex === 0
                     ? '/pkg-schedule/schedule-login/index'
-                    : '/pages/rider-verify/index'
+                    : '/pkg-feature/pages/rider-verify/index'
                 })
               }
             })

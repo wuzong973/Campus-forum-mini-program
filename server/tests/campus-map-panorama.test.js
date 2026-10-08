@@ -38,7 +38,7 @@ function plain(value) {
 }
 
 function loadCampusMap(state) {
-  const source = require('fs').readFileSync(path.join(MINI_PROGRAM_ROOT, 'pages', 'campus-map', 'index.js'), 'utf8')
+  const source = require('fs').readFileSync(path.join(MINI_PROGRAM_ROOT, 'pkg-feature', 'pages', 'campus-map', 'index.js'), 'utf8')
   let pageConfig = null
   const sandbox = {
     Page: (config) => { pageConfig = config },
@@ -64,7 +64,7 @@ function loadCampusMap(state) {
     module: { exports: {} },
     exports: {}
   }
-  vm.runInNewContext(source, sandbox, { filename: 'pages/campus-map/index.js' })
+  vm.runInNewContext(source, sandbox, { filename: 'pkg-feature/pages/campus-map/index.js' })
   assert.ok(pageConfig, 'Page() 未被调用')
   function makeInstance() {
     const inst = Object.assign({}, pageConfig, { data: plain(pageConfig.data) })
@@ -124,16 +124,16 @@ function run() {
     assert.ok(vr.indexOf('copyBtn') > -1, 'embed.html 有复制链接兜底')
     const deploy = require('fs').readFileSync(path.join(MINI_PROGRAM_ROOT, 'deploy.py'), 'utf8')
     assert.ok(deploy.indexOf('("web-static/embed.html", "embed.html")') > -1, 'deploy.py 静态清单必须含 embed.html')
-    const wxml = require('fs').readFileSync(path.join(MINI_PROGRAM_ROOT, 'pages', 'campus-map', 'index.wxml'), 'utf8')
+    const wxml = require('fs').readFileSync(path.join(MINI_PROGRAM_ROOT, 'pkg-feature', 'pages', 'campus-map', 'index.wxml'), 'utf8')
     assert.ok(wxml.indexOf('bindtap="openPanorama"') > -1, '「VR 全景」按钮必须绑定 openPanorama')
   }, 'C. 中转页白名单/部署清单/按钮接线护栏')
 
   // D. 地图显示对齐参照标准（图一：纯原生 POI 渲染，无自定义猜测坐标）
   check(() => {
-    const wxml = require('fs').readFileSync(path.join(MINI_PROGRAM_ROOT, 'pages', 'campus-map', 'index.wxml'), 'utf8')
+    const wxml = require('fs').readFileSync(path.join(MINI_PROGRAM_ROOT, 'pkg-feature', 'pages', 'campus-map', 'index.wxml'), 'utf8')
     assert.ok(wxml.indexOf('enable-poi') > -1, '必须开启原生 POI（校门/建筑/道路/水体标注来自腾讯地图数据）')
     assert.ok(wxml.indexOf('enable-building') > -1, '开启楼块渲染')
-    const js = require('fs').readFileSync(path.join(MINI_PROGRAM_ROOT, 'pages', 'campus-map', 'index.js'), 'utf8')
+    const js = require('fs').readFileSync(path.join(MINI_PROGRAM_ROOT, 'pkg-feature', 'pages', 'campus-map', 'index.js'), 'utf8')
     assert.ok(js.indexOf("iconPath: '/assets/icons/svc-map.png'") > -1, '校门使用自定义标注显示')
     assert.ok(js.indexOf("name: '1号门'") > -1 && js.indexOf("name: '4号门'") > -1, '四个校门口必须上图')
     assert.ok(!/places: \[/.test(js), '未经实测校准的 places 点位数据已移除')
@@ -162,7 +162,7 @@ function run() {
 
   // E. 佛山围栏几何验证：四个校门 + 学校主体（腾讯官方坐标）必须全部落在围栏内
   check(() => {
-    const js = require('fs').readFileSync(path.join(MINI_PROGRAM_ROOT, 'pages', 'campus-map', 'index.js'), 'utf8')
+    const js = require('fs').readFileSync(path.join(MINI_PROGRAM_ROOT, 'pkg-feature', 'pages', 'campus-map', 'index.js'), 'utf8')
     const polyStart = js.indexOf('polygon: [')
     const polyEnd = js.indexOf('],', polyStart)
     const block = polyStart > -1 && polyEnd > polyStart ? js.slice(polyStart + 10, polyEnd) : null
@@ -220,7 +220,7 @@ function run() {
 
   // F. 佛山围栏几何护栏：顶点数、无自交、面积合理（与腾讯 AOI 轮廓一致）
   check(() => {
-    const js = require('fs').readFileSync(path.join(MINI_PROGRAM_ROOT, 'pages', 'campus-map', 'index.js'), 'utf8')
+    const js = require('fs').readFileSync(path.join(MINI_PROGRAM_ROOT, 'pkg-feature', 'pages', 'campus-map', 'index.js'), 'utf8')
     const polyStart = js.indexOf('polygon: [')
     const block = js.slice(polyStart + 10, js.indexOf('],', polyStart))
     const poly = [...block.matchAll(/latitude: ([\d.]+), longitude: ([\d.]+)/g)]
@@ -253,7 +253,7 @@ function run() {
 
   // G. 广州新港校区围栏几何护栏（与佛山同一套处理：AOI 实描 + 几何校验）
   check(() => {
-    const js = require('fs').readFileSync(path.join(MINI_PROGRAM_ROOT, 'pages', 'campus-map', 'index.js'), 'utf8')
+    const js = require('fs').readFileSync(path.join(MINI_PROGRAM_ROOT, 'pkg-feature', 'pages', 'campus-map', 'index.js'), 'utf8')
     const gzStart = js.indexOf('guangzhou: {')
     assert.ok(gzStart > -1, '未找到广州校区配置块')
     const polyStart = js.indexOf('polygon: [', gzStart)

@@ -86,3 +86,27 @@ page { background: #f5f7fa; }
    否则 press-spring-shared.test.js 会失败） */
 .spring-btn { transition: transform .12s cubic-bezier(.4, 0, .2, 1), opacity .12s ease; }
 .press-spring { transform: scale(0.96); opacity: .88; }
+
+/* ===== 跳转路径：选页面 / 手动输入 切换 ===== */
+/* 两个模式段：左侧「从页面列表选」为默认，运营全程看不到路径字符串 */
+.link-mode { display: flex; margin-bottom: 12rpx; border: 1rpx solid #e4e9f2; border-radius: 12rpx; overflow: hidden; }
+.link-mode-item { flex: 1; padding: 18rpx 0; text-align: center; background: #f8fafc; color: #6b7891; font-size: 25rpx; }
+.link-mode-item.is-on { background: #eef4ff; color: #315cff; font-weight: 600; }
+
+/* ===== 跳转路径：选页面 / 选帖子 / 手动输入 ===== */
+/* 三段模式：默认「选页面」；「选帖子」解决详情页要 id 的问题 */
+.link-mode { display: flex; margin-bottom: 12rpx; border: 1rpx solid #e4e9f2; border-radius: 12rpx; overflow: hidden; }
+.link-mode-item { flex: 1; padding: 18rpx 0; text-align: center; background: #f8fafc; color: #6b7891; font-size: 25rpx; }
+.link-mode-item.is-on { background: #eef4ff; color: #315cff; font-weight: 600; }
+
+/* 搜索框与结果列表：页面有 50+ 项，原生 picker 不能搜索，这里自建可滚动列表 */
+.link-search { margin-bottom: 12rpx; }
+.link-list { height: 420rpx; border: 1rpx solid #e4e9f2; border-radius: 12rpx; background: #fff; }
+.link-item { display: flex; align-items: center; justify-content: space-between; min-height: 84rpx; padding: 14rpx 20rpx; border-bottom: 1rpx solid #f0f3f8; box-sizing: border-box; }
+.link-item:last-child { border-bottom: none; }
+.link-item.is-on { background: #f5f8ff; }
+.link-item--post { display: block; }
+.link-item-label { flex: 1; color: var(--text-primary, #1f2329); font-size: 26rpx; line-height: 1.45; }
+.link-item-sub { display: block; margin-top: 6rpx; color: #98a2b3; font-size: 22rpx; }
+.link-item-tag { margin-left: 12rpx; color: #315cff; font-size: 22rpx; }
+.link-empty { padding: 28rpx 20rpx; border: 1rpx dashed #e4e9f2; border-radius: 12rpx; color: #98a2b3; font-size: 23rpx; text-align: center; }

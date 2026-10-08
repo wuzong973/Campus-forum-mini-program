@@ -5,6 +5,7 @@ const { writeAdminAudit } = require('../utils/adminAudit')
 const { createNotification } = require('../services/notificationService')
 const subscribeService = require('../services/subscribeService')
 const paymentController = require('./paymentController')
+const { linkRejectReason } = require('../utils/link')
 
 const ADMIN_ROLES = ['super_admin', 'content_admin', 'user_admin', 'operator']
 const CONTENT_TYPES = ['category', 'tag', 'notice', 'banner', 'publish_banner', 'message_banner', 'post_banner', 'service_page_campus_card']
@@ -19,6 +20,18 @@ function pageParams(query) {
 function intId(value) {
   const id = Number(value)
   return Number.isInteger(id) && id > 0 ? id : 0
+}
+
+// 首页轮播（type='banner'）的跳转链接存在 body JSON 的 meta.link 里，
+// 保存前必须校验能不能跳 —— 否则会静默落库一个用户点了没反应的地址。
+// 实例（2026-10-08）：管理员把微信「小程序短链」`#小程序://帕云校园/xxx` 填了进来，
+// 那是群发用的、只能粘进聊天点开，端上点了只会弹「链接已复制」。
+// 返回空串表示通过，否则返回给管理员看的原因。
+function bannerLinkRejectReason(type, bodyText) {
+  if (type !== 'banner' || !bodyText) return ''
+  let meta = {}
+  try { meta = JSON.parse(bodyText) || {} } catch (e) { return '' }
+  return linkRejectReason(meta.link)
 }
 
 function bool(value) {
@@ -514,6 +527,9 @@ exports.listContent = async (req, res) => {
 exports.createContent = async (req, res) => {
   const body = req.body || {}; const type = String(body.type || ''); const title = optionalText(body.title, 128); const text = optionalText(body.body || '', 10000)
   if (!CONTENT_TYPES.includes(type) || !title || title === null || text === null) return fail(res, 'Invalid content data')
+  // 首页轮播的跳转链接不合法就直接拒绝，别等用户点了才发现跳不了
+  const linkReason = bannerLinkRejectReason(type, text)
+  if (linkReason) return fail(res, linkReason)
   try {
     const [result] = await pool.query('INSERT INTO system_content (type, title, body, status, sort_order) VALUES (?, ?, ?, ?, ?)', [type, title, text, bool(body.status === undefined ? 1 : body.status), Math.max(0, Number(body.sortOrder) || 0)])
     await audit(req, 'content.create', 'content', result.insertId, { type, title })
@@ -524,6 +540,9 @@ exports.createContent = async (req, res) => {
 exports.updateContent = async (req, res) => {
   const id = intId(req.params.id); const body = req.body || {}; const title = optionalText(body.title, 128); const text = optionalText(body.body, 10000)
   if (!id || title === null || text === null || (body.type && !CONTENT_TYPES.includes(body.type))) return fail(res, 'Invalid content data')
+  // 同上：改首页轮播时也要挡住不可跳转的链接（客户端会带上 type）
+  const linkReason = bannerLinkRejectReason(body.type, text)
+  if (linkReason) return fail(res, linkReason)
   const fields = []; const values = []
   ;[['type', body.type], ['title', title], ['body', text], ['status', body.status === undefined ? undefined : bool(body.status)], ['sort_order', body.sortOrder === undefined ? undefined : Math.max(0, Number(body.sortOrder) || 0)]].forEach(([key, value]) => { if (value !== undefined) { fields.push(key + ' = ?'); values.push(value) } })
   if (!fields.length) return fail(res, 'No changes supplied')

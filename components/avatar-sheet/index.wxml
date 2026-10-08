@@ -1,0 +1,29 @@
+<!--
+  头像功能卡片（统一弹窗）
+  帖子详情页与评价详情页共用；页面上调用 this.selectComponent('#avatarSheet').open({...}) 打开。
+  样式与结构 1:1 取自原 pages/post-detail 内联实现，保证两页观感与行为完全一致。
+-->
+<view class="anon-sheet-mask" wx:if="{{sheet}}" catchtap="onClose"></view>
+<view class="anon-sheet" wx:if="{{sheet}}" catchtap="noop">
+  <view class="anon-sheet-close" catchtap="onClose">×</view>
+  <view class="anon-sheet-user">
+    <image class="anon-sheet-avatar" src="{{sheet.avatar || '/assets/icons/avatar.png'}}" mode="aspectFill"></image>
+    <text class="anon-sheet-nick">{{sheet.nick}}</text>
+    <view class="anon-sheet-owner" wx:if="{{sheet.isOwner}}">
+      <text class="anon-sheet-owner-text">帖主</text>
+      <text class="anon-sheet-owner-op">OP</text>
+    </view>
+    <view class="author-sheet-badge" wx:if="{{sheet.certLabel}}"><text class="author-sheet-badge-text">{{sheet.certLabel}}</text></view>
+  </view>
+  <!-- 分身用户：只给「私信」；普通用户：给「个人主页」+「分身私信/私信」 -->
+  <block wx:if="{{sheet.mode === 'anon'}}">
+    <button hover-class="press-spring" class="anon-sheet-msg-btn spring-btn" catchtap="onMessage" hover-stay-time="120">私信</button>
+  </block>
+  <block wx:else>
+    <view class="author-sheet-actions">
+      <button hover-class="press-spring" class="author-sheet-btn ghost spring-btn" catchtap="onProfile" hover-stay-time="120">个人主页</button>
+      <button hover-class="press-spring" class="author-sheet-btn primary spring-btn" catchtap="onMessage" hover-stay-time="120">{{sheet.actionLabel}}</button>
+    </view>
+  </block>
+  <text class="anon-sheet-tip">{{sheet.tip}}</text>
+</view>

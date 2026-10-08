@@ -36,8 +36,23 @@ Component({
     showMenu: false,
     showQr: false,
     qrImage: QR_FALLBACK,
+    // 放大状态：在页面内放大同一张 <image>，不走 wx.previewImage
+    qrExpanded: false,
     // 弹窗标题跟随后台「公告-公告文字」，未配置时留空（导航栏不再显示"添加管理员微信"）
     qrTitle: "",
+  },
+
+  // 兜底恢复：页面被切走（如用户点右上角胶囊）或组件销毁时，别把 tabBar 留在隐藏态
+  pageLifetimes: {
+    hide() {
+      this.setTabBarHidden(false);
+    },
+  },
+
+  lifetimes: {
+    detached() {
+      this.setTabBarHidden(false);
+    },
   },
 
   methods: {
@@ -59,7 +74,7 @@ Component({
     },
 
     openQr() {
-      this.setData({ showMenu: false, showQr: true });
+      this.setData({ showMenu: false, showQr: true, qrExpanded: false });
       if (this.data.overrideImage) {
         // 本入口固定用机构自己的二维码：直接应用覆盖值，不再拉全站「公告」配置
         const patch = { qrImage: this.data.overrideImage };
@@ -94,8 +109,29 @@ Component({
     },
 
     closeQr() {
-      this.setData({ showQr: false });
+      this.setData({ showQr: false, qrExpanded: false });
+      this.setTabBarHidden(false);
     },
+
+    // 点击 = 在同一张 <image> 上就地放大/缩小（放大后长按仍能出原生菜单）
+    toggleQrZoom() {
+      const next = !this.data.qrExpanded;
+      this.setData({ qrExpanded: next });
+      this.setTabBarHidden(next);
+    },
+
+    // 放大态要「真正全屏」，而自定义 tabBar 由框架渲染在页面内容之上、z-index 盖不住它
+    // （见 custom-tab-bar/index.js 的 hidden 字段），只能临时整块隐藏。
+    // ⚠ 每个 tab 页的自定义 tabBar 是**独立实例**，非 tab 页 getTabBar() 返回 undefined
+    //    —— 必须判空；恢复点必须齐全（收起放大 / 关闭弹窗 / 页面 hide / 组件 detached），
+    //    漏一个就是那个 tab 页的 tabBar 永久消失。
+    setTabBarHidden(hidden) {
+      const pages = getCurrentPages();
+      const cur = pages[pages.length - 1];
+      const tabBar = cur && typeof cur.getTabBar === 'function' ? cur.getTabBar() : null;
+      if (tabBar && typeof tabBar.setData === 'function') tabBar.setData({ hidden: !!hidden });
+    },
+
 
     openQrPage() {
       this.setData({ showQr: false });
@@ -111,7 +147,15 @@ Component({
       });
     },
 
-    stopPropagation() {},
+    // 弹层内容区吞掉点击（catchtap），否则点弹层空白处会穿透到遮罩把整个弹窗关掉。
+    // 放大态例外：此时弹层已铺满全屏，点任意处 = 退出放大，
+    // 对齐微信原生图片查看器的「点一下退出」——放大态没有关闭按钮，这是唯一出口。
+    stopPropagation() {
+      if (this.data.qrExpanded) {
+        this.setData({ qrExpanded: false });
+        this.setTabBarHidden(false);
+      }
+    },
 
     onCustomerServiceContact(e) {
       this.setData({ showMenu: false });

@@ -23,15 +23,15 @@ const TPL_TYPES = [
 const TPL_CONFIG = {
   commentNew: { envKey: 'WX_TPL_COMMENT_NEW', page: 'pages/post-detail/index', label: '新的评论提醒' },
   commentReply: { envKey: 'WX_TPL_COMMENT_REPLY', page: 'pages/post-detail/index', label: '评论回复通知' },
-  withdrawSuccess: { envKey: 'WX_TPL_WITHDRAW_SUCCESS', page: 'pages/wallet/index', label: '提现成功通知' },
-  withdrawResult: { envKey: 'WX_TPL_WITHDRAW_RESULT', page: 'pages/wallet/index', label: '提现结果通知' },
-  activityNew: { envKey: 'WX_TPL_ACTIVITY_NEW', page: 'pages/activity/index', label: '新活动提醒' },
-  activityJoined: { envKey: 'WX_TPL_ACTIVITY_JOINED', page: 'pages/activity/index', label: '活动参与成功提醒' },
-  activitySignupNotice: { envKey: 'WX_TPL_ACTIVITY_SIGNUP_NOTICE', page: 'pages/activity/index', label: '活动报名通知' },
-  activityAudit: { envKey: 'WX_TPL_ACTIVITY_AUDIT', page: 'pages/activity/detail', label: '活动审核通知' },
-  activitySignupResult: { envKey: 'WX_TPL_ACTIVITY_SIGNUP_RESULT', page: 'pages/activity/detail', label: '活动报名结果通知' },
-  activityStart: { envKey: 'WX_TPL_ACTIVITY_START', page: 'pages/activity/detail', label: '活动开始提醒' },
-  activitySignup: { envKey: 'WX_TPL_ACTIVITY_SIGNUP', page: 'pages/activity/detail', label: '报名成功通知' },
+  withdrawSuccess: { envKey: 'WX_TPL_WITHDRAW_SUCCESS', page: 'pkg-feature/pages/wallet/index', label: '提现成功通知' },
+  withdrawResult: { envKey: 'WX_TPL_WITHDRAW_RESULT', page: 'pkg-feature/pages/wallet/index', label: '提现结果通知' },
+  activityNew: { envKey: 'WX_TPL_ACTIVITY_NEW', page: 'pkg-feature/pages/activity/index', label: '新活动提醒' },
+  activityJoined: { envKey: 'WX_TPL_ACTIVITY_JOINED', page: 'pkg-feature/pages/activity/index', label: '活动参与成功提醒' },
+  activitySignupNotice: { envKey: 'WX_TPL_ACTIVITY_SIGNUP_NOTICE', page: 'pkg-feature/pages/activity/index', label: '活动报名通知' },
+  activityAudit: { envKey: 'WX_TPL_ACTIVITY_AUDIT', page: 'pkg-feature/pages/activity/detail', label: '活动审核通知' },
+  activitySignupResult: { envKey: 'WX_TPL_ACTIVITY_SIGNUP_RESULT', page: 'pkg-feature/pages/activity/detail', label: '活动报名结果通知' },
+  activityStart: { envKey: 'WX_TPL_ACTIVITY_START', page: 'pkg-feature/pages/activity/detail', label: '活动开始提醒' },
+  activitySignup: { envKey: 'WX_TPL_ACTIVITY_SIGNUP', page: 'pkg-feature/pages/activity/detail', label: '报名成功通知' },
   errandAccepted: { envKey: 'WX_TPL_ERRAND_ACCEPTED', page: 'pages/errand-detail/index', label: '订单接单通知' },
   errandFinished: { envKey: 'WX_TPL_ERRAND_FINISHED', page: 'pages/errand-detail/index', label: '订单完成通知' },
   errandCancelled: { envKey: 'WX_TPL_ERRAND_CANCELLED', page: 'pages/errand-detail/index', label: '订单取消通知' },
@@ -851,7 +851,7 @@ function pushWithdrawResult(userId, { orderNo, amountFen, statusText, note }) {
     time3: { value: nowWxTime() },
     phrase4: { value: clip(statusText || '处理中', 5) },
     thing5: { value: clipOr(note, 20, '无') }
-  }, { page: 'pages/wallet/index', summary: '提现结果更新' })
+  }, { page: 'pkg-feature/pages/wallet/index', summary: '提现结果更新' })
 }
 
 // 提现成功通知（thing1 提现产品 / amount2 提现金额 / time3 提现时间 / time4 到账时间 / thing5 备注）
@@ -863,7 +863,7 @@ function pushWithdrawSuccess(userId, { amountFen, note }) {
     time3: { value: now },
     time4: { value: now },
     thing5: { value: clip(note || '已到账微信零钱', 20) }
-  }, { page: 'pages/wallet/index', summary: '提现成功' })
+  }, { page: 'pkg-feature/pages/wallet/index', summary: '提现成功' })
 }
 
 /**

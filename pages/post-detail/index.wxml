@@ -43,7 +43,7 @@
             data-option-index="{{optIndex}}"
             catchtap="onPollOptionTap"
           >
-            <view class="poll-option-fill" style="width: {{option._pct || 0}}%;"></view>
+            <view class="poll-option-fill" style="width: {{option._pct + '%'}}"></view>
             <text class="poll-option-text">{{option.text}}</text>
             <text class="poll-option-count">{{option.votes || 0}}</text>
           </view>
@@ -155,37 +155,18 @@
 
   <view class="bottom-bar" style="bottom: {{keyboardHeight}}px;">
     <view class="comment-preview-images" wx:if="{{commentMedia.length}}"><view class="comment-preview-item" wx:for="{{commentMedia}}" wx:key="path"><image wx:if="{{item.type === 'image'}}" class="comment-preview-img" src="{{item.path}}" mode="aspectFill"></image><video wx:else class="comment-preview-video" src="{{item.path}}" object-fit="cover"></video><view class="comment-preview-remove" data-index="{{index}}" catchtap="onRemoveCommentMedia">×</view></view></view>
-    <view class="comment-toolbar"><view class="comment-anonymous-btn {{commentAnonymous ? 'active' : ''}}" catchtap="toggleCommentAnonymous"><text class="anonymous-dot"></text>分身</view><input class="comment-input" focus="{{commentFocus}}" cursor-spacing="18" adjust-position="{{false}}" placeholder="{{replyTo ? '回复 ' + replyToNick + '...' : '写评论...'}}" value="{{commentText}}" bindinput="onCommentInput" bindfocus="onInputFocus" bindblur="onInputBlur"></input><view class="send-btn {{(commentText || commentMedia.length) && !submittingComment ? 'active' : ''}} {{submittingComment ? 'sending' : ''}}" bindtap="onSendComment">{{submittingComment ? '···' : '发送'}}</view><view class="tool-btn" catchtap="toggleEmojiPanel">☺</view><view class="tool-btn" catchtap="onChooseCommentMedia">＋</view></view>
+    <view class="comment-toolbar"><view class="comment-anonymous-btn {{commentAnonymous ? 'active' : ''}}" catchtap="toggleCommentAnonymous"><text class="anonymous-dot"></text>分身</view><view class="input-wrap"><!-- 回复态提示条（与评价页 pages/review/target 同款）：绝对定位叠在输入框上方，不参与横向 flex，避免挤压输入区宽度 --><view class="reply-hint" wx:if="{{replyTo}}"><text class="reply-hint-text">回复 {{replyToNick}}</text><text class="reply-hint-cancel" catchtap="onCancelReply">✕</text></view><input class="comment-input" focus="{{commentFocus}}" cursor-spacing="18" adjust-position="{{false}}" placeholder="{{replyTo ? '回复 ' + replyToNick + '...' : '写评论...'}}" value="{{commentText}}" bindinput="onCommentInput" bindfocus="onInputFocus" bindblur="onInputBlur"></input></view><view class="send-btn {{(commentText || commentMedia.length) && !submittingComment ? 'active' : ''}} {{submittingComment ? 'sending' : ''}}" bindtap="onSendComment">{{submittingComment ? '···' : '发送'}}</view><view class="tool-btn" catchtap="toggleEmojiPanel">☺</view><view class="tool-btn" catchtap="onChooseCommentMedia">＋</view></view>
     <view class="emoji-panel" wx:if="{{showEmojiPanel}}"><view class="emoji-item" wx:for="{{emojis}}" wx:key="*this" data-emoji="{{item}}" catchtap="onEmojiTap">{{item}}</view></view>
   </view>
 
   <view class="modal-mask" wx:if="{{showEditModal}}" bindtap="onCloseEditModal"></view>
   <view class="edit-modal" wx:if="{{showEditModal}}"><view class="modal-header"><text class="modal-title">编辑评论</text><text class="modal-close" bindtap="onCloseEditModal">×</text></view><textarea class="modal-textarea" value="{{editContent}}" bindinput="onEditContentInput" maxlength="200"></textarea><view class="modal-actions"><button hover-class="press-spring" class="modal-btn cancel spring-btn" bindtap="onCloseEditModal" hover-stay-time="120">取消</button><button hover-class="press-spring" class="modal-btn confirm spring-btn" bindtap="onConfirmEdit" hover-stay-time="120">确定</button></view></view>
 
-  <!-- 点击头像弹出的功能菜单：匿名（分身）用户仅展示「私信」；普通用户展示「个人主页」+「分身私信/私信」 -->
-  <view class="anon-sheet-mask" wx:if="{{avatarSheet}}" catchtap="onCloseAvatarSheet"></view>
-  <view class="anon-sheet" wx:if="{{avatarSheet}}" catchtap="noop">
-    <view class="anon-sheet-close" catchtap="onCloseAvatarSheet">×</view>
-    <view class="anon-sheet-user">
-      <image class="anon-sheet-avatar" src="{{avatarSheet.avatar || '/assets/icons/avatar.png'}}" mode="aspectFill"></image>
-      <text class="anon-sheet-nick">{{avatarSheet.nick}}</text>
-      <view class="anon-sheet-owner" wx:if="{{avatarSheet.isOwner}}">
-        <text class="anon-sheet-owner-text">帖主</text>
-        <text class="anon-sheet-owner-op">OP</text>
-      </view>
-      <view class="author-sheet-badge" wx:if="{{avatarSheet.certLabel}}"><text class="author-sheet-badge-text">{{avatarSheet.certLabel}}</text></view>
-    </view>
-    <block wx:if="{{avatarSheet.mode === 'anon'}}">
-      <button hover-class="press-spring" class="anon-sheet-msg-btn spring-btn" catchtap="onAvatarSheetMessage" hover-stay-time="120">私信</button>
-    </block>
-    <block wx:else>
-      <view class="author-sheet-actions">
-        <button hover-class="press-spring" class="author-sheet-btn ghost spring-btn" catchtap="onAvatarSheetProfile" hover-stay-time="120">个人主页</button>
-        <button hover-class="press-spring" class="author-sheet-btn primary spring-btn" catchtap="onAvatarSheetMessage" hover-stay-time="120">{{avatarSheet.actionLabel}}</button>
-      </view>
-    </block>
-    <text class="anon-sheet-tip">{{avatarSheet.tip}}</text>
-  </view>
+  <!-- 点击头像弹出的功能菜单：匿名（分身）用户仅展示「私信」；普通用户展示「个人主页」+「分身私信/私信」。
+       已抽成共享组件 components/avatar-sheet —— 与评价详情页用同一份实现，避免两页各自维护而漂移。
+       打开方式：this.selectComponent('#avatarSheet').open({...})（见 index.js 的 onCommentAvatarTap） -->
+  <avatar-sheet id="avatarSheet" />
+
 
   <share-popup
     visible="{{showSharePopup}}"

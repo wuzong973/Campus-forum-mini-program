@@ -1,7 +1,6 @@
 {
   "pages": [
     "pages/index/index",
-    "pages/service-all/index",
     "pages/schedule/index",
     "pages/errand/index",
     "pages/errand-publish/index",
@@ -11,77 +10,91 @@
     "pages/errand-chat/index",
     "pages/errand-complete/index",
     "pages/errand-cancel/index",
-    "pages/rider-verify/index",
-    "pages/repair/index",
-    "pages/driving-school/index",
-    "pages/driving-school/detail",
-    "pages/driving-school/guide",
-    "pages/driving-school/landing",
     "pages/campus-service/index",
-    "pages/campus-map/index",
-    "pages/market/index",
-    "pages/club/index",
-    "pages/club/detail",
-    "pages/club/club-detail",
-    "pages/club/apply",
-    "pages/group-chat/index",
-    "pages/group-chat/apply",
-    "pages/group-chat/list",
-    "pages/group-chat/detail",
-    "pages/activity/index",
-    "pages/activity/publish",
-    "pages/activity/detail",
     "pages/post-publish/index",
     "pages/post-detail/index",
     "pages/hot-rank/index",
     "pages/share/index",
     "pages/push-groups/index",
-    "pages/poster/index",
     "pages/chat/index",
     "pages/profile/index",
-    "pages/profile-edit/index",
-    "pages/blacklist/index",
     "pages/user/index",
-    "pages/announcements/index",
-    "pages/about/index",
-    "pages/account-settings/index",
-    "pages/settings/index",
-    "pages/agreement/index",
-    "pages/privacy/index",
-    "pages/security/index",
-    "pages/rules/index",
-    "pages/feedback/index",
-    "pages/help/index",
     "pages/login/index",
     "pages/search/index",
     "pages/my-posts/index",
     "pages/my-interactions/index",
     "pages/my-messages/index",
     "pages/message-detail/index",
-    "pages/banner-detail/index",
-    "pages/review/index",
-    "pages/review/list",
-    "pages/review/target",
-    "pages/review/publish",
-    "pages/wallet/index",
     "pages/webview/index"
   ],
   "subPackages": [
     {
       "root": "pkg-admin",
-      "pages": ["admin/index", "admin/edit/index"]
+      "pages": [
+        "admin/index",
+        "admin/edit/index"
+      ]
     },
-  {
-    "root": "pkg-schedule",
-    "pages": [
-      "schedule-home/index",
-      "schedule-calendar/index",
-      "schedule-exam/index",
+    {
+      "root": "pkg-schedule",
+      "pages": [
+        "schedule-home/index",
+        "schedule-calendar/index",
+        "schedule-exam/index",
         "schedule-grade/index",
         "schedule-ocr/index",
         "schedule-login/index",
         "schedule-edit/index",
         "schedule-add/index"
+      ]
+    },
+    {
+      "root": "pkg-feature",
+      "pages": [
+        "pages/service-all/index",
+        "pages/rider-verify/index",
+        "pages/repair/index",
+        "pages/driving-school/index",
+        "pages/driving-school/detail",
+        "pages/driving-school/guide",
+        "pages/driving-school/landing",
+        "pages/campus-map/index",
+        "pages/market/index",
+        "pages/club/index",
+        "pages/club/detail",
+        "pages/club/club-detail",
+        "pages/club/apply",
+        "pages/group-chat/index",
+        "pages/group-chat/apply",
+        "pages/group-chat/list",
+        "pages/group-chat/detail",
+        "pages/activity/index",
+        "pages/activity/publish",
+        "pages/activity/detail",
+        "pages/poster/index",
+        "pages/announcements/index",
+        "pages/about/index",
+        "pages/agreement/index",
+        "pages/privacy/index",
+        "pages/security/index",
+        "pages/rules/index",
+        "pages/feedback/index",
+        "pages/help/index",
+        "pages/banner-detail/index",
+        "pages/review/index",
+        "pages/review/list",
+        "pages/review/target",
+        "pages/review/publish",
+        "pages/wallet/index"
+      ]
+    },
+    {
+      "root": "pkg-user",
+      "pages": [
+        "pages/account-settings/index",
+        "pages/settings/index",
+        "pages/profile-edit/index",
+        "pages/blacklist/index"
       ]
     }
   ],
@@ -100,16 +113,41 @@
     "backgroundColor": "#FFFFFF",
     "borderStyle": "black",
     "list": [
-      { "pagePath": "pages/index/index", "text": "首页", "iconPath": "assets/tabbar/home.png", "selectedIconPath": "assets/tabbar/home-active.png" },
-      { "pagePath": "pages/schedule/index", "text": "课表", "iconPath": "assets/tabbar/schedule.png", "selectedIconPath": "assets/tabbar/schedule-active.png" },
-      { "pagePath": "pages/errand/index", "text": "跑腿", "iconPath": "assets/tabbar/errand.png", "selectedIconPath": "assets/tabbar/errand-active.png" },
-      { "pagePath": "pages/user/index", "text": "我的", "iconPath": "assets/tabbar/user.png", "selectedIconPath": "assets/tabbar/user-active.png" }
+      {
+        "pagePath": "pages/index/index",
+        "text": "首页",
+        "iconPath": "assets/tabbar/home.png",
+        "selectedIconPath": "assets/tabbar/home-active.png"
+      },
+      {
+        "pagePath": "pages/schedule/index",
+        "text": "课表",
+        "iconPath": "assets/tabbar/schedule.png",
+        "selectedIconPath": "assets/tabbar/schedule-active.png"
+      },
+      {
+        "pagePath": "pages/errand/index",
+        "text": "跑腿",
+        "iconPath": "assets/tabbar/errand.png",
+        "selectedIconPath": "assets/tabbar/errand-active.png"
+      },
+      {
+        "pagePath": "pages/user/index",
+        "text": "我的",
+        "iconPath": "assets/tabbar/user.png",
+        "selectedIconPath": "assets/tabbar/user-active.png"
+      }
     ]
   },
   "permission": {
-    "scope.userLocation": { "desc": "用于校园地图定位" }
+    "scope.userLocation": {
+      "desc": "用于校园地图定位"
+    }
   },
-  "requiredPrivateInfos": ["chooseLocation", "getLocation"],
+  "requiredPrivateInfos": [
+    "chooseLocation",
+    "getLocation"
+  ],
   "__usePrivacyCheck__": true,
   "style": "v2",
   "sitemapLocation": "sitemap.json",
@@ -117,7 +155,15 @@
   "preloadRule": {
     "pages/schedule/index": {
       "network": "all",
-      "packages": ["pkg-schedule"]
+      "packages": [
+        "pkg-schedule"
+      ]
+    },
+    "pages/user/index": {
+      "network": "all",
+      "packages": [
+        "pkg-user"
+      ]
     }
   }
 }

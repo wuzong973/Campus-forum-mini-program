@@ -23,9 +23,9 @@ const path = require("path");
 const vm = require("vm");
 
 const ROOT = path.join(__dirname, "..", "..");
-const WXML = fs.readFileSync(path.join(ROOT, "pages", "review", "target.wxml"), "utf8");
-const WXSS = fs.readFileSync(path.join(ROOT, "pages", "review", "target.wxss"), "utf8");
-const JS = fs.readFileSync(path.join(ROOT, "pages", "review", "target.js"), "utf8");
+const WXML = fs.readFileSync(path.join(ROOT, "pkg-feature", "pages", "review", "target.wxml"), "utf8");
+const WXSS = fs.readFileSync(path.join(ROOT, "pkg-feature", "pages", "review", "target.wxss"), "utf8");
+const JS = fs.readFileSync(path.join(ROOT, "pkg-feature", "pages", "review", "target.js"), "utf8");
 const API = fs.readFileSync(path.join(ROOT, "utils", "api.js"), "utf8");
 const ROUTES = fs.readFileSync(path.join(ROOT, "server", "routes", "reviewRoutes.js"), "utf8");
 const CONTROLLER = fs.readFileSync(path.join(ROOT, "server", "controllers", "reviewController.js"), "utf8");
@@ -382,6 +382,323 @@ check(() => {
 }, "C'5：登录态刷新与 isOwner 判据同口径");
 
 // ============================================================
+// C''. 类名唯一性：顶部栏不得与「条目头」共用 .comment-head
+//
+//   2026-10-07 线上问题：评价页的「评论区顶部栏」与「单条评价的头部」都用了
+//   .comment-head。两条规则特异性相同，顶部栏那条独有的 margin-top:30rpx /
+//   padding-bottom / border-bottom 没有被后者覆盖 → 每条评价的昵称行被整体下推，
+//   而头像是 align-items:flex-start 顶对齐 → 表现为「头像与昵称不对齐」。
+//
+//   帖子详情页用 .comments-header 命名顶部栏，评价页应与之一致。
+// ============================================================
+check(() => {
+  // 顶部栏必须叫 .comments-header
+  assert.ok(
+    /class="comments-header"/.test(WXML),
+    "评论区顶部栏应使用 .comments-header（与帖子详情页一致），不能与条目头共用 .comment-head",
+  );
+  assert.ok(/\.comments-header\s*\{/.test(WXSS), "缺少 .comments-header 样式定义");
+
+  // .comment-head 只能出现在条目内部：首次出现必须在第一个 .comment-item 之后
+  const firstItem = WXML.indexOf('class="comment-item');
+  const firstHead = WXML.indexOf('class="comment-head"');
+  assert.ok(firstItem > -1, "应存在 .comment-item");
+  assert.ok(
+    firstHead > firstItem,
+    ".comment-head 首次出现必须在 .comment-item 之后 —— 即它只能是「单条评价的头部」，不能是列表顶部栏",
+  );
+
+  // 切出 .comment-head 的规则块，断言其中不含顶部栏属性
+  function cssBlock(src, selector) {
+    const esc = selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const re = new RegExp("(?:^|\\n)\\s*" + esc + "\\s*\\{");
+    const m = re.exec(src);
+    if (!m) return null;
+    const start = src.indexOf("{", m.index);
+    let depth = 0;
+    let i = start;
+    for (; i < src.length; i += 1) {
+      if (src[i] === "{") depth += 1;
+      else if (src[i] === "}") { depth -= 1; if (depth === 0) break; }
+    }
+    return src.slice(start, i + 1);
+  }
+
+  const headBlock = cssBlock(WXSS, ".comment-head");
+  assert.ok(headBlock, "应存在 .comment-head 规则块");
+  assert.ok(
+    !/margin-top/.test(headBlock),
+    ".comment-head 不得含 margin-top —— 它会把昵称行顶下去、造成头像与昵称错位",
+  );
+  assert.ok(
+    !/border-bottom/.test(headBlock),
+    ".comment-head 不得含 border-bottom —— 那是顶部栏的分隔线属性",
+  );
+
+  // 顶部栏的规则块必须真的带上这些属性（防「改了名也删了样式」）
+  const headerBlock = cssBlock(WXSS, ".comments-header");
+  assert.ok(/margin-top/.test(headerBlock), ".comments-header 应保留 margin-top（顶部栏与上方内容的间距）");
+  assert.ok(/border-bottom/.test(headerBlock), ".comments-header 应保留 border-bottom 分隔线");
+}, "C''：顶部栏与条目头的类名不得冲突（头像/昵称错位回归护栏）");
+
+// ============================================================
+// C'''. 回复的 tap 必须用 catchtap —— 防事件冒泡覆盖回复目标
+//
+//   2026-10-07 线上问题：点「子评论」去回复，底部提示却显示「回复 父评论作者」。
+//
+//   根因：.reply-list 嵌在 .comment-content-wrap（父级 reply-trigger）**内部**，
+//   而两处都用 bindtap（会冒泡）→ 先触发子评论自己的 handler（正确），
+//   紧接着冒泡到父级又触发一次，用父评论的 data-id / data-nick **覆盖**了子评论的结果。
+//
+//   帖子详情页两处都用 catchtap（阻止冒泡），评价页必须一致。
+// ============================================================
+check(() => {
+  // 1) 父级回复触发器必须 catchtap
+  assert.ok(
+    /class="comment-content-wrap comment-reply-trigger"\s+catchtap="onReplyComment"/.test(WXML),
+    '评论正文的回复触发器必须写 catchtap="onReplyComment"（写 bindtap 会冒泡到条目）',
+  );
+
+  // 2) 子评论条目必须 catchtap，且传自己的 id / 昵称
+  const ri = WXML.indexOf('class="reply-item"');
+  assert.ok(ri > -1, "应存在 .reply-item");
+  const replyTag = WXML.slice(ri, WXML.indexOf(">", ri) + 1);
+  assert.ok(
+    /catchtap="onReplyComment"/.test(replyTag),
+    '子评论条目必须写 catchtap="onReplyComment" —— 写 bindtap 会被父级的 handler 覆盖，导致「回复子评论却显示父评论」',
+  );
+  assert.ok(/data-id="\{\{reply\.id\}\}"/.test(replyTag), "子评论必须传自己的 id（reply.id）");
+  assert.ok(/data-nick="\{\{reply\.nickName\}\}"/.test(replyTag), "子评论必须传自己的昵称（reply.nickName）");
+
+  // 3) 反向：全文件不得出现 bindtap="onReplyComment"
+  assert.ok(
+    !/bindtap="onReplyComment"/.test(WXML),
+    '不得出现 bindtap="onReplyComment"（任何一处写 bindtap 都会冒泡覆盖回复目标）',
+  );
+}, "C'''：回复的 tap 必须用 catchtap，防冒泡覆盖回复目标");
+
+// ============================================================
+// E. 回复态提示条：评价页 ↔ 帖子详情页必须一致
+//
+//   需求（2026-10-07）：把评价页输入框上方的蓝色「回复 XXX ✕」提示条，
+//   同样加到帖子详情页的输入框上方。两页的 DOM 结构与样式必须一致。
+// ============================================================
+const PD_WXML = fs.readFileSync(path.join(ROOT, "pages", "post-detail", "index.wxml"), "utf8");
+const PD_WXSS = fs.readFileSync(path.join(ROOT, "pages", "post-detail", "index.wxss"), "utf8");
+const PD_JS = fs.readFileSync(path.join(ROOT, "pages", "post-detail", "index.js"), "utf8");
+
+check(() => {
+  // 1) 帖子详情页必须有提示条结构，且取消按钮绑到 onCancelReply
+  assert.ok(
+    /class="reply-hint"\s+wx:if="\{\{replyTo\}\}"/.test(PD_WXML),
+    '帖子详情页底栏应有 <view class="reply-hint" wx:if="{{replyTo}}">',
+  );
+  assert.ok(
+    /class="reply-hint-text">回复 \{\{replyToNick\}\}/.test(PD_WXML),
+    "提示条文案应为「回复 {{replyToNick}}」",
+  );
+  assert.ok(
+    /class="reply-hint-cancel"\s+catchtap="onCancelReply"/.test(PD_WXML),
+    '取消按钮应写 catchtap="onCancelReply"（写 bindtap 会冒泡触发外层）',
+  );
+
+  // 2) 输入框必须被 .input-wrap 包住，且该容器 position: relative
+  //    （否则绝对定位的提示条会以 .bottom-bar 为参照，横向对不齐输入框）
+  assert.ok(/class="input-wrap"/.test(PD_WXML), "输入框应被 .input-wrap 包裹，为提示条提供定位参照");
+  assert.ok(
+    /\.input-wrap\s*\{[^}]*position:\s*relative/.test(PD_WXSS),
+    ".input-wrap 必须 position: relative",
+  );
+
+  // 3) js 必须有 onCancelReply，且真的清空 replyTo / replyToNick
+  const cancel = functionBody(PD_JS, "onCancelReply");
+  assert.ok(/replyTo:\s*null/.test(cancel), "onCancelReply 应把 replyTo 置 null");
+  assert.ok(/replyToNick:\s*""/.test(cancel), "onCancelReply 应清空 replyToNick");
+
+  // 4) 两页样式必须逐项一致（防「加了结构忘了同步样式」）
+  function cssProps(src, sel) {
+    const esc = sel.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const m = new RegExp("(?:^|\\n)\\s*" + esc + "\\s*\\{([^}]*)\\}").exec(src);
+    if (!m) return null;
+    return m[1].split(";").map((x) => x.trim().replace(/\s+/g, " ")).filter(Boolean).sort();
+  }
+  [".reply-hint", ".reply-hint-text", ".reply-hint-cancel"].forEach((sel) => {
+    const a = cssProps(WXSS, sel);
+    const b = cssProps(PD_WXSS, sel);
+    assert.ok(a, sel + " 在评价页应存在");
+    assert.ok(b, sel + " 在帖子详情页应存在");
+    assert.deepStrictEqual(b, a, sel + " 在评价页与帖子详情页的样式必须完全一致");
+  });
+}, "E：回复态提示条两页一致（评价页 ↔ 帖子详情页）");
+
+// ============================================================
+// F. 头像卡片 components/avatar-sheet：两页共用同一组件
+//
+//   2026-10-07 线上问题：评价详情页点头像**没反应**（帖子详情页会弹「个人主页 / 分身私信」卡片）。
+//   根因：复刻评论区时头像只抄了 data-path / binderror，漏了 catchtap 与整套 data-*，
+//   且评价页上根本没有用户卡片。
+//
+//   修复方式不是再复制一份，而是把卡片抽成共享组件、两页都用它 ——
+//   从根上消除「两页各维护一份、改一边忘一边」的漂移（同一批复刻已出过 4 次这类问题）。
+// ============================================================
+const AS_JS = fs.readFileSync(path.join(ROOT, "components", "avatar-sheet", "index.js"), "utf8");
+const AS_WXML = fs.readFileSync(path.join(ROOT, "components", "avatar-sheet", "index.wxml"), "utf8");
+const AS_JSON = JSON.parse(fs.readFileSync(path.join(ROOT, "components", "avatar-sheet", "index.json"), "utf8"));
+const PD_WXML_F = fs.readFileSync(path.join(ROOT, "pages", "post-detail", "index.wxml"), "utf8");
+const PD_JS_F = fs.readFileSync(path.join(ROOT, "pages", "post-detail", "index.js"), "utf8");
+const PD_JSON_F = JSON.parse(fs.readFileSync(path.join(ROOT, "pages", "post-detail", "index.json"), "utf8"));
+const RT_JSON_F = JSON.parse(fs.readFileSync(path.join(ROOT, "pkg-feature", "pages", "review", "target.json"), "utf8"));
+
+check(() => {
+  assert.strictEqual(AS_JSON.component, true, "avatar-sheet 必须是自定义组件");
+
+  // 1) 两页都必须「注册 + 挂载 + 用 selectComponent 打开」，缺一不可
+  const pages = [
+    { name: "帖子详情页", json: PD_JSON_F, wxml: PD_WXML_F, js: PD_JS_F },
+    { name: "评价详情页", json: RT_JSON_F, wxml: WXML, js: JS }
+  ];
+  pages.forEach((p) => {
+    assert.ok(
+      p.json.usingComponents && p.json.usingComponents["avatar-sheet"],
+      p.name + " 应在 index.json 注册 avatar-sheet 组件"
+    );
+    assert.ok(
+      /<avatar-sheet\s+id="avatarSheet"\s*\/>/.test(p.wxml),
+      p.name + " 应在 wxml 挂载 <avatar-sheet id=\"avatarSheet\" />"
+    );
+    assert.ok(
+      /selectComponent\(['"]#avatarSheet['"]\)/.test(p.js),
+      p.name + " 应通过 selectComponent('#avatarSheet') 打开卡片"
+    );
+  });
+
+  // 2) 组件必须提供完整能力（缺任一项卡片都会退化）
+  ["open", "close", "isSelfUser", "profileUrl", "onProfile", "onMessage", "onClose"].forEach((fn) => {
+    assert.ok(new RegExp("\\b" + fn + "\\s*\\(").test(AS_JS), "avatar-sheet 应实现 " + fn + "()");
+  });
+  // 两种形态：匿名（分身）只给「私信」；普通用户给「个人主页」+「分身私信/私信」
+  assert.ok(/mode === 'anon'/.test(AS_WXML), "组件应按 mode 区分「私信」与「个人主页」两种形态");
+  assert.ok(/allowAnonymousPm === false/.test(AS_JS), "组件应处理「对方不允许分身私信」分支");
+  assert.ok(/showModal\(/.test(AS_JS), "分身私信应二次确认");
+}, "F：头像卡片为共享组件，评价页与帖子详情页共用同一份实现");
+
+check(() => {
+  // 3) 评价页两处头像（顶层评价 / 回复）都必须带 catchtap + 完整 data-*
+  const avatars = WXML.match(/class="(?:comment|reply)-avatar"[\s\S]*?\/>/g) || [];
+  assert.strictEqual(avatars.length, 2, "评价页应有 2 处头像（评论 + 回复），实际 " + avatars.length);
+  avatars.forEach((tag) => {
+    assert.ok(/catchtap="onCommentAvatarTap"/.test(tag), "头像必须绑 catchtap=\"onCommentAvatarTap\"（漏了就是「点了没反应」）");
+    ["data-userid", "data-anonymous", "data-nick", "data-avatar", "data-allowpm"].forEach((attr) => {
+      assert.ok(new RegExp(attr + "=").test(tag), "头像必须带 " + attr + "（否则卡片拿不到数据）");
+    });
+  });
+  // 4) 回复循环必须定义 replyIndex —— 否则 data-path 里是 undefined，头像加载失败时无法回填
+  assert.ok(/wx:for-index="replyIndex"/.test(WXML), "回复循环必须定义 wx:for-index=\"replyIndex\"");
+  // 5) 服务端必须下发 allowAnonymousPm，否则端上永远按「允许」显示，与服务端拦截不一致
+  assert.ok(
+    /u\.allow_anonymous_pm/.test(CONTROLLER) && /allowAnonymousPm:/.test(CONTROLLER),
+    "评价评论接口必须下发 allowAnonymousPm（与 postController 同口径）"
+  );
+}, "F2：评价页头像绑定完整（catchtap + data-* + replyIndex + allowAnonymousPm）");
+
+// ============================================================
+// G. 评论展示逻辑：新评论先置顶、刷新后归位（与帖子详情页同款）
+//
+//   2026-10-07：评价页的 buildCommentTree **完全不排序** —— 本地 concat 插入的新评价
+//   落在列表最底部。帖子详情页有 sortComments + pin 机制：提交后临时置顶，
+//   刷新/翻页/切排序都走真实排序。本组锁住这套语义。
+//
+//   ⚠ 客户端排序必须对齐「各自服务端」的 ORDER BY：
+//     帖子详情页服务端 likes 次级键是 created_at ASC，评价页是 id DESC，两者不同，
+//     所以这里不能照搬 post-detail 的 sortComments，否则刷新后位置会再跳一次。
+// ============================================================
+check(() => {
+  // 1) 顶层排序 + 临时置顶两个助手必须存在
+  assert.ok(/function sortCommentRoots\(roots, sort\)/.test(JS), "应有 sortCommentRoots（顶层排序）");
+  assert.ok(/function moveToTopById\(list, id\)/.test(JS), "应有 moveToTopById（临时置顶）");
+
+  const tree = functionBody(JS, "buildCommentTree");
+  assert.ok(
+    /sortCommentRoots\(roots, sort\)/.test(tree),
+    "buildCommentTree 必须对顶层排序 —— 不排序则新评论落在最底部"
+  );
+  assert.ok(
+    /if \(pin && pin\.rootId\) sortedRoots = moveToTopById\(/.test(tree),
+    "buildCommentTree 必须支持 pin（把刚提交那条临时置顶）"
+  );
+  assert.ok(
+    /Number\(a\.id \|\| 0\) - Number\(b\.id \|\| 0\)/.test(tree),
+    "回复必须按 id 正序 —— 新回复落在所属评价的回复列表末尾"
+  );
+  // 上溯必须是「循环」而不是只往上一层：服务端存的是真实父级，链可以更深，
+  // 只往上一层会让更深的回复掉成顶层（渲染错位）。
+  assert.ok(
+    /const rootOf = \(node\) => \{[\s\S]*?while \(current && current\.parentId && byId\[current\.parentId\]/.test(tree),
+    "buildCommentTree 必须**循环**上溯到顶层 —— 只往上一层会让「回复的回复的回复」掉成顶层"
+  );
+
+  // 2) 客户端排序口径必须与服务端 ORDER BY 一致（likes 次级键 = id DESC）
+  assert.ok(
+    /\(b\.likeCount \|\| 0\) - \(a\.likeCount \|\| 0\) \|\| Number\(b\.id \|\| 0\) - Number\(a\.id \|\| 0\)/.test(JS),
+    "likes 排序的次级键必须与服务端一致（id DESC），否则「刷新后回到属于它的位置」会再跳一次"
+  );
+  assert.ok(
+    /sort === 'likes' \? 'c\.like_count DESC, c\.id DESC'/.test(CONTROLLER),
+    "服务端 likes 排序口径应为 `like_count DESC, id DESC`（与端上保持一致）"
+  );
+
+  // 3) onSend：顶层评价传 pin（置顶）；回复子评论传 afterId 锚点（临时插到被回复那条正下方）；
+  //    回复顶层评价不 pin（按 id 正序落到回复列表末尾）。sort/pin 一起传下去。
+  const send = functionBody(JS, "onSend");
+  assert.ok(
+    /if \(!parentId\) pin = \{ rootId: Number\(comment\.id\) \}/.test(send),
+    "onSend 顶层评价必须传 pin.rootId（置顶到评论区顶部）"
+  );
+  assert.ok(
+    /else if \(parentIsReply\) pin = \{ afterId: Number\(parentId\), replyId: Number\(comment\.id\) \}/.test(send),
+    "onSend 回复子评论必须传 afterId 锚点（临时插到被回复那条正下方）"
+  );
+  assert.ok(
+    !/const pin = parentId \? null :/.test(send),
+    "回复顶层评价不得置顶所属评价（旧实现整条 pin 已废弃）"
+  );
+  assert.ok(
+    /buildCommentTree\(flat, expandedReplyIds, this\.data\.commentSort, pin\)/.test(send),
+    "onSend 必须把 sort 与 pin 一起传给 buildCommentTree"
+  );
+  // 4) 回复提交后自动展开所属评价的回复列表，新回复立即可见
+  assert.ok(/findCommentRootId\(parentId\)/.test(send), "回复提交后应自动展开所属评价的回复列表");
+  // 5) 其余重建点（加载 / 本地摘除）都不传 pin —— 保证刷新/翻页走真实排序
+  const rebuilds = JS.match(/buildCommentTree\(flat, this\.data\.expandedReplyIds, this\.data\.commentSort\)/g) || [];
+  assert.strictEqual(rebuilds.length, 2, "加载与本地摘除两处重建都不应传 pin（实际 " + rebuilds.length + " 处）");
+}, "G：评论展示逻辑与帖子详情页一致（提交置顶 → 刷新归位）");
+
+// ============================================================
+// H. 评论昵称右侧不显示「分身」徽标（2026-10-07 产品决定）
+//
+//   分身身份已由昵称 + 头像体现，再挂一个「分身」徽标属冗余。
+//   ⚠ 底部输入栏的「分身」开关是**另一个东西**（决定发布时是否用分身身份），不要误删。
+// ============================================================
+check(() => {
+  assert.ok(
+    !/comment-cert--anon/.test(WXML),
+    "评论/回复昵称右侧不应再有「分身」徽标（comment-cert--anon）"
+  );
+  assert.ok(
+    !/comment-cert--anon/.test(WXSS),
+    "「分身」徽标的样式应一并删除（否则留下死样式）"
+  );
+  // 认证标签（certLabel，如「官方」）必须保留
+  const certCount = (WXML.match(/class="comment-cert"/g) || []).length;
+  assert.strictEqual(certCount, 2, "评论与回复的认证标签（certLabel）都应保留，实际 " + certCount + " 处");
+  // 去掉前一个条件分支后，后一个不能变成孤儿
+  assert.ok(!/wx:elif/.test(WXML), "不得残留孤儿条件分支（wx:elif 缺前置条件）");
+  // 底部输入栏的「分身」开关必须还在
+  assert.ok(/onToggleAnonymous/.test(WXML), "底部输入栏的「分身」开关不应被误删");
+  assert.ok(/>分身</.test(WXML), "底部输入栏的「分身」文字应保留");
+}, "H：评论昵称右侧不显示「分身」徽标（保留认证标签与底部分身开关）");
+
+// ============================================================
 // D. vm 行为断言：applyCommentRemoval 真的摘除且维护计数
 // ============================================================
 let pageDefinition = null;
@@ -423,7 +740,8 @@ const sandbox = {
     if (s.indexOf("utils/anonymousIdentity") > -1) return {};
     if (s.indexOf("utils/wechat") > -1) return {};
     if (s.indexOf("utils/review") > -1) {
-      return require(path.join(ROOT, "utils", "review.js"));
+      // review 模块已随分包迁移到 pkg-feature/utils/review.js（主包不再收编分包专用 JS）
+      return require(path.join(ROOT, "pkg-feature", "utils", "review.js"));
     }
     return {};
   },
@@ -435,7 +753,7 @@ sandbox.Page = (def) => { pageDefinition = def; };
 vm.createContext(sandbox);
 
 check(() => {
-  vm.runInContext(JS, sandbox, { filename: "pages/review/target.js" });
+  vm.runInContext(JS, sandbox, { filename: "pkg-feature/pages/review/target.js" });
   assert.ok(pageDefinition, "应调用 Page() 注册页面");
 }, "D0：页面可加载");
 

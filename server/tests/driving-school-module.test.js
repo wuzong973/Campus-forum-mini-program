@@ -30,7 +30,8 @@ function check(fn, message) {
 }
 
 
-const ds = require(path.join(root, 'utils', 'driving-school.js'))
+// 驾校纯函数已随分包迁移：主包不再收编仅分包使用的 JS（pkg-admin / pkg-feature 各存一份）
+const ds = require(path.join(root, 'pkg-feature', 'utils', 'driving-school.js'))
 
 // 服务端 driving_school 下发结构（mapSchool 输出）的样例数据
 const SAMPLE_SCHOOLS = [
@@ -178,7 +179,7 @@ function loadPage(relPath) {
 async function pageBehaviorTests() {
   // 列表页：初始加载 → 校区切换 → 搜索 → 标签 → 排序 → 重置
   {
-    const page = loadPage('pages/driving-school/index.js')
+    const page = loadPage('pkg-feature/pages/driving-school/index.js')
     await page.onLoad()
     check(() => {
       assert.strictEqual(page.data.loading, false)
@@ -225,7 +226,7 @@ async function pageBehaviorTests() {
 
   // 详情页：取数 + 无效 id 兜底
   {
-    const page = loadPage('pages/driving-school/detail.js')
+    const page = loadPage('pkg-feature/pages/driving-school/detail.js')
     await page.onLoad({ id: '1' })
     check(() => {
       assert.ok(page.data.school, '详情页应加载到驾校')
@@ -243,7 +244,7 @@ async function pageBehaviorTests() {
       assert.strictEqual(page.data.activeStep, 3, '非法下标不得改变状态')
     }, '详情页报名流程切换')
 
-    const bad = loadPage('pages/driving-school/detail.js')
+    const bad = loadPage('pkg-feature/pages/driving-school/detail.js')
     await bad.onLoad({ id: '999999' })
     check(() => {
       assert.strictEqual(bad.data.school, null, '无效 id 不应渲染页面内容')
@@ -252,7 +253,7 @@ async function pageBehaviorTests() {
 
   // 运营位配置：未配置回落内置默认，配置后覆盖，下线状态同样回落
   {
-    const page = loadPage('pages/driving-school/index.js')
+    const page = loadPage('pkg-feature/pages/driving-school/index.js')
     await page.onLoad()
     check(() => {
       assert.strictEqual(page.data.promo.title, '校园圈学车', '未配置时用默认主标题')
@@ -265,7 +266,7 @@ async function pageBehaviorTests() {
       image: 'https://cdn.example.com/p.png', status: true
     })
     api.getDrivingServiceTags = () => Promise.resolve({ tags: ['包接送', '免费试驾'], status: true })
-    const configured = loadPage('pages/driving-school/index.js')
+    const configured = loadPage('pkg-feature/pages/driving-school/index.js')
     await configured.onLoad()
     check(() => {
       assert.strictEqual(configured.data.promo.title, '寒假学车季')
@@ -277,7 +278,7 @@ async function pageBehaviorTests() {
 
     api.getDrivingPromo = () => Promise.resolve({ title: '已下线不该出现', status: false })
     api.getDrivingServiceTags = () => Promise.resolve({ tags: ['不该出现'], status: false })
-    const offline = loadPage('pages/driving-school/index.js')
+    const offline = loadPage('pkg-feature/pages/driving-school/index.js')
     await offline.onLoad()
     check(() => {
       assert.strictEqual(offline.data.promo.title, '校园圈学车', '横幅下线时回落默认文案')
@@ -286,7 +287,7 @@ async function pageBehaviorTests() {
 
     // 与「未配置」区分开：保存过但清空 = 用户端真的不再显示这一组筛选
     api.getDrivingServiceTags = () => Promise.resolve({ tags: [], status: true })
-    const cleared = loadPage('pages/driving-school/index.js')
+    const cleared = loadPage('pkg-feature/pages/driving-school/index.js')
     await cleared.onLoad()
     check(() => {
       assert.deepStrictEqual(cleared.data.tagOptions, [], '已保存为空配置时不回落内置')
@@ -297,7 +298,7 @@ async function pageBehaviorTests() {
 
   // 学车指南页：已换成后台可编辑的自定义页面（标题 + 分段正文 + 图片）
   {
-    const empty = loadPage('pages/driving-school/guide.js')
+    const empty = loadPage('pkg-feature/pages/driving-school/guide.js')
     await empty.onLoad()
     check(() => {
       assert.strictEqual(empty.data.page, null, '后台未发布时不渲染内容卡')
@@ -308,7 +309,7 @@ async function pageBehaviorTests() {
       title: '学车全流程', content: '第一段说明\n\n第二段说明\n \n',
       images: ['https://cdn.example.com/g.png'], status: true
     })
-    const filled = loadPage('pages/driving-school/guide.js')
+    const filled = loadPage('pkg-feature/pages/driving-school/guide.js')
     await filled.onLoad()
     check(() => {
       assert.strictEqual(filled.data.page.title, '学车全流程')
@@ -334,20 +335,24 @@ function sourceGuardTests() {
 
   for (const name of pages) {
     check(() => {
-      const dir = path.join(root, 'pages', 'driving-school')
+      const dir = path.join(root, 'pkg-feature', 'pages', 'driving-school')
       for (const ext of ['js', 'wxml', 'wxss', 'json']) {
-        assert.ok(fs.existsSync(path.join(dir, name + '.' + ext)), '缺少 pages/driving-school/' + name + '.' + ext)
+        assert.ok(fs.existsSync(path.join(dir, name + '.' + ext)), '缺少 pkg-feature/pages/driving-school/' + name + '.' + ext)
       }
+      // 找驾校已拆入 pkg-feature 分包：注册信息在 subPackages（root + 相对路径）
+      const registered = appJson.pages.concat(
+        (appJson.subPackages || []).reduce((all, sp) => all.concat((sp.pages || []).map((pp) => sp.root + '/' + pp)), [])
+      )
       assert.ok(
-        appJson.pages.indexOf('pages/driving-school/' + name) >= 0,
-        'app.json 未注册 pages/driving-school/' + name
+        registered.indexOf('pkg-feature/pages/driving-school/' + name) >= 0,
+        'app.json 未注册 pkg-feature/pages/driving-school/' + name
       )
     }, '找驾校页面齐备并已注册：' + name)
   }
 
-  const listWxml = read('pages/driving-school/index.wxml')
-  const listJs = read('pages/driving-school/index.js')
-  const detailWxml = read('pages/driving-school/detail.wxml')
+  const listWxml = read('pkg-feature/pages/driving-school/index.wxml')
+  const listJs = read('pkg-feature/pages/driving-school/index.js')
+  const detailWxml = read('pkg-feature/pages/driving-school/detail.wxml')
 
   check(() => {
     assert.ok(listWxml.indexOf('bindtap="onCampusTap"') >= 0, '校区分类应可切换')
@@ -360,17 +365,17 @@ function sourceGuardTests() {
     assert.ok(listWxml.indexOf('item.phoneText') >= 0, '卡片应展示联系方式')
     // 运营横幅改为进入独立的「校园圈学车」落地页（内容后台单独编辑，与学车指南分开）
     assert.ok(listWxml.indexOf('bindtap="openPromoLanding"') >= 0, '运营横幅应可进入校园圈学车落地页')
-    assert.ok(listJs.indexOf("url: '/pages/driving-school/landing'") >= 0, '落地页跳转目标缺失')
+    assert.ok(listJs.indexOf("url: '/pkg-feature/pages/driving-school/landing'") >= 0, '落地页跳转目标缺失')
     assert.ok(listWxml.indexOf('regionOptions') === -1, '旧区域分类应已移除')
   }, '列表页交互接线与字段')
 
   check(() => {
     assert.ok(listJs.indexOf('api.getDrivingSchools') >= 0, '列表页应改为服务端取数')
-    assert.match(listJs, /navigateTo\(\{ url: '\/pages\/driving-school\/detail\?id=' \+ id \}\)/, '卡片点击应进详情')
+    assert.match(listJs, /navigateTo\(\{ url: '\/pkg-feature\/pages\/driving-school\/detail\?id=' \+ id \}\)/, '卡片点击应进详情')
   }, '列表页数据源与跳转目标')
 
   check(() => {
-    assert.ok(read('pages/driving-school/detail.js').indexOf('api.getDrivingSchoolDetail') >= 0, '详情页应改为服务端取数')
+    assert.ok(read('pkg-feature/pages/driving-school/detail.js').indexOf('api.getDrivingSchoolDetail') >= 0, '详情页应改为服务端取数')
     assert.ok(detailWxml.indexOf('<contact-admin') >= 0, '详情页底部「立即咨询」应接 contact-admin')
     assert.ok(detailWxml.indexOf('bindtap="onStepTap"') >= 0, '报名流程应可点击')
     assert.ok(detailWxml.indexOf('wx:if="{{images.length}}"') >= 0, '场地展示应无图不渲染')
@@ -379,7 +384,7 @@ function sourceGuardTests() {
   }, '详情页接线')
 
   // WXML 表达式安全：踩过 pkg-admin 的编译报错（{{(a || '').length}}）
-  const wxmlFiles = ['pages/driving-school/index.wxml', 'pages/driving-school/detail.wxml', 'pages/driving-school/guide.wxml']
+  const wxmlFiles = ['pkg-feature/pages/driving-school/index.wxml', 'pkg-feature/pages/driving-school/detail.wxml', 'pkg-feature/pages/driving-school/guide.wxml']
   for (const file of wxmlFiles) {
     const source = read(file)
     check(() => {
@@ -506,8 +511,8 @@ function mapEntryGuardTests() {
   const adminJs = read('pkg-admin/admin/index.js')
   const editJs = read('pkg-admin/admin/edit/index.js')
   const editWxml = read('pkg-admin/admin/edit/index.wxml')
-  const detailWxml = read('pages/driving-school/detail.wxml')
-  const detailJs = read('pages/driving-school/detail.js')
+  const detailWxml = read('pkg-feature/pages/driving-school/detail.wxml')
+  const detailJs = read('pkg-feature/pages/driving-school/detail.js')
 
   check(() => {
     assert.ok(migrations.indexOf("ensureColumn('driving_school', 'lat'") >= 0, 'migrations 应补 lat 列')
@@ -559,15 +564,15 @@ function mapEntryGuardTests() {
 // 运营横幅不得再带同名字段（两个入口写同一语义会互相覆盖）
 function guideBtnTextGuardTests() {
   check(() => {
-    const detailJs = read('pages/driving-school/detail.js')
+    const detailJs = read('pkg-feature/pages/driving-school/detail.js')
     assert.ok(detailJs.indexOf('api.getDrivingGuidePage()') >= 0, '端上要从指南页面接口取入口按钮文字')
     assert.ok(detailJs.indexOf('guideBtnText: ds.DEFAULT_GUIDE_BTN_TEXT') >= 0, '默认值取独立常量，不再挂在横幅兜底对象上')
     assert.ok(detailJs.indexOf('promo.guideBtnText') < 0, '不得再从运营横幅读这个字段')
 
-    const editorJs = read('pages/banner-detail/index.js')
+    const editorJs = read('pkg-feature/pages/banner-detail/index.js')
     assert.ok(editorJs.indexOf('isDrivingGuide') >= 0, '编辑器要按 scope 区分是否显示该字段')
     assert.ok(editorJs.indexOf("payload.guideBtnText = String(form.guideBtnText || '').trim()") >= 0, '保存时提交该字段')
-    const editorWxml = read('pages/banner-detail/index.wxml')
+    const editorWxml = read('pkg-feature/pages/banner-detail/index.wxml')
     assert.ok(editorWxml.indexOf('wx:if="{{isDrivingGuide}}"') >= 0, '输入框只对学车指南 scope 显示')
     assert.ok(editorWxml.indexOf('data-field="guideBtnText"') >= 0, '输入框要接到 form.guideBtnText')
   }, '入口按钮文字改由学车指南页面配置')

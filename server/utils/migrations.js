@@ -36,6 +36,25 @@ async function ensureColumnType(tableName, columnName, definition) {
   }
 }
 
+/**
+ * 通用「改列类型」：仅当当前类型不在「已达标」集合里才 ALTER（幂等）。
+ *
+ * 与上面 ensureColumnType 的区别：那个是专为「appointment_time: DATETIME → VARCHAR」
+ * 写死的一次性转换（第 34 行硬编码判 varchar），换个目标类型就不成立。
+ * 需要「TINYINT → DECIMAL」这类其它转换时必须用本函数。
+ */
+async function ensureColumnTypeIn(tableName, columnName, definition, doneTypes) {
+  const [rows] = await pool.query(
+    `SELECT DATA_TYPE FROM INFORMATION_SCHEMA.COLUMNS
+     WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?`,
+    [tableName, columnName]
+  )
+  if (!rows.length) return
+  const current = String(rows[0].DATA_TYPE || '').toLowerCase()
+  if (doneTypes.indexOf(current) >= 0) return
+  await pool.query(`ALTER TABLE ${tableName} MODIFY COLUMN ${columnName} ${definition}`)
+}
+
 async function ensureIndex(tableName, indexName, definition) {
   const [rows] = await pool.query(
     `SELECT INDEX_NAME FROM INFORMATION_SCHEMA.STATISTICS
@@ -138,6 +157,18 @@ async function runMigrations() {
   await ensureColumn('review_comment', 'anonymous_identity', 'JSON DEFAULT NULL AFTER images')
   // 评价评论回复：与论坛评论同款两级模型（parent_id = 被回复的评论 id，0 表示顶层评论）
   await ensureColumn('review_comment', 'parent_id', 'INT UNSIGNED NOT NULL DEFAULT 0 AFTER target_id')
+  // ===== 多维度评分（食堂 / 商圈，2026-10-07）=====
+  // 评分从「单一 1-5 星」升级为「四维加权（口味 40 / 环境 20 / 服务 20 / 性价比 20）」：
+  //   · review_rating.dims      该次评分的四维明细（JSON）。历史单一星级记录为 NULL，不计入维度统计。
+  //   · review_target.dim_sums  带维度明细的评分的各维度总分（JSON）
+  //   · review_target.dim_count 带维度明细的评分数 → 维度均分 = dim_sums[k] / dim_count
+  //   · score / rating_sum 改 DECIMAL 以容纳加权综合分（如 4.60）；旧整数数据无损转换（4 → 4.00）
+  // ⚠ 综合分口径不变（rating_sum / rating_count / ratingAvg），因此列表排序与端上展示无需改动。
+  await ensureColumn('review_rating', 'dims', 'JSON DEFAULT NULL AFTER score')
+  await ensureColumn('review_target', 'dim_sums', 'JSON DEFAULT NULL')
+  await ensureColumn('review_target', 'dim_count', 'INT NOT NULL DEFAULT 0')
+  await ensureColumnTypeIn('review_rating', 'score', "DECIMAL(3,2) NOT NULL COMMENT '综合分：单一星级或四维加权，1-5'", ['decimal'])
+  await ensureColumnTypeIn('review_target', 'rating_sum', 'DECIMAL(10,2) DEFAULT 0', ['decimal'])
   // 评价对象计数器曾因历史写入链缺口与明细表不一致（新建对象/删除评论都不重算），
   // 这里以明细表为准兜底重算一次（幂等，条件与 refreshRating/comment_count 的聚合口径一致）
   await pool.query(`

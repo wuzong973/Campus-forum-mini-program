@@ -301,12 +301,30 @@ assert.strictEqual(result.historyPostId, 12, '栈内解析出的来源帖子也�
 const postDetailSource = fs.readFileSync(path.join(MINI_PROGRAM_ROOT, 'pages', 'post-detail', 'index.js'), 'utf8')
 const profileSource = fs.readFileSync(path.join(MINI_PROGRAM_ROOT, 'pages', 'profile', 'index.js'), 'utf8')
 const messageStoreSource = fs.readFileSync(path.join(MINI_PROGRAM_ROOT, 'utils', 'messageStore.js'), 'utf8')
-assert.match(postDetailSource, /profileUrl\(userId\) \{\s*const postId = \(this\.data\.post \|\| \{\}\)\.id \|\| 0;/)
+// 头像卡片已抽成共享组件 components/avatar-sheet（评价详情页与帖子详情页共用同一份实现），
+// 「帖子详情 → 个人主页 → 私信 → 回到帖子」的 postId 透传链路随之移入组件。
+// 因此这里改为：断言组件内部透传 + 断言帖子详情页把 postId 交给组件。
+const avatarSheetSource = fs.readFileSync(path.join(MINI_PROGRAM_ROOT, 'components', 'avatar-sheet', 'index.js'), 'utf8')
+assert.match(
+  avatarSheetSource,
+  /profileUrl\(userId, fromPostId\) \{\s*return '\/pages\/profile\/index\?id=' \+ userId \+ \(fromPostId \? '&postId=' \+ fromPostId : ''\)/,
+  '头像卡片的主页跳转必须透传来源帖子'
+)
+assert.match(
+  avatarSheetSource,
+  /const postSuffix = '&postId=' \+ \(sheet\.fromPostId \|\| ''\)/,
+  '头像卡片的私信跳转必须透传来源帖子'
+)
 assert.doesNotMatch(postDetailSource, /navigateTo\(\{ url: "\/pages\/profile\/index/, '帖子详情页仍存在未透传 postId 的主页跳转')
 assert.strictEqual(
-  (postDetailSource.match(/navigateTo\(\{ url: this\.profileUrl\(/g) || []).length,
-  3,
-  '帖子详情页（帖主头像/评论头像/头像菜单）三处主页跳转都应透传来源帖子'
+  (postDetailSource.match(/fromPostId: \(this\.data\.post \|\| \{\}\)\.id \|\| 0/g) || []).length,
+  1,
+  '评论头像应把来源帖子 id 交给头像卡片'
+)
+assert.strictEqual(
+  (postDetailSource.match(/fromPostId: post\.id \|\| 0/g) || []).length,
+  1,
+  '帖主头像应把来源帖子 id 交给头像卡片'
 )
 assert.match(profileSource, /this\.sourcePostId = parseInt\(options\.postId, 10\) \|\| 0/)
 assert.match(profileSource, /this\.sourcePostId \? '&postId=' \+ this\.sourcePostId : ''/)

@@ -41,7 +41,7 @@ function plain(value) {
 }
 
 function loadSettingsPage() {
-  const source = require('fs').readFileSync(path.join(MINI_PROGRAM_ROOT, 'pages', 'settings', 'index.js'), 'utf8')
+  const source = require('fs').readFileSync(path.join(MINI_PROGRAM_ROOT, 'pkg-user', 'pages', 'settings', 'index.js'), 'utf8')
   const state = { storage: {} }
   const wxStub = {
     getStorageSync: (key) => state.storage[key],
@@ -302,7 +302,7 @@ function run() {
 
   // F. wxml/js 接线护栏
   check(() => {
-    const wxml = require('fs').readFileSync(path.join(MINI_PROGRAM_ROOT, 'pages', 'settings', 'index.wxml'), 'utf8')
+    const wxml = require('fs').readFileSync(path.join(MINI_PROGRAM_ROOT, 'pkg-user', 'pages', 'settings', 'index.wxml'), 'utf8')
     // 渠道名是 data 驱动渲染，wxml 只断言结构绑定
     assert.ok(wxml.indexOf('wx:for="{{notifyChannels}}"') > -1, 'wxml 必须循环渲染八个渠道')
     assert.ok(wxml.indexOf('wx:for="{{channel.subs}}"') > -1, 'wxml 必须循环渲染子开关栏')
@@ -313,7 +313,7 @@ function run() {
     assert.ok(wxml.indexOf('checked="{{channel.on}}"') > -1)
     assert.ok(wxml.indexOf('checked="{{channelPrefs[sub.key]}}"') > -1)
     assert.ok(wxml.indexOf('channel-arrow {{channel.open') > -1, '展开箭头样式类')
-    const js = require('fs').readFileSync(path.join(MINI_PROGRAM_ROOT, 'pages', 'settings', 'index.js'), 'utf8')
+    const js = require('fs').readFileSync(path.join(MINI_PROGRAM_ROOT, 'pkg-user', 'pages', 'settings', 'index.js'), 'utf8')
     CHANNEL_NAMES.forEach((name) => assert.ok(js.indexOf(name) > -1, 'js 渠道定义含: ' + name))
     assert.ok(js.indexOf("'subscribe_comment_prefs'") > -1, '评论子开关必须读写发布页共用键')
     assert.ok(js.indexOf("'notify_channel_prefs'") > -1)

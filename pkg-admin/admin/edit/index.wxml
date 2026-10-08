@@ -27,7 +27,7 @@
         </view>
         <view class="form-item">
           <view class="form-label">跳转页面路径（用户点击右侧链接后跳转到该页面；留空则弹出管理员微信二维码）</view>
-          <input data-key="meta.linkUrl" value="{{form.meta.linkUrl}}" maxlength="100" placeholder="例如：/pages/service-all/index" bindinput="formInput"/>
+          <link-picker value="{{form.meta.linkUrl}}" bind:change="onNoticeLinkPicked" />
         </view>
         <view class="form-item">
           <view class="form-label">链接图片（可选；作为公告链接及各页面"添加管理员微信"弹窗展示的图片，建议上传方形二维码图）</view>
@@ -114,8 +114,10 @@
           <input data-key="meta.tag" value="{{form.meta.tag}}" maxlength="10" placeholder="例如：课表助手" bindinput="formInput"/>
         </view>
         <view class="form-item">
-          <view class="form-label">点击跳转路径（可选；小程序内部页面填 /pages/... 路径）</view>
-          <input data-key="meta.link" value="{{form.meta.link}}" placeholder="例如：/pages/schedule/index" bindinput="formInput"/>
+          <view class="form-label">点击跳转路径（可选）</view>
+          <!-- 统一走 components/link-picker：选页面 / 选帖子 / 手动输入。
+               全站所有跳转配置点共用这一个组件，避免各写一份后行为分叉。 -->
+          <link-picker value="{{form.meta.link}}" bind:change="onLinkPicked" />
         </view>
         <view class="form-item">
           <view class="form-label">主题色（可选；点击弹出颜色选择器，展示在轮播图左上角色条）</view>
@@ -177,8 +179,8 @@
           <input data-key="meta.icon" value="{{form.meta.icon}}" maxlength="4" placeholder="例如：🚫 或 ⚠️" bindinput="formInput"/>
         </view>
         <view class="form-item">
-          <view class="form-label">跳转链接（可选；用户点击横幅后跳转，填 /pages/... 页面路径或 https 网页；留空则跳转横幅详情页）</view>
-          <input data-key="meta.link" value="{{form.meta.link}}" maxlength="200" placeholder="例如：/pages/service-all/index" bindinput="formInput"/>
+          <view class="form-label">跳转链接（可选；用户点击横幅后跳转；留空则跳转横幅详情页）</view>
+          <link-picker value="{{form.meta.link}}" bind:change="onPublishBannerLinkPicked" />
         </view>
         <view class="form-item">
           <view class="form-label">链接文字（可选；详情页底部相关链接的显示文字）</view>
@@ -253,7 +255,10 @@
         <input data-key="miniAppId" value="{{form.miniAppId}}" maxlength="64" placeholder="wx 开头，跳转小程序优先于链接" bindinput="formInput"/>
       </view>
       <view class="form-item">
-        <view class="form-label">H5 链接（可选）</view>
+        <!-- ⚠ 这里**不能**用 link-picker：服务项只支持外部 H5，
+             用户端 pages/index.js 的 onServiceTap 对非 http(s) 的链接会直接提示
+             「该服务链接暂不可用」—— 页面路径在这里走不通，给选择器等于挖坑。 -->
+        <view class="form-label">H5 链接（可选；必须 http(s) 开头，小程序内页面路径在此不可用）</view>
         <input data-key="link" value="{{form.link}}" placeholder="https:// 或 http://" bindinput="formInput"/>
       </view>
       <view class="form-item">
@@ -409,8 +414,8 @@
         </view>
       </view>
       <view class="form-item">
-        <view class="form-label">跳转链接（选填，/pages/ 或 https:// 开头；填了则详情页出现「立即前往」按钮）</view>
-        <input data-key="link" value="{{form.link}}" maxlength="200" placeholder="例如：/pages/group-chat/index" bindinput="formInput"/>
+        <view class="form-label">跳转链接（选填；填了则详情页出现「立即前往」按钮）</view>
+        <link-picker value="{{form.link}}" bind:change="onPushGroupLinkPicked" />
       </view>
       <view class="form-item">
         <view class="form-label">复制文本（选填，如微信号；填了则详情页出现「复制微信号」按钮）</view>

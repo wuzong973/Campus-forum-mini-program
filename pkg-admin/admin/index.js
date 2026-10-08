@@ -2,7 +2,7 @@ const admin = require('../utils/admin')
 const wechat = require('../../utils/wechat')
 const qr = require('../../utils/qr')
 const { runPullDownRefresh } = require('../../utils/refresh')
-const drivingSchool = require('../../utils/driving-school')
+const drivingSchool = require('../utils/driving-school')
 // 卡片动效降级开关（低端机 / 设置页关闭），样式见 styles/card-fx.wxss
 const motion = require('../../utils/motion')
 
@@ -761,7 +761,7 @@ Page({
   // 页面横幅编辑：跳转到 banner-detail 页的编辑模式（scope 区分两条独立横幅）
   goBannerEditor(e) {
     const scope = e.currentTarget.dataset.scope === 'post' ? 'post' : 'message'
-    wx.navigateTo({ url: '/pages/banner-detail/index?scope=' + scope })
+    wx.navigateTo({ url: '/pkg-feature/pages/banner-detail/index?scope=' + scope })
   },
 
   async loadContent() {
@@ -824,10 +824,10 @@ Page({
   },
   beginCampusCardCreate() {
     // 不带 id 即新建，编辑器（pages/banner-detail）据此直接进空表单编辑态
-    wx.navigateTo({ url: '/pages/banner-detail/index?scope=campusCard' })
+    wx.navigateTo({ url: '/pkg-feature/pages/banner-detail/index?scope=campusCard' })
   },
   openCampusCardEditor(e) {
-    wx.navigateTo({ url: '/pages/banner-detail/index?scope=campusCard&edit=1&id=' + e.currentTarget.dataset.id })
+    wx.navigateTo({ url: '/pkg-feature/pages/banner-detail/index?scope=campusCard&edit=1&id=' + e.currentTarget.dataset.id })
   },
   // 上下架需回传整张页面内容：保存接口按 title/content/images 全量校验
   async toggleCampusCard(e) {
@@ -868,7 +868,7 @@ Page({
   },
   openMarketEditor(e) {
     wx.navigateTo({
-      url: '/pages/banner-detail/index?scope=market&category=' + e.currentTarget.dataset.category + '&edit=1',
+      url: '/pkg-feature/pages/banner-detail/index?scope=market&category=' + e.currentTarget.dataset.category + '&edit=1',
       fail: () => wx.showToast({ title: '打开编辑器失败，请稍后重试', icon: 'none' })
     })
   },
@@ -1094,11 +1094,11 @@ Page({
     }
   },
   openDrivingGuideEditor() {
-    wx.navigateTo({ url: '/pages/banner-detail/index?scope=drivingGuide&edit=1' })
+    wx.navigateTo({ url: '/pkg-feature/pages/banner-detail/index?scope=drivingGuide&edit=1' })
   },
   // 校园圈学车落地页（找驾校横幅跳转目标）：与学车指南分开的独立编辑入口
   openPromoLandingEditor() {
-    wx.navigateTo({ url: '/pages/banner-detail/index?scope=promoLanding&edit=1' })
+    wx.navigateTo({ url: '/pkg-feature/pages/banner-detail/index?scope=promoLanding&edit=1' })
   },
 
   // ===== 评分对象治理（「物品」tab；删除为软删，用户端立即不可见，可在「已删除」里恢复） =====

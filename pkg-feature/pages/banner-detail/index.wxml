@@ -1,0 +1,142 @@
+<view class="page">
+  <!-- ===== 展示态 ===== -->
+  <block wx:if="{{!editing}}">
+    <view class="hero card">
+      <view class="hero-banner" wx:if="{{banner.text}}" style="{{banner.bannerStyle}}">
+        <text class="hero-banner-icon">{{banner.icon}}</text>
+        <text class="hero-banner-text">{{banner.text}}</text>
+      </view>
+      <view class="offline-tip" wx:if="{{isAdmin && banner.text && !banner.status}}">横幅已下线，普通用户不可见；可点击下方编辑重新发布</view>
+      <view class="offline-tip" wx:elif="{{isCard && isAdmin && banner.detailTitle && !banner.status}}">页面已下线，普通用户不可见；可点击下方编辑重新发布</view>
+
+      <block wx:if="{{banner.text || (isCard && banner.detailTitle)}}">
+        <view class="hero-title" wx:if="{{banner.detailTitle}}">{{banner.detailTitle}}</view>
+        <richtext-content wx:if="{{blocks.length}}" class="hero-rich" blocks="{{blocks}}" image-group="{{banner.images}}"></richtext-content>
+        <view class="hero-images" wx:if="{{banner.images.length}}">
+          <image
+            wx:for="{{banner.images}}"
+            wx:key="*this"
+            class="hero-img"
+            src="{{item}}"
+            mode="widthFix"
+            lazy-load
+            data-url="{{item}}"
+            bindtap="onPreviewImage"
+            bindlongpress="onImageLongPress"
+          ></image>
+        </view>
+        <view class="hero-link" wx:if="{{banner.link}}" bindtap="onOpenLink">
+          <text class="hero-link-label">{{banner.linkText || '相关链接'}}</text>
+          <text class="hero-link-value">{{banner.link}}</text>
+          <text class="hero-link-action">复制</text>
+        </view>
+        <view class="hero-empty" wx:if="{{!blocks.length && !banner.images.length && !banner.link}}">管理员还没有发布详细内容，敬请期待</view>
+      </block>
+
+      <view class="hero-empty" wx:if="{{loaded && !banner.text && !(isCard && banner.detailTitle)}}">{{isCard ? pageLabel + '还没有内容，点击下方编辑' : '暂无公告内容'}}</view>
+      <view class="hero-empty" wx:if="{{!loaded}}">加载中...</view>
+    </view>
+
+    <view class="edit-entry" wx:if="{{isAdmin}}" bindtap="onStartEdit">✏️ 编辑并发布内容</view>
+  </block>
+
+  <!-- ===== 管理员编辑态 ===== -->
+  <block wx:if="{{editing}}">
+    <view class="form card">
+      <view class="form-title">{{isCard ? '编辑' + pageLabel : '编辑横幅与详情'}}</view>
+
+      <block wx:if="{{!isCard}}">
+      <view class="form-item">
+        <view class="form-label">横幅文字 <text class="form-req">*</text>（展示在「我的-消息通知」卡片顶部）</view>
+        <input class="form-input" value="{{form.text}}" maxlength="60" placeholder="例如：驾校报名咨询" data-field="text" bindinput="onFieldInput" />
+      </view>
+
+      <view class="form-item">
+        <view class="form-label">横幅图标（emoji，可选）</view>
+        <input class="form-input" value="{{form.icon}}" maxlength="4" placeholder="默认 👍" data-field="icon" bindinput="onFieldInput" />
+      </view>
+
+      <view class="form-item">
+        <view class="form-label">背景颜色（可选；点击弹出颜色选择器，未设置时使用默认渐变）</view>
+        <view class="color-field" bindtap="openPageColorPicker" data-field="bgColor">
+          <view class="color-swatch" style="background: {{form.bgColor || '#f0f2f5'}};"></view>
+          <text class="color-value">{{form.bgColor || '使用默认配色'}}</text>
+          <text class="color-action">选择 ›</text>
+        </view>
+      </view>
+
+      <view class="form-item">
+        <view class="form-label">文字颜色（可选；点击弹出颜色选择器）</view>
+        <view class="color-field" bindtap="openPageColorPicker" data-field="textColor">
+          <view class="color-swatch" style="background: {{form.textColor || '#f0f2f5'}};"></view>
+          <text class="color-value">{{form.textColor || '使用默认配色'}}</text>
+          <text class="color-action">选择 ›</text>
+        </view>
+      </view>
+
+      <view class="form-item">
+        <view class="form-label">实时预览（保存后「我的-消息通知」等位置按此效果展示）</view>
+        <view class="banner-preview" style="background: {{form.bgColor || 'linear-gradient(90deg, #3d7bfa 0%, #5b8cff 100%)'}}; color: {{form.textColor || '#ffffff'}};">
+          <text class="banner-preview-icon">{{form.icon || '👍'}}</text>
+          <text class="banner-preview-text">{{form.text || '横幅文字预览效果'}}</text>
+        </view>
+      </view>
+      </block>
+
+      <view class="form-item">
+        <view class="form-label">{{isCard ? '页面标题' : '详情标题'}} <text class="form-req" wx:if="{{isCard}}">*</text><text wx:else>（可选）</text></view>
+        <input class="form-input" value="{{form.detailTitle}}" maxlength="60" placeholder="{{isCard ? pageLabel + '大标题' : '详情页大标题'}}" data-field="detailTitle" bindinput="onFieldInput" />
+      </view>
+
+      <view class="form-item">
+        <view class="form-label">{{isCard ? '正文内容' : '详情内容'}}（换行分段；可用下方工具栏加样式）</view>
+        <richtext-editor value="{{form.detailContent}}" placeholder="{{isCard ? '填写' + pageLabel + '的详细说明，换行分段...' : '向用户解释横幅内容的详细文字...'}}" maxlength="5000" data-field="detailContent" bindinput="onFieldInput"></richtext-editor>
+      </view>
+
+      <view class="form-item">
+        <view class="form-label">图片（最多9张，点击可预览）</view>
+        <view class="img-grid">
+          <view class="img-cell" wx:for="{{form.images}}" wx:key="*this">
+            <image class="img-thumb" src="{{item}}" mode="aspectFill" data-url="{{item}}" bindtap="onPreviewFormImage"></image>
+            <view class="img-del" data-index="{{index}}" catchtap="onRemoveImage">×</view>
+          </view>
+          <view class="img-add" wx:if="{{form.images.length < 9}}" bindtap="onChooseImage">
+            <text class="img-add-plus">+</text>
+            <text class="img-add-text">上传</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- 跳转链接与链接文字：横幅与自定义页面共有。横幅的语义是「点击横幅跳这里」，
+           自定义页面的语义是「正文下方那个跳转按钮」（链接留空则整块按钮不显示）。
+           两个表单的字段名与位置刻意保持一致，管理员在任意表单里看到的都是同一组输入框。
+           跳转链接走 components/link-picker（与后台其它跳转配置点同一个组件）。 -->
+      <view class="form-item">
+        <view class="form-label">跳转链接（可选）</view>
+        <link-picker value="{{form.link}}" bind:change="onLinkPicked" />
+      </view>
+
+      <view class="form-item">
+        <view class="form-label">链接文字（可选）</view>
+        <input class="form-input" value="{{form.linkText}}" maxlength="20" placeholder="例如：报名入口" data-field="linkText" bindinput="onFieldInput" />
+      </view>
+
+      <view class="form-item" wx:if="{{isDrivingGuide}}">
+        <view class="form-label">驾校详情页左下角按钮文字（12 字内，留空显示「学车指南」）</view>
+        <input class="form-input" value="{{form.guideBtnText}}" maxlength="12" placeholder="学车指南" data-field="guideBtnText" bindinput="onFieldInput" />
+      </view>
+
+      <view class="form-item form-switch-row">
+        <view class="form-label">{{isCard ? '发布状态（关闭即对用户下线）' : '发布横幅（关闭即对用户下线）'}}</view>
+        <switch checked="{{form.status}}" color="#3d7bfa" bindchange="onStatusChange" />
+      </view>
+
+      <view class="form-actions">
+        <view class="btn btn-ghost" bindtap="onCancelEdit">取消</view>
+        <view class="btn btn-primary {{saving ? 'btn-disabled' : ''}}" bindtap="onSave">{{saving ? '保存中...' : '保存并发布'}}</view>
+      </view>
+    </view>
+  </block>
+</view>
+
+<color-picker show="{{colorPickerShow}}" value="{{colorPickerValue}}" title="{{colorPickerTitle}}" bind:close="onPageColorPickerClose" bind:confirm="onPageColorPickerConfirm" />

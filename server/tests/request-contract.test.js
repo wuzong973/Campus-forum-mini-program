@@ -14,8 +14,8 @@ const ocrPage = fs.readFileSync(path.join(__dirname, '..', '..', 'pkg-schedule',
 const clubRoutes = fs.readFileSync(path.join(__dirname, '..', 'routes', 'clubRoutes.js'), 'utf8')
 const clubController = fs.readFileSync(path.join(__dirname, '..', 'controllers', 'clubController.js'), 'utf8')
 const adminApi = fs.readFileSync(path.join(__dirname, '..', '..', 'pkg-admin', 'utils', 'admin.js'), 'utf8')
-const clubApplyPage = fs.readFileSync(path.join(__dirname, '..', '..', 'pages', 'club', 'apply.js'), 'utf8')
-const clubApplyWxml = fs.readFileSync(path.join(__dirname, '..', '..', 'pages', 'club', 'apply.wxml'), 'utf8')
+const clubApplyPage = fs.readFileSync(path.join(__dirname, '..', '..', 'pkg-feature', 'pages', 'club', 'apply.js'), 'utf8')
+const clubApplyWxml = fs.readFileSync(path.join(__dirname, '..', '..', 'pkg-feature', 'pages', 'club', 'apply.wxml'), 'utf8')
 
 assert.match(migration, /ensureColumn\('errand_order', 'is_large_item'/)
 assert.match(migration, /ensureColumn\('errand_order', 'is_urgent'/)

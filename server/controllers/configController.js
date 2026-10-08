@@ -1,6 +1,9 @@
 const pool = require('../config/pool')
 const { success, fail, hasPermission } = require('../middleware/auth')
 const { safeMessage } = require('../utils/helpers')
+// 可跳转链接的唯一校验口径（主包 /pages/、分包 /pkg-xxx/pages/、http(s)），
+// 与端上 utils/link.js 对称；adminController 校验首页轮播链接时也用它。
+const { isNavigableLink, linkRejectReason } = require('../utils/link')
 
 function parseBodyMeta(body) {
   try { return JSON.parse(body) || {} } catch (e) { return {} }
@@ -258,11 +261,10 @@ function readServicePage(type, req, res) {
 //
 // link / linkText 是所有自定义页面共有的「正文下方跳转按钮」：
 // 留空即不显示按钮（老页面没有这两个键，读到空串后自然不渲染）。
-// 链接取值口径与横幅一致：站内 /pages/... 或 http(s)，其余（含 javascript:）一律不落库，
-// 避免管理员误填一个用户端点了没反应的地址。校验放在这里是为了让客户端与旧数据都能被兜住。
+// 链接取值口径见 utils/link（主包 + 分包 + https）。
+// 校验放在这里是为了让客户端与旧数据都能被兜住。
 const SERVICE_PAGE_LINK_MAX = 200
 const SERVICE_PAGE_LINK_TEXT_MAX = 20
-const SERVICE_PAGE_LINK_RE = /^(\/pages\/|https?:\/\/)/i
 
 function buildServicePagePayload(req, res, type) {
   const body = req.body || {}
@@ -284,7 +286,7 @@ function buildServicePagePayload(req, res, type) {
   // 跳转按钮：链接为空时按钮不显示，此时链接文字一并忽略（避免留下孤儿文字）
   const link = String(body.link || '').trim()
   if (link.length > SERVICE_PAGE_LINK_MAX) { fail(res, '跳转链接不能超过200字'); return null }
-  if (link && !SERVICE_PAGE_LINK_RE.test(link)) { fail(res, '跳转链接需以 /pages/ 或 https:// 开头'); return null }
+  if (!isNavigableLink(link)) { fail(res, linkRejectReason(link)); return null }
   const rawLinkText = String(body.linkText || '').trim()
   if (rawLinkText.length > SERVICE_PAGE_LINK_TEXT_MAX) { fail(res, '按钮文字不能超过20字'); return null }
   meta.link = link
@@ -480,7 +482,6 @@ exports.saveDrivingServiceTags = (req, res) => {
 // 存储复用 system_content：type=push_group_card，title=卡片标题，body(JSON)=其余字段。
 // 每张卡片一行：后台按列表逐条编辑/停用/删除，用户端按 sort_order 展示已启用卡片。
 const PUSH_GROUP_TYPE = 'push_group_card'
-const PUSH_GROUP_LINK_RE = /^(\/pages\/|https?:\/\/)/i
 const PUSH_GROUP_THEMES = ['orange', 'green', 'blue', 'purple', 'teal']
 const PUSH_GROUP_ICON_MAX = 255
 // 卡片详情页的正文与配图：正文走 utils/richtext 标记语法（与校园卡同款），
@@ -587,7 +588,7 @@ function buildPushGroupPayload(req, res) {
   const theme = PUSH_GROUP_THEMES.indexOf(body.theme) >= 0 ? body.theme : 'blue'
   const link = String(body.link || '').trim()
   if (link.length > 200) { fail(res, '跳转链接不能超过200字'); return null }
-  if (link && !PUSH_GROUP_LINK_RE.test(link)) { fail(res, '跳转链接需以 /pages/ 或 https:// 开头'); return null }
+  if (!isNavigableLink(link)) { fail(res, linkRejectReason(link)); return null }
   const copyText = String(body.copyText || '').trim()
   if (copyText.length > 64) { fail(res, '复制文本不能超过64字'); return null }
   const status = body.status === false || Number(body.status) === 0 ? 0 : 1

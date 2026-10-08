@@ -7,9 +7,9 @@
  *
  * 为什么需要它：解构一个不存在的导出**不会在 require 时报错**，只会在用到时炸成
  * `Cannot read properties of undefined`。2026-09-10 线上就踩过一次：
- * `pages/club/detail.js` 引用了 `utils/campus.js` 里从未存在过的 `CAMPUS_OPTIONS`，
+ * `pkg-feature/pages/club/detail.js` 引用了 `utils/campus.js` 里从未存在过的 `CAMPUS_OPTIONS`，
  * 结果一进社团分类详情页就抛 `Cannot read properties of undefined (reading 'indexOf')`，
- * 页面白屏（开发者工具控制台报 weapp:///pages/club/detail.js）。
+ * 页面白屏（开发者工具控制台报 weapp:///pkg-feature/pages/club/detail.js）。
  *
  * 说明：依赖小程序运行时的模块（需要真实 wx 能力）加载会失败，这类会被跳过并计数，
  * 不会产生误报；因此本测试只做「零误报」的保守校验。
@@ -27,7 +27,7 @@ global.Page = () => {}
 global.Component = () => {}
 
 const ROOT = path.join(__dirname, '..', '..')
-const SCAN_ROOTS = ['pages', 'components', 'pkg-admin', 'pkg-schedule', 'custom-tab-bar']
+const SCAN_ROOTS = ['pages', 'pkg-feature', 'components', 'pkg-admin', 'pkg-schedule', 'custom-tab-bar']
 
 function collectJsFiles(dir, out) {
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {

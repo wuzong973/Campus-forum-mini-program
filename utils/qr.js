@@ -100,8 +100,19 @@ function copyText(text, silent) {
 // 下载二维码图片并保存到相册：微信限制小程序 web-view 内长按无法识别个人微信好友码，
 // 保存后引导用户到 微信"扫一扫"→"相册" 选择图片完成识别添加
 function saveQrImage(imageUrl) {
-  if (!imageUrl || !/^https?:\/\//i.test(imageUrl)) {
-    wx.showToast({ title: '图片地址无效', icon: 'none' })
+  if (!imageUrl) {
+    wx.showToast({ title: '没有可保存的图片', icon: 'none' })
+    return
+  }
+  // 本包内图（如内置兜底码 /assets/avatar2/管理员微信.png）不是 http，
+  // 先用 getImageInfo 换成本地可读路径再复用下面同一条下载→存相册链路；
+  // 少了这一步，弹窗显示兜底图时「保存图片」这条出口会直接消失。
+  if (!/^https?:\/\//i.test(imageUrl)) {
+    wx.getImageInfo({
+      src: imageUrl,
+      success: (r) => saveQrImage(r.path),
+      fail: () => wx.showToast({ title: '图片读取失败，请截图保存', icon: 'none' })
+    })
     return
   }
   wx.showLoading({ title: '保存中...', mask: true })
@@ -152,7 +163,8 @@ function handleQrContent(content, imageUrl) {
   //    提供"保存图片去扫一扫识别"与"复制链接"两个可靠出口
   if (/^https:\/\/u\.wechat\.com\//i.test(text) || /weixin\.qq\.com\//i.test(text)) {
     const actions = []
-    if (imageUrl && /^https:\/\//i.test(imageUrl)) actions.push('保存图片，去微信扫一扫识别')
+    // 本包内兜底码同样能存（saveQrImage 已支持），不再用 https 门槛把这条出口摘掉
+    if (imageUrl) actions.push('保存图片，去微信扫一扫识别')
     actions.push('复制链接')
     wx.showActionSheet({
       itemList: actions,
@@ -184,6 +196,23 @@ function handleQrContent(content, imageUrl) {
   copyText(text)
 }
 
+// 解码 + 按内容分发，单独导出：弹窗里的「识别二维码」按钮直接调它，
+// 不用再套一层 ActionSheet（原生长按菜单不可用时，这是可靠兜底）
+function decodeAndHandle(url) {
+  if (!url) return
+  wx.showLoading({ title: '识别中...', mask: true })
+  decodeQr(url)
+    .then((content) => {
+      wx.hideLoading()
+      handleQrContent(content, url)
+    })
+    .catch((err) => {
+      wx.hideLoading()
+      const unavailable = err && err.message === 'decoder unavailable'
+      wx.showToast({ title: unavailable ? '识别组件未加载，请重新编译' : '未识别到二维码，可先保存图片去扫一扫', icon: 'none' })
+    })
+}
+
 // 长按入口：弹出识别菜单（识别 / 预览）
 // url: 当前图片地址；allUrls: 同屏图片列表（预览大图时左右滑动查看）
 function recognize(url, allUrls) {
@@ -195,20 +224,10 @@ function recognize(url, allUrls) {
         wx.previewImage({ current: url, urls: (allUrls && allUrls.length ? allUrls : [url]) })
         return
       }
-      wx.showLoading({ title: '识别中...', mask: true })
-      decodeQr(url)
-        .then((content) => {
-          wx.hideLoading()
-          handleQrContent(content, url)
-        })
-        .catch((err) => {
-          wx.hideLoading()
-          const unavailable = err && err.message === 'decoder unavailable'
-          wx.showToast({ title: unavailable ? '识别组件未加载，请重新编译' : '未识别到二维码', icon: 'none' })
-        })
+      decodeAndHandle(url)
     },
     fail: () => {}
   })
 }
 
-module.exports = { recognize, decodeQr, handleQrContent, saveQrImage }
+module.exports = { recognize, decodeAndHandle, decodeQr, handleQrContent, saveQrImage }

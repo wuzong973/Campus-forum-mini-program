@@ -15,6 +15,9 @@ const path = require('path')
 const vm = require('vm')
 
 const ROOT = path.join(__dirname, '..', '..')
+// F 段用 vm 加载小程序侧 utils/subscribe.js 时按这个名字取根目录；
+// 此前它从未定义，整段在 ReferenceError 下没跑过（被未 await 的 run() 吞成 exit 0）
+const MINI_PROGRAM_ROOT = ROOT
 const SERVER = path.join(ROOT, 'server')
 
 let testCount = 0
@@ -95,11 +98,20 @@ async function run() {
   // A2. TPL_CONFIG：envKey 与 .env 键对应、page/label 齐备
   check(() => {
     const src = read('server/services/subscribeService.js')
+    // 落地页必须是 app.json 里真实注册的页面。2026-10-07 页面下沉到 pkg-feature 之后，
+    // 「以 pages/ 开头」这条前缀判断把正常配置判成错；
+    // 它真正该防的是「页面搬进分包后忘了同步订阅消息落地页」—— 用户点推送会跳到不存在的路径。
+    const appJson = JSON.parse(read('app.json'))
+    const registeredPages = new Set(appJson.pages || [])
+    ;(appJson.subpackages || appJson.subPackages || []).forEach((sp) => {
+      (sp.pages || []).forEach((pg) => registeredPages.add(sp.root + '/' + pg))
+    })
     EXPECTED_TYPES.forEach((type) => {
       const re = new RegExp(type + ': \\{ envKey: \'(WX_TPL_[A-Z_]+)\', page: \'([^\']+)\', label: \'([^\']+)\' \\}')
       const m = src.match(re)
       assert.ok(m, 'TPL_CONFIG 缺少 ' + type + ' 配置')
-      assert.ok(m[2].startsWith('pages/'), type + ' 落地页必须是页面路径')
+      assert.ok(registeredPages.has(m[2]),
+        type + ' 的落地页 ' + m[2] + ' 不在 app.json 注册页面里（页面下沉分包后必须同步改）')
     })
     assert.ok(!/WX_TPL_ACTIVITY'|WX_TPL_ERRAND'|WX_TPL_INTERACT'/.test(src), '旧三槽位 envKey 不得残留')
   }, 'A2. 每个类型都有 envKey/落地页/label，旧三槽位 envKey 零残留')
@@ -270,12 +282,13 @@ async function run() {
   }, 'F. shouldShowDialog 双维度（偏好+授权）：全开且已授权才静默，否则弹窗给授权入口')
 }
 
-try {
-  run()
+// run() 是 async：不 await 的话，断言失败只会变成 unhandled rejection，
+// 而进程照样 exit(0) —— 这条护栏红了很久都没被 npm test 发现。
+run().then(() => {
   console.log(testCount + ' tests passed.')
   process.exit(0)
-} catch (err) {
+}).catch((err) => {
   console.error(err && err.stack)
   console.error(testCount + ' passed before failure.')
   process.exit(1)
-}
+})

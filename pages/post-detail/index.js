@@ -66,7 +66,6 @@ Page({
     contactExpanded: false,
     commentFocus: false,
     submittingComment: false,
-    avatarSheet: null,
     showEmojiPanel: false,
     commentAnonymous: false,
     // 待发送的评论媒体：[{ type: 'image' | 'video', path }]
@@ -194,7 +193,7 @@ Page({
 
   goPostBannerDetail() {
     if (!this.data.postBanner || !this.data.postBanner.text) return
-    wx.navigateTo({ url: '/pages/banner-detail/index?scope=post' })
+    wx.navigateTo({ url: '/pkg-feature/pages/banner-detail/index?scope=post' })
   },
 
   loadHotPosts() {
@@ -831,140 +830,23 @@ Page({
     this.loadComments(this.data.post.id, sort).catch(() => wx.showToast({ title: '评论加载失败，请重试', icon: 'none' }));
   },
 
+  // 评论 / 回复头像：弹「个人主页 / 分身私信」卡片。
+  // 卡片已抽成共享组件 components/avatar-sheet（与评价详情页同一份实现），
+  // 这里只负责把 dataset 转成 open() 的参数。
   onCommentAvatarTap(e) {
-    const userId = e.currentTarget.dataset.userid;
-    if (!userId) return;
     const ds = e.currentTarget.dataset;
-    if (ds.anonymous) {
-      this.showAvatarSheet({
-        userId,
-        nick: ds.nick,
-        avatar: ds.avatar,
-        isOwner: ds.isowner,
-        mode: 'anon',
-        allowAnonymousPm: ds.allowpm,
-      });
-      return;
-    }
-    // 普通用户评论头像：弹出「个人主页 / 私信」功能菜单，功能入口迁移至弹窗内
-    if (this.isSelfUser(userId)) {
-      wx.navigateTo({ url: this.profileUrl(userId) });
-      return;
-    }
-    this.showAvatarSheet({
-      userId,
+    if (!ds.userid) return;
+    const sheet = this.selectComponent('#avatarSheet');
+    if (!sheet) return;
+    sheet.open({
+      userId: ds.userid,
       nick: ds.nick,
       avatar: ds.avatar,
-      mode: 'normal',
+      isOwner: ds.isowner,
+      // 匿名（分身）用户只给「私信」；普通用户给「个人主页」+「分身私信/私信」
+      mode: ds.anonymous ? 'anon' : 'normal',
       allowAnonymousPm: ds.allowpm,
-    });
-  },
-
-  // ---------- 头像功能菜单（统一弹窗） ----------
-  // mode: 'anon' 匿名（分身）用户，仅展示「私信」；
-  //       'normal' 普通用户，展示「个人主页」+「分身私信/私信」
-  showAvatarSheet(options) {
-    const mode = options.mode || 'normal';
-    const allowed = options.allowAnonymousPm !== false;
-    const ownerWording = options.isOwner ? '帖主' : '对方';
-    this.setData({
-      avatarSheet: {
-        userId: options.userId,
-        nick: options.nick || "校园同学",
-        avatar: options.avatar || "/assets/icons/avatar.png",
-        certLabel: options.certLabel || "",
-        isOwner: !!options.isOwner,
-        mode,
-        allowAnonymousPm: options.allowAnonymousPm,
-        actionLabel: allowed ? "分身私信" : "私信",
-        tip: mode === 'anon'
-          ? "这是一位分身用户"
-          : (allowed
-            ? ownerWording + "允许分身私信，进入主页可以进行普通私信"
-            : ownerWording + "不允许分身私信"),
-      },
-    });
-  },
-
-  onCloseAvatarSheet() {
-    this.setData({ avatarSheet: null });
-  },
-
-  isSelfUser(userId) {
-    const userInfo = ((getApp().globalData || {}).userInfo) || wx.getStorageSync('userInfo') || {};
-    return Number(userInfo.id) === Number(userId);
-  },
-
-  // 跳转用户个人主页：携带来源帖子 id，
-  // 个人主页再进入私信时原样透传给聊天页，保证「帖子详情→个人主页→聊天」也能「回到帖子」
-  profileUrl(userId) {
-    const postId = (this.data.post || {}).id || 0;
-    return "/pages/profile/index?id=" + userId + (postId ? "&postId=" + postId : "");
-  },
-
-  onAvatarSheetProfile() {
-    const popup = this.data.avatarSheet;
-    if (!popup || !popup.userId) return;
-    this.setData({ avatarSheet: null });
-    wx.navigateTo({ url: this.profileUrl(popup.userId) });
-  },
-
-  onAvatarSheetMessage() {
-    const popup = this.data.avatarSheet;
-    if (!popup || !popup.userId) return;
-    if (!auth.requireLogin("私信需要先登录")) return;
-
-    // 匿名（分身）用户私信：对方明确关闭时拦截
-    if (popup.mode === 'anon' && popup.allowAnonymousPm === false) {
-      this.setData({ avatarSheet: null });
-      wx.showToast({ title: "对方不允许分身私信", icon: "none" });
-      return;
-    }
-    // 普通用户且对方关闭了分身私信 → 走普通私信渠道
-    if (popup.mode === 'normal' && popup.allowAnonymousPm === false) {
-      this.setData({ avatarSheet: null });
-      wx.navigateTo({
-        url: "/pages/chat/index?peerId=" + popup.userId +
-          "&nick=" + encodeURIComponent(popup.nick || "校园同学") +
-          "&avatar=" + encodeURIComponent(popup.avatar || "/assets/icons/avatar.png") +
-          // 显式声明普通私信渠道，避免曾被匿名私信过的会话被强制切回匿名视图
-          "&anonymous=0" +
-          // 记录来源帖子，聊天页「回到帖子」在消息通知入口也能返回本帖
-          "&postId=" + (this.data.post && this.data.post.id || "")
-      });
-      return;
-    }
-    // 匿名（分身）私信
-    wx.showModal({
-      title: "分身私信",
-      content: popup.mode === 'anon' ? "与分身用户对话时，你也自动变为分身用户" : "开启对话后，你将以分身身份与对方交流",
-      confirmText: "确认",
-      cancelText: "取消",
-      success: (res) => {
-        if (!res.confirm) return;
-        this.setData({ avatarSheet: null });
-        let extra = "&anonymous=1";
-        if (popup.mode !== 'anon') {
-          // 发起方使用随机分身身份，服务端首次进入时存档，全程同一形象；
-          // personaKey 以该分身头像为隔离键，不同分身各自对应独立聊天会话
-          const persona = anonymousIdentity.generate();
-          extra += "&personaKey=" + encodeURIComponent(persona.avatarUrl) +
-            "&anonSelfNick=" + encodeURIComponent(persona.nickName) +
-            "&anonSelfAvatar=" + encodeURIComponent(persona.avatarUrl);
-        } else {
-          // 与对方的某个分身对话：personaKey 用该分身头像作隔离键，
-          // 对方其他分身（同一真实用户）的聊天记录不会出现在本会话
-          extra += "&personaKey=" + encodeURIComponent(popup.avatar || "/assets/icons/avatar.png");
-        }
-        wx.navigateTo({
-          url: "/pages/chat/index?peerId=" + popup.userId +
-            "&nick=" + encodeURIComponent(popup.nick || (popup.mode === 'anon' ? "分身用户" : "校园同学")) +
-            "&avatar=" + encodeURIComponent(popup.avatar || "/assets/icons/avatar.png") +
-            extra +
-            // 记录来源帖子，聊天页「回到帖子」在消息通知入口也能返回本帖
-            "&postId=" + (this.data.post && this.data.post.id || "")
-        });
-      }
+      fromPostId: (this.data.post || {}).id || 0,
     });
   },
 
@@ -1105,12 +987,12 @@ Page({
 
   onShareToFriend(e) {
     const postId = e.detail && e.detail.postId || this.data.post.id;
-    wx.navigateTo({ url: "/pages/poster/index?postId=" + postId });
+    wx.navigateTo({ url: "/pkg-feature/pages/poster/index?postId=" + postId });
   },
 
   onSharePoster(e) {
     const postId = e.detail && e.detail.postId || this.data.post.id;
-    wx.navigateTo({ url: "/pages/poster/index?postId=" + postId });
+    wx.navigateTo({ url: "/pkg-feature/pages/poster/index?postId=" + postId });
   },
 
   onFocusComment() {
@@ -1538,6 +1420,11 @@ Page({
     });
   },
 
+  // 取消回复：清空回复目标退回顶层评论态（与评价页 pages/review/target 的 onCancelReply 同款）
+  onCancelReply() {
+    this.setData({ replyTo: null, replyToNick: "", commentFocus: false });
+  },
+
   toggleCommentReplies(e) {
     const id = e.currentTarget.dataset.id;
     const comments = this.data.comments;
@@ -1688,35 +1575,23 @@ Page({
     wx.navigateTo({ url: "/pages/share/index?postId=" + this.data.post.id });
   },
 
+  // 帖主头像：同样走共享的 avatar-sheet 组件
   onAvatarTap(e) {
     const userId = e.currentTarget.dataset.userid;
     if (!userId) return;
     const post = this.data.post || {};
-    if (post.isAnonymous) {
-      this.showAvatarSheet({
-        userId,
-        nick: post.nickName,
-        avatar: post.avatarUrl,
-        isOwner: true,
-        mode: 'anon',
-        allowAnonymousPm: post.allowAnonymousPm,
-      });
-      return;
-    }
-    // 查看自己的帖子时保持直接进入主页
-    if (this.isSelfUser(userId)) {
-      wx.navigateTo({ url: this.profileUrl(userId) });
-      return;
-    }
-    // 普通帖帖主头像：弹出「个人主页 / 分身私信(或私信)」功能菜单
-    this.showAvatarSheet({
+    const sheet = this.selectComponent('#avatarSheet');
+    if (!sheet) return;
+    sheet.open({
       userId,
       nick: post.nickName,
       avatar: post.avatarUrl,
       certLabel: post.certLabel,
+      // 匿名帖帖主只给「私信」；普通帖帖主给「个人主页」+「分身私信/私信」
       isOwner: true,
-      mode: 'normal',
+      mode: post.isAnonymous ? 'anon' : 'normal',
       allowAnonymousPm: post.allowAnonymousPm,
+      fromPostId: post.id || 0,
     });
   },
 

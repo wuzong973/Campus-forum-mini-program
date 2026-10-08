@@ -218,3 +218,53 @@
   font-size: 23rpx;
   text-align: center;
 }
+
+/* 放大态：对齐微信原生图片查看器的观感 —— 深色满屏、只留二维码大图、零 UI。
+   放大必须留在页面内（wx.previewImage 里长按菜单由微信决定，注入不进去）。
+
+   ⚠ 底部必须多撑出 tabbar 的高度：position:fixed 的包含块是「页面视口」，
+   它**不含自定义 tabbar**（tabbar 在页面流底部，高度 104rpx + 安全区，
+   见 custom-tab-bar/index.wxss）——只写 height:100vh 会在底部漏出 tabbar
+   和页面内容（用户实测到的就是这个现象）。这里用负 bottom 把面板多撑一段，
+   再靠 z-index 2001 盖住 tabbar；tabbar 高度若变，-104rpx 要同步。
+   ⚠ 内容区再用 padding 把多撑的那段抵消掉，保证图片是在「屏幕可视区」里居中，
+   而不是在「含 tabbar 的整块」里居中（否则图片整体偏下）。 */
+.contact-admin-qr-dialog.is-expanded {
+  top: 0;
+  left: 0;
+  width: 100vw;
+  max-width: none;
+  /* 高度分两行写（标准 CSS 回退）：第一行按视口铺满兜底，第二行再往下多撑出
+     自定义 tabbar 的高度（fixed 的包含块是「页面视口」，不含 tabbar）。
+     ⚠ 三不要：① 不要只写 height:100vh（底部会漏出 tabbar 与页面内容）；
+     ② 不要用 `width: auto` 靠 left/right 拉伸（实测会收缩成一条窄带）；
+     ③ 不要用 `height: auto`（图片是 height:0 + flex:1，撑不起 auto 高度，会塌成只剩 padding）。 */
+  height: 100vh;
+  height: calc(100vh + 104rpx + env(safe-area-inset-bottom));
+  padding: calc(24rpx + env(safe-area-inset-top)) 0 calc(104rpx + env(safe-area-inset-bottom));
+  border-radius: 0;
+  background: #000;
+  box-shadow: none;
+  transform: none;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 放大态的遮罩兜底也压成深色：面板已铺满，遮罩只在面板边缘漏光时可见 */
+.contact-admin-mask.is-zoom {
+  background: #000;
+}
+
+.contact-admin-qr.is-full {
+  flex: 1 1 auto;
+  width: 100%;
+  /* ⚠ 必须显式覆盖基类的 max-width: 560rpx —— 否则放大态图片宽度被卡在 ~400px，
+     看起来「没居中」（2026-10-08 实测：538px 屏宽下卡片只占 413px、偏左 63px） */
+  max-width: none;
+  /* height:0 + flex-grow 才能稳定吃满剩余空间；mode=aspectFit 在盒子里等比居中 */
+  height: 0;
+  min-height: 0;
+  /* ⚠ 必须留 auto，不能写成 margin: 0：基类是 margin: 24rpx auto 0，
+     那个 auto 就是水平居中，写成 0 会让图片靠左贴边 */
+  margin: 0 auto;
+}

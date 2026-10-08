@@ -404,7 +404,7 @@ Component({
 
     onSharePoster(e) {
       const postId = e.detail && e.detail.postId || this.data.post.id;
-      wx.navigateTo({ url: "/pages/poster/index?postId=" + postId });
+      wx.navigateTo({ url: "/pkg-feature/pages/poster/index?postId=" + postId });
       this.setData({ showSharePopup: false });
     },
 
