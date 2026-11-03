@@ -10,7 +10,7 @@ Page({
     tab: 'book',
     contactName: '', contactPhone: '', serviceAddress: '', description: '',
     wechatId: '', useLastContact: false, expectedTime: '',
-    technicians: [], selectedTechnician: null, selectedTechnicianPhone: '',
+    technicians: [], selectedTechnician: null, selectedTechnicianId: '',
     images: [], orders: [], loadingOrders: false, submitting: false,
     statusText: { unpaid: '待支付', paid: '待接单', accepted: '已接单', repairing: '维修中', finished: '已完成', cancelled: '已取消' }
   },
@@ -47,44 +47,25 @@ Page({
   },
 
   onSelectTechnician(e) {
-    const phone = e.currentTarget.dataset.phone
-    // 再次点击已选中的维修人员 = 取消选择（不指定，由平台分配）
-    if (this.data.selectedTechnicianPhone === phone) {
-      this.setData({ selectedTechnician: null, selectedTechnicianPhone: '' })
+    const id = e.currentTarget.dataset.id
+    // Selecting the current technician again clears the selection for platform assignment.
+    if (this.data.selectedTechnicianId === id) {
+      this.setData({ selectedTechnician: null, selectedTechnicianId: '' })
       return
     }
-    const selectedTechnician = this.data.technicians.find((item) => item.phone === phone)
-    if (selectedTechnician) this.setData({ selectedTechnician, selectedTechnicianPhone: phone })
-  },
-
-  // 列表内的「复制」：把该维修人员的手机号写入系统剪贴板
-  onCopyTechnicianPhone(e) {
-    const phone = String(e.currentTarget.dataset.phone || '').trim()
-    if (!phone) {
-      wx.showToast({ title: '暂无可复制的手机号', icon: 'none' })
-      return
-    }
-    wx.setClipboardData({
-      data: phone,
-      success: () => {
-        // setClipboardData 成功后微信会自动弹「内容已复制」，无需再弹，避免重复提示
-      },
-      fail: () => {
-        wx.showToast({ title: '复制失败，请重试', icon: 'none' })
-      }
-    })
+    const selectedTechnician = this.data.technicians.find((item) => item.id === id)
+    if (selectedTechnician) this.setData({ selectedTechnician, selectedTechnicianId: id })
   },
 
   onChatTechnician(e) {
-    const phone = e.currentTarget.dataset.phone
-    const technician = this.data.technicians.find((item) => item.phone === phone)
-    if (!technician || !technician.userId) {
-      wx.showToast({ title: '该维修人员暂未开通小程序聊天', icon: 'none' })
+    const userId = Number(e.currentTarget.dataset.peerId)
+    if (!userId) {
+      wx.showToast({ title: '\u8be5\u7ef4\u4fee\u4eba\u5458\u6682\u672a\u5f00\u901a\u5c0f\u7a0b\u5e8f\u804a\u5929', icon: 'none' })
       return
     }
     wx.navigateTo({
-      url: '/pages/chat/index?peerId=' + technician.userId +
-        '&nick=' + encodeURIComponent(technician.name) +
+      url: '/pages/chat/index?peerId=' + userId +
+        '&nick=' + encodeURIComponent(e.currentTarget.dataset.name || '\u7ef4\u4fee\u5e08\u5085') +
         '&avatar=' + encodeURIComponent('/assets/icons/repair-logo.jpg')
     })
   },
@@ -189,9 +170,7 @@ Page({
       images: []
     }
     if (technician) {
-      payload.technicianPhone = technician.phone
-      payload.technicianName = technician.name
-      payload.technicianUserId = technician.userId || null
+      payload.technicianId = technician.id
     }
     try {
       payload.images = await this.uploadImages()
@@ -235,7 +214,7 @@ Page({
       const technicians = await request.get('/repair/technicians', {}, true, { silent: true })
       if (Array.isArray(technicians) && technicians.length) this.setData({ technicians })
     } catch (e) {
-      this.setData({ technicians: [], selectedTechnician: null, selectedTechnicianPhone: '' })
+      this.setData({ technicians: [], selectedTechnician: null, selectedTechnicianId: '' })
       wx.showToast({ title: '维修人员暂时无法加载，请稍后重试', icon: 'none' })
     }
   }

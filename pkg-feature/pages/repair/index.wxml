@@ -24,11 +24,10 @@
       <text class="section-title">预约前可咨询</text>
       <text class="label">维修人员（选填，不选则由平台统一分配）</text>
       <view class="technician-list">
-        <view class="technician {{selectedTechnicianPhone === item.phone ? 'active' : ''}}" wx:for="{{technicians}}" wx:key="phone" data-phone="{{item.phone}}" bindtap="onSelectTechnician">
+        <view class="technician {{selectedTechnicianId === item.id ? 'active' : ''}}" wx:for="{{technicians}}" wx:key="id" data-id="{{item.id}}" bindtap="onSelectTechnician">
           <image class="technician-avatar" src="/assets/icons/repair-logo.jpg" mode="aspectFill" />
-          <view class="technician-info"><text class="technician-name">{{item.name}}</text><text class="technician-phone">{{item.phone}}</text></view>
-          <text class="technician-copy" data-phone="{{item.phone}}" catchtap="onCopyTechnicianPhone">复制</text>
-          <text class="selected-mark" wx:if="{{selectedTechnicianPhone === item.phone}}">已选</text>
+          <view class="technician-info"><text class="technician-name">{{item.name}}</text><text class="technician-status">{{item.chatAvailable ? '可在线私信' : '暂不可在线私信'}}</text></view>
+          <text class="selected-mark" wx:if="{{selectedTechnicianId === item.id}}">已选</text>
         </view>
       </view>
     </view>
@@ -59,7 +58,7 @@
   </block>
 
   <view wx:else class="orders">
-    <view class="order card anim-stagger" style="--i: {{index < 6 ? index : 0}};" wx:for="{{orders}}" wx:key="id"><view class="order-head"><text class="order-type">维修预约</text><text class="status status-{{item.status}}">{{statusText[item.status]}}</text></view><text class="order-line">期望上门：{{item.expected_time || item.expectedTime || '未填写'}}</text><text class="order-line">维修人员：{{item.technicianName || item.technician_name || '待分配'}}</text><text class="order-line">地址：{{item.service_address || item.serviceAddress}}</text><text class="order-line">故障描述：{{item.description}}</text><view class="order-foot"><text class="order-no">{{item.order_no}}</text><view class="order-actions"><text class="order-chat" wx:if="{{item.technicianUserId}}" data-phone="{{item.technicianPhone || item.technician_phone}}" bindtap="onChatTechnician">联系师傅</text><text class="order-price">¥{{item.amount}}</text></view></view></view>
+    <view class="order card anim-stagger" style="--i: {{index < 6 ? index : 0}};" wx:for="{{orders}}" wx:key="id"><view class="order-head"><text class="order-type">维修预约</text><text class="status status-{{item.status}}">{{statusText[item.status]}}</text></view><text class="order-line">期望上门：{{item.expected_time || item.expectedTime || '未填写'}}</text><text class="order-line">维修人员：{{item.technicianName || item.technician_name || '待分配'}}</text><text class="order-line">地址：{{item.service_address || item.serviceAddress}}</text><text class="order-line">故障描述：{{item.description}}</text><view class="order-foot"><text class="order-no">{{item.order_no}}</text><view class="order-actions"><text class="order-chat" wx:if="{{item.technicianUserId}}" data-peer-id="{{item.technicianUserId}}" data-name="{{item.technicianName}}" bindtap="onChatTechnician">联系师傅</text><text class="order-price">¥{{item.amount}}</text></view></view></view>
     <view class="empty" wx:if="{{!loadingOrders && orders.length === 0}}">暂无维修订单</view>
     <view class="empty" wx:if="{{loadingOrders}}">正在加载...</view>
   </view>

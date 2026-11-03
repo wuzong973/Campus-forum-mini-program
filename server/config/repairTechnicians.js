@@ -1,13 +1,16 @@
-const TECHNICIANS = [
-  { name: '莫旭卿', phone: '19200444855' },
-  { name: '冯广兴', phone: '13450662913' },
-  { name: '蒋文鑫', phone: '15314270546' },
-  { name: '张彬浩', phone: '13543233827' },
-  { name: '欧阳文展', phone: '13726084801' }
-]
+const TECHNICIANS = Array.from({ length: 5 }, (_, index) => {
+  const number = index + 1
+  const phone = String(process.env[`REPAIR_TECHNICIAN_${number}_PHONE`] || '').trim()
+  if (!phone) return null
+  if (!/^1\d{10}$/.test(phone)) {
+    throw new Error(`REPAIR_TECHNICIAN_${number}_PHONE must be a valid mobile number`)
+  }
+  return { id: `technician-${number}`, name: `\u7ef4\u4fee\u5e08\u5085 ${number}`, phone }
+}).filter(Boolean)
 
-function findTechnician(phone) {
-  return TECHNICIANS.find((technician) => technician.phone === String(phone || '')) || null
+function findTechnician(idOrPhone) {
+  const value = String(idOrPhone || '')
+  return TECHNICIANS.find((technician) => technician.id === value || technician.phone === value) || null
 }
 
 module.exports = { TECHNICIANS, findTechnician }

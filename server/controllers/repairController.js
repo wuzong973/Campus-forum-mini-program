@@ -15,10 +15,10 @@ function makeOrderNo() {
 }
 
 exports.create = async (req, res) => {
-  const { deviceType, description, contactName, contactPhone, wechatId = '', expectedTime = '', serviceAddress, technicianPhone, images = [] } = req.body
+  const { deviceType, description, contactName, contactPhone, wechatId = '', expectedTime = '', serviceAddress, technicianId, technicianPhone, images = [] } = req.body
   // 维修人员为选填：指定了则校验收单人，未指定则由后台统一分配
-  const technician = technicianPhone ? findTechnician(technicianPhone) : null
-  if (technicianPhone && !technician) return fail(res, '维修人员不存在')
+  const technician = technicianId ? findTechnician(technicianId) : technicianPhone ? findTechnician(technicianPhone) : null
+  if ((technicianId || technicianPhone) && !technician) return fail(res, '维修人员不存在')
   if (!deviceType || !description || !contactName || !/^1\d{10}$/.test(contactPhone || '') || !wechatId || !expectedTime || !serviceAddress) {
     return fail(res, '请完整填写预约信息')
   }
@@ -57,7 +57,7 @@ exports.listTechnicians = async (req, res) => {
     const usersByPhone = new Map(rows.map((row) => [row.phone, row]))
     success(res, TECHNICIANS.map((technician) => {
       const user = usersByPhone.get(technician.phone)
-      return Object.assign({}, technician, { userId: user ? user.id : null, chatAvailable: !!user })
+      return { id: technician.id, name: technician.name, chatAvailable: !!user }
     }))
   } catch (e) {
     fail(res, safeMessage(e), 500)
@@ -96,7 +96,13 @@ exports.listMine = async (req, res) => {
        WHERE r.user_id=? ORDER BY r.created_at DESC LIMIT 50`,
       [req.userId],
     )
-    success(res, rows)
+    success(res, rows.map((row) => {
+      const { technicianPhone, ...order } = row
+      const technician = findTechnician(technicianPhone)
+      return Object.assign({}, order, {
+        technicianName: technician ? technician.name : technicianPhone ? '\u7ef4\u4fee\u5e08\u5085' : ''
+      })
+    }))
   } catch (e) {
     fail(res, safeMessage(e), 500)
   }
