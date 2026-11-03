@@ -66,6 +66,8 @@ const PAGE_GROUPS = [
       ['申请群聊', '/pkg-feature/pages/group-chat/apply'],
       ['校园活动', '/pkg-feature/pages/activity/index'],
       ['发布活动', '/pkg-feature/pages/activity/publish'],
+      ['一周CP', '/pkg-feature/pages/couple/index'],
+      ['一周CP 历史匹配', '/pkg-feature/pages/couple/history'],
       ['校园评价', '/pkg-feature/pages/review/index'],
       ['评价列表', '/pkg-feature/pages/review/list'],
       ['发布评价', '/pkg-feature/pages/review/publish']
@@ -127,6 +129,8 @@ const EXCLUDED = {
   '/pkg-feature/pages/club/club-detail': '社团详情，必须带 id',
   '/pkg-feature/pages/group-chat/detail': '群聊详情，必须带 id',
   '/pkg-feature/pages/activity/detail': '活动详情，必须带 id',
+  '/pkg-feature/pages/couple/result': '一周CP配对结果，必须带 matchId',
+  '/pkg-feature/pages/couple/chat': '一周CP聊天，必须带 matchId',
   '/pkg-feature/pages/review/target': '评价详情，必须带 id',
   '/pkg-feature/pages/poster/index': '海报生成，必须带 postId',
   '/pkg-feature/pages/banner-detail/index': '内容编辑页，不给运营配跳转'

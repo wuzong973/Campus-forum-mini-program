@@ -56,6 +56,7 @@ const walletRoutes = require("./routes/walletRoutes");
 const clubRoutes = require("./routes/clubRoutes");
 const groupChatRoutes = require("./routes/groupChatRoutes");
 const activityRoutes = require("./routes/activityRoutes");
+const coupleRoutes = require("./routes/coupleRoutes");
 const subscribeRoutes = require("./routes/subscribeRoutes");
 const broadcastRoutes = require("./routes/broadcastRoutes");
 const reviewRoutes = require("./routes/reviewRoutes");
@@ -141,6 +142,7 @@ app.use("/api/v1/wallet", walletRoutes);
 app.use("/api/v1/club", clubRoutes);
 app.use("/api/v1/group-chat", groupChatRoutes);
 app.use("/api/v1/activity", activityRoutes);
+app.use("/api/v1/couple", featureFlag("couple.enabled"), coupleRoutes);
 app.use("/api/v1/subscribe", subscribeRoutes);
 // 群播报机器人通道（X-Bot-Token 鉴权，BROADCAST_BOT_TOKEN 未配置即关闭）
 app.use("/api/v1/broadcast", broadcastRoutes);

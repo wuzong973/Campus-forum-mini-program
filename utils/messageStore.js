@@ -242,8 +242,12 @@ function handleIncomingMessage(data) {
   // 更新未读数（除当前正在打开的会话）
   const pages = getCurrentPages()
   const cur = pages[pages.length - 1]
-  const inChat = cur && cur.route === 'pages/chat/index' && cur.data && cur.data.peerId === peerId &&
-    (cur.personaKey || '') === personaKey
+  const inChat = cur && cur.data && (
+    (cur.route === 'pages/chat/index' && cur.data.peerId === peerId &&
+      (cur.personaKey || '') === personaKey) ||
+    (cur.route === 'pkg-feature/pages/couple/chat' && cur.data.peerId === peerId &&
+      (cur.data.personaKey || '') === personaKey)
+  )
   if (!inChat) {
     const total = getUnreadTotal() + 1
     setUnreadTotal(total)

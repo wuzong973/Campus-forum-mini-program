@@ -39,6 +39,61 @@ function presentComment(row) {
   })
 }
 
+/**
+ * 同一帖子内的分身昵称去重表（commentId → '·2' / '·3'）。
+ *
+ * 背景：分身昵称从有限素材池随机取，线上 1307 条分身评论只覆盖 134 个昵称，
+ * 热门帖（170 条评论）里同名者常有 2~3 个，读者分不清谁在说话
+ * —— 同名的可能是不同人，也可能是同一个人，这才是最误导的地方。
+ *
+ * 三个关键约束：
+ * 1. 以「楼主分身」为第 1 位：评论者与楼主撞名时，评论者变成「·2」，
+ *    不会被误认成楼主；
+ * 2. 按**用户**编号而非按评论编号：同一用户在同一帖只会有一个分身身份
+ *    （见 exports.create 的身份复用逻辑），按评论编号会把一个人拆成好几个人；
+ * 3. 序号按全帖 id 升序计算而非「当前页」，翻页/换排序都不会让同一条评论换后缀。
+ */
+async function buildNicknameSuffixMap(postId) {
+  const suffixByComment = new Map()
+  const countByNick = new Map()
+  const suffixByOwner = new Map() // `${nick}\u0000${userId}` → '' | '·2'
+
+  const [postRows] = await pool.query(
+    "SELECT user_id, JSON_UNQUOTE(JSON_EXTRACT(anonymous_identity,'$.nickName')) AS nick FROM forum_post WHERE id = ?",
+    [postId]
+  )
+  if (postRows.length && postRows[0].nick) {
+    const nick = postRows[0].nick
+    countByNick.set(nick, 1) // 楼主占第 1 位
+    suffixByOwner.set(nick + '\u0000' + postRows[0].user_id, '')
+  }
+
+  const [rows] = await pool.query(
+    `SELECT id, user_id, JSON_UNQUOTE(JSON_EXTRACT(anonymous_identity,'$.nickName')) AS nick
+     FROM forum_comment
+     WHERE post_id = ? AND status = 1 AND anonymous_identity IS NOT NULL
+     ORDER BY id ASC`,
+    [postId]
+  )
+
+  for (const row of rows) {
+    const nick = row.nick
+    if (!nick) continue
+    const ownerKey = nick + '\u0000' + row.user_id
+    if (suffixByOwner.has(ownerKey)) {
+      const shared = suffixByOwner.get(ownerKey)
+      if (shared) suffixByComment.set(Number(row.id), shared)
+      continue
+    }
+    const n = (countByNick.get(nick) || 0) + 1
+    countByNick.set(nick, n)
+    const suffix = n > 1 ? '·' + n : ''
+    suffixByOwner.set(ownerKey, suffix)
+    if (suffix) suffixByComment.set(Number(row.id), suffix)
+  }
+  return suffixByComment
+}
+
 exports.list = async (req, res) => {
   const postId = req.query.postId
   const page = parseInt(req.query.page, 10) || 1
@@ -57,7 +112,21 @@ exports.list = async (req, res) => {
       [userId, postId, pageSize, offset]
     )
     const total = countRows[0].total
-    success(res, { list: rows.map(presentComment), total, hasMore: offset + pageSize < total })
+    // 同帖内分身昵称去重：同名者第 2 位起追加「·2」「·3」，否则读者无法区分
+    const suffixMap = await buildNicknameSuffixMap(postId)
+    const list = rows.map((row) => {
+      const view = presentComment(row)
+      if (view.is_anonymous) {
+        const suffix = suffixMap.get(Number(row.id))
+        if (suffix) view.nick_name = view.nick_name + suffix
+      }
+      // 被回复者同理：与它自己那条评论保持一致，否则「回复 @某某」仍指向不明
+      if (row.parent_id && view.parent_nick_name && suffixMap.has(Number(row.parent_id))) {
+        view.parent_nick_name = view.parent_nick_name + suffixMap.get(Number(row.parent_id))
+      }
+      return view
+    })
+    success(res, { list, total, hasMore: offset + pageSize < total })
   } catch (e) {
     fail(res, safeMessage(e), 500)
   }

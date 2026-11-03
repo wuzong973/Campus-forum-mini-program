@@ -47,6 +47,50 @@ const DEFAULT_NAMES = [
   '声中的溪流', '色中的晚霞', '味中的炊烟', '触中的微风'
 ]
 
+// ===== 分身昵称扩容池（2026-11-03） =====
+// 原实现只在上面 134 个精选名里随机取，而线上已有 1307 条分身评论、216 条匿名帖：
+// 平均每个名字被用了 9.8 次；一个热门帖 170 条评论只有 72 个不同昵称，
+// 读者根本分不清谁在说话（同名的可能是不同人，也可能是同一个人）。
+//
+// 这里把名字拆成「修饰语 + 的 + 景物」，组合空间 125 × 139 ≈ 1.74 万，
+// 加上精选池合计约 1.75 万种。**DEFAULT_NAMES 保持原样**，
+// 既存数据的昵称不受影响，精选名也仍会被抽到。
+const ANONYMOUS_NAME_MODIFIERS = [
+  '蜿蜒', '平静', '汹涌', '清澈', '浑浊', '冰封', '退潮', '涨水', '干涸', '冒泡',
+  '深幽', '初升', '西沉', '皎洁', '闪烁', '划过', '朦胧', '刺眼', '温柔', '密集',
+  '孤独', '残缺', '圆满', '暗淡', '燃烧', '沉睡', '璀璨', '神秘', '旋转', '火红',
+  '呼啸', '轻柔', '漂泊', '阴沉', '淅沥', '倾盆', '纷飞', '细碎', '轰隆', '划破',
+  '弥漫', '凝结', '冰冷', '潮湿', '刺骨', '和煦', '闷热', '凉爽', '凛冽', '茂密',
+  '稀疏', '高大', '低矮', '翠绿', '枯黄', '挺拔', '婆娑', '盘根', '新生', '盛开',
+  '凋零', '缠绕', '带刺', '漂浮', '摇曳', '苍劲', '回暖', '酷热', '破晓', '金色',
+  '寂静', '微凉', '多雨', '干燥', '多风', '短昼', '长夜', '飞流', '水帘', '轰鸣',
+  '溅起', '彩虹', '攀爬', '栖息', '滴水', '回声', '透光', '黄昏', '初雪', '樱花',
+  '雨夜', '晚霞', '星空', '晨光', '落叶', '薄雾', '萤火', '月光', '春风', '落日',
+  '雨后', '雪夜', '花田', '海风', '秋叶', '春水', '冬阳', '清晨', '午后', '傍晚',
+  // 季节不做修饰语：会拼出「春日的隆冬」这类自相矛盾的组合
+  '深夜', '雪后', '雾中', '风中', '云中', '水中',
+  '光中', '影中', '声中', '色中', '味中', '触中'
+]
+
+const ANONYMOUS_NAME_NOUNS = [
+  '小溪', '湖面', '海浪', '泉水', '黄河', '河面', '沙滩', '池塘', '河床', '温泉',
+  '碧潭', '朝阳', '落日', '明月', '繁星', '流星', '月晕', '烈日', '月光', '星群',
+  '晨星', '月牙', '满月', '星光', '太阳', '夜空', '银河', '星云', '北斗', '晚霞',
+  '狂风', '微风', '白云', '乌云', '小雨', '暴雨', '大雪', '雪花', '雷声', '闪电',
+  '大雾', '白霜', '冰雹', '露水', '龙卷', '寒风', '春风', '夏风', '秋风', '冬风',
+  '森林', '树林', '松柏', '灌木', '草地', '落叶', '白杨', '柳树', '老树', '嫩芽',
+  '野花', '花瓣', '藤蔓', '荆棘', '浮萍', '芦苇', '古松', '青竹', '枫叶', '银杏',
+  '初春', '盛夏', '深秋', '隆冬', '黎明', '黄昏', '深夜', '清晨', '梅季', '秋季',
+  '早春', '冬至', '夏至', '瀑布', '洞穴', '水潭', '水花', '水雾', '苔藓', '蝙蝠',
+  '岩壁', '空洞', '石缝', '海边', '街口', '坡道', '屋檐', '天台', '山顶', '窗台',
+  '小径', '渡口', '夏夜', '小巷', '巷口', '码头', '彩虹', '路灯', '尽头', '街角',
+  '长椅', '桥头', '窗边', '茶园', '山谷', '竹林', '村庄', '田野', '荷塘', '果园',
+  '壁炉', '远山', '山峰', '倒影', '尘埃', '溪流', '炊烟',
+  // 校园场景，让组合更贴近学生语境
+  '操场', '食堂', '图书馆', '走廊', '天桥', '球场', '宿舍楼', '黑板', '课桌',
+  '铃声', '晚自习', '毕业照', '行李箱', '单车棚', '晨读角'
+]
+
 const DEFAULT_PROFILE_KEY = 'default_guest_profile'
 
 // Legacy avatars were stored as `/assets/avatar2/1%20(9).jpg` (space encoded,
@@ -126,6 +170,25 @@ function getRandomName() {
   return DEFAULT_NAMES[Math.floor(Math.random() * DEFAULT_NAMES.length)]
 }
 
+// 分身昵称空间：精选池 + 组合池，合计约 1.75 万种。
+// 刻意与 getRandomName 分开 —— 后者是真实用户的默认昵称，不该被扩容池影响。
+const ANONYMOUS_NAME_SPACE =
+  DEFAULT_NAMES.length + ANONYMOUS_NAME_MODIFIERS.length * ANONYMOUS_NAME_NOUNS.length
+
+/**
+ * 随机生成一个分身昵称。
+ * 组合池不预生成数组（1.75 万个字符串会白占小程序包内存），
+ * 而是把随机下标映射到「修饰语 × 景物」的笛卡尔积上，按需拼出。
+ */
+function getRandomAnonymousName() {
+  const index = Math.floor(Math.random() * ANONYMOUS_NAME_SPACE)
+  if (index < DEFAULT_NAMES.length) return DEFAULT_NAMES[index]
+  const rest = index - DEFAULT_NAMES.length
+  const nounIndex = Math.floor(rest / ANONYMOUS_NAME_MODIFIERS.length)
+  const modifierIndex = rest % ANONYMOUS_NAME_MODIFIERS.length
+  return ANONYMOUS_NAME_MODIFIERS[modifierIndex] + '的' + ANONYMOUS_NAME_NOUNS[nounIndex]
+}
+
 function getDefaultProfile() {
   const cached = wx.getStorageSync(DEFAULT_PROFILE_KEY)
   if (cached && cached.avatarUrl && cached.nickName) {
@@ -162,8 +225,12 @@ module.exports = {
   DEFAULT_AVATARS,
   DEFAULT_NAMES,
   ANONYMOUS_AVATARS,
+  ANONYMOUS_NAME_MODIFIERS,
+  ANONYMOUS_NAME_NOUNS,
+  ANONYMOUS_NAME_SPACE,
   getRandomAvatar,
   getRandomName,
+  getRandomAnonymousName,
   getDefaultProfile,
   isDefaultName,
   isTemporaryAvatar,

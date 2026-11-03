@@ -22,6 +22,7 @@ router.post('/deletion-request', auth, idempotency, userController.requestDeleti
 router.delete('/deletion-request', auth, userController.cancelDeletion)
 router.post('/upload/image', auth, uploadController.uploadMiddleware, uploadController.uploadImage)
 router.post('/upload/video', auth, uploadController.videoDailyQuota, uploadController.uploadVideoMiddleware, uploadController.uploadVideo)
+router.post('/upload/audio', auth, uploadController.audioDailyQuota, uploadController.uploadAudioMiddleware, uploadController.uploadAudio)
 router.get('/interactions/stats', auth, userController.getInteractionStats)
 router.get('/interactions/:type', auth, userController.getInteractionList)
 router.get('/rider-verification', auth, userController.getRiderVerification)

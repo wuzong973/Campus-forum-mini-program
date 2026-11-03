@@ -1,0 +1,267 @@
+<view class="page" wx:if="{{!loading}}">
+  <view class="empty-state card" wx:if="{{loadError || !feature}}">
+    <view class="empty-orb">CP</view>
+    <text class="empty-title">一周CP暂不可用</text>
+    <text class="empty-sub">服务暂时无法连接，请稍后重试；如果刚刚部署，请确认服务端已重启并完成数据库迁移。</text>
+    <button class="btn-secondary" bindtap="load">重新加载</button>
+    <button class="btn-secondary" bindtap="goHome">返回首页</button>
+  </view>
+
+  <view class="empty-state card" wx:elif="{{maintenance}}">
+    <view class="empty-orb">CP</view>
+    <text class="empty-title">一周CP维护中</text>
+    <text class="empty-sub">功能正在维护，稍后再来看看。</text>
+    <button class="btn-secondary" bindtap="goHome">返回首页</button>
+  </view>
+
+  <block wx:else>
+    <view class="hero">
+      <view class="hero-title">一周<text class="hero-em">CP</text></view>
+      <text class="hero-sub">{{feature.intro}}</text>
+      <view class="hero-meta">
+        <text>系统按批次匹配</text>
+        <text>每轮最多 10 位</text>
+        <text>首次匹配后 48 小时</text>
+      </view>
+    </view>
+
+    <view class="card matched-card" wx:if="{{currentMatch}}">
+      <view class="matched-label">MATCHED</view>
+      <view class="matched-title">你们被分到同一组</view>
+      <view class="matched-person">
+        <image class="matched-avatar" src="{{currentMatch.partner.photoUrl || currentMatch.partner.avatarUrl || fallbackAvatar}}" mode="aspectFill"></image>
+        <view class="matched-info">
+          <text class="matched-name">{{currentMatch.partner.nickName}}</text>
+          <text class="matched-meta">{{currentMatch.partner.campus}} · {{currentMatch.partner.grade}}</text>
+        </view>
+        <text class="matched-score">{{currentMatch.score}}%</text>
+      </view>
+      <view class="matched-actions">
+        <button class="btn-secondary" bindtap="goChat">去聊天</button>
+        <button class="btn-primary" bindtap="goResult">查看结果</button>
+      </view>
+      <view class="matched-foot" bindtap="goHistory" wx:if="{{historyCount}}">历史匹配 {{historyCount}} 位 ›</view>
+    </view>
+
+    <block wx:elif="{{showForm}}">
+      <view class="section-head">
+        <text class="section-title">先介绍你自己</text>
+        <text class="section-note">填写后进入匹配池</text>
+      </view>
+      <view class="card form-card">
+        <view class="field">
+          <view class="field-label">性别<text class="req">*</text><text class="field-hint">仅用于匹配，不公开展示</text></view>
+          <view class="seg">
+            <view class="seg-item {{form.gender === 1 ? 'active' : ''}}" data-value="1" bindtap="onGenderTap">男生</view>
+            <view class="seg-item {{form.gender === 2 ? 'active' : ''}}" data-value="2" bindtap="onGenderTap">女生</view>
+          </view>
+        </view>
+
+        <view class="field">
+          <view class="field-label">校区<text class="req">*</text></view>
+          <picker mode="selector" range="{{campusLabels}}" value="{{campusIndex}}" bindchange="onCampusChange">
+            <view class="picker-box">
+              <text class="{{form.campus ? '' : 'placeholder'}}">{{form.campus || '请选择校区'}}</text>
+              <text class="picker-arrow">›</text>
+            </view>
+          </picker>
+        </view>
+
+        <view class="field">
+          <view class="field-label">年级<text class="req">*</text></view>
+          <picker mode="selector" range="{{gradeLabels}}" value="{{gradeIndex}}" bindchange="onGradeChange">
+            <view class="picker-box">
+              <text class="{{form.grade ? '' : 'placeholder'}}">{{form.grade || '请选择年级'}}</text>
+              <text class="picker-arrow">›</text>
+            </view>
+          </picker>
+        </view>
+
+        <view class="field-row">
+          <view class="field field-half">
+            <view class="field-label">身高<text class="field-hint">选填</text></view>
+            <picker mode="selector" range="{{heightLabels}}" value="{{heightIndex}}" bindchange="onHeightChange">
+              <view class="picker-box"><text>{{form.height ? form.height + 'cm' : '不填'}}</text><text class="picker-arrow">›</text></view>
+            </picker>
+          </view>
+          <view class="field field-half">
+            <view class="field-label">MBTI<text class="field-hint">选填</text></view>
+            <picker mode="selector" range="{{mbtiLabels}}" value="{{mbtiIndex}}" bindchange="onMbtiChange">
+              <view class="picker-box"><text>{{form.mbti || '不填'}}</text><text class="picker-arrow">›</text></view>
+            </picker>
+          </view>
+        </view>
+
+        <view class="field">
+          <view class="field-label">兴趣标签<text class="req">*</text><text class="field-hint">选 2–6 个</text></view>
+          <view class="chips">
+            <view class="chip {{item.active ? 'active' : ''}}" wx:for="{{tagOptions}}" wx:key="name" data-name="{{item.name}}" bindtap="onTagTap">{{item.name}}</view>
+          </view>
+        </view>
+
+        <view class="field">
+          <view class="field-label">一句话介绍<text class="req">*</text><text class="field-hint">写点具体的</text></view>
+          <textarea class="textarea" maxlength="200" value="{{form.intro}}" placeholder="比如：最近在循环告五人的歌，周末会去江边夜跑，想找一个能一起吃饭、散步的人。" bindinput="onIntroInput"></textarea>
+          <view class="counter">{{form.intro.length}}/200</view>
+        </view>
+
+        <view class="field">
+          <view class="field-label">照片<text class="field-hint">选填 · 最多 1 张</text></view>
+          <view class="photo-upload" bindtap="choosePhoto">
+            <image wx:if="{{form.photoUrl}}" class="photo-img" src="{{form.photoUrl}}" mode="aspectFill"></image>
+            <view wx:else class="photo-empty">
+              <view class="photo-plus">+</view>
+              <text class="photo-title">上传一张照片</text>
+              <text class="photo-hint">匹配成功后对方可见；未上传则显示头像</text>
+            </view>
+            <view wx:if="{{form.photoUrl}}" class="photo-remove" catchtap="removePhoto">移除</view>
+            <view wx:if="{{photoUploading}}" class="photo-loading">上传中...</view>
+          </view>
+          <text class="photo-foot">照片会走现有的上传与内容安全检测，不会公开展示。</text>
+        </view>
+      </view>
+
+      <view class="section-head">
+        <text class="section-title">你希望遇见</text>
+        <text class="section-note">不填默认不限</text>
+      </view>
+      <view class="card form-card">
+        <view class="field">
+          <view class="field-label">期望性别</view>
+          <view class="seg">
+            <view class="seg-item {{form.expectGender === 0 ? 'active' : ''}}" data-value="0" bindtap="onExpectGenderTap">不限</view>
+            <view class="seg-item {{form.expectGender === 1 ? 'active' : ''}}" data-value="1" bindtap="onExpectGenderTap">男生</view>
+            <view class="seg-item {{form.expectGender === 2 ? 'active' : ''}}" data-value="2" bindtap="onExpectGenderTap">女生</view>
+          </view>
+        </view>
+
+        <view class="field">
+          <view class="field-label">期望校区</view>
+          <view class="seg">
+            <view class="seg-item {{form.expectCampusMode === 'any' ? 'active' : ''}}" data-value="any" bindtap="onExpectCampusTap">不限</view>
+            <view class="seg-item {{form.expectCampusMode === 'same' ? 'active' : ''}}" data-value="same" bindtap="onExpectCampusTap">希望同校区</view>
+          </view>
+        </view>
+
+        <view class="field">
+          <view class="field-label">期望身高<text class="field-hint">按 5cm 区间选择</text></view>
+          <view class="height-row {{heightUnlimited ? 'is-disabled' : ''}}" wx:if="{{!heightUnlimited}}">
+            <picker mode="selector" range="{{expectHeightLabels}}" value="{{expectMinIndex}}" bindchange="onExpectHeightMinChange">
+              <view class="height-box"><text class="height-label">最低</text><text>{{form.expectHeightMin}}cm</text><text class="picker-arrow">›</text></view>
+            </picker>
+            <text class="height-dash">—</text>
+            <picker mode="selector" range="{{expectHeightLabels}}" value="{{expectMaxIndex}}" bindchange="onExpectHeightMaxChange">
+              <view class="height-box"><text class="height-label">最高</text><text>{{form.expectHeightMax}}cm</text><text class="picker-arrow">›</text></view>
+            </picker>
+          </view>
+          <view class="chip height-unlimited {{heightUnlimited ? 'active' : ''}}" bindtap="onHeightUnlimitedTap">{{heightUnlimited ? '已选择不限身高' : '不限身高'}}</view>
+        </view>
+
+        <view class="field">
+          <view class="field-label">期望 MBTI<text class="field-hint">可多选，最多 4 个</text></view>
+          <view class="mbti-grid">
+            <view class="chip chip-any {{expectMbtiAny ? 'active' : ''}}" data-name="不限" bindtap="onExpectMbtiTap">不限</view>
+            <view class="chip {{item.active ? 'active' : ''}}" wx:for="{{expectMbtiOptions}}" wx:key="name" data-name="{{item.name}}" bindtap="onExpectMbtiTap">{{item.name}}</view>
+          </view>
+        </view>
+      </view>
+
+      <view class="notice">
+        <text class="notice-icon">!</text>
+        <text class="notice-text">参与信息不会展示手机号或微信号。匹配成功后仅通过站内私信联系；历史配对只读。</text>
+      </view>
+
+      <view class="consent" bindtap="onConsentTap">
+        <view class="checkbox {{form.consent ? 'on' : ''}}">✓</view>
+        <text class="consent-text">我已阅读并同意<text class="consent-link">《一周CP规则》</text>与<text class="consent-link">《隐私说明》</text>，并确认本人年满 18 周岁。</text>
+      </view>
+
+      <view class="submit-bar">
+        <button class="submit-btn" loading="{{submitting}}" disabled="{{submitting}}" bindtap="submit">{{submitText}}</button>
+      </view>
+    </block>
+
+    <block wx:elif="{{signup}}">
+      <view class="card status-card">
+        <block wx:if="{{windowEnded}}">
+          <view class="status-orb">✓</view>
+          <text class="status-title">本轮已结束</text>
+          <text class="status-sub">本轮 48 小时窗口已结束，历史聊天只读；可以开启新一轮。</text>
+          <view class="limit-row">
+            <text>本轮已匹配 {{windowUsed}}/10 位</text>
+            <text>历史对象仍可查看</text>
+          </view>
+          <button class="btn-primary" bindtap="startNewRound">开始新一轮</button>
+          <button class="btn-secondary" bindtap="goHistory">查看历史匹配</button>
+        </block>
+        <block wx:elif="{{windowFull}}">
+          <view class="status-orb">♥</view>
+          <text class="status-title">本轮已匹配 10 位</text>
+          <text class="status-sub">本轮 48 小时窗口结束后可开启新一轮；历史对象仍可查看。</text>
+          <view class="countdown" wx:if="{{windowActive}}">
+            <text class="countdown-num">{{countdown || '--:--:--'}}</text>
+            <text class="countdown-unit">本轮剩余</text>
+          </view>
+          <view class="limit-row">
+            <text>本轮已匹配 {{windowUsed}}/10 位</text>
+            <text>还可重新匹配 {{windowRemaining}} 次</text>
+          </view>
+          <button class="btn-secondary" bindtap="goHistory">查看历史匹配</button>
+        </block>
+        <block wx:else>
+          <view class="status-orb">✓</view>
+          <text class="status-title">已进入匹配池，等待下一批</text>
+          <text class="status-sub">系统按批次匹配；首次匹配成功后开始 48 小时窗口。</text>
+          <view class="countdown" wx:if="{{windowActive}}">
+            <text class="countdown-num">{{countdown || '--:--:--'}}</text>
+            <text class="countdown-unit">本轮剩余</text>
+          </view>
+          <view class="limit-row">
+            <text>本轮已匹配 {{windowUsed}}/10 位</text>
+            <text>还可重新匹配 {{windowRemaining}} 次</text>
+          </view>
+
+          <view class="signup-card">
+            <view class="signup-head">
+              <image class="signup-avatar" src="{{signup.photoUrl || myAvatar}}" mode="aspectFill"></image>
+              <view class="signup-head-info">
+                <text class="signup-name">{{myNickName}}</text>
+                <text class="signup-meta">{{signup.campus}} · {{signup.grade}}</text>
+              </view>
+            </view>
+            <text class="signup-tags" wx:if="{{signupTagsText}}">{{signupTagsText}}</text>
+            <text class="signup-intro">{{signup.intro}}</text>
+            <text class="signup-expect">期望：{{signupExpectText}}</text>
+          </view>
+
+          <view class="status-actions">
+            <button class="btn-secondary" bindtap="editSignup">修改资料</button>
+            <button class="btn-secondary" bindtap="goHistory">历史匹配</button>
+          </view>
+        </block>
+      </view>
+    </block>
+
+    <block wx:else>
+      <view class="card status-card">
+        <view class="status-orb">♥</view>
+        <text class="status-title">填写资料后进入匹配池</text>
+        <text class="status-sub">系统按批次匹配，随时可以加入。</text>
+        <button class="btn-primary" bindtap="startNewRound">开始匹配</button>
+      </view>
+    </block>
+
+    <view class="card rules-card" wx:if="{{feature.rules}}">
+      <view class="rules-head" bindtap="toggleRules">
+        <text class="rules-title">一周CP规则</text>
+        <text class="rules-toggle">{{showRules ? '收起' : '展开'}}</text>
+      </view>
+      <text class="rules-body" wx:if="{{showRules}}">{{feature.rules}}</text>
+    </view>
+  </block>
+</view>
+
+<view class="loading-page" wx:else>
+  <view class="loading-dot"></view>
+  <text>正在加载一周CP...</text>
+</view>

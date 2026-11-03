@@ -224,7 +224,7 @@ async function main() {
   check(() => {
     const wsIdx = CONTROLLER_SRC.indexOf("wsServer.sendToUser(receiverId, { type: 'private_message', data })")
     // 同样必须锚定调用处：定义在文件前半部分，用它算顺序会得到错误结果
-    const pushIdx = CONTROLLER_SRC.indexOf('subscribeService.pushMessage(receiverId, { senderNick, digest })')
+    const pushIdx = CONTROLLER_SRC.indexOf('subscribeService.pushMessage(receiverId, { senderNick, digest, page: pushPage })')
     assert.ok(wsIdx > -1, 'A1：应保留 WebSocket 实时下发')
     assert.ok(pushIdx > -1, '应存在订阅推送调用')
     assert.ok(wsIdx < pushIdx, 'A1：WebSocket 必须在订阅推送之前无条件执行')

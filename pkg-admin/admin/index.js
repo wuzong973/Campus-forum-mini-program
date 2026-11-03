@@ -588,7 +588,9 @@ Page({
       if (tab === 'posts') await this.loadPosts()
       if (tab === 'content') { await this.loadContent(); this.loadPushGroups() }
       if (tab === 'items') {
-        this.setData({ items: (await admin.items()).list || [] })
+        const items = await admin.items()
+        const list = items && items.list
+        this.setData({ items: Array.isArray(list) ? list : [] })
         this.loadCampusCards()
         this.loadMarketPages()
         this.loadDrivingSchools()
@@ -626,13 +628,19 @@ Page({
   async refreshStats(silent) {
     const seq = (this._statsSeq = (this._statsSeq || 0) + 1)
     try {
-      const stats = await admin.stats()
+      const raw = await admin.stats()
       if (seq !== this._statsSeq) return
+      const stats = raw && typeof raw === 'object' ? Object.assign({}, raw, {
+        users: raw.users && typeof raw.users === 'object' ? raw.users : {},
+        posts: raw.posts && typeof raw.posts === 'object' ? raw.posts : {},
+        errands: raw.errands && typeof raw.errands === 'object' ? raw.errands : {},
+        items: raw.items && typeof raw.items === 'object' ? raw.items : {},
+        recentActions: Array.isArray(raw.recentActions)
+          ? raw.recentActions.map((row) => Object.assign({}, row, describeAudit(row)))
+          : []
+      }) : null
       const d = stats && stats.generatedAt ? new Date(stats.generatedAt) : new Date()
       const stamp = pad2(d.getHours()) + ':' + pad2(d.getMinutes()) + ':' + pad2(d.getSeconds())
-      if (stats && Array.isArray(stats.recentActions)) {
-        stats.recentActions = stats.recentActions.map((row) => Object.assign({}, row, describeAudit(row)))
-      }
       this.setData({ stats, statsUpdatedAt: stamp })
     } catch (e) {
       if (!silent) wx.showToast({ title: (e && e.message) || '统计数据加载失败', icon: 'none' })
@@ -693,13 +701,13 @@ Page({
   async loadPosts() {
     const data = await admin.posts({ status: this.data.postStatus, keyword: this.data.postKeyword, page: 1, pageSize: 50 })
     // checked 标志驱动复选框勾选状态（WXML 不支持方法调用，不能在模板里做 indexOf 判断）
-    const posts = (data.list || []).map((row) => Object.assign({}, row, { checked: false }))
+    const posts = ((data && data.list) || []).map((row) => Object.assign({}, row, { checked: false }))
     this.setData({ posts, selectedPostIds: [] })
   },
 
   async loadReports() {
     const data = await admin.reports({ page: 1, pageSize: 50 })
-    this.setData({ reports: data.list || [] })
+    this.setData({ reports: (data && data.list) || [] })
   },
 
   async updateReport(e) {
@@ -766,7 +774,7 @@ Page({
 
   async loadContent() {
     const data = await admin.content(this.data.contentType)
-    const list = (data.list || []).map((row) => {
+    const list = ((data && data.list) || []).map((row) => {
       if (row.type !== 'tag') return row
       const meta = this.parseContentMeta('tag', row.body)
       return Object.assign({}, row, { tagBg: meta.bgColor, tagFg: meta.textColor })
@@ -875,7 +883,11 @@ Page({
 
   // ===== 找驾校内容管理（「物品」tab；字段与前台卡片一一对应） =====
   async loadDrivingSchools() {
-    try { this.setData({ drivingSchools: (await admin.drivingSchools()).list || [] }) } catch (e) { /* 读取失败保留旧列表 */ }
+    try {
+      const data = await admin.drivingSchools()
+      const list = data && data.list
+      this.setData({ drivingSchools: Array.isArray(list) ? list : [] })
+    } catch (e) { /* 读取失败保留旧列表 */ }
   },
   // 表单/列表行 → 服务端提交体（tags 支持数组或逗号分隔文本）
   buildSchoolPayload(form) {
@@ -1115,7 +1127,7 @@ Page({
         page: targetPage,
         pageSize: 20
       })
-      const list = (data.list || []).map((row) => {
+      const list = ((data && data.list) || []).map((row) => {
         const scope = []
         if (!row.parentId) scope.push(REVIEW_CATEGORY_TEXT[row.category] || row.category)
         if (row.campus) scope.push(row.campus)
@@ -1136,8 +1148,8 @@ Page({
       this.setData({
         reviewTargets: targetPage > 1 ? this.data.reviewTargets.concat(list) : list,
         reviewTargetPage: targetPage,
-        reviewTargetTotal: Number(data.total || 0),
-        reviewTargetHasMore: !!data.hasMore
+        reviewTargetTotal: Number((data && data.total) || 0),
+        reviewTargetHasMore: !!(data && data.hasMore)
       })
     } catch (e) { /* 读取失败保留旧列表 */ } finally {
       this.setData({ reviewTargetLoading: false })
@@ -1185,18 +1197,22 @@ Page({
     try { await admin.restoreReviewTarget(row.id); wx.showToast({ title: '已恢复', icon: 'success' }); this.loadReviewTargets(1) } catch (err) {}
   },
 
-  async loadServices() { const data = await admin.services(); const categories = data.categories || []; this.setData({ services: data.list || [], serviceCategories: categories, serviceCategoryNames: categories.map((c) => c.name) }) },
+  async loadServices() { const data = await admin.services(); const categories = (data && data.categories) || []; this.setData({ services: (data && data.list) || [], serviceCategories: categories, serviceCategoryNames: categories.map((c) => c.name) }) },
   beginServiceCreate() { if (!this.data.serviceCategories.length) { wx.showToast({ title: '请先在配置里添加服务分类', icon: 'none' }); return } wx.navigateTo({ url: '/pkg-admin/admin/edit/index?scope=service' }) },
   beginServiceEdit(e) { const id = Number(e.currentTarget.dataset.id); if (id) wx.navigateTo({ url: '/pkg-admin/admin/edit/index?scope=service&id=' + id }) },
   async toggleService(e) { const row = this.data.services.find((r) => Number(r.id) === Number(e.currentTarget.dataset.id)); if (!row) return; const status = row.status ? 0 : 1; if (!await this.confirm(status ? '上架服务' : '下架服务', `确定${status ? '上架' : '下架'}“${row.name}”吗？`)) return; try { await admin.updateService(row.id, { status }); this.loadServices() } catch (err) {} },
   async deleteService(e) { const row = this.data.services.find((r) => Number(r.id) === Number(e.currentTarget.dataset.id)); if (!row) return; if (!await this.confirm('删除服务', `确定删除服务“${row.name}”吗？该操作不可恢复。`)) return; try { await admin.deleteService(row.id); wx.showToast({ title: '已删除', icon: 'success' }); this.loadServices() } catch (err) {} },
 
   onUserKeyword(e) { this.setData({ userKeyword: e.detail.value }) },
-  async loadUsers() { const data = await admin.users({ keyword: this.data.userKeyword, page: 1, pageSize: 50 }); this.setData({ users: data.list || [] }) },
-  searchUsers() { this.loadUsers() },
+  async loadUsers() {
+    const data = await admin.users({ keyword: this.data.userKeyword, page: 1, pageSize: 50 })
+    const list = data && data.list
+    this.setData({ users: Array.isArray(list) ? list : [] })
+  },
+  searchUsers() { this.loadUsers().catch(() => {}) },
   async loadWithdrawals() {
     const data = await admin.withdrawals({ page: 1, pageSize: 50, status: this.data.withdrawalStatus })
-    const list = (data.list || []).map((row) => {
+    const list = ((data && data.list) || []).map((row) => {
       // last_error 存的是「结论｜处置指引」，列表只显示结论，完整指引在失败弹窗里看
       const raw = String(row.lastError || '')
       return { ...row, lastErrorBrief: raw ? raw.split('｜')[0] : '', statusText: WITHDRAWAL_STATUS_TEXT[row.status] || row.status }
@@ -1207,7 +1223,7 @@ Page({
     this.setData({ withdrawalStatus: String(e.currentTarget.dataset.status || '') })
     this.loadWithdrawals()
   },
-  async loadRiderVerifications() { const data = await admin.riderVerifications({ page: 1, pageSize: 50 }); this.setData({ riderVerifications: data.list || [] }) },
+  async loadRiderVerifications() { const data = await admin.riderVerifications({ page: 1, pageSize: 50 }); this.setData({ riderVerifications: (data && data.list) || [] }) },
 
   // ===== 活动审核子页 =====
   chooseActivityAuditStatus(e) {
@@ -1218,7 +1234,7 @@ Page({
 
   async loadActivityAudits() {
     const data = await admin.activityAudits({ page: 1, pageSize: 50, status: this.data.activityAuditStatus })
-    const list = (data.list || []).map((row) => Object.assign({}, row, {
+    const list = ((data && data.list) || []).map((row) => Object.assign({}, row, {
       auditStatusText: ACTIVITY_AUDIT_STATUS_TEXT[row.auditStatus] || row.auditStatus || '已通过',
       badgeText: ACTIVITY_BADGE_TEXT[row.badge] || '',
       signupImages: Array.isArray(row.signupImages) ? row.signupImages : [],
@@ -1292,14 +1308,14 @@ Page({
       this.loadWithdrawals()
     }
   },
-  async toggleUser(e) { const user = this.data.users.find((row) => Number(row.id) === Number(e.currentTarget.dataset.id)); if (!user) return; const status = user.status ? 0 : 1; if (!await this.confirm(status ? '启用账号' : '禁用账号', `确定${status ? '启用' : '禁用'} ${user.nickName} 吗？`)) return; try { await admin.updateUserStatus(user.id, status); this.loadUsers() } catch (err) {} },
-  changeRole(e) { const id = Number(e.currentTarget.dataset.id); wx.showActionSheet({ itemList: ROLE_SHEET, success: async (res) => { const role = ROLE_OPTIONS[res.tapIndex]; if (!await this.confirm('修改角色', '角色变更会立即改变该账号的管理范围。')) return; try { await admin.updateUserRole(id, role); this.loadUsers() } catch (err) {} } }) },
+  async toggleUser(e) { const user = this.data.users.find((row) => Number(row.id) === Number(e.currentTarget.dataset.id)); if (!user) return; const status = user.status ? 0 : 1; if (!await this.confirm(status ? '启用账号' : '禁用账号', `确定${status ? '启用' : '禁用'} ${user.nickName} 吗？`)) return; try { await admin.updateUserStatus(user.id, status); await this.loadUsers() } catch (err) {} },
+  changeRole(e) { const id = Number(e.currentTarget.dataset.id); wx.showActionSheet({ itemList: ROLE_SHEET, success: async (res) => { const role = ROLE_OPTIONS[res.tapIndex]; if (!await this.confirm('修改角色', '角色变更会立即改变该账号的管理范围。')) return; try { await admin.updateUserRole(id, role); await this.loadUsers() } catch (err) {} } }) },
 
   // ===== 管理员管理 =====
   async loadAdmins() {
     const data = await admin.admins()
     const meId = Number(this.meId || 0)
-    const admins = (data.list || []).map((row) => Object.assign({}, row, { isSelf: Number(row.id) === meId }))
+    const admins = ((data && data.list) || []).map((row) => Object.assign({}, row, { isSelf: Number(row.id) === meId }))
     this.setData({ admins })
   },
 
@@ -1371,11 +1387,11 @@ Page({
     this.setData({ errandLoading: true })
     try {
       const data = await admin.errandOrders({ page: page || 1, pageSize: 20, status: this.data.errandStatus, keyword: this.data.errandKeyword })
-      const list = (data.list || []).map((row) => Object.assign({}, row, formatErrandRow(row)))
+      const list = ((data && data.list) || []).map((row) => Object.assign({}, row, formatErrandRow(row)))
       this.setData({
         errandOrders: (page || 1) <= 1 ? list : this.data.errandOrders.concat(list),
         errandPage: page || 1,
-        errandHasMore: !!data.hasMore
+        errandHasMore: !!(data && data.hasMore)
       })
     } catch (e) {
       wx.showToast({ title: (e && e.message) || '订单流程加载失败', icon: 'none' })
@@ -1398,11 +1414,11 @@ Page({
     this.setData({ runnerLoading: true })
     try {
       const data = await admin.errandRunners({ page: page || 1, pageSize: 20, only: this.data.runnerOnly, keyword: this.data.runnerKeyword })
-      const list = (data.list || []).map((row) => Object.assign({}, row, formatRunnerRow(row)))
+      const list = ((data && data.list) || []).map((row) => Object.assign({}, row, formatRunnerRow(row)))
       this.setData({
         errandRunners: (page || 1) <= 1 ? list : this.data.errandRunners.concat(list),
         runnerPage: page || 1,
-        runnerHasMore: !!data.hasMore
+        runnerHasMore: !!(data && data.hasMore)
       })
     } catch (e) {
       wx.showToast({ title: (e && e.message) || '完成率数据加载失败', icon: 'none' })
@@ -1478,7 +1494,7 @@ Page({
         status: this.data.subscribeLogStatus,
         keyword: this.data.subscribeLogKeyword
       })
-      const list = (data.list || []).map((row) => Object.assign({}, row, {
+      const list = ((data && data.list) || []).map((row) => Object.assign({}, row, {
         // 中文标签由服务端下发（subscribeService 的 TPL_CONFIG 是唯一真源）；老服务端没这字段时回落为原键
         tplLabel: row.tplLabel || row.tplType,
         statusText: SUBSCRIBE_STATUS_TEXT[row.status] || row.status,
@@ -1493,7 +1509,7 @@ Page({
       this.setData({
         subscribeLogs: (page || 1) <= 1 ? list : this.data.subscribeLogs.concat(list),
         subscribeLogPage: page || 1,
-        subscribeLogHasMore: !!data.hasMore,
+        subscribeLogHasMore: !!(data && data.hasMore),
         subscribeQuota: (data.quota || []).map((q) => {
           const users = Number(q.users || 0)
           const remain = Number(q.remain || 0)
@@ -1544,7 +1560,7 @@ Page({
         status: this.data.repairStatus,
         keyword: this.data.repairKeyword
       })
-      const list = (data.list || []).map((row) => Object.assign({}, row, {
+      const list = ((data && data.list) || []).map((row) => Object.assign({}, row, {
         nickName: row.nickName || ('用户 #' + row.userId),
         statusText: REPAIR_STATUS_TEXT[row.status] || row.status,
         statusClass: REPAIR_STATUS_CLASS[row.status] || 'cancelled',
@@ -1558,7 +1574,7 @@ Page({
       this.setData({
         repairOrders: (page || 1) <= 1 ? list : this.data.repairOrders.concat(list),
         repairPage: page || 1,
-        repairHasMore: !!data.hasMore,
+        repairHasMore: !!(data && data.hasMore),
         // 列表刷新后原弹窗里的对象已过期，一并关掉
         repairDetail: null
       })
@@ -1683,7 +1699,7 @@ Page({
   async loadGcCategories() {
     try {
       const data = await admin.groupChatCategories()
-      const list = (data.list || []).map((row) => Object.assign({}, row, {
+      const list = ((data && data.list) || []).map((row) => Object.assign({}, row, {
         statusText: row.status ? '' : '已停用'
       }))
       const names = list.filter((row) => row.status).map((row) => row.name)
@@ -1704,7 +1720,7 @@ Page({
 
   async loadGroupChatApplies() {
     const data = await admin.groupChatApplies({ page: 1, pageSize: 50, status: this.data.groupChatApplyStatus })
-    const list = (data.list || []).map((row) => Object.assign({}, row, {
+    const list = ((data && data.list) || []).map((row) => Object.assign({}, row, {
       statusText: GC_APPLY_STATUS_TEXT[row.status] || row.status,
       images: Array.isArray(row.images) ? row.images : [],
       createdAtText: fmtDateTime(row.createdAt),
@@ -1729,7 +1745,7 @@ Page({
 
   async loadGroupChatGroups() {
     const data = await admin.groupChatGroups({ page: 1, pageSize: 100 })
-    const list = (data.list || []).map((item) => {
+    const list = ((data && data.list) || []).map((item) => {
       const joinMode = JOIN_MODE_OPTIONS.find((opt) => opt.value === (item.joinMode || DEFAULT_JOIN_MODE)) || JOIN_MODE_OPTIONS[0]
       return Object.assign({}, item, {
         joinModeText: joinMode.label,
@@ -1795,7 +1811,7 @@ Page({
   searchActivities() { this.loadActivities() },
   async loadActivities() {
     const data = await admin.activities({ page: 1, pageSize: 50, keyword: this.data.activityKeyword })
-    const list = (data.list || []).map((row) => Object.assign({}, row, {
+    const list = ((data && data.list) || []).map((row) => Object.assign({}, row, {
       badgeText: ACTIVITY_BADGE_TEXT[row.badge] || '',
       createdAtText: fmtDateTime(row.createdAt)
     }))
@@ -1844,7 +1860,7 @@ Page({
     try {
       const data = await admin.activitySignups(id, { page, pageSize: 50, keyword: this.data.activitySignupKeyword })
       if (this.signupSeq !== seq || this.signupActivityId !== id) return
-      const rows = (data.list || []).map((row) => Object.assign({}, row, {
+      const rows = ((data && data.list) || []).map((row) => Object.assign({}, row, {
         signedAtText: fmtDateTime(row.signedAt).slice(0, 16)
       }))
       const prev = reset ? [] : (detail.list || [])
@@ -1852,9 +1868,9 @@ Page({
         activitySignupDetail: {
           activity: data.activity || {},
           list: prev.concat(rows),
-          total: Number(data.total || 0),
+          total: Number((data && data.total) || 0),
           page,
-          hasMore: !!data.hasMore
+          hasMore: !!(data && data.hasMore)
         },
         activitySignupLoading: false
       })
@@ -1903,7 +1919,7 @@ Page({
 
   async loadClubCategories() {
     const data = await admin.clubCategories()
-    const list = (data.list || []).map((row) => Object.assign({}, row, {
+    const list = ((data && data.list) || []).map((row) => Object.assign({}, row, {
       scope: Array.isArray(row.scope) ? row.scope : [],
       features: Array.isArray(row.features) ? row.features : [],
       clubs: Array.isArray(row.clubs) ? row.clubs : []
@@ -1957,7 +1973,7 @@ Page({
     const seq = (this._clubApplySeq = (this._clubApplySeq || 0) + 1)
     const data = await admin.clubApplies({ page: 1, pageSize: 50, status: this.data.clubApplyStatus })
     if (seq !== this._clubApplySeq) return
-    const list = (data.list || []).map((row) => Object.assign({}, row, {
+    const list = ((data && data.list) || []).map((row) => Object.assign({}, row, {
       statusText: CLUB_APPLY_STATUS_TEXT[row.status] || row.status,
       images: Array.isArray(row.images) ? row.images : [],
       createdAtText: fmtDateTime(row.createdAt),
@@ -2047,7 +2063,7 @@ Page({
       await admin.updateCertLabel(userId, certLabel)
       wx.showToast({ title: certLabel ? '认证已设置' : '认证已清除', icon: 'success' })
       this.setData({ showCertModal: false, certUserId: 0, certDraft: '', savingCert: false })
-      this.loadUsers()
+      await this.loadUsers()
     } catch (e) {
       this.setData({ savingCert: false })
     }

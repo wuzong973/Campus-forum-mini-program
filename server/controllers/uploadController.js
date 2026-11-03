@@ -56,6 +56,17 @@ const videoUpload = multer({
   }
 })
 
+// 聊天语音上传：小程序录音器可能报 application/octet-stream，按扩展名兜底，
+// 落盘后再用真实文件头校验，不能只信客户端 MIME。
+const audioUpload = multer({
+  storage,
+  limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    if (/^audio\//.test(file.mimetype) || /\.(mp3|m4a|aac|wav|amr|ogg)$/i.test(file.originalname || '')) cb(null, true)
+    else cb(new Error('Only audio uploads are supported'))
+  }
+})
+
 /**
  * 视频上传每日配额（P02 组合策略的一环）。
  *
@@ -71,8 +82,18 @@ const videoDailyQuota = rateLimit({
   message: `今日视频上传次数已达上限（${VIDEO_DAILY_LIMIT}次），请明天再试`
 })
 
+// 语音单条最长 60 秒，正常体积很小；配额主要用于防止批量上传刷存储。
+const AUDIO_DAILY_LIMIT = Math.max(1, Number(process.env.AUDIO_UPLOAD_DAILY_LIMIT || 100))
+const audioDailyQuota = rateLimit({
+  windowMs: 24 * 60 * 60 * 1000,
+  max: AUDIO_DAILY_LIMIT,
+  keyPrefix: 'audio_upload:',
+  message: `今日语音上传次数已达上限（${AUDIO_DAILY_LIMIT}次），请明天再试`
+})
+
 exports.uploadMiddleware = upload.single('file')
 exports.uploadVideoMiddleware = videoUpload.single('file')
+exports.uploadAudioMiddleware = audioUpload.single('file')
 exports.uploadScheduleImageMiddleware = upload.single('image')
 
 /* ============ 真实文件类型校验（不信任客户端 MIME / 扩展名） ============ */
@@ -105,6 +126,24 @@ const VIDEO_SIGNATURES = [
   { ext: '.avi', mime: 'video/x-msvideo', test: (b) => ascii(b, 0, 4) === 'RIFF' && ascii(b, 8, 11) === 'AVI' },
 ]
 
+const AUDIO_SIGNATURES = [
+  // AAC 原始流（ADTS）：必须先于 MP3 判断，二者都以 0xFF 帧同步开头
+  { ext: '.aac', mime: 'audio/aac', test: (b) => b[0] === 0xff && (b[1] & 0xf6) === 0xf0 },
+  // MP3：ID3 头或 MPEG 帧同步
+  { ext: '.mp3', mime: 'audio/mpeg', test: (b) => ascii(b, 0, 3) === 'ID3' || (b[0] === 0xff && (b[1] & 0xe0) === 0xe0) },
+  // M4A：ISO-BMFF 音频容器（只认纯音频品牌，避免把 mp4 视频伪装成 m4a 上传）
+  { ext: '.m4a', mime: 'audio/mp4', test: (b) => ascii(b, 4, 8) === 'ftyp' && ['M4A ', 'M4B '].indexOf(ascii(b, 8, 12)) >= 0 },
+  { ext: '.wav', mime: 'audio/wav', test: (b) => ascii(b, 0, 4) === 'RIFF' && ascii(b, 8, 12) === 'WAVE' },
+  { ext: '.amr', mime: 'audio/amr', test: (b) => ascii(b, 0, 5) === '#!AMR' },
+  { ext: '.ogg', mime: 'audio/ogg', test: (b) => ascii(b, 0, 4) === 'OggS' },
+]
+
+function signatureTable(kind) {
+  if (kind === 'video') return VIDEO_SIGNATURES
+  if (kind === 'audio') return AUDIO_SIGNATURES
+  return IMAGE_SIGNATURES
+}
+
 function sniffUpload(filePath, table) {
   const fd = fs.openSync(filePath, 'r')
   try {
@@ -123,16 +162,22 @@ function sniffUpload(filePath, table) {
 
 // 校验并归一化：客户端声明的 MIME 族必须与真实文件头一致，落盘扩展名按真实类型改写
 function assertRealFile(file, expectedKind) {
-  const table = expectedKind === 'video' ? VIDEO_SIGNATURES : IMAGE_SIGNATURES
+  const table = signatureTable(expectedKind)
   const detected = sniffUpload(file.path, table)
   if (!detected) {
-    const error = new Error(expectedKind === 'video' ? '视频文件已损坏或格式不支持，请重新录制后上传' : '图片文件已损坏或格式不支持，请重新选择图片')
+    const label = expectedKind === 'video' ? '视频' : expectedKind === 'audio' ? '语音' : '图片'
+    const action = expectedKind === 'image' ? '请重新选择图片' : '请重新录制后上传'
+    const error = new Error(`${label}文件已损坏或格式不支持，${action}`)
     error.status = 400
     error.expose = true
     throw error
   }
   const declared = String(file.mimetype || '')
-  const familyMismatch = expectedKind === 'video' ? !/^video\//.test(declared) : !/^image\//.test(declared)
+  const familyMismatch = expectedKind === 'video'
+    ? !/^video\//.test(declared)
+    : expectedKind === 'audio'
+      ? (!/^audio\//.test(declared) && !/\.(mp3|m4a|aac|wav|amr|ogg)$/i.test(file.originalname || ''))
+      : !/^image\//.test(declared)
   if (familyMismatch) {
     const error = new Error('文件类型与内容不符，请重新选择文件')
     error.status = 400
@@ -345,6 +390,7 @@ exports.uploadImage = async (req, res) => {
 }
 
 exports.videoDailyQuota = videoDailyQuota
+exports.audioDailyQuota = audioDailyQuota
 
 exports.uploadVideo = async (req, res) => {
   if (!req.file) return fail(res, 'No file uploaded')
@@ -356,5 +402,31 @@ exports.uploadVideo = async (req, res) => {
     removeUploadedFile(req.file)
     console.error('[VideoUpload] failed:', error.expose ? error.message : error)
     fail(res, error.expose ? error.message : '视频上传失败，请稍后重试', error.status || 503)
+  }
+}
+
+exports.uploadAudio = async (req, res) => {
+  if (!req.file) return fail(res, 'No file uploaded')
+  try {
+    assertRealFile(req.file, 'audio')
+    const stored = await storeUploadedFile(req.file)
+    // 音频没有同步检测接口；有异步通道就提交，没有则按视频策略放行并记录，
+    // 不能因为内容安全服务未配置就让语音功能整体不可用。
+    const submitted = await mediaCheck.submit({
+      userId: req.userId,
+      mediaUrl: stored.url,
+      objectKey: stored.key,
+      mediaType: 'audio',
+      openid: req.user && req.user.openid,
+      scene: mediaCheck.SCENE_SOCIAL,
+    })
+    if (!submitted.submitted && process.env.NODE_ENV === 'production') {
+      console.warn('[AudioUpload] 异步检测未提交，按视频策略放行:', submitted.reason)
+    }
+    success(res, { url: stored.url })
+  } catch (error) {
+    removeUploadedFile(req.file)
+    console.error('[AudioUpload] failed:', error.expose ? error.message : error)
+    fail(res, error.expose ? error.message : '语音上传失败，请稍后重试', error.status || 503)
   }
 }

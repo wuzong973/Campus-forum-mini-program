@@ -139,7 +139,16 @@ Page({
   },
 
   onLoad(options) {
-    this._enterOptions = options || {}
+    options = options || {}
+    // 一周CP 会话统一走带双方照片与只读控制的专用聊天页；
+    // 从「我的消息」等入口进来时 personaKey=couple:<matchId>，这里直接转过去，
+    // 避免通用私信页在配对结束后仍显示可输入状态。
+    const coupleMatch = /^couple:(\d+)$/.exec(safeDecode(options.personaKey || ''))
+    if (coupleMatch) {
+      wx.redirectTo({ url: '/pkg-feature/pages/couple/chat?matchId=' + coupleMatch[1] })
+      return
+    }
+    this._enterOptions = options
     // 未登录：弹窗引导去登录（取消则退回），登录后回到本页在 onShow 补初始化
     if (!auth.guardPage('使用私信需要先登录')) return
     this._initialized = true

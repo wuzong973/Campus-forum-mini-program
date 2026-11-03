@@ -3,6 +3,7 @@ const { success, fail } = require('../middleware/auth')
 const { clampPageSize, safeMessage } = require('../utils/helpers')
 const wsServer = require('../ws/wsServer')
 const subscribeService = require('../services/subscribeService')
+const coupleService = require('../services/coupleService')
 // 匿名素材池与归一化：白名单校验必须与「服务端生成分身」用的是同一份列表，
 // 否则会出现「发出去的合法形象，自己校验不通过」这类不一致
 const {
@@ -29,6 +30,15 @@ function parseAnonymousIdentity(identity) {
   const normalized = normalizeAnonymousAvatarUrl(raw)
   const avatarUrl = isAnonymousAvatarUrl(normalized) ? normalized : pickAnonymousAvatar(nickName || raw)
   return { nickName, avatarUrl }
+}
+
+// 会话列表/撤回后的最后一条消息文案：富媒体只显示类型标签，不把 URL/JSON 直接暴露给用户
+function messagePreview(type, content, maxLength = 500) {
+  if (type === 'image') return '[图片]'
+  if (type === 'video') return '[视频]'
+  if (type === 'voice') return '[语音]'
+  if (type === 'emoji') return String(content || '').slice(0, maxLength) || '[表情]'
+  return String(content || '').slice(0, maxLength)
 }
 
 // 服务端随机分身池（与客户端 utils/anonymousIdentity.js 同源）：匿名私信发送方无档案时自动生成，保证收信方会话列表/聊天页显示统一的匿名昵称头像
@@ -187,7 +197,7 @@ async function updateConversationPreview(conn, userId, peerId, personaKey = '') 
     [userId, peerId, peerId, userId, persona]
   )
   const message = latest[0]
-  const text = message ? (message.msg_type === 'image' ? '[图片]' : message.content.slice(0, 500)) : ''
+  const text = message ? messagePreview(message.msg_type, message.content) : ''
   const time = message ? message.created_at : null
   await conn.query('UPDATE private_conversation SET last_message_id = ?, last_message_text = ?, last_message_time = ? WHERE (user_id = ? AND peer_id = ? AND persona_key = ?) OR (user_id = ? AND peer_id = ? AND persona_key = ?)', [message ? message.id : null, text, time, userId, peerId, persona, peerId, userId, persona])
 }
@@ -224,6 +234,13 @@ function resolveSenderNick(conversation, senderId) {
 }
 
 async function createPrivateMessage(senderId, receiverId, content, msgType = 'text', anonymousRequested = false, anonymousIdentity = null, personaKey = '', sourcePostId = 0) {
+  // 一周CP 会话：只有「进行中」的配对能发消息；历史配对仅可查看。
+  // personaKey 形如 couple:<matchId>，与普通私信/匿名私信完全隔离。
+  const coupleMatch = /^couple:(\d+)$/.exec(String(personaKey || '').trim())
+  const coupleChat = !!coupleMatch
+  if (coupleChat) {
+    await coupleService.assertCoupleChatAllowed(senderId, receiverId, personaKey)
+  }
   // 拉黑双向拦截：接收方拉黑发送方时拒绝投递，发送方拉黑接收方时提示先解除
   if (await isBlocked(receiverId, senderId)) throw new Error('消息发送失败，对方已将你加入黑名单')
   if (await isBlocked(senderId, receiverId)) throw new Error('你已拉黑对方，请先解除拉黑后再发送')
@@ -241,8 +258,10 @@ async function createPrivateMessage(senderId, receiverId, content, msgType = 'te
   // 会话只要存在匿名侧（即匿名发起方），消息统一走匿名渠道，双方查看/回复都落在同一份记录里
   const channelAnonymous = conversation.isAnonymous || conversation.peerIsAnonymous
   const text = String(content).trim()
-  const type = ['text', 'image', 'emoji', 'video'].includes(msgType) ? msgType : 'text'
-  const lastText = type === 'image' ? '[图片]' : type === 'video' ? '[视频]' : text.slice(0, 500)
+  // voice 仅用于一周CP专用聊天页；普通私信页没有语音渲染，避免把 JSON 当文本展示
+  const supportedTypes = coupleChat ? ['text', 'image', 'emoji', 'video', 'voice'] : ['text', 'image', 'emoji', 'video']
+  const type = supportedTypes.includes(msgType) ? msgType : 'text'
+  const lastText = type === 'image' ? '[图片]' : type === 'video' ? '[视频]' : type === 'voice' ? '[语音]' : text.slice(0, 500)
   const conn = await pool.getConnection()
   let messageId
   try {
@@ -268,9 +287,11 @@ async function createPrivateMessage(senderId, receiverId, content, msgType = 'te
   // 判定用 conversation.isAnonymous（**我这一侧**是否匿名），而不是 channelAnonymous：
   // 会话任一侧匿名时整条会话都走匿名渠道，但普通用户回复匿名发起人时聊天页显示的是
   // 该普通用户的真实昵称，推送文案必须与之一致，否则对方看到的身份对不上。
-  const digest = type === 'image' ? '[图片]' : type === 'video' ? '[视频]' : text.slice(0, 20)
+  const digest = messagePreview(type, text, 20)
+  // 一周CP 的提醒直接打开专用聊天页；普通私信仍落到消息中心
+  const pushPage = coupleChat ? 'pkg-feature/pages/couple/chat?matchId=' + coupleMatch[1] : ''
   resolveSenderNick(conversation, senderId)
-    .then((senderNick) => subscribeService.pushMessage(receiverId, { senderNick, digest }))
+    .then((senderNick) => subscribeService.pushMessage(receiverId, { senderNick, digest, page: pushPage }))
     .catch((e) => console.error('[MessageSubscribe]', e.message))
   return data
 }

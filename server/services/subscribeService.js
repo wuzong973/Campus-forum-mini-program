@@ -603,14 +603,15 @@ function pushCommentReply(userId, { postDigest, actorNick, commentDigest, timeTe
 }
 
 /** 聊天信息提醒（thing2 温馨提示 / thing5 聊天信息 / thing1 发送人 / time3 发送时间） */
-function pushMessage(userId, { senderNick, digest, timeText }) {
+function pushMessage(userId, { senderNick, digest, timeText, page }) {
   return push(userId, 'message', {
     thing2: { value: clip('您有新的聊天消息，请及时回复', 20) },
     thing5: { value: clipOr(digest, 20, '你有一条新消息') },
     thing1: { value: clip(senderNick || '有同学', 20) },
     time3: { value: clip(timeText || nowWxTime(), 32) }
   }, {
-    page: 'pages/my-messages/index',
+    // 普通私信落到消息中心；一周CP 可传入专用聊天页（含 matchId）
+    page: page || 'pages/my-messages/index',
     summary: `${senderNick} 发来私信`
   })
 }

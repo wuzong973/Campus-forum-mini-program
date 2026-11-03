@@ -55,7 +55,7 @@
     <view class="toolbar"><input placeholder="搜索标题、正文或用户" value="{{postKeyword}}" bindinput="onPostKeyword" confirm-type="search" bindconfirm="searchPosts"/><text bindtap="searchPosts">搜索</text></view>
     <scroll-view class="filters" scroll-x="true"><view class="filters-inner"><view class="filter {{postStatus === '' ? 'selected' : ''}}" data-status="" bindtap="choosePostStatus">全部</view><view class="filter {{postStatus === 2 ? 'selected' : ''}}" data-status="2" bindtap="choosePostStatus">待审核</view><view class="filter {{postStatus === 1 ? 'selected' : ''}}" data-status="1" bindtap="choosePostStatus">已发布</view><view class="filter {{postStatus === 3 ? 'selected' : ''}}" data-status="3" bindtap="choosePostStatus">已隐藏</view><view class="filter {{postStatus === 0 ? 'selected' : ''}}" data-status="0" bindtap="choosePostStatus">已删除</view></view></scroll-view>
     <view class="batch-bar"><text>已选 {{selectedPostIds.length}} 项</text><button hover-class="press-spring" size="mini" class="plain-btn spring-btn" bindtap="batchPostAction" hover-stay-time="120">批量操作</button></view>
-    <checkbox-group bindchange="selectPosts"><view wx:for="{{posts}}" wx:key="id" class="list-card post-row anim-stagger" style="--i: {{index < 6 ? index : 0}};"><checkbox value="{{item.id}}" checked="{{item.checked}}" color="#315CFF"/><view class="post-main"><view class="post-user-row"><image wx:if="{{item.avatarUrl}}" class="post-avatar" src="{{item.avatarUrl}}" mode="aspectFill"/><view wx:else class="post-avatar post-avatar-fallback">{{item.nickName ? item.nickName[0] : '同'}}</view><text class="post-nick">{{item.nickName || '未知用户'}}</text><text class="status s{{item.status}}">{{item.status === 1 ? '已发布' : item.status === 2 ? '待审核' : item.status === 3 ? '已隐藏' : '已删除'}}</text></view><text class="post-content">{{item.content}}</text><text class="meta">{{item.category || '未选择主题'}} · 赞 {{item.likeCount || 0}} · 评论 {{item.commentCount || 0}}</text><view class="actions"><text wx:if="{{item.status !== 1}}" data-id="{{item.id}}" data-action="approve" bindtap="doPostAction">通过</text><text wx:if="{{item.status !== 3}}" data-id="{{item.id}}" data-action="hide" bindtap="doPostAction">隐藏</text><text data-id="{{item.id}}" bindtap="beginPostEdit">编辑</text><text data-id="{{item.id}}" data-action="{{item.pinned ? 'unpin' : 'pin'}}" bindtap="doPostAction">{{item.pinned ? '取消置顶' : '置顶'}}</text><text class="danger" data-id="{{item.id}}" data-action="delete" bindtap="doPostAction">删除</text></view></view></view></checkbox-group>
+    <checkbox-group bindchange="selectPosts"><view wx:for="{{posts}}" wx:key="id" class="list-card post-row anim-stagger" style="--i: {{index < 6 ? index : 0}};"><checkbox value="{{item.id}}" checked="{{item.checked}}" color="#315CFF"/><view class="post-main"><view class="post-user-row"><image wx:if="{{item.avatarUrl}}" class="post-avatar" src="{{item.avatarUrl}}" mode="aspectFill"/><view wx:else class="post-avatar post-avatar-fallback">{{item.nickName ? item.nickName[0] : '同'}}</view><text class="post-nick">{{item.nickName || '未知用户'}}</text><text class="status s{{item.status}}">{{item.status === 1 ? '已发布' : item.status === 2 ? '待审核' : item.status === 3 ? '已隐藏' : '已删除'}}</text></view><text class="post-content">{{item.content}}</text><text class="meta">{{item.publisherPhone || '未绑定手机号'}} · {{item.category || '未选择主题'}} · 赞 {{item.likeCount || 0}} · 评论 {{item.commentCount || 0}}</text><view class="actions"><text wx:if="{{item.status !== 1}}" data-id="{{item.id}}" data-action="approve" bindtap="doPostAction">通过</text><text wx:if="{{item.status !== 3}}" data-id="{{item.id}}" data-action="hide" bindtap="doPostAction">隐藏</text><text data-id="{{item.id}}" bindtap="beginPostEdit">编辑</text><text data-id="{{item.id}}" data-action="{{item.pinned ? 'unpin' : 'pin'}}" bindtap="doPostAction">{{item.pinned ? '取消置顶' : '置顶'}}</text><text class="danger" data-id="{{item.id}}" data-action="delete" bindtap="doPostAction">删除</text></view></view></view></checkbox-group>
     <view wx:if="{{!posts.length}}" class="empty">没有符合条件的帖子</view>
   </view>
 
@@ -518,7 +518,7 @@
         <view class="errand-log-head">
           <view class="repair-user">
             <image wx:if="{{item.avatarUrl}}" class="post-avatar" src="{{item.avatarUrl}}" mode="aspectFill"/>
-            <view wx:else class="post-avatar post-avatar-fallback">{{item.nickName[0]}}</view>
+            <view wx:else class="post-avatar post-avatar-fallback">{{item.nickName ? item.nickName[0] : '用'}}</view>
             <view class="repair-user-copy">
               <text class="row-title">{{item.nickName}}</text>
               <text class="row-sub">用户 #{{item.userId}} · {{item.userPhone || '未绑定手机号'}}</text>
@@ -548,13 +548,13 @@
       <view class="errand-detail-users">
         <view class="errand-user-col">
           <image wx:if="{{errandDetail.publisherAvatar}}" class="post-avatar" src="{{errandDetail.publisherAvatar}}" mode="aspectFill"/>
-          <view wx:else class="post-avatar post-avatar-fallback">{{errandDetail.publisherName[0]}}</view>
+          <view wx:else class="post-avatar post-avatar-fallback">{{errandDetail.publisherName ? errandDetail.publisherName[0] : '发'}}</view>
           <text class="errand-user-name">发单：{{errandDetail.publisherName}}</text>
           <text class="errand-user-sub">{{errandDetail.publisherPhone}}</text>
         </view>
         <view class="errand-user-col">
           <image wx:if="{{errandDetail.acceptorAvatar}}" class="post-avatar" src="{{errandDetail.acceptorAvatar}}" mode="aspectFill"/>
-          <view wx:elif="{{errandDetail.acceptorName}}" class="post-avatar post-avatar-fallback">{{errandDetail.acceptorName[0]}}</view>
+          <view wx:elif="{{errandDetail.acceptorName}}" class="post-avatar post-avatar-fallback">{{errandDetail.acceptorName ? errandDetail.acceptorName[0] : '接'}}</view>
           <view wx:else class="post-avatar post-avatar-fallback">?</view>
           <text class="errand-user-name">接单：{{errandDetail.acceptorName || '暂无人接单'}}</text>
           <text class="errand-user-sub" wx:if="{{errandDetail.acceptorName}}">{{errandDetail.acceptorPhone}}</text>
@@ -616,7 +616,7 @@
       <view class="errand-detail-users">
         <view class="errand-user-col">
           <image wx:if="{{repairDetail.avatarUrl}}" class="post-avatar" src="{{repairDetail.avatarUrl}}" mode="aspectFill"/>
-          <view wx:else class="post-avatar post-avatar-fallback">{{repairDetail.nickName[0]}}</view>
+          <view wx:else class="post-avatar post-avatar-fallback">{{repairDetail.nickName ? repairDetail.nickName[0] : '用'}}</view>
           <text class="errand-user-name">{{repairDetail.nickName}}</text>
           <text class="errand-user-sub">用户 #{{repairDetail.userId}}</text>
           <text class="errand-user-sub">{{repairDetail.userPhone || '未绑定手机号'}}</text>

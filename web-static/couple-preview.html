@@ -1,0 +1,1989 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>一周CP · 独立预览</title>
+<style>
+  :root {
+    --primary: #315CFF;
+    --primary-dark: #2448D8;
+    --rose: #FF4D72;
+    --rose-deep: #E53E62;
+    --rose-soft: #FFF0F3;
+    --violet: #7A5CFF;
+    --ink: #1F2B43;
+    --text: #323233;
+    --secondary: #646566;
+    --tertiary: #969799;
+    --line: #EBEDF0;
+    --bg: #F4F6FA;
+    --card: #FFFFFF;
+    --success: #12B8A6;
+    --warning: #FAAD14;
+    --shadow-sm: 0 2px 10px rgba(28, 43, 86, 0.04);
+    --shadow: 0 8px 24px rgba(28, 43, 86, 0.07);
+    --shadow-lg: 0 18px 48px rgba(28, 43, 86, 0.14);
+    --radius: 18px;
+    --radius-lg: 24px;
+    --ease: cubic-bezier(0.2, 0, 0, 1);
+  }
+
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", "Microsoft YaHei", sans-serif;
+    color: var(--text);
+    background:
+      radial-gradient(900px 600px at 8% 4%, rgba(255, 122, 154, 0.16), transparent 60%),
+      radial-gradient(800px 700px at 92% 88%, rgba(49, 92, 255, 0.12), transparent 62%),
+      #EEF1F7;
+    min-height: 100vh;
+  }
+
+  button, input, textarea { font: inherit; }
+  button { cursor: pointer; }
+  [hidden] { display: none !important; }
+
+  .stage {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 64px;
+    padding: 48px 32px;
+  }
+
+  /* ===== 左侧评审面板 ===== */
+  .review-panel {
+    width: 340px;
+    flex-shrink: 0;
+    max-height: calc(100vh - 96px);
+    overflow-y: auto;
+    padding-right: 4px;
+    scrollbar-width: none;
+  }
+  .review-panel::-webkit-scrollbar { display: none; }
+  .brand-row { display: flex; align-items: center; gap: 10px; margin-bottom: 22px; }
+  .brand-mark {
+    width: 36px; height: 36px; border-radius: 12px;
+    background: linear-gradient(135deg, var(--rose), var(--violet));
+    display: grid; place-items: center; color: #fff; font-size: 16px; font-weight: 800;
+    box-shadow: 0 8px 18px rgba(255, 77, 114, 0.28);
+  }
+  .brand-name { font-size: 15px; font-weight: 700; color: var(--ink); letter-spacing: .2px; }
+  .brand-sub { font-size: 12px; color: var(--tertiary); margin-top: 2px; }
+  .panel-kicker {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 11px; font-weight: 700; letter-spacing: .8px;
+    color: var(--rose-deep); background: var(--rose-soft);
+    padding: 6px 10px; border-radius: 999px; margin-bottom: 12px;
+  }
+  .panel-title { font-size: 28px; line-height: 1.2; margin: 0 0 10px; color: var(--ink); letter-spacing: -.5px; }
+  .panel-desc { font-size: 13px; line-height: 1.7; color: var(--secondary); margin: 0 0 22px; }
+  .panel-label { font-size: 11px; font-weight: 700; letter-spacing: .8px; color: var(--tertiary); text-transform: uppercase; margin: 0 0 10px; }
+  .state-switch { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 24px; }
+  .state-switch button {
+    border: 1px solid rgba(31, 43, 67, 0.08);
+    background: rgba(255, 255, 255, 0.7);
+    border-radius: 12px; padding: 10px 12px; text-align: left;
+    font-size: 13px; font-weight: 600; color: var(--secondary);
+    transition: all .2s var(--ease);
+  }
+  .state-switch button span { display: block; font-size: 10px; font-weight: 500; color: var(--tertiary); margin-top: 2px; }
+  .state-switch button:hover { background: #fff; border-color: rgba(255, 77, 114, 0.28); color: var(--ink); transform: translateY(-1px); }
+  .state-switch button.active {
+    background: var(--ink); border-color: var(--ink); color: #fff;
+    box-shadow: 0 10px 20px rgba(31, 43, 67, 0.16);
+  }
+  .state-switch button.active span { color: rgba(255,255,255,.62); }
+  .state-switch button.wide { grid-column: 1 / -1; }
+  .check-list { margin: 0; padding: 0; list-style: none; display: grid; gap: 9px; }
+  .check-list li { display: flex; gap: 9px; font-size: 12.5px; line-height: 1.55; color: var(--secondary); }
+  .check-list li::before {
+    content: ""; width: 16px; height: 16px; border-radius: 50%; flex-shrink: 0; margin-top: 2px;
+    background: linear-gradient(135deg, rgba(18,184,166,.18), rgba(18,184,166,.06));
+    border: 1px solid rgba(18,184,166,.35);
+  }
+  .check-list li.done::before {
+    content: "✓"; display: grid; place-items: center;
+    color: var(--success); font-size: 10px; font-weight: 800;
+    background: rgba(18,184,166,.1);
+  }
+  .panel-divider { height: 1px; background: rgba(31,43,67,.08); margin: 22px 0; }
+  .panel-foot { font-size: 11px; color: var(--tertiary); line-height: 1.6; }
+
+  /* ===== 手机外壳 ===== */
+  .device-wrap { display: flex; flex-direction: column; align-items: center; gap: 16px; }
+  .device {
+    width: 390px; height: 844px; flex-shrink: 0;
+    background: #fff; border-radius: 46px;
+    border: 9px solid #0E1420;
+    box-shadow: 0 40px 90px rgba(15, 23, 42, 0.28), 0 4px 14px rgba(15, 23, 42, 0.14);
+    position: relative; overflow: hidden;
+  }
+  .device::after {
+    content: ""; position: absolute; top: 12px; left: 50%; transform: translateX(-50%);
+    width: 104px; height: 26px; background: #0E1420; border-radius: 999px; z-index: 20;
+  }
+  .statusbar {
+    height: 46px; padding: 14px 26px 0; display: flex; align-items: center; justify-content: space-between;
+    font-size: 12px; font-weight: 700; color: var(--ink); position: relative; z-index: 21;
+  }
+  .statusbar .icons { display: flex; gap: 5px; align-items: center; }
+  .statusbar .icons span { display: block; width: 15px; height: 9px; border-radius: 2px; background: currentColor; opacity: .85; }
+  .statusbar .icons span:nth-child(2) { width: 12px; opacity: .65; }
+  .statusbar .icons span:nth-child(3) { width: 20px; opacity: .8; }
+
+  .navbar {
+    height: 44px; padding: 0 16px; display: flex; align-items: center; justify-content: space-between;
+    position: relative; z-index: 19; background: #fff;
+  }
+  .nav-btn {
+    width: 34px; height: 34px; border: none; background: transparent; border-radius: 50%;
+    display: grid; place-items: center; color: var(--ink);
+  }
+  .nav-btn:hover { background: #F3F5F9; }
+  .nav-title { font-size: 16px; font-weight: 700; color: var(--ink); letter-spacing: .2px; }
+  .nav-actions { display: flex; gap: 2px; }
+
+  .screen { position: absolute; top: 90px; left: 0; right: 0; bottom: 0; background: var(--bg); }
+  .state { position: absolute; inset: 0; display: none; flex-direction: column; background: var(--bg); }
+  .state.active { display: flex; animation: stateIn .32s var(--ease); }
+  @keyframes stateIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+  .state-body { flex: 1; overflow-y: auto; padding: 14px 16px 18px; scrollbar-width: none; }
+  .state-body::-webkit-scrollbar { display: none; }
+  .state-footer {
+    flex-shrink: 0; padding: 10px 16px 18px;
+    background: linear-gradient(to top, #F4F6FA 72%, rgba(244, 246, 250, 0.88));
+  }
+
+  /* ===== 通用组件 ===== */
+  .card {
+    background: var(--card); border-radius: var(--radius);
+    border: 1px solid rgba(235, 237, 240, 0.9);
+    box-shadow: var(--shadow-sm);
+  }
+  .section-head { display: flex; align-items: baseline; justify-content: space-between; margin: 20px 4px 10px; }
+  .section-title { font-size: 15px; font-weight: 800; color: var(--ink); letter-spacing: .1px; }
+  .section-note { font-size: 11px; color: var(--tertiary); }
+  .field { margin-bottom: 17px; }
+  .field:last-child { margin-bottom: 0; }
+  .field-label { display: flex; align-items: center; justify-content: space-between; font-size: 13px; font-weight: 700; color: #3F4B60; margin-bottom: 9px; }
+  .field-hint { font-size: 11px; font-weight: 500; color: var(--tertiary); }
+  .req { color: var(--rose); margin-left: 3px; }
+
+  .seg { display: flex; padding: 4px; gap: 4px; background: #EFF2F7; border-radius: 14px; }
+  .seg button {
+    flex: 1; border: none; background: transparent; color: #5B677A;
+    padding: 9px 6px; border-radius: 11px; font-size: 13px; font-weight: 600;
+    transition: all .18s var(--ease);
+  }
+  .seg button.active { background: #fff; color: var(--rose-deep); box-shadow: 0 3px 10px rgba(31,43,67,.08); }
+  .seg button:active { transform: scale(.98); }
+
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip {
+    border: 1px solid #E5E9F1; background: #fff; color: #536074;
+    border-radius: 999px; padding: 8px 12px; font-size: 12.5px; font-weight: 500;
+    transition: all .16s var(--ease);
+  }
+  .chip:hover { border-color: #FFB7C6; color: var(--rose-deep); }
+  .chip.active {
+    border-color: #FFA4B8; background: var(--rose-soft); color: var(--rose-deep);
+    font-weight: 700; box-shadow: 0 4px 12px rgba(255, 77, 114, 0.1);
+  }
+  .chip:active { transform: scale(.97); }
+
+  .textarea-wrap { position: relative; }
+  .textarea {
+    width: 100%; min-height: 86px; resize: none; border: 1px solid #E5E9F1; border-radius: 14px;
+    padding: 12px 13px 26px; font-size: 13px; line-height: 1.65; color: var(--text);
+    background: #FBFCFE; outline: none; transition: all .18s var(--ease);
+  }
+  .textarea:focus { border-color: #FFA4B8; background: #fff; box-shadow: 0 0 0 3px rgba(255, 77, 114, 0.08); }
+  .textarea::placeholder { color: #B3BBC8; }
+  .counter { position: absolute; right: 12px; bottom: 9px; font-size: 10.5px; color: #A6AEBC; }
+
+  .notice {
+    margin-top: 16px; display: flex; gap: 9px; padding: 12px 13px;
+    background: #FFF8FA; border: 1px solid #FFE2E9; border-radius: 14px;
+    font-size: 11.5px; line-height: 1.6; color: #9D4A5F;
+  }
+  .notice-icon {
+    width: 17px; height: 17px; border-radius: 50%; flex-shrink: 0; margin-top: 1px;
+    background: rgba(255, 77, 114, 0.14); color: var(--rose-deep);
+    display: grid; place-items: center; font-size: 10px; font-weight: 800;
+  }
+  .consent { display: flex; align-items: flex-start; gap: 8px; margin-top: 14px; font-size: 11.5px; line-height: 1.55; color: #7C879A; }
+  .consent button {
+    width: 17px; height: 17px; flex-shrink: 0; margin-top: 1px; padding: 0;
+    border: 1.5px solid #C9D0DB; border-radius: 6px; background: #fff; color: transparent;
+    display: grid; place-items: center; font-size: 11px; font-weight: 800; transition: all .16s var(--ease);
+  }
+  .consent button.on { background: var(--rose); border-color: var(--rose); color: #fff; }
+  .consent a { color: var(--rose-deep); text-decoration: none; font-weight: 600; }
+
+  .btn {
+    width: 100%; border: none; border-radius: 999px; padding: 14px 18px;
+    font-size: 15px; font-weight: 800; letter-spacing: .2px;
+    transition: all .18s var(--ease);
+  }
+  .btn:active { transform: scale(.985); }
+  .btn-primary {
+    color: #fff; background: linear-gradient(135deg, #FF7A9A 0%, #FF4D72 58%, #F03D63 100%);
+    box-shadow: 0 12px 24px rgba(255, 77, 114, 0.28);
+  }
+  .btn-primary:hover { box-shadow: 0 16px 30px rgba(255, 77, 114, 0.34); transform: translateY(-1px); }
+  .btn-ghost {
+    color: var(--rose-deep); background: #fff; border: 1px solid #FFC6D2;
+    box-shadow: 0 4px 12px rgba(255, 77, 114, 0.06);
+  }
+  .btn-soft { color: var(--ink); background: #fff; border: 1px solid var(--line); }
+  .footer-note { text-align: center; font-size: 10.5px; color: #98A2B3; margin-top: 8px; }
+
+  /* ===== 报名页 Hero ===== */
+  .hero {
+    position: relative; overflow: hidden; border-radius: 24px; padding: 19px 18px 17px;
+    color: #fff;
+    background:
+      radial-gradient(160px 120px at 86% 12%, rgba(255,255,255,.24), transparent 68%),
+      radial-gradient(180px 160px at 10% 105%, rgba(122,92,255,.55), transparent 64%),
+      linear-gradient(135deg, #FF8BA5 0%, #FF5E7D 42%, #B14DFF 100%);
+    box-shadow: 0 18px 38px rgba(255, 77, 114, 0.24);
+  }
+  .hero::before, .hero::after {
+    content: "♥"; position: absolute; color: rgba(255,255,255,.16); font-size: 44px; pointer-events: none;
+  }
+  .hero::before { right: 18px; top: 58px; transform: rotate(12deg); }
+  .hero::after { right: 64px; top: 14px; font-size: 20px; transform: rotate(-14deg); }
+  .hero-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  .hero-badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-size: 10.5px; font-weight: 700; letter-spacing: .3px;
+    padding: 5px 9px; border-radius: 999px;
+    background: rgba(255,255,255,.18); border: 1px solid rgba(255,255,255,.26);
+    backdrop-filter: blur(6px);
+  }
+  .hero-badge .dot { width: 5px; height: 5px; border-radius: 50%; background: #B5FFE9; box-shadow: 0 0 0 3px rgba(181,255,233,.16); }
+  .hero-deadline { font-size: 10.5px; color: rgba(255,255,255,.8); }
+  .hero-title { font-size: 34px; font-weight: 900; line-height: 1.1; letter-spacing: -1px; margin: 14px 0 7px; }
+  .hero-title em { font-style: normal; color: #FFF1A8; }
+  .hero-sub { font-size: 12.5px; line-height: 1.6; color: rgba(255,255,255,.86); max-width: 230px; }
+  .hero-meta { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 13px; }
+  .hero-meta span {
+    font-size: 10.5px; padding: 5px 8px; border-radius: 8px;
+    background: rgba(255,255,255,.14); border: 1px solid rgba(255,255,255,.18);
+  }
+  .hero-stats { display: flex; align-items: center; gap: 10px; margin-top: 17px; }
+  .avatar-stack { display: flex; padding-left: 2px; }
+  .mini-avatar {
+    width: 27px; height: 27px; border-radius: 50%; border: 2px solid rgba(255,255,255,.9);
+    margin-left: -8px; display: grid; place-items: center;
+    font-size: 10px; font-weight: 800; color: #fff;
+    background: linear-gradient(135deg, #FFD1A8, #FF9D76);
+  }
+  .mini-avatar:nth-child(1) { margin-left: 0; background: linear-gradient(135deg, #FFD1A8, #FF9D76); }
+  .mini-avatar:nth-child(2) { background: linear-gradient(135deg, #9FD8FF, #6AA8FF); }
+  .mini-avatar:nth-child(3) { background: linear-gradient(135deg, #D6C4FF, #A98BFF); }
+  .mini-avatar:nth-child(4) { background: linear-gradient(135deg, #B7F0DD, #65D6B4); }
+  .hero-stat-text { font-size: 11px; color: rgba(255,255,255,.9); line-height: 1.35; }
+  .hero-stat-text strong { font-size: 15px; font-weight: 900; color: #fff; margin-right: 3px; }
+  .progress {
+    height: 6px; border-radius: 999px; background: rgba(255,255,255,.2);
+    overflow: hidden; margin-top: 12px;
+  }
+  .progress i { display: block; height: 100%; width: 0; border-radius: inherit; background: linear-gradient(90deg, #FFF1A8, #FFFFFF); transition: width 1.1s var(--ease); }
+  .progress-meta { display: flex; justify-content: space-between; margin-top: 6px; font-size: 10px; color: rgba(255,255,255,.72); }
+
+  /* ===== 等待页 ===== */
+  .wait-hero { text-align: center; padding: 26px 16px 20px; }
+  .success-orb {
+    width: 78px; height: 78px; margin: 0 auto 16px; border-radius: 50%;
+    display: grid; place-items: center; position: relative;
+    background: linear-gradient(135deg, #FF8BA5, #FF4D72);
+    box-shadow: 0 16px 34px rgba(255, 77, 114, 0.28);
+  }
+  .success-orb::before, .success-orb::after {
+    content: ""; position: absolute; inset: -9px; border-radius: 50%;
+    border: 1px solid rgba(255, 77, 114, .18);
+  }
+  .success-orb::after { inset: -18px; border-color: rgba(255, 77, 114, .09); }
+  .success-orb svg { width: 32px; height: 32px; }
+  .wait-title { font-size: 21px; font-weight: 900; color: var(--ink); letter-spacing: -.2px; margin-bottom: 6px; }
+  .wait-sub { font-size: 12.5px; color: var(--secondary); line-height: 1.65; max-width: 270px; margin: 0 auto; }
+  .countdown-card { margin-top: 20px; padding: 17px 18px; border-radius: 20px; color: #fff; background: linear-gradient(135deg, #2C3550, #171E2D); box-shadow: 0 16px 32px rgba(23, 30, 45, .22); }
+  .countdown-label { font-size: 11px; letter-spacing: .5px; color: rgba(255,255,255,.58); display: flex; justify-content: space-between; }
+  .countdown-label b { color: #FFF1A8; font-weight: 700; }
+  .countdown { display: flex; align-items: flex-end; gap: 8px; margin-top: 10px; }
+  .countdown .num { font-size: 27px; font-weight: 900; font-variant-numeric: tabular-nums; letter-spacing: -.5px; }
+  .countdown .unit { font-size: 10px; color: rgba(255,255,255,.55); margin-bottom: 5px; }
+  .countdown .sep { font-size: 18px; color: rgba(255,255,255,.3); margin-bottom: 3px; }
+  .steps { margin-top: 20px; padding: 16px 16px 8px; }
+  .step { display: flex; gap: 12px; position: relative; padding-bottom: 18px; }
+  .step:last-child { padding-bottom: 0; }
+  .step::before { content: ""; position: absolute; left: 9px; top: 22px; bottom: 0; width: 1px; background: #E9EDF3; }
+  .step:last-child::before { display: none; }
+  .step-dot {
+    width: 19px; height: 19px; border-radius: 50%; flex-shrink: 0; z-index: 1;
+    display: grid; place-items: center; font-size: 9px; font-weight: 800;
+    background: #EEF1F6; color: #9AA5B5; border: 1px solid #E2E7EF;
+  }
+  .step.done .step-dot { background: var(--success); border-color: var(--success); color: #fff; }
+  .step.active .step-dot { background: var(--rose); border-color: var(--rose); color: #fff; box-shadow: 0 0 0 4px rgba(255,77,114,.12); }
+  .step-main { flex: 1; padding-top: 1px; }
+  .step-title { font-size: 13px; font-weight: 700; color: var(--ink); }
+  .step-desc { font-size: 11.5px; color: var(--tertiary); line-height: 1.5; margin-top: 2px; }
+  .step.active .step-title { color: var(--rose-deep); }
+  .wait-card { padding: 16px; margin-top: 14px; }
+  .wait-card-head { display: flex; align-items: center; gap: 10px; }
+  .profile-avatar { width: 46px; height: 46px; border-radius: 50%; flex-shrink: 0; overflow: hidden; background: #EEF2F8; }
+  .profile-avatar svg, .profile-avatar img { width: 100%; height: 100%; display: block; object-fit: cover; }
+  .wait-name { font-size: 14px; font-weight: 800; color: var(--ink); }
+  .wait-meta { font-size: 11px; color: var(--tertiary); margin-top: 2px; }
+  .wait-tags { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 11px; }
+  .wait-tag { font-size: 10.5px; padding: 4px 8px; border-radius: 999px; background: #F1F4FA; color: #5A667A; }
+  .wait-bio { margin-top: 10px; font-size: 12px; color: var(--secondary); line-height: 1.65; padding: 10px 12px; background: #FAFBFD; border-radius: 11px; }
+  .wait-expect { margin-top: 8px; font-size: 10.5px; line-height: 1.5; color: #9AA5B5; }
+  .wait-actions { display: flex; gap: 8px; margin-top: 12px; }
+  .wait-actions button { flex: 1; padding: 10px; border-radius: 11px; font-size: 12px; font-weight: 700; }
+  .wait-actions .edit { border: 1px solid var(--line); background: #fff; color: var(--secondary); }
+  .wait-actions .invite { border: none; background: var(--rose-soft); color: var(--rose-deep); }
+
+  /* ===== 结果页 ===== */
+  .result-banner {
+    position: relative; overflow: hidden; border-radius: 22px; padding: 17px 17px 15px;
+    color: #fff; text-align: center;
+    background:
+      radial-gradient(150px 120px at 86% 6%, rgba(255,255,255,.22), transparent 66%),
+      linear-gradient(135deg, #FF8BA5 0%, #FF4D72 46%, #8C4DFF 100%);
+    box-shadow: 0 18px 38px rgba(255, 77, 114, 0.24);
+  }
+  .result-banner::before {
+    content: ""; position: absolute; inset: 0;
+    background-image: radial-gradient(rgba(255,255,255,.28) 1px, transparent 1px);
+    background-size: 14px 14px; opacity: .18;
+  }
+  .result-kicker { position: relative; font-size: 10.5px; letter-spacing: 1.4px; font-weight: 700; color: rgba(255,255,255,.78); }
+  .result-title { position: relative; font-size: 24px; font-weight: 900; letter-spacing: -.4px; margin: 6px 0 4px; }
+  .result-sub { position: relative; font-size: 11.5px; color: rgba(255,255,255,.84); }
+  .pair-card { margin-top: -12px; position: relative; z-index: 2; padding: 16px 14px 14px; border-radius: 22px; background: #fff; box-shadow: var(--shadow-lg); }
+  .pair-row { display: flex; align-items: center; justify-content: center; gap: 3px; }
+  .pair-person { flex: 1; text-align: center; min-width: 0; }
+  .pair-avatar-wrap { position: relative; width: 70px; height: 70px; margin: 0 auto 9px; }
+  .pair-avatar {
+    width: 70px; height: 70px; border-radius: 50%; overflow: hidden;
+    border: 3px solid #fff; box-shadow: 0 8px 20px rgba(31,43,67,.14); background: #EEF2F8;
+  }
+  .pair-avatar svg, .pair-avatar img { width: 100%; height: 100%; display: block; object-fit: cover; }
+  .pair-badge {
+    position: absolute; right: -3px; bottom: 1px; width: 22px; height: 22px; border-radius: 50%;
+    display: grid; place-items: center; font-size: 10px; color: #fff;
+    background: linear-gradient(135deg, #FF8BA5, #FF4D72); border: 2px solid #fff;
+  }
+  .pair-name { font-size: 14px; font-weight: 800; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .pair-meta { font-size: 10.5px; color: var(--tertiary); margin-top: 2px; }
+  .pair-link { width: 48px; flex-shrink: 0; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+  .pair-link .heart-line { width: 34px; height: 1px; background: linear-gradient(90deg, transparent, #FFB3C2, transparent); }
+  .pair-link .heart { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; color: #fff; font-size: 14px; background: linear-gradient(135deg, #FF8BA5, #FF4D72); box-shadow: 0 6px 14px rgba(255,77,114,.24); }
+  .score-row { display: flex; align-items: center; justify-content: center; gap: 10px; margin-top: 12px; padding-top: 12px; border-top: 1px dashed #EEF1F6; }
+  .score-ring { position: relative; width: 54px; height: 54px; flex-shrink: 0; }
+  .score-ring svg { transform: rotate(-90deg); width: 54px; height: 54px; }
+  .score-ring .track { fill: none; stroke: #F0F2F7; stroke-width: 5; }
+  .score-ring .bar { fill: none; stroke: url(#scoreGrad); stroke-width: 5; stroke-linecap: round; stroke-dasharray: 138.2; stroke-dashoffset: 138.2; transition: stroke-dashoffset 1.2s var(--ease) .15s; }
+  .score-ring.animate .bar { stroke-dashoffset: var(--score-offset, 11); }
+  .score-num { position: absolute; inset: 0; display: grid; place-items: center; font-size: 15px; font-weight: 900; color: var(--rose-deep); }
+  .score-text { text-align: left; }
+  .score-text b { display: block; font-size: 13px; color: var(--ink); }
+  .score-text span { font-size: 10.5px; color: var(--tertiary); line-height: 1.5; }
+  .common-title { font-size: 11px; font-weight: 700; color: var(--tertiary); letter-spacing: .4px; margin: 12px 2px 8px; }
+  .common-tags { display: flex; flex-wrap: wrap; gap: 7px; }
+  .common-tag { font-size: 11.5px; padding: 7px 11px; border-radius: 999px; color: var(--rose-deep); background: var(--rose-soft); border: 1px solid #FFDCE3; font-weight: 600; }
+  .prompt-card { padding: 13px 14px 10px; margin-top: 12px; }
+  .prompt-head { display: flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 800; color: var(--ink); margin-bottom: 9px; }
+  .prompt-head span { width: 19px; height: 19px; border-radius: 7px; display: grid; place-items: center; background: #FFF4E8; color: #E58A2B; font-size: 10px; }
+  .prompt-item { display: flex; gap: 8px; font-size: 12px; line-height: 1.55; color: var(--secondary); padding: 4px 0; }
+  .prompt-item i { font-style: normal; color: #C2C9D4; font-weight: 700; }
+  .safety-note { margin-top: 12px; padding: 11px 12px; border-radius: 14px; background: #F7F9FC; border: 1px solid #EDF1F6; font-size: 11px; line-height: 1.6; color: #7A8699; }
+  .safety-note b { color: #5B677A; }
+  .result-footer { display: flex; flex-direction: column; gap: 9px; }
+  .link-btn { border: none; background: transparent; color: var(--tertiary); font-size: 11.5px; font-weight: 600; padding: 2px; }
+  .link-btn:hover { color: var(--secondary); }
+
+  /* ===== 身高区间 ===== */
+  .range-row { display: flex; align-items: center; gap: 8px; }
+  .range-box {
+    flex: 1; min-width: 0; display: flex; align-items: center; justify-content: space-between; gap: 6px;
+    border: 1px solid #E5E9F1; background: #FBFCFE; border-radius: 13px; padding: 10px 11px;
+    transition: border-color .16s var(--ease), box-shadow .16s var(--ease);
+  }
+  .range-box:focus-within { border-color: #FFA4B8; background: #fff; box-shadow: 0 0 0 3px rgba(255,77,114,.06); }
+  .range-box span { font-size: 10.5px; color: var(--tertiary); flex-shrink: 0; }
+  .range-box select {
+    flex: 1; min-width: 0; border: none; background: transparent; outline: none;
+    font-size: 13px; font-weight: 800; color: var(--ink); text-align: right; cursor: pointer;
+  }
+  .range-dash { font-size: 12px; color: #B8C0CC; }
+  .range-row.is-disabled { opacity: .42; pointer-events: none; }
+  .height-unlimited { margin-top: 9px; }
+  .height-unlimited.active { border-color: #C9D0DB; background: #F1F3F8; color: #6B7687; box-shadow: none; }
+
+  /* ===== MBTI ===== */
+  .mbti-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+  .mbti-grid .chip { padding: 7px 3px; font-size: 11px; border-radius: 10px; text-align: center; }
+  .mbti-grid .chip--any { grid-column: 1 / -1; }
+
+  /* ===== 照片上传 ===== */
+  .photo-upload {
+    position: relative; min-height: 136px; display: flex; align-items: center; justify-content: center;
+    border: 1.5px dashed #FFC6D2; border-radius: 16px; background: #FFF9FB; overflow: hidden;
+  }
+  .photo-empty { width: 100%; padding: 18px; text-align: center; cursor: pointer; }
+  .photo-plus {
+    width: 38px; height: 38px; margin: 0 auto 8px; border-radius: 50%;
+    display: grid; place-items: center; background: #FFF0F3; color: var(--rose-deep);
+    font-size: 22px; font-weight: 400; line-height: 1;
+  }
+  .photo-empty b { display: block; font-size: 12.5px; color: var(--ink); }
+  .photo-empty span { display: block; margin-top: 4px; font-size: 10.5px; color: var(--tertiary); }
+  .photo-preview { position: relative; width: 100%; height: 180px; }
+  .photo-preview img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .photo-remove {
+    position: absolute; top: 8px; right: 8px; border: none;
+    background: rgba(23,30,45,.72); color: #fff; font-size: 10.5px; font-weight: 700;
+    padding: 6px 10px; border-radius: 999px;
+  }
+  .photo-actions { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 8px; font-size: 10.5px; color: var(--tertiary); }
+  .photo-actions button { border: none; background: transparent; color: var(--rose-deep); font-size: 11px; font-weight: 700; padding: 0; }
+
+  /* ===== 聊天 ===== */
+  .chat-match-strip { padding: 14px 16px 12px; text-align: center; background: linear-gradient(180deg, #fff, #FFF8FA); }
+  .chat-match-label { font-size: 9.5px; letter-spacing: 1.2px; font-weight: 800; color: var(--rose-deep); }
+  .chat-match-people { display: flex; align-items: center; justify-content: center; gap: 13px; margin-top: 10px; }
+  .chat-match-person { display: flex; flex-direction: column; align-items: center; gap: 5px; font-size: 10.5px; color: var(--tertiary); }
+  .chat-photo { width: 52px; height: 52px; border-radius: 50%; overflow: hidden; border: 2px solid #fff; box-shadow: 0 6px 14px rgba(31,43,67,.14); background: #EEF2F8; }
+  .chat-photo img, .chat-photo svg { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .chat-match-heart { color: var(--rose); font-size: 17px; text-shadow: 0 4px 10px rgba(255,77,114,.2); }
+  .chat-match-note { margin-top: 9px; font-size: 10px; color: var(--tertiary); }
+  .chat-system { margin: 14px 0 16px; text-align: center; font-size: 10.5px; color: #A0A9B8; }
+  .chat-msg { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 13px; }
+  .chat-msg--right { justify-content: flex-end; }
+  .chat-avatar { width: 32px; height: 32px; border-radius: 50%; overflow: hidden; flex-shrink: 0; background: #EEF2F8; }
+  .chat-avatar img, .chat-avatar svg { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .chat-bubble-wrap { max-width: 76%; }
+  .chat-bubble { padding: 10px 13px; border-radius: 16px; background: #fff; border: 1px solid rgba(235,237,240,.9); box-shadow: var(--shadow-sm); font-size: 12.5px; line-height: 1.6; color: var(--text); }
+  .chat-msg--left .chat-bubble { border-top-left-radius: 5px; }
+  .chat-bubble--mine { background: linear-gradient(135deg, #FF8BA5, #FF5E7D); border: none; color: #fff; box-shadow: 0 8px 16px rgba(255,77,114,.18); border-top-right-radius: 5px; }
+  .chat-time { margin-top: 4px; font-size: 9.5px; color: #B0B8C6; }
+  .chat-msg--right .chat-time { text-align: right; }
+  .chat-safety { margin: 18px 4px 0; text-align: center; font-size: 10px; line-height: 1.6; color: #A0A9B8; }
+  .chat-footer { padding-top: 8px; }
+  .chat-composer { display: flex; align-items: center; gap: 8px; }
+  .chat-composer input {
+    flex: 1; min-width: 0; border: 1px solid #E5E9F1; background: #fff; border-radius: 999px;
+    padding: 11px 14px; font-size: 13px; color: var(--text); outline: none;
+  }
+  .chat-composer input:focus { border-color: #FFA4B8; box-shadow: 0 0 0 3px rgba(255,77,114,.08); }
+  .chat-composer button {
+    border: none; border-radius: 999px; padding: 11px 16px; font-size: 12.5px; font-weight: 800;
+    color: #fff; background: linear-gradient(135deg, #FF7A9A, #FF4D72); box-shadow: 0 8px 16px rgba(255,77,114,.22);
+  }
+
+  /* ===== 匹配额度 / 重新匹配 ===== */
+  .match-limit {
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    margin-top: 12px; padding: 12px 14px;
+  }
+  .match-limit-title { font-size: 12.5px; font-weight: 800; color: var(--ink); }
+  .match-limit-title b { color: var(--rose-deep); font-size: 15px; }
+  .match-limit-sub { margin-top: 3px; font-size: 10px; color: var(--tertiary); }
+  .match-limit-sub b { color: #5B677A; font-variant-numeric: tabular-nums; }
+  .match-limit-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+  .btn-ghost.small { width: auto; padding: 8px 12px; font-size: 11.5px; border-radius: 999px; }
+  .btn:disabled { opacity: .45; cursor: not-allowed; box-shadow: none; transform: none; }
+
+  /* ===== 重新匹配弹窗 ===== */
+  .modal-mask {
+    position: absolute; inset: 0; z-index: 40; display: flex; align-items: flex-end;
+    background: rgba(15, 23, 42, .48); backdrop-filter: blur(2px);
+  }
+  .modal-sheet {
+    width: 100%; background: #fff; border-radius: 24px 24px 0 0;
+    padding: 18px 18px 22px; box-shadow: 0 -18px 40px rgba(15,23,42,.18);
+    animation: sheetUp .26s var(--ease);
+  }
+  @keyframes sheetUp { from { transform: translateY(24px); opacity: .4; } to { transform: translateY(0); opacity: 1; } }
+  .modal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+  .modal-title { font-size: 17px; font-weight: 900; color: var(--ink); }
+  .modal-close { border: none; background: transparent; color: var(--tertiary); font-size: 11.5px; padding: 4px; }
+  .modal-intro { margin: 0 0 10px; font-size: 12.5px; line-height: 1.7; color: var(--secondary); }
+  .modal-intro b { color: var(--ink); }
+  .modal-rules { margin: 0; padding: 0; list-style: none; display: grid; gap: 8px; }
+  .modal-rules li { position: relative; padding-left: 14px; font-size: 11.5px; line-height: 1.6; color: var(--tertiary); }
+  .modal-rules li::before { content: "·"; position: absolute; left: 2px; color: var(--rose); font-weight: 900; }
+  .modal-rules b { color: var(--rose-deep); }
+  .modal-actions { display: flex; gap: 9px; margin-top: 18px; }
+  .modal-actions .btn { padding: 12px 14px; font-size: 13px; }
+
+  /* ===== 重新匹配加载 ===== */
+  .rematch-loading {
+    position: absolute; inset: 0; z-index: 45; display: grid; place-items: center;
+    background: rgba(244, 246, 250, .88); backdrop-filter: blur(3px);
+  }
+  .loading-card {
+    width: 210px; padding: 20px 16px; text-align: center; border-radius: 20px;
+    background: #fff; box-shadow: var(--shadow-lg); border: 1px solid var(--line);
+  }
+  .loading-card b { display: block; margin-top: 10px; font-size: 13px; color: var(--ink); }
+  .loading-card span { display: block; margin-top: 4px; font-size: 10.5px; color: var(--tertiary); }
+  .spinner {
+    width: 30px; height: 30px; margin: 0 auto; border-radius: 50%;
+    border: 3px solid #FFE2E9; border-top-color: var(--rose);
+    animation: spin .8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ===== 历史匹配 ===== */
+  .history-head { padding: 16px; margin-bottom: 6px; background: linear-gradient(135deg, #FFF8FA, #fff); }
+  .history-head-title { font-size: 17px; font-weight: 900; color: var(--ink); }
+  .history-head-sub { margin-top: 4px; font-size: 11.5px; color: var(--secondary); }
+  .history-head-sub b { color: var(--rose-deep); }
+  .history-head-note { margin-top: 8px; font-size: 10.5px; line-height: 1.6; color: var(--tertiary); }
+  .history-card {
+    width: 100%; display: flex; align-items: center; gap: 11px; text-align: left;
+    padding: 12px 13px; margin-bottom: 9px; background: #fff;
+    border: 1px solid rgba(235, 237, 240, .9); border-radius: 16px; box-shadow: var(--shadow-sm);
+    transition: transform .16s var(--ease), box-shadow .16s var(--ease);
+  }
+  .history-card:hover { transform: translateY(-1px); box-shadow: var(--shadow); }
+  .history-avatar { width: 46px; height: 46px; border-radius: 50%; overflow: hidden; flex-shrink: 0; background: #EEF2F8; }
+  .history-avatar img, .history-avatar svg { width: 100%; height: 100%; display: block; object-fit: cover; }
+  .history-main { flex: 1; min-width: 0; }
+  .history-name { display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 800; color: var(--ink); }
+  .history-badge { font-size: 9px; font-weight: 700; padding: 2px 6px; border-radius: 999px; background: #F1F3F8; color: #8A95A6; }
+  .history-badge.active { background: var(--rose-soft); color: var(--rose-deep); }
+  .history-meta { margin-top: 2px; font-size: 10.5px; color: var(--tertiary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .history-last { margin-top: 4px; font-size: 10.5px; color: #9AA5B5; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .history-time { flex-shrink: 0; align-self: flex-start; font-size: 9.5px; color: #B0B8C6; }
+  .history-empty { padding: 30px 16px; text-align: center; font-size: 12px; color: var(--tertiary); }
+
+  /* ===== 聊天历史只读 ===== */
+  .chat-history-link {
+    position: absolute; top: 12px; right: 14px; border: none; background: transparent;
+    color: var(--rose-deep); font-size: 10.5px; font-weight: 700; padding: 4px;
+  }
+  .chat-strip-links { position: absolute; top: 10px; right: 12px; display: flex; align-items: center; gap: 7px; }
+  .chat-strip-links button { border: none; background: transparent; color: var(--rose-deep); font-size: 10px; font-weight: 700; padding: 4px 2px; }
+  .chat-match-strip { position: relative; }
+  .chat-composer.is-readonly input { background: #F1F3F8; color: #A0A9B8; }
+  .chat-composer.is-readonly button { opacity: .45; box-shadow: none; }
+
+  /* ===== 评审开关 ===== */
+  .preview-toggle-row { margin: -6px 0 20px; }
+  .preview-toggle { display: inline-flex; align-items: center; gap: 7px; font-size: 11.5px; color: var(--tertiary); cursor: pointer; }
+  .preview-toggle input { accent-color: var(--rose); }
+
+  /* ===== 未匹配页 ===== */
+  .empty-hero { text-align: center; padding: 30px 18px 12px; }
+  .empty-orb {
+    width: 84px; height: 84px; margin: 0 auto 16px; border-radius: 28px;
+    display: grid; place-items: center;
+    background: linear-gradient(135deg, #EEF2FF, #F8F0FF);
+    border: 1px solid #E4E9F7; box-shadow: 0 14px 28px rgba(49, 92, 255, .08);
+  }
+  .empty-orb svg { width: 40px; height: 40px; }
+  .empty-title { font-size: 21px; font-weight: 900; color: var(--ink); letter-spacing: -.2px; margin-bottom: 7px; }
+  .empty-sub { font-size: 12.5px; line-height: 1.7; color: var(--secondary); max-width: 280px; margin: 0 auto; }
+  .stats-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-top: 20px; }
+  .stat-box { padding: 13px 8px; text-align: center; border-radius: 15px; background: #fff; border: 1px solid var(--line); }
+  .stat-box b { display: block; font-size: 18px; font-weight: 900; color: var(--ink); font-variant-numeric: tabular-nums; }
+  .stat-box span { display: block; font-size: 10px; color: var(--tertiary); margin-top: 2px; }
+  .waitlist-card { margin-top: 14px; padding: 16px; }
+  .waitlist-card b { display: block; font-size: 13px; color: var(--ink); margin-bottom: 4px; }
+  .waitlist-card p { margin: 0; font-size: 11.5px; line-height: 1.65; color: var(--tertiary); }
+
+  /* ===== Toast ===== */
+  .toast {
+    position: absolute; left: 50%; bottom: 104px; transform: translate(-50%, 8px);
+    background: rgba(23, 30, 45, .92); color: #fff; font-size: 12px; font-weight: 600;
+    padding: 10px 16px; border-radius: 999px; white-space: nowrap;
+    opacity: 0; pointer-events: none; transition: all .24s var(--ease); z-index: 30;
+    max-width: 300px; text-align: center;
+  }
+  .toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+  /* ===== 移动端状态切换 ===== */
+  .mobile-states { display: none; gap: 6px; flex-wrap: wrap; justify-content: center; }
+  .mobile-states button {
+    border: 1px solid rgba(31,43,67,.1); background: rgba(255,255,255,.8);
+    border-radius: 999px; padding: 7px 11px; font-size: 11px; font-weight: 600; color: var(--secondary);
+  }
+  .mobile-states button.active { background: var(--ink); border-color: var(--ink); color: #fff; }
+
+  /* 中等宽度：隐藏评审面板，但保留手机外壳，方便在笔记本窗口里查看 */
+  @media (max-width: 1080px) {
+    .review-panel { display: none; }
+    .stage { padding: 28px 16px; }
+    .mobile-states { display: flex; order: -1; padding: 0 12px; }
+  }
+
+  /* 手机宽度：去掉外壳，变成全屏页面 */
+  @media (max-width: 560px) {
+    .stage { padding: 0; gap: 0; display: block; min-height: 100vh; background: var(--bg); }
+    .device-wrap { gap: 10px; padding: 10px 0 0; }
+    .device {
+      width: 100%; max-width: 430px; height: calc(100vh - 58px); border-radius: 0; border: none;
+      box-shadow: none;
+    }
+    .device::after { display: none; }
+    .statusbar { padding-top: 8px; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+  }
+
+  /* 预览截图用：跳过入场动画，避免无头浏览器截到半透明首帧 */
+  .no-anim .state.active { animation: none; }
+</style>
+</head>
+<body>
+<svg style="display:none" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
+  <symbol id="avatar-me" viewBox="0 0 80 80">
+    <rect width="80" height="80" rx="40" fill="#FFD8C2"/>
+    <circle cx="40" cy="34" r="15" fill="#FFE4D2"/>
+    <path d="M23 76c1-14 8-22 17-22s16 8 17 22" fill="#FFF6F0"/>
+    <path d="M23 34c0-11 7-18 17-18s17 7 17 18c0 3-2 5-4 4-2-6-6-9-13-9s-11 3-13 9c-2 1-4-1-4-4z" fill="#4A342C"/>
+    <circle cx="34" cy="35" r="1.5" fill="#4A342C"/><circle cx="46" cy="35" r="1.5" fill="#4A342C"/>
+    <path d="M36 41c2 2 6 2 8 0" stroke="#D9776A" stroke-width="1.6" fill="none" stroke-linecap="round"/>
+  </symbol>
+  <symbol id="avatar-ta" viewBox="0 0 80 80">
+    <rect width="80" height="80" rx="40" fill="#B9D8FF"/>
+    <circle cx="40" cy="35" r="15" fill="#FFE0C8"/>
+    <path d="M22 76c1-14 8-22 18-22s17 8 18 22" fill="#F4F8FF"/>
+    <path d="M25 33c1-10 7-16 15-16s14 6 15 16c0 2-1 4-3 3-1-5-5-8-12-8s-11 3-12 8c-2 1-3-1-3-3z" fill="#2F3B4F"/>
+    <circle cx="34" cy="36" r="1.5" fill="#2F3B4F"/><circle cx="46" cy="36" r="1.5" fill="#2F3B4F"/>
+    <path d="M36 42c2 2 6 2 8 0" stroke="#C97B63" stroke-width="1.6" fill="none" stroke-linecap="round"/>
+    <path d="M31 57l9 7 9-7" fill="none" stroke="#DCE8FF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  </symbol>
+  <symbol id="avatar-zhou" viewBox="0 0 80 80">
+    <rect width="80" height="80" rx="40" fill="#B8EFE4"/>
+    <circle cx="40" cy="35" r="15" fill="#FFE0C8"/>
+    <path d="M22 76c1-14 8-22 18-22s17 8 18 22" fill="#F2FFFB"/>
+    <path d="M25 33c1-10 7-16 15-16s14 6 15 16c0 2-1 4-3 3-1-5-5-8-12-8s-11 3-12 8c-2 1-3-1-3-3z" fill="#2F3B4F"/>
+    <circle cx="34" cy="36" r="1.5" fill="#2F3B4F"/><circle cx="46" cy="36" r="1.5" fill="#2F3B4F"/>
+    <path d="M36 42c2 2 6 2 8 0" stroke="#C97B63" stroke-width="1.6" fill="none" stroke-linecap="round"/>
+  </symbol>
+  <symbol id="avatar-xu" viewBox="0 0 80 80">
+    <rect width="80" height="80" rx="40" fill="#E4D8FF"/>
+    <circle cx="40" cy="34" r="15" fill="#FFE4D2"/>
+    <path d="M23 76c1-14 8-22 17-22s16 8 17 22" fill="#FBF8FF"/>
+    <path d="M23 34c0-11 7-18 17-18s17 7 17 18c0 3-2 5-4 4-2-6-6-9-13-9s-11 3-13 9c-2 1-4-1-4-4z" fill="#3A2F45"/>
+    <circle cx="34" cy="35" r="1.5" fill="#3A2F45"/><circle cx="46" cy="35" r="1.5" fill="#3A2F45"/>
+    <path d="M36 41c2 2 6 2 8 0" stroke="#D9776A" stroke-width="1.6" fill="none" stroke-linecap="round"/>
+  </symbol>
+</svg>
+<div class="stage">
+  <aside class="review-panel">
+    <div class="brand-row">
+      <div class="brand-mark">CP</div>
+      <div>
+        <div class="brand-name">广轻校园圈</div>
+        <div class="brand-sub">功能原型 · 独立预览</div>
+      </div>
+    </div>
+    <div class="panel-kicker">PREVIEW v0.1</div>
+    <h1 class="panel-title">一周 CP<br />匹配功能</h1>
+    <p class="panel-desc">这是独立页面，不会进入小程序包。先确认信息层级、表单字段和结果页样式，确认后再接入 <strong>pkg-feature</strong> 与现有私信。</p>
+
+    <div class="panel-label">切换页面状态</div>
+    <div class="state-switch" role="tablist" aria-label="页面状态">
+      <button type="button" data-jump="signup" class="active"><span>01 · 报名</span>活动介绍与问卷</button>
+      <button type="button" data-jump="waiting"><span>02 · 等待</span>报名成功与倒计时</button>
+      <button type="button" data-jump="result"><span>03 · 结果</span>匹配成功与共同点</button>
+      <button type="button" data-jump="unmatched"><span>04 · 未匹配</span>候补与数据说明</button>
+      <button type="button" class="wide" data-jump="chat"><span>05 · 聊天</span>双方照片与消息</button>
+      <button type="button" class="wide" data-jump="history"><span>06 · 历史</span>上一位、上上一位</button>
+    </div>
+
+    <div class="preview-toggle-row">
+      <label class="preview-toggle"><input type="checkbox" id="taNoPhoto"> 模拟 TA 未上传照片</label>
+    </div>
+
+    <div class="panel-label">这版重点确认</div>
+    <ul class="check-list">
+      <li>活动信息不要做成“婚恋平台”，保持校园活动感</li>
+      <li>期望身高按 5cm 区间选择，不接受单个数字</li>
+      <li>MBTI 可多选，照片选填且仅匹配后可见</li>
+      <li>聊天页展示双方照片，未上传自动回退头像</li>
+      <li>结果页先给共同点，再给聊天入口，降低尴尬</li>
+      <li>未匹配有合理出口，不强行配对</li>
+    </ul>
+
+    <div class="panel-divider"></div>
+    <div class="panel-label">接入时替换</div>
+    <ul class="check-list">
+      <li>昵称头像改为校园圈登录资料</li>
+      <li>校区/年级改为真实选项与校验</li>
+      <li>匹配结果来自服务端，不在前端生成</li>
+      <li>“去聊天”跳转现有私信会话</li>
+      <li>报名、揭晓通过订阅消息提醒</li>
+    </ul>
+
+    <div class="panel-divider"></div>
+    <div class="panel-foot">页面内数据均为演示数据，不含真实用户信息。<br />建议在 390×844 手机视口查看。</div>
+  </aside>
+
+  <main class="device-wrap">
+    <div class="mobile-states" aria-label="状态切换">
+      <button type="button" data-jump="signup" class="active">报名</button>
+      <button type="button" data-jump="waiting">等待</button>
+      <button type="button" data-jump="result">结果</button>
+      <button type="button" data-jump="unmatched">未匹配</button>
+      <button type="button" data-jump="chat">聊天</button>
+      <button type="button" data-jump="history">历史</button>
+    </div>
+
+    <div class="device">
+      <div class="statusbar">
+        <span>9:41</span>
+        <div class="icons" aria-hidden="true"><span></span><span></span><span></span></div>
+      </div>
+
+      <div class="navbar">
+        <button class="nav-btn" type="button" aria-label="返回" onclick="navBack()">
+          <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+        </button>
+        <div class="nav-title" id="navTitle">一周 CP</div>
+        <div class="nav-actions">
+          <button class="nav-btn" type="button" aria-label="分享" onclick="toast('接入后将生成活动分享卡片')">
+            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 10.7l6.8-4.4M8.6 13.3l6.8 4.4"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="screen">
+        <!-- ================= 报名 ================= -->
+        <section class="state active" data-state="signup" aria-label="报名">
+          <div class="state-body">
+            <div class="hero">
+              <div class="hero-top">
+                <div class="hero-badge"><span class="dot"></span>第 1 期 · 冬日限定</div>
+                <div class="hero-deadline">报名截止 11.09 22:00</div>
+              </div>
+              <div class="hero-title">一周<em>CP</em></div>
+              <div class="hero-sub">不急着一见钟情，先认真认识一个人。<br />用 7 天，和同频的人做几件小事。</div>
+              <div class="hero-meta">
+                <span>11.10 揭晓</span>
+                <span>7 天 CP 任务</span>
+                <span>仅限本校</span>
+              </div>
+              <div class="hero-stats">
+                <div class="avatar-stack" aria-hidden="true">
+                  <div class="mini-avatar">林</div>
+                  <div class="mini-avatar">陈</div>
+                  <div class="mini-avatar">周</div>
+                  <div class="mini-avatar">许</div>
+                </div>
+                <div class="hero-stat-text"><strong>1,286</strong>人已报名<br />剩余 714 个名额</div>
+              </div>
+              <div class="progress" aria-hidden="true"><i id="heroProgress"></i></div>
+              <div class="progress-meta"><span>报名进度 64%</span><span>名额上限 2,000</span></div>
+            </div>
+
+            <div class="section-head">
+              <div class="section-title">先介绍你自己</div>
+              <div class="section-note">约 1 分钟填完</div>
+            </div>
+
+            <div class="card" style="padding: 16px;">
+              <div class="field">
+                <div class="field-label">性别<span class="req">*</span><span class="field-hint">仅用于匹配，不公开展示</span></div>
+                <div class="seg" id="genderSeg" role="group" aria-label="性别">
+                  <button type="button" data-value="male">男生</button>
+                  <button type="button" data-value="female">女生</button>
+                </div>
+              </div>
+
+              <div class="field">
+                <div class="field-label">校区<span class="req">*</span></div>
+                <div class="chips" id="campusChips" role="group" aria-label="校区">
+                  <button type="button" class="chip" data-value="示例校区">示例校区</button>
+                  <button type="button" class="chip" data-value="广州·琶洲">广州·琶洲</button>
+                  <button type="button" class="chip" data-value="佛山·南海南">佛山·南海南</button>
+                  <button type="button" class="chip" data-value="佛山·南海北">佛山·南海北</button>
+                </div>
+              </div>
+
+              <div class="field">
+                <div class="field-label">年级<span class="req">*</span></div>
+                <div class="chips" id="gradeChips" role="group" aria-label="年级">
+                  <button type="button" class="chip" data-value="大一">大一</button>
+                  <button type="button" class="chip" data-value="示例年级">示例年级</button>
+                  <button type="button" class="chip" data-value="示例年级">示例年级</button>
+                  <button type="button" class="chip" data-value="大四">大四</button>
+                  <button type="button" class="chip" data-value="研究生">研究生</button>
+                </div>
+              </div>
+
+              <div class="field">
+                <div class="field-label">兴趣标签<span class="req">*</span><span class="field-hint">选 2–6 个，越具体越容易匹配</span></div>
+                <div class="chips" id="tagChips" role="group" aria-label="兴趣标签">
+                  <button type="button" class="chip" data-value="音乐">音乐</button>
+                  <button type="button" class="chip" data-value="电影">电影</button>
+                  <button type="button" class="chip" data-value="夜跑">夜跑</button>
+                  <button type="button" class="chip" data-value="摄影">摄影</button>
+                  <button type="button" class="chip" data-value="旅行">旅行</button>
+                  <button type="button" class="chip" data-value="美食">美食</button>
+                  <button type="button" class="chip" data-value="游戏">游戏</button>
+                  <button type="button" class="chip" data-value="阅读">阅读</button>
+                  <button type="button" class="chip" data-value="健身">健身</button>
+                  <button type="button" class="chip" data-value="二次元">二次元</button>
+                  <button type="button" class="chip" data-value="宠物">宠物</button>
+                  <button type="button" class="chip" data-value="手工">手工</button>
+                </div>
+              </div>
+
+              <div class="field">
+                <div class="field-label">一句话介绍<span class="req">*</span><span class="field-hint">别写“佛系”，写点具体的</span></div>
+                <div class="textarea-wrap">
+                  <textarea class="textarea" id="bioInput" maxlength="80" placeholder="比如：最近在循环告五人的歌，周末会去江边夜跑，想找一个能一起吃饭、散步的人。"></textarea>
+                  <div class="counter"><span id="bioCount">0</span>/80</div>
+                </div>
+              </div>
+
+              <div class="field">
+                <div class="field-label">照片<span class="field-hint">选填 · 最多 1 张</span></div>
+                <div class="photo-upload" id="photoUpload">
+                  <input type="file" id="photoInput" accept="image/*" hidden>
+                  <div class="photo-empty" id="photoEmpty">
+                    <div class="photo-plus">+</div>
+                    <b>上传一张照片</b>
+                    <span>匹配成功后对方可见；未上传则显示头像</span>
+                  </div>
+                  <div class="photo-preview" id="photoPreview" hidden>
+                    <img id="photoImg" alt="我的照片">
+                    <button class="photo-remove" type="button" id="photoRemove">移除</button>
+                  </div>
+                </div>
+                <div class="photo-actions">
+                  <button type="button" id="useDemoPhoto">显示通用头像预览</button>
+                  <span>不会公开展示</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="section-head">
+              <div class="section-title">你希望遇见</div>
+              <div class="section-note">不填默认不限</div>
+            </div>
+
+            <div class="card" style="padding: 16px;">
+              <div class="field">
+                <div class="field-label">期望性别</div>
+                <div class="seg" id="expectGenderSeg" role="group" aria-label="期望性别">
+                  <button type="button" class="active" data-value="any">不限</button>
+                  <button type="button" data-value="male">男生</button>
+                  <button type="button" data-value="female">女生</button>
+                </div>
+              </div>
+              <div class="field">
+                <div class="field-label">期望校区</div>
+                <div class="seg" id="expectCampusSeg" role="group" aria-label="期望校区">
+                  <button type="button" class="active" data-value="any">不限</button>
+                  <button type="button" data-value="same">希望同校区</button>
+                </div>
+              </div>
+
+              <div class="field">
+                <div class="field-label">期望身高<span class="field-hint">按 5cm 区间选择</span></div>
+                <div class="range-row" id="heightRange">
+                  <label class="range-box"><span>最低</span><select id="heightMin" aria-label="期望身高最低值"></select></label>
+                  <span class="range-dash">—</span>
+                  <label class="range-box"><span>最高</span><select id="heightMax" aria-label="期望身高最高值"></select></label>
+                </div>
+                <button type="button" class="chip height-unlimited" id="heightUnlimited">不限身高</button>
+              </div>
+
+              <div class="field">
+                <div class="field-label">期望 MBTI<span class="field-hint">可多选，最多 4 个</span></div>
+                <div class="mbti-grid" id="mbtiChips" role="group" aria-label="期望 MBTI">
+                  <button type="button" class="chip chip--any active" data-value="不限">不限</button>
+                  <button type="button" class="chip" data-value="INTJ">INTJ</button>
+                  <button type="button" class="chip" data-value="INTP">INTP</button>
+                  <button type="button" class="chip" data-value="ENTJ">ENTJ</button>
+                  <button type="button" class="chip" data-value="ENTP">ENTP</button>
+                  <button type="button" class="chip" data-value="INFJ">INFJ</button>
+                  <button type="button" class="chip" data-value="INFP">INFP</button>
+                  <button type="button" class="chip" data-value="ENFJ">ENFJ</button>
+                  <button type="button" class="chip" data-value="ENFP">ENFP</button>
+                  <button type="button" class="chip" data-value="ISTJ">ISTJ</button>
+                  <button type="button" class="chip" data-value="ISFJ">ISFJ</button>
+                  <button type="button" class="chip" data-value="ESTJ">ESTJ</button>
+                  <button type="button" class="chip" data-value="ESFJ">ESFJ</button>
+                  <button type="button" class="chip" data-value="ISTP">ISTP</button>
+                  <button type="button" class="chip" data-value="ISFP">ISFP</button>
+                  <button type="button" class="chip" data-value="ESTP">ESTP</button>
+                  <button type="button" class="chip" data-value="ESFP">ESFP</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="notice">
+              <div class="notice-icon">!</div>
+              <div>为保护隐私，报名信息不会展示手机号或微信号。匹配成功后，仅通过站内私信联系；活动结束后匹配关系自动解除。</div>
+            </div>
+
+            <div class="consent">
+              <button type="button" id="consentBtn" aria-label="同意活动规则" aria-pressed="false">✓</button>
+              <div>我已阅读并同意<a href="#" onclick="toast('接入后将打开活动规则页'); return false;">《活动规则》</a>与<a href="#" onclick="toast('接入后将打开隐私说明'); return false;">《隐私说明》</a>，并确认本人年满 18 周岁。</div>
+            </div>
+          </div>
+
+          <div class="state-footer">
+            <button class="btn btn-primary" id="submitBtn" type="button">开始匹配</button>
+            <div class="footer-note">开始匹配后可在截止前修改资料 · 不收取任何费用</div>
+          </div>
+        </section>
+
+        <!-- ================= 等待 ================= -->
+        <section class="state" data-state="waiting" aria-label="等待匹配">
+          <div class="state-body">
+            <div class="wait-hero">
+              <div class="success-orb" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+              </div>
+              <div class="wait-title">报名成功，等一个同频的人</div>
+              <div class="wait-sub">匹配会在报名截止后统一进行。我们会优先考虑校区、期望和共同兴趣，不合适的人不会硬配。</div>
+            </div>
+
+            <div class="countdown-card">
+              <div class="countdown-label"><span>距离匹配揭晓</span><b>11.10 20:00</b></div>
+              <div class="countdown" id="countdown" aria-live="polite">
+                <div><span class="num" data-unit="d">06</span><span class="unit">天</span></div>
+                <div class="sep">:</div>
+                <div><span class="num" data-unit="h">12</span><span class="unit">时</span></div>
+                <div class="sep">:</div>
+                <div><span class="num" data-unit="m">34</span><span class="unit">分</span></div>
+                <div class="sep">:</div>
+                <div><span class="num" data-unit="s">08</span><span class="unit">秒</span></div>
+              </div>
+            </div>
+
+            <div class="card steps">
+              <div class="step done">
+                <div class="step-dot">✓</div>
+                <div class="step-main"><div class="step-title">报名成功</div><div class="step-desc">资料已提交，可在截止前修改</div></div>
+              </div>
+              <div class="step active">
+                <div class="step-dot">2</div>
+                <div class="step-main"><div class="step-title">等待匹配</div><div class="step-desc">系统按校区、期望和兴趣做约束匹配</div></div>
+              </div>
+              <div class="step">
+                <div class="step-dot">3</div>
+                <div class="step-main"><div class="step-title">揭晓结果</div><div class="step-desc">11.10 20:00 后可在本页查看</div></div>
+              </div>
+            </div>
+
+            <div class="section-head">
+              <div class="section-title">你的报名卡</div>
+              <div class="section-note">仅你可见</div>
+            </div>
+            <div class="card wait-card">
+              <div class="wait-card-head">
+                <div class="profile-avatar" data-avatar="me">
+                  <img alt="我的照片" hidden>
+                  <svg viewBox="0 0 80 80" aria-hidden="true">
+                    <defs><linearGradient id="meBg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FFD8C2"/><stop offset="1" stop-color="#FFB394"/></linearGradient></defs>
+                    <rect width="80" height="80" rx="40" fill="url(#meBg)"/>
+                    <circle cx="40" cy="34" r="15" fill="#FFE4D2"/>
+                    <path d="M23 76c1-14 8-22 17-22s16 8 17 22" fill="#FFF6F0"/>
+                    <path d="M23 34c0-11 7-18 17-18s17 7 17 18c0 3-2 5-4 4-2-6-6-9-13-9s-11 3-13 9c-2 1-4-1-4-4z" fill="#4A342C"/>
+                    <circle cx="34" cy="35" r="1.5" fill="#4A342C"/><circle cx="46" cy="35" r="1.5" fill="#4A342C"/>
+                    <path d="M36 41c2 2 6 2 8 0" stroke="#D9776A" stroke-width="1.6" fill="none" stroke-linecap="round"/>
+                  </svg>
+                </div>
+                <div>
+                  <div class="wait-name">我</div>
+                  <div class="wait-meta"><span id="waitMeta">示例校区 · 示例年级</span></div>
+                </div>
+              </div>
+              <div class="wait-tags" id="waitTags">
+                <span class="wait-tag">音乐</span><span class="wait-tag">电影</span><span class="wait-tag">夜跑</span>
+              </div>
+              <div class="wait-bio" id="waitBio">最近在循环告五人的歌，周末会去江边夜跑，想找一个能一起吃饭、散步的人。</div>
+              <div class="wait-expect" id="waitExpect">期望：同校区 · 165–175cm · MBTI 不限</div>
+              <div class="wait-actions">
+                <button class="edit" type="button" onclick="jump('signup')">修改资料</button>
+                <button class="invite" type="button" onclick="toast('接入后将生成邀请卡片')">邀请同学</button>
+              </div>
+            </div>
+
+            <div style="text-align:center; margin-top: 18px;">
+              <button class="link-btn" type="button" onclick="jump('result')">预览匹配结果 →</button>
+            </div>
+          </div>
+          <div class="state-footer">
+            <button class="btn btn-soft" type="button" onclick="toast('已开启揭晓提醒（演示）')">开启揭晓提醒</button>
+            <div class="footer-note">提醒将通过微信订阅消息发送</div>
+          </div>
+        </section>
+
+        <!-- ================= 结果 ================= -->
+        <section class="state" data-state="result" aria-label="匹配结果">
+          <div class="state-body">
+            <div class="result-banner">
+              <div class="result-kicker">MATCHED · 第 1 期</div>
+              <div class="result-title">你们被分到同一组</div>
+              <div class="result-sub">先从共同点开始，不必急着找话题</div>
+            </div>
+
+            <div class="pair-card">
+              <div class="pair-row">
+                <div class="pair-person">
+                  <div class="pair-avatar-wrap">
+                    <div class="pair-avatar" data-avatar="me">
+                      <img alt="我的照片" hidden>
+                      <svg viewBox="0 0 80 80" aria-hidden="true">
+                        <defs><linearGradient id="meBg2" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FFD8C2"/><stop offset="1" stop-color="#FFB394"/></linearGradient></defs>
+                        <rect width="80" height="80" rx="40" fill="url(#meBg2)"/>
+                        <circle cx="40" cy="34" r="15" fill="#FFE4D2"/>
+                        <path d="M23 76c1-14 8-22 17-22s16 8 17 22" fill="#FFF6F0"/>
+                        <path d="M23 34c0-11 7-18 17-18s17 7 17 18c0 3-2 5-4 4-2-6-6-9-13-9s-11 3-13 9c-2 1-4-1-4-4z" fill="#4A342C"/>
+                        <circle cx="34" cy="35" r="1.5" fill="#4A342C"/><circle cx="46" cy="35" r="1.5" fill="#4A342C"/>
+                        <path d="M36 41c2 2 6 2 8 0" stroke="#D9776A" stroke-width="1.6" fill="none" stroke-linecap="round"/>
+                      </svg>
+                    </div>
+                    <div class="pair-badge">你</div>
+                  </div>
+                  <div class="pair-name" id="resultMyName">我</div>
+                  <div class="pair-meta" id="resultMyMeta">示例校区 · 示例年级</div>
+                </div>
+
+                <div class="pair-link" aria-hidden="true">
+                  <div class="heart-line"></div>
+                  <div class="heart">♥</div>
+                  <div class="heart-line"></div>
+                </div>
+
+                <div class="pair-person">
+                  <div class="pair-avatar-wrap">
+                    <div class="pair-avatar" data-avatar="ta">
+                      <img src="" alt="匹配对象的通用头像">
+                      <svg viewBox="0 0 80 80" aria-hidden="true" style="display:none" id="resultTaFallback"><use id="resultTaUse" href="#avatar-ta"></use></svg>
+                    </div>
+                    <div class="pair-badge">TA</div>
+                  </div>
+                  <div class="pair-name" id="resultTaName">匹配对象</div>
+                  <div class="pair-meta" id="resultTaMeta">示例校区 · 示例年级</div>
+                </div>
+              </div>
+
+              <div class="score-row">
+                <div class="score-ring" id="scoreRing">
+                  <svg viewBox="0 0 54 54" aria-hidden="true">
+                    <defs><linearGradient id="scoreGrad" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FF9AAF"/><stop offset="1" stop-color="#FF4D72"/></linearGradient></defs>
+                    <circle class="track" cx="27" cy="27" r="22"></circle>
+                    <circle class="bar" cx="27" cy="27" r="22"></circle>
+                  </svg>
+                  <div class="score-num" id="resultScoreNum">92</div>
+                </div>
+                <div class="score-text">
+                  <b id="resultScoreLabel">匹配度 92%</b>
+                  <span id="resultScoreText">共同兴趣 4 个 · 同校区 · MBTI 契合</span>
+                </div>
+              </div>
+
+              <div class="common-title">你们的共同点</div>
+              <div class="common-tags" id="resultCommonTags">
+                <span class="common-tag">音乐</span>
+                <span class="common-tag">电影</span>
+                <span class="common-tag">夜跑</span>
+                <span class="common-tag">摄影</span>
+              </div>
+            </div>
+
+            <div class="match-limit card">
+              <div class="match-limit-main">
+                <div class="match-limit-title">本轮已匹配 <b data-match-used>3</b>/10 位</div>
+                <div class="match-limit-sub">48 小时窗口剩余 <b data-window-remain>45:00:00</b></div>
+              </div>
+              <div class="match-limit-actions">
+                <button class="link-btn" type="button" onclick="openHistory()">历史匹配</button>
+                <button class="btn btn-ghost small" id="rematchBtn" type="button" onclick="openRematch()">重新匹配</button>
+              </div>
+            </div>
+
+            <div class="card prompt-card">
+              <div class="prompt-head"><span>?</span>不知道聊什么，从这三句开始</div>
+              <div class="prompt-item"><i>01</i><span>你最近单曲循环的一首歌是什么？</span></div>
+              <div class="prompt-item"><i>02</i><span>学校附近你最喜欢的一家店是哪家？</span></div>
+              <div class="prompt-item"><i>03</i><span>如果周末有一天完全空闲，你会怎么过？</span></div>
+            </div>
+
+            <div class="safety-note">
+              <b>安全提示：</b>前 7 天建议只在站内聊天，不要提前交换住址、身份证或转账。见面请选择校内公共场所，并告知同学。
+            </div>
+
+          </div>
+
+          <div class="state-footer result-footer">
+            <button class="btn btn-primary" id="resultPrimaryBtn" type="button" onclick="openChat()">去和 TA 打个招呼</button>
+            <div class="footer-note" id="resultFooterNote">对方已看到结果 · 双方确认后开启 7 天任务 · <button class="link-btn" type="button" onclick="toast('接入后将打开本期活动规则')">活动规则</button></div>
+          </div>
+        </section>
+
+        <!-- ================= 未匹配 ================= -->
+        <section class="state" data-state="unmatched" aria-label="本轮未匹配">
+          <div class="state-body">
+            <div class="empty-hero">
+              <div class="empty-orb" aria-hidden="true">
+                <svg viewBox="0 0 48 48" fill="none">
+                  <path d="M7 33l27-19-6 24-7-8-14 3z" stroke="#7A5CFF" stroke-width="2.2" stroke-linejoin="round"/>
+                  <path d="M34 14L21 30" stroke="#FF8BA5" stroke-width="2.2" stroke-linecap="round"/>
+                  <circle cx="38" cy="10" r="2.2" fill="#FFB3C2"/>
+                  <circle cx="8" cy="15" r="1.6" fill="#C9B8FF"/>
+                </svg>
+              </div>
+              <div class="empty-title">这一轮，没有遇到合适的人</div>
+              <div class="empty-sub">不是你的问题。匹配受性别比例、校区和期望条件影响；不合适的人，我们不会硬配。</div>
+            </div>
+
+            <div class="stats-grid">
+              <div class="stat-box"><b>1,286</b><span>本轮报名</span></div>
+              <div class="stat-box"><b>1,104</b><span>成功配对</span></div>
+              <div class="stat-box"><b>182</b><span>候补中</span></div>
+            </div>
+
+            <div class="card waitlist-card">
+              <b>加入下一轮候补</b>
+              <p>候补不额外收费。下一轮开放报名时，会优先通知你；你也可以调整期望校区或兴趣标签，提高匹配概率。</p>
+            </div>
+
+            <div class="card waitlist-card" style="margin-top: 10px;">
+              <b>为什么没有匹配到？</b>
+              <p>常见原因：期望校区范围过窄、可选人数不足、性别比例失衡。调整“期望校区”为不限，通常能明显提高匹配率。</p>
+            </div>
+
+            <div style="text-align:center; margin-top: 16px;">
+              <button class="link-btn" type="button" onclick="jump('signup')">修改期望条件，重新报名 →</button>
+            </div>
+          </div>
+          <div class="state-footer">
+            <button class="btn btn-primary" type="button" onclick="toast('已加入下一轮候补（演示）')">加入下一轮候补</button>
+            <div class="footer-note">下一轮开放时会通过订阅消息提醒</div>
+          </div>
+        </section>
+
+        <!-- ================= 聊天 ================= -->
+        <section class="state" data-state="chat" aria-label="聊天">
+          <div class="state-body chat-body" id="chatBody">
+            <div class="card chat-match-strip">
+              <div class="chat-strip-links">
+                <button id="chatRematchLink" type="button" onclick="openRematch()">重新匹配</button>
+                <button type="button" onclick="openHistory()">历史</button>
+              </div>
+              <div class="chat-match-label">MATCHED · 第 1 期</div>
+              <div class="chat-match-people">
+                <div class="chat-match-person">
+                  <div class="chat-photo" id="chatTopMe"></div>
+                  <span>你</span>
+                </div>
+                <div class="chat-match-heart" aria-hidden="true">♥</div>
+                <div class="chat-match-person">
+                  <div class="chat-photo" id="chatTopTa"></div>
+                  <span id="chatPartnerName">匹配对象</span>
+                </div>
+              </div>
+              <div class="chat-match-note" id="chatMatchNote">照片仅在匹配成功后可见 · 未上传时自动显示头像</div>
+            </div>
+
+            <div class="chat-system" id="chatSystemLine">你们已互相确认，开始聊天吧 · 7 天后自动解除</div>
+            <div id="chatMessages"></div>
+
+            <div class="chat-safety">不要提前交换住址、身份证或转账；见面请选择校内公共场所，并告知同学。</div>
+          </div>
+
+          <div class="state-footer chat-footer">
+            <div class="chat-composer" id="chatComposer">
+              <input id="chatInput" type="text" maxlength="200" placeholder="说点什么..." aria-label="聊天输入">
+              <button id="chatSend" type="button">发送</button>
+            </div>
+          </div>
+        </section>
+
+        <!-- ================= 历史匹配 ================= -->
+        <section class="state" data-state="history" aria-label="历史匹配">
+          <div class="state-body">
+            <div class="history-head card">
+              <div class="history-head-title">历史匹配</div>
+              <div class="history-head-sub">本轮已匹配 <b data-match-used>3</b>/10 位 · <span id="historyWindowState">48 小时窗口</span></div>
+              <div class="history-head-note" id="historyHeadNote">只有当前配对可以发消息；历史对象仅可查看资料和聊天记录。</div>
+            </div>
+            <div class="section-head">
+              <div class="section-title" id="historyCurrentTitle">当前配对</div>
+              <div class="section-note" id="historyCurrentNote">进行中</div>
+            </div>
+            <div id="historyCurrent"></div>
+            <div class="section-head">
+              <div class="section-title">历史对象</div>
+              <div class="section-note" id="historyCount">0 位</div>
+            </div>
+            <div id="historyList"></div>
+            <div class="history-empty" id="historyEmpty" hidden>还没有历史匹配</div>
+          </div>
+          <div class="state-footer">
+            <div class="footer-note">达到 10 位后将无法继续匹配新同学 · 历史对象只读</div>
+          </div>
+        </section>
+
+        <!-- ================= 重新匹配弹窗 ================= -->
+        <div class="modal-mask" id="rematchModal" hidden>
+          <div class="modal-sheet">
+            <div class="modal-head">
+              <div class="modal-title">重新匹配</div>
+              <button class="modal-close" type="button" onclick="closeRematch()">关闭</button>
+            </div>
+            <p class="modal-intro">当前与 <b id="rematchPartner">匹配对象</b> 的配对将结束，聊天记录会保留在「历史匹配」。</p>
+            <ul class="modal-rules">
+              <li>你和对方都会回到匹配池，对方会收到中性通知</li>
+              <li>48 小时内不会再次匹配到同一个人</li>
+              <li>本轮还剩 <b id="rematchRemain">7</b> 次重新匹配机会</li>
+              <li>达到 10 位后只能查看历史，不能再匹配新同学</li>
+            </ul>
+            <div class="modal-actions">
+              <button class="btn btn-soft" type="button" onclick="closeRematch()">再想想</button>
+              <button class="btn btn-primary" id="confirmRematch" type="button" onclick="confirmRematch()">确认重新匹配</button>
+            </div>
+          </div>
+        </div>
+        <div class="rematch-loading" id="rematchLoading" hidden>
+          <div class="loading-card">
+            <div class="spinner"></div>
+            <b>正在为你匹配下一位…</b>
+            <span>演示：即将揭晓</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    </div>
+  </main>
+</div>
+
+<script>
+  (function () {
+    const states = Array.from(document.querySelectorAll('.state'));
+    const jumpButtons = Array.from(document.querySelectorAll('[data-jump]'));
+    const toastEl = document.getElementById('toast');
+    let toastTimer = null;
+
+    function jump(name) {
+      states.forEach((state) => state.classList.toggle('active', state.dataset.state === name));
+      jumpButtons.forEach((btn) => btn.classList.toggle('active', btn.dataset.jump === name));
+      const active = document.querySelector('.state.active .state-body');
+      if (active) active.scrollTop = 0;
+      const navTitle = document.getElementById('navTitle');
+      if (navTitle) {
+        navTitle.textContent = name === 'chat'
+          ? (selectedMatch ? selectedMatch.name : '聊天')
+          : (name === 'history' ? '历史匹配' : '一周 CP');
+      }
+      if (name === 'result') {
+        const ring = document.getElementById('scoreRing');
+        ring.classList.remove('animate');
+        requestAnimationFrame(() => requestAnimationFrame(() => ring.classList.add('animate')));
+      }
+      if (name === 'chat') {
+        const body = document.getElementById('chatBody');
+        if (body) requestAnimationFrame(() => { body.scrollTop = body.scrollHeight; });
+      }
+    }
+
+    function toast(message) {
+      toastEl.textContent = message;
+      toastEl.classList.add('show');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => toastEl.classList.remove('show'), 2200);
+    }
+
+    // 内联 onclick 运行在全局作用域，必须显式挂到 window 上
+    window.jump = jump;
+    window.toast = toast;
+
+    let selectedMatch = null;
+    let chatOrigin = 'result';
+    let historyOrigin = 'result';
+
+    function navBack() {
+      const active = document.querySelector('.state.active');
+      if (!active) return;
+      if (active.dataset.state === 'chat') { jump(chatOrigin || 'result'); return; }
+      if (active.dataset.state === 'history') { jump(historyOrigin || 'result'); return; }
+      toast('接入后将返回上一页');
+    }
+    function openChat(matchId, origin) {
+      const match = matchId ? findMatch(matchId) : (matchStore.current || null);
+      if (!match) { toast('没有可查看的配对'); return; }
+      chatOrigin = origin || 'result';
+      selectedMatch = match;
+      jump('chat');
+      renderChat(match);
+    }
+    window.navBack = navBack;
+    window.openChat = openChat;
+
+    jumpButtons.forEach((btn) => btn.addEventListener('click', () => jump(btn.dataset.jump)));
+
+    // 英雄区进度条
+    const progress = document.getElementById('heroProgress');
+    requestAnimationFrame(() => setTimeout(() => { progress.style.width = '64.3%'; }, 180));
+
+    // 单选组
+    function setupSingle(containerId) {
+      const container = document.getElementById(containerId);
+      if (!container) return () => '';
+      const buttons = Array.from(container.querySelectorAll('button'));
+      buttons.forEach((btn) => {
+        btn.addEventListener('click', () => {
+          buttons.forEach((item) => item.classList.toggle('active', item === btn));
+        });
+      });
+      return () => {
+        const active = container.querySelector('button.active');
+        return active ? active.dataset.value : '';
+      };
+    }
+
+    const getGender = setupSingle('genderSeg');
+    const getExpectGender = setupSingle('expectGenderSeg');
+    const getExpectCampus = setupSingle('expectCampusSeg');
+
+    // 多选标签：校区/年级单选，兴趣多选
+    function setupChips(containerId, multiple) {
+      const container = document.getElementById(containerId);
+      if (!container) return () => [];
+      const buttons = Array.from(container.querySelectorAll('button'));
+      buttons.forEach((btn) => {
+        btn.addEventListener('click', () => {
+          if (multiple) {
+            const selected = container.querySelectorAll('button.active').length;
+            if (!btn.classList.contains('active') && selected >= 6) {
+              toast('最多选择 6 个兴趣标签');
+              return;
+            }
+            btn.classList.toggle('active');
+          } else {
+            buttons.forEach((item) => item.classList.toggle('active', item === btn));
+          }
+        });
+      });
+      return () => Array.from(container.querySelectorAll('button.active')).map((btn) => btn.dataset.value);
+    }
+
+    const getCampus = setupChips('campusChips', false);
+    const getGrade = setupChips('gradeChips', false);
+    const getTags = setupChips('tagChips', true);
+
+    // ===== 期望身高：两端 5cm 递增，只允许区间 =====
+    const heightMin = document.getElementById('heightMin');
+    const heightMax = document.getElementById('heightMax');
+    const heightRange = document.getElementById('heightRange');
+    const heightUnlimited = document.getElementById('heightUnlimited');
+    let heightUnlimitedOn = false;
+    for (let cm = 150; cm <= 200; cm += 5) {
+      heightMin.appendChild(new Option(cm + 'cm', String(cm)));
+      heightMax.appendChild(new Option(cm + 'cm', String(cm)));
+    }
+    heightMin.value = '165';
+    heightMax.value = '175';
+    function syncHeight(changed) {
+      const min = Number(heightMin.value);
+      const max = Number(heightMax.value);
+      if (min < max) return;
+      if (changed === 'min') {
+        if (min >= 200) { heightMin.value = '195'; heightMax.value = '200'; }
+        else heightMax.value = String(min + 5);
+      } else {
+        if (max <= 150) { heightMin.value = '150'; heightMax.value = '155'; }
+        else heightMin.value = String(max - 5);
+      }
+    }
+    heightMin.addEventListener('change', () => syncHeight('min'));
+    heightMax.addEventListener('change', () => syncHeight('max'));
+    heightUnlimited.addEventListener('click', () => {
+      heightUnlimitedOn = !heightUnlimitedOn;
+      heightUnlimited.classList.toggle('active', heightUnlimitedOn);
+      heightRange.classList.toggle('is-disabled', heightUnlimitedOn);
+    });
+
+    // ===== 期望 MBTI：可多选，最多 4 个；不限互斥 =====
+    const mbtiContainer = document.getElementById('mbtiChips');
+    const mbtiButtons = Array.from(mbtiContainer.querySelectorAll('button'));
+    let mbtiSelected = ['不限'];
+    mbtiButtons.forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const value = btn.dataset.value;
+        if (value === '不限') {
+          mbtiSelected = ['不限'];
+        } else {
+          mbtiSelected = mbtiSelected.filter((item) => item !== '不限');
+          if (mbtiSelected.indexOf(value) > -1) {
+            mbtiSelected = mbtiSelected.filter((item) => item !== value);
+          } else {
+            if (mbtiSelected.length >= 4) { toast('MBTI 最多选择 4 个'); return; }
+            mbtiSelected.push(value);
+          }
+          if (!mbtiSelected.length) mbtiSelected = ['不限'];
+        }
+        mbtiButtons.forEach((item) => item.classList.toggle('active', mbtiSelected.indexOf(item.dataset.value) > -1));
+      });
+    });
+
+    // ===== 照片：选填，匹配成功后可见；未上传则使用头像 =====
+    const photoInput = document.getElementById('photoInput');
+    const photoEmpty = document.getElementById('photoEmpty');
+    const photoPreview = document.getElementById('photoPreview');
+    const photoImg = document.getElementById('photoImg');
+    const photoRemove = document.getElementById('photoRemove');
+    const useDemoPhoto = document.getElementById('useDemoPhoto');
+    let myPhoto = '';
+    let taPhoto = '';
+    let myName = '我';
+    let myCampus = '示例校区';
+    let myGrade = '示例年级';
+
+    const MAX_PARTNERS = 10;
+    const WINDOW_MS = 48 * 60 * 60 * 1000;
+    const matchStore = {
+      windowStart: Date.now() - 3 * 60 * 60 * 1000,
+      used: 3,
+      current: {
+        id: 'm3', name: '匹配对象', photo: '', fallback: 'avatar-ta',
+        campus: '示例校区', grade: '示例年级', score: 92,
+        common: ['音乐', '电影', '夜跑', '摄影'],
+        commonText: '共同兴趣 4 个 · 同校区 · MBTI 契合',
+        time: '11.10 21:00', status: 'active',
+        messages: [
+          { from: 'them', text: '嗨，我看到我们都喜欢夜跑。你一般跑哪条路线？', time: '20:12' },
+          { from: 'me', text: '江边那条，最近在练 5 公里。你呢？', time: '20:13' },
+          { from: 'them', text: '我也是江边。周末要不要一起跑一次？', time: '20:14' }
+        ]
+      },
+      history: [
+        {
+          id: 'm2', name: '周予安', photo: '', fallback: 'avatar-zhou',
+          campus: '广州·琶洲', grade: '示例年级', score: 88,
+          common: ['阅读', '电影', '咖啡'], commonText: '共同兴趣 3 个 · 同校区',
+          time: '11.10 20:30', status: 'closed', closedReason: '重新匹配',
+          messages: [
+            { from: 'them', text: '嗨，看到你也喜欢电影和咖啡。最近有看什么好片吗？', time: '20:31' },
+            { from: 'me', text: '刚看完《好东西》，挺喜欢的。你平时去哪家咖啡店？', time: '20:32' },
+            { from: 'them', text: '学校旁边那家小店，周末人少。', time: '20:33' }
+          ]
+        },
+        {
+          id: 'm1', name: '许知夏', photo: '', fallback: 'avatar-xu',
+          campus: '佛山·南海南', grade: '示例年级', score: 85,
+          common: ['音乐', '旅行', '摄影'], commonText: '共同兴趣 3 个 · 跨校区',
+          time: '11.10 20:00', status: 'closed', closedReason: '重新匹配',
+          messages: [
+            { from: 'them', text: '你好呀，我也喜欢旅行和摄影。你最近去过哪里？', time: '20:01' },
+            { from: 'me', text: '上周末去了佛山那边，拍了一些老街。', time: '20:02' }
+          ]
+        }
+      ]
+    };
+    const nextPartnerTemplates = [
+      { name: '林川', photo: '', fallback: 'avatar-zhou', campus: '佛山·南海北', grade: '大四', score: 90, common: ['音乐', '旅行', '美食'], commonText: '共同兴趣 3 个 · 同校' },
+      { name: '江禾', photo: '', fallback: 'avatar-xu', campus: '广州·琶洲', grade: '示例年级', score: 87, common: ['电影', '阅读', '咖啡'], commonText: '共同兴趣 3 个 · 同校区' },
+      { name: '陆星', photo: '', fallback: 'avatar-zhou', campus: '示例校区', grade: '示例年级', score: 92, common: ['摄影', '夜跑', '旅行'], commonText: '共同兴趣 3 个 · 同校区' },
+      { name: '沈知远', photo: '', fallback: 'avatar-zhou', campus: '佛山·南海南', grade: '大四', score: 86, common: ['游戏', '音乐', '电影'], commonText: '共同兴趣 3 个 · 跨校区' },
+      { name: '苏木', photo: '', fallback: 'avatar-xu', campus: '示例校区', grade: '示例年级', score: 89, common: ['阅读', '手工', '宠物'], commonText: '共同兴趣 3 个 · 同校区' },
+      { name: '顾言', photo: '', fallback: 'avatar-zhou', campus: '广州·琶洲', grade: '示例年级', score: 84, common: ['健身', '美食', '旅行'], commonText: '共同兴趣 3 个 · 同校区' },
+      { name: '温宁', photo: '', fallback: 'avatar-xu', campus: '佛山·南海北', grade: '大四', score: 88, common: ['二次元', '电影', '音乐'], commonText: '共同兴趣 3 个 · 跨校区' }
+    ];
+    let windowExpiredHandled = false;
+    selectedMatch = matchStore.current;
+
+    const chatInput = document.getElementById('chatInput');
+    const chatSend = document.getElementById('chatSend');
+    const chatMessages = document.getElementById('chatMessages');
+
+    function pad2(value) { return String(value).padStart(2, '0'); }
+    function formatClock(offsetMinutes) {
+      const date = new Date(Date.now() + (offsetMinutes || 0) * 60000);
+      return pad2(date.getHours()) + ':' + pad2(date.getMinutes());
+    }
+    function formatMatchTime(date) {
+      const d = date || new Date();
+      return (d.getMonth() + 1) + '.' + d.getDate() + ' ' + pad2(d.getHours()) + ':' + pad2(d.getMinutes());
+    }
+    function buildPartner(template, seq) {
+      const tag = template.common[0] || '聊天';
+      return Object.assign({
+        id: 'm' + seq,
+        status: 'active',
+        time: formatMatchTime(),
+        messages: [
+          { from: 'them', text: '嗨，看到你也喜欢' + tag + '，好巧。', time: formatClock(0) },
+          { from: 'me', text: '是呀，你平时都怎么安排？', time: formatClock(1) },
+          { from: 'them', text: '周末一般会出去走走，你呢？', time: formatClock(2) }
+        ]
+      }, template);
+    }
+    function genericPartner(seq) {
+      return {
+        name: '第 ' + seq + ' 位同学', photo: '', fallback: seq % 2 ? 'avatar-xu' : 'avatar-zhou',
+        campus: '全校', grade: '—', score: 82,
+        common: ['聊天'], commonText: '本轮新匹配'
+      };
+    }
+    function fillAvatar(box, photo, fallbackId) {
+      if (!box) return;
+      box.innerHTML = '';
+      const img = document.createElement('img');
+      img.alt = '';
+      if (photo) img.src = photo; else img.hidden = true;
+      const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      svg.setAttribute('viewBox', '0 0 80 80');
+      svg.setAttribute('aria-hidden', 'true');
+      const use = document.createElementNS('http://www.w3.org/2000/svg', 'use');
+      use.setAttribute('href', '#' + fallbackId);
+      svg.appendChild(use);
+      if (photo) svg.style.display = 'none';
+      box.appendChild(img);
+      box.appendChild(svg);
+    }
+    function setAvatar(role, photo) {
+      document.querySelectorAll('[data-avatar="' + role + '"]').forEach((box) => {
+        const img = box.querySelector('img');
+        const fallback = box.querySelector('svg');
+        if (photo) {
+          if (img) { img.src = photo; img.hidden = false; }
+          if (fallback) fallback.style.display = 'none';
+        } else {
+          if (img) { img.removeAttribute('src'); img.hidden = true; }
+          if (fallback) fallback.style.display = 'block';
+        }
+      });
+    }
+    function refreshAvatars() {
+      setAvatar('me', myPhoto);
+      setAvatar('ta', taPhoto);
+    }
+    function setMyPhoto(src) {
+      myPhoto = src || '';
+      if (myPhoto) {
+        photoImg.src = myPhoto;
+        photoPreview.hidden = false;
+        photoEmpty.hidden = true;
+      } else {
+        photoImg.removeAttribute('src');
+        photoPreview.hidden = true;
+        photoEmpty.hidden = false;
+        photoInput.value = '';
+      }
+      refreshAvatars();
+      if (selectedMatch) renderChat(selectedMatch);
+      renderHistory();
+    }
+    function renderResult() {
+      const match = matchStore.current;
+      if (!match) return;
+      document.getElementById('resultMyName').textContent = myName;
+      document.getElementById('resultMyMeta').textContent = myCampus + ' · ' + myGrade;
+      document.getElementById('resultTaName').textContent = match.name;
+      document.getElementById('resultTaMeta').textContent = match.campus + ' · ' + match.grade;
+      document.getElementById('resultScoreNum').textContent = String(match.score);
+      document.getElementById('resultScoreLabel').textContent = '匹配度 ' + match.score + '%';
+      document.getElementById('resultScoreText').textContent = match.commonText;
+      document.getElementById('resultCommonTags').innerHTML = match.common
+        .map((tag) => '<span class="common-tag">' + escapeHtml(tag) + '</span>').join('');
+      const use = document.getElementById('resultTaUse');
+      if (use) use.setAttribute('href', '#' + match.fallback);
+      const ring = document.getElementById('scoreRing');
+      if (ring) ring.style.setProperty('--score-offset', (138.2 * (1 - match.score / 100)).toFixed(2));
+      const primary = document.getElementById('resultPrimaryBtn');
+      if (primary) primary.textContent = match.status === 'active' ? '去和 TA 打个招呼' : '查看聊天记录';
+      const note = document.getElementById('resultFooterNote');
+      if (note) {
+        if (match.status === 'active') {
+          note.innerHTML = '对方已看到结果 · 双方确认后开启 7 天任务 · <button class="link-btn" type="button" onclick="toast(\'接入后将打开本期活动规则\')">活动规则</button>';
+        } else {
+          note.textContent = '本轮匹配已结束 · 历史聊天记录已转为只读';
+        }
+      }
+      taPhoto = match.photo || '';
+      refreshAvatars();
+      renderCounters();
+    }
+    function renderChat(match) {
+      if (!match) return;
+      selectedMatch = match;
+      const readOnly = match.status !== 'active';
+      document.getElementById('chatPartnerName').textContent = match.name;
+      document.getElementById('chatMatchNote').textContent = readOnly
+        ? '该配对已结束 · 仅可查看历史消息'
+        : '照片仅在匹配成功后可见 · 未上传时自动显示头像';
+      document.getElementById('chatSystemLine').textContent = readOnly
+        ? '以下是你们的历史聊天记录'
+        : '你们已互相确认，开始聊天吧 · 7 天后自动解除';
+      fillAvatar(document.getElementById('chatTopMe'), myPhoto, 'avatar-me');
+      fillAvatar(document.getElementById('chatTopTa'), match.photo, match.fallback);
+      chatMessages.innerHTML = '';
+      (match.messages || []).forEach((msg) => {
+        const row = document.createElement('div');
+        row.className = 'chat-msg ' + (msg.from === 'me' ? 'chat-msg--right' : 'chat-msg--left');
+        const bubbleWrap = document.createElement('div');
+        bubbleWrap.className = 'chat-bubble-wrap';
+        const bubble = document.createElement('div');
+        bubble.className = 'chat-bubble' + (msg.from === 'me' ? ' chat-bubble--mine' : '');
+        bubble.textContent = msg.text;
+        const time = document.createElement('div');
+        time.className = 'chat-time';
+        time.textContent = msg.time || '';
+        bubbleWrap.appendChild(bubble);
+        bubbleWrap.appendChild(time);
+        const avatar = document.createElement('div');
+        avatar.className = 'chat-avatar';
+        if (msg.from === 'me') {
+          fillAvatar(avatar, myPhoto, 'avatar-me');
+          row.appendChild(bubbleWrap);
+          row.appendChild(avatar);
+        } else {
+          fillAvatar(avatar, match.photo, match.fallback);
+          row.appendChild(avatar);
+          row.appendChild(bubbleWrap);
+        }
+        chatMessages.appendChild(row);
+      });
+      chatInput.disabled = readOnly;
+      chatSend.disabled = readOnly;
+      chatInput.placeholder = readOnly ? '该配对已结束，无法发送消息' : '说点什么...';
+      document.getElementById('chatComposer').classList.toggle('is-readonly', readOnly);
+      const rematchLink = document.getElementById('chatRematchLink');
+      if (rematchLink) rematchLink.hidden = readOnly;
+      const body = document.getElementById('chatBody');
+      if (body) requestAnimationFrame(() => { body.scrollTop = body.scrollHeight; });
+    }
+    function historyCard(match, isCurrent) {
+      const card = document.createElement('button');
+      card.type = 'button';
+      card.className = 'history-card';
+      const avatar = document.createElement('div');
+      avatar.className = 'history-avatar';
+      fillAvatar(avatar, match.photo, match.fallback);
+      const main = document.createElement('div');
+      main.className = 'history-main';
+      const name = document.createElement('div');
+      name.className = 'history-name';
+      name.textContent = match.name;
+      const isActive = isCurrent && match.status === 'active';
+      const badge = document.createElement('span');
+      badge.className = 'history-badge' + (isActive ? ' active' : '');
+      badge.textContent = isActive ? '进行中' : '已结束';
+      name.appendChild(badge);
+      const meta = document.createElement('div');
+      meta.className = 'history-meta';
+      meta.textContent = match.campus + ' · ' + match.grade + ' · 匹配度 ' + match.score + '%';
+      const last = document.createElement('div');
+      last.className = 'history-last';
+      const lastMsg = match.messages && match.messages[match.messages.length - 1];
+      last.textContent = isActive
+        ? '最近：' + (lastMsg ? lastMsg.text : '还没有聊天')
+        : '已结束 · 点击查看历史聊天';
+      main.appendChild(name);
+      main.appendChild(meta);
+      main.appendChild(last);
+      const time = document.createElement('div');
+      time.className = 'history-time';
+      time.textContent = match.time || '';
+      card.appendChild(avatar);
+      card.appendChild(main);
+      card.appendChild(time);
+      card.addEventListener('click', () => openChat(match.id, 'history'));
+      return card;
+    }
+    function renderHistory() {
+      const currentWrap = document.getElementById('historyCurrent');
+      const list = document.getElementById('historyList');
+      if (!currentWrap || !list) return;
+      currentWrap.innerHTML = '';
+      list.innerHTML = '';
+      if (matchStore.current) currentWrap.appendChild(historyCard(matchStore.current, true));
+      matchStore.history.forEach((match) => list.appendChild(historyCard(match, false)));
+      const count = document.getElementById('historyCount');
+      if (count) count.textContent = matchStore.history.length + ' 位';
+      const empty = document.getElementById('historyEmpty');
+      if (empty) empty.hidden = matchStore.history.length > 0;
+      const currentActive = matchStore.current && matchStore.current.status === 'active';
+      const currentTitle = document.getElementById('historyCurrentTitle');
+      if (currentTitle) currentTitle.textContent = currentActive ? '当前配对' : '最近配对';
+      const currentNote = document.getElementById('historyCurrentNote');
+      if (currentNote) currentNote.textContent = currentActive ? '进行中' : '已结束';
+      const windowState = document.getElementById('historyWindowState');
+      if (windowState) windowState.textContent = currentActive ? '48 小时窗口' : '本轮已结束';
+      const headNote = document.getElementById('historyHeadNote');
+      if (headNote) {
+        headNote.textContent = currentActive
+          ? '只有当前配对可以发消息；历史对象仅可查看资料和聊天记录。'
+          : '本轮匹配已结束，所有聊天记录已转为只读。';
+      }
+      renderCounters();
+    }
+    function findMatch(matchId) {
+      if (matchStore.current && String(matchStore.current.id) === String(matchId)) return matchStore.current;
+      return matchStore.history.find((match) => String(match.id) === String(matchId)) || null;
+    }
+    function openHistory() {
+      const active = document.querySelector('.state.active');
+      historyOrigin = active && active.dataset.state === 'chat' ? 'chat' : 'result';
+      jump('history');
+      renderHistory();
+    }
+    function windowEndAt() { return matchStore.windowStart + WINDOW_MS; }
+    function formatDuration(ms) {
+      const total = Math.max(Math.floor(ms / 1000), 0);
+      const h = Math.floor(total / 3600);
+      const m = Math.floor((total % 3600) / 60);
+      const s = total % 60;
+      return pad2(h) + ':' + pad2(m) + ':' + pad2(s);
+    }
+    function handleWindowExpiry() {
+      if (windowExpiredHandled) return;
+      windowExpiredHandled = true;
+      if (matchStore.current && matchStore.current.status === 'active') {
+        matchStore.current.status = 'closed';
+        matchStore.current.closedReason = '窗口结束';
+      }
+      renderResult();
+      if (selectedMatch) renderChat(selectedMatch);
+      renderHistory();
+    }
+    function updateWindowRemain() {
+      const ms = Math.max(windowEndAt() - Date.now(), 0);
+      document.querySelectorAll('[data-window-remain]').forEach((el) => { el.textContent = formatDuration(ms); });
+      const remaining = MAX_PARTNERS - matchStore.used;
+      const btn = document.getElementById('rematchBtn');
+      if (btn) {
+        btn.disabled = ms <= 0 || remaining <= 0;
+        btn.textContent = ms <= 0 ? '本轮已结束' : (remaining <= 0 ? '已达上限' : '重新匹配');
+      }
+      if (ms <= 0 && !windowExpiredHandled) handleWindowExpiry();
+    }
+    function renderCounters() {
+      document.querySelectorAll('[data-match-used]').forEach((el) => { el.textContent = String(matchStore.used); });
+      const remain = document.getElementById('rematchRemain');
+      if (remain) remain.textContent = String(Math.max(MAX_PARTNERS - matchStore.used, 0));
+      updateWindowRemain();
+    }
+    function openRematch() {
+      if (windowEndAt() <= Date.now()) return toast('本轮匹配已结束，无法重新匹配');
+      if (matchStore.used >= MAX_PARTNERS) return toast('本轮已匹配 10 位，无法再匹配新同学');
+      const partner = document.getElementById('rematchPartner');
+      if (partner) partner.textContent = matchStore.current ? matchStore.current.name : '';
+      renderCounters();
+      const modal = document.getElementById('rematchModal');
+      if (modal) modal.hidden = false;
+    }
+    function closeRematch() {
+      const modal = document.getElementById('rematchModal');
+      if (modal) modal.hidden = true;
+    }
+    function confirmRematch() {
+      closeRematch();
+      const loading = document.getElementById('rematchLoading');
+      if (loading) loading.hidden = false;
+      setTimeout(() => {
+        if (matchStore.current) {
+          matchStore.current.status = 'closed';
+          matchStore.current.closedReason = '重新匹配';
+          matchStore.history.unshift(matchStore.current);
+        }
+        matchStore.used += 1;
+        const template = nextPartnerTemplates.shift() || genericPartner(matchStore.used);
+        matchStore.current = buildPartner(template, matchStore.used);
+        selectedMatch = matchStore.current;
+        chatOrigin = 'result';
+        renderResult();
+        renderHistory();
+        renderChat(matchStore.current);
+        if (loading) loading.hidden = true;
+        jump('result');
+        toast('已重新匹配，当前是第 ' + matchStore.used + ' 位');
+      }, 1100);
+    }
+    function sendChat() {
+      if (!selectedMatch || selectedMatch.status !== 'active') return toast('该配对已结束，仅可查看历史消息');
+      const text = chatInput.value.trim();
+      if (!text) return toast('先写点什么');
+      selectedMatch.messages.push({ from: 'me', text, time: formatClock(0) });
+      chatInput.value = '';
+      renderChat(selectedMatch);
+      toast('消息已发送');
+    }
+
+    photoEmpty.addEventListener('click', () => photoInput.click());
+    photoInput.addEventListener('change', () => {
+      const file = photoInput.files && photoInput.files[0];
+      if (!file) return;
+      if (!/^image\//.test(file.type)) return toast('请选择图片文件');
+      if (file.size > 5 * 1024 * 1024) return toast('照片不能超过 5MB');
+      const reader = new FileReader();
+      reader.onload = () => setMyPhoto(String(reader.result || ''));
+      reader.readAsDataURL(file);
+    });
+    photoRemove.addEventListener('click', () => setMyPhoto(''));
+    useDemoPhoto.addEventListener('click', () => {
+      setMyPhoto('');
+      toast('已显示通用头像，可上传自己的照片');
+    });
+
+    const taNoPhoto = document.getElementById('taNoPhoto');
+    if (taNoPhoto) {
+      taNoPhoto.addEventListener('change', (event) => {
+        if (!matchStore.current) return;
+        if (event.target.checked) {
+          matchStore.current._photoBeforeToggle = matchStore.current.photo;
+          matchStore.current.photo = '';
+        } else {
+          matchStore.current.photo = matchStore.current._photoBeforeToggle !== undefined
+            ? matchStore.current._photoBeforeToggle
+            : '';
+        }
+        renderResult();
+        if (selectedMatch && selectedMatch.id === matchStore.current.id) renderChat(matchStore.current);
+        renderHistory();
+      });
+    }
+
+    if (chatSend) chatSend.addEventListener('click', sendChat);
+    if (chatInput) chatInput.addEventListener('keydown', (event) => { if (event.key === 'Enter') sendChat(); });
+
+    window.openHistory = openHistory;
+    window.openRematch = openRematch;
+    window.closeRematch = closeRematch;
+    window.confirmRematch = confirmRematch;
+
+    renderResult();
+    renderChat(matchStore.current);
+    renderHistory();
+    renderCounters();
+    setInterval(updateWindowRemain, 1000);
+
+    // 字数
+    const bioInput = document.getElementById('bioInput');
+    const bioCount = document.getElementById('bioCount');
+    bioInput.addEventListener('input', () => { bioCount.textContent = String(bioInput.value.length); });
+
+    // 同意
+    const consentBtn = document.getElementById('consentBtn');
+    let consented = false;
+    consentBtn.addEventListener('click', () => {
+      consented = !consented;
+      consentBtn.classList.toggle('on', consented);
+      consentBtn.setAttribute('aria-pressed', String(consented));
+    });
+
+    // 提交
+    document.getElementById('submitBtn').addEventListener('click', () => {
+      const gender = getGender();
+      const campus = getCampus();
+      const grade = getGrade();
+      const tags = getTags();
+      const bio = bioInput.value.trim();
+      if (!gender) return toast('请选择性别');
+      if (!campus.length) return toast('请选择校区');
+      if (!grade.length) return toast('请选择年级');
+      if (tags.length < 2) return toast('至少选择 2 个兴趣标签');
+      if (bio.length < 10) return toast('一句话介绍至少写 10 个字');
+      if (!consented) return toast('请先阅读并同意活动规则');
+
+      const heightText = heightUnlimitedOn ? '身高不限' : heightMin.value + '–' + heightMax.value + 'cm';
+      const mbtiText = mbtiSelected.indexOf('不限') > -1 ? 'MBTI 不限' : 'MBTI ' + mbtiSelected.join('/');
+      const campusExpect = getExpectCampus() === 'same' ? '同校区' : '校区不限';
+      myCampus = campus[0];
+      myGrade = grade[0];
+      document.getElementById('waitMeta').textContent = campus[0] + ' · ' + grade[0];
+      document.getElementById('waitTags').innerHTML = tags.map((tag) => '<span class="wait-tag">' + escapeHtml(tag) + '</span>').join('');
+      document.getElementById('waitBio').textContent = bio;
+      document.getElementById('waitExpect').textContent = '期望：' + campusExpect + ' · ' + heightText + ' · ' + mbtiText;
+      renderResult();
+      jump('waiting');
+      toast('已开始匹配，等待揭晓');
+    });
+
+    function escapeHtml(value) {
+      return String(value).replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
+    }
+
+    // 倒计时：演示用固定揭晓时间，真实接入后由服务端下发
+    const target = new Date('2026-11-10T20:00:00+08:00').getTime();
+    function setUnit(unit, value) {
+      const el = document.querySelector('[data-unit="' + unit + '"]');
+      if (el) el.textContent = String(value).padStart(2, '0');
+    }
+    function tick() {
+      const diff = target - Date.now();
+      if (diff <= 0) {
+        setUnit('d', 0); setUnit('h', 0); setUnit('m', 0); setUnit('s', 0);
+        return;
+      }
+      const total = Math.floor(diff / 1000);
+      setUnit('d', Math.floor(total / 86400));
+      setUnit('h', Math.floor((total % 86400) / 3600));
+      setUnit('m', Math.floor((total % 3600) / 60));
+      setUnit('s', total % 60);
+    }
+    tick();
+    setInterval(tick, 1000);
+
+    // 首次进入时给结果页的分数环一个初始态
+    window.addEventListener('load', () => {
+      const ring = document.getElementById('scoreRing');
+      if (ring) ring.classList.remove('animate');
+    });
+
+    // 预览直达：?state=chat&bottom=1&photo=1&taoff=1
+    const previewParams = new URLSearchParams(location.search);
+    if (previewParams.get('photo') === '1') setMyPhoto('');
+    if (previewParams.get('taoff') === '1') {
+      matchStore.current.photo = '';
+      renderResult();
+      renderChat(matchStore.current);
+      renderHistory();
+    }
+    if (previewParams.get('noanim') === '1') document.documentElement.classList.add('no-anim');
+    const previewState = previewParams.get('state');
+    const activePreviewState = document.querySelector('.state.active');
+    if (previewState && (!activePreviewState || activePreviewState.dataset.state !== previewState)) jump(previewState);
+    const previewUsed = Number(previewParams.get('used'));
+    if (previewUsed >= 1 && previewUsed <= MAX_PARTNERS) {
+      matchStore.used = previewUsed;
+      renderResult();
+      renderHistory();
+    }
+    if (previewParams.get('expired') === '1') {
+      matchStore.windowStart = Date.now() - WINDOW_MS - 1000;
+      renderResult();
+      renderHistory();
+    }
+    if (previewParams.get('modal') === 'rematch') setTimeout(() => openRematch(), 80);
+    if (previewParams.get('open')) setTimeout(() => openChat(previewParams.get('open'), 'history'), 80);
+    const previewScroll = Number(previewParams.get('scroll'));
+    if (previewScroll > 0) {
+      setTimeout(() => {
+        const body = document.querySelector('.state.active .state-body');
+        if (body) body.scrollTop = previewScroll;
+      }, 60);
+    } else if (previewParams.get('bottom') === '1') {
+      setTimeout(() => {
+        const body = document.querySelector('.state.active .state-body');
+        if (body) body.scrollTop = body.scrollHeight;
+      }, 60);
+    }
+  })();
+</script>
+</body>
+</html>

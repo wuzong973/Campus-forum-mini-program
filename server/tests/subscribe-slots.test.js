@@ -280,6 +280,22 @@ async function run() {
     seenStorage['notify_channel_prefs'] = { withdrawSuccess: true, withdrawResult: true, grantedWithdrawSuccess: true, grantedWithdrawResult: false }
     assert.strictEqual(sub2.shouldShowDialog('withdraw'), true, '授权被拒 → 仍弹窗给再次授权机会')
   }, 'F. shouldShowDialog 双维度（偏好+授权）：全开且已授权才静默，否则弹窗给授权入口')
+
+  // G. 一周CP 聊天推送跳转：显式 page 覆盖默认消息中心，未传时保持旧默认
+  await checkAsync(async () => {
+    const capturedPage = []
+    const svcMessage = loadSubscribeService({ WX_TPL_MESSAGE: 'id-message' }, capturedPage)
+    await svcMessage.pushMessage(1, {
+      senderNick: 'A.Twelve',
+      digest: '[文字]',
+      page: 'pkg-feature/pages/couple/chat?matchId=123'
+    })
+    await svcMessage.pushMessage(1, { senderNick: 'A.Twelve', digest: '[文字]' })
+    assert.strictEqual(capturedPage.length, 2, '两次聊天提醒都应触达微信接口')
+    assert.strictEqual(capturedPage[0].page, 'pkg-feature/pages/couple/chat?matchId=123', '一周CP推送应跳到专用聊天页')
+    assert.strictEqual(capturedPage[1].page, 'pages/my-messages/index', '普通私信没有 page 时仍跳消息中心')
+    assert.strictEqual(capturedPage[0].template_id, 'id-message', '沿用现有聊天信息提醒模板')
+  }, 'G. 一周CP聊天推送落地页：显式 page 覆盖，普通私信保持默认')
 }
 
 // run() 是 async：不 await 的话，断言失败只会变成 unhandled rejection，

@@ -5,6 +5,7 @@ const walletController = require('../controllers/walletController')
 const clubController = require('../controllers/clubController')
 const groupChatController = require('../controllers/groupChatController')
 const activityController = require('../controllers/activityController')
+const coupleController = require('../controllers/coupleController')
 const repairController = require('../controllers/repairController')
 const drivingSchoolController = require('../controllers/drivingSchoolController')
 const reviewController = require('../controllers/reviewController')
@@ -107,6 +108,12 @@ router.delete('/activities/:id', requireAdmin('content.manage'), activityControl
 // 活动审核（普通用户发布的活动需审核通过后才公开）
 router.get('/activity-audits', requireAdmin('content.manage'), activityController.adminAuditList)
 router.post('/activities/:id/audit', requireAdmin('content.manage'), activityController.adminAudit)
+
+// 一周CP（content.manage 权限）：功能配置、参与名单、匹配预览/执行
+router.get('/couple/feature', requireAdmin('content.manage'), coupleController.adminActivity)
+router.put('/couple/feature', requireAdmin('content.manage'), coupleController.adminSaveActivity)
+router.get('/couple/signups', requireAdmin('content.manage'), coupleController.adminSignups)
+router.post('/couple/run', requireAdmin('content.manage'), coupleController.adminRunMatch)
 
 // 微信群播报（论坛广播）：生成新帖摘要+小程序短链的群发文案（content.manage 权限）
 router.get('/broadcasts', requireAdmin('content.manage'), broadcastController.list)

@@ -152,7 +152,7 @@ exports.listPosts = async (req, res) => {
     if (keyword) { where += ' AND (p.title LIKE ? OR p.content LIKE ? OR u.nick_name LIKE ?)'; const q = '%' + keyword + '%'; params.push(q, q, q) }
     const [[count], [list]] = await Promise.all([
       pool.query(`SELECT COUNT(*) total FROM forum_post p LEFT JOIN sys_user u ON u.id = p.user_id ${where}`, params),
-      pool.query(`SELECT p.id, p.user_id userId, p.title, p.category, p.content, p.status, p.pinned, p.review_note reviewNote, p.created_at createdAt, p.updated_at updatedAt, p.like_count likeCount, p.comment_count commentCount, u.nick_name nickName, u.avatar_url avatarUrl FROM forum_post p LEFT JOIN sys_user u ON u.id = p.user_id ${where} ORDER BY p.pinned DESC, p.created_at DESC LIMIT ? OFFSET ?`, params.concat([pageSize, offset]))
+      pool.query(`SELECT p.id, p.user_id userId, p.title, p.category, p.content, p.status, p.pinned, p.review_note reviewNote, p.created_at createdAt, p.updated_at updatedAt, p.like_count likeCount, p.comment_count commentCount, u.nick_name nickName, u.avatar_url avatarUrl, u.phone publisherPhone FROM forum_post p LEFT JOIN sys_user u ON u.id = p.user_id ${where} ORDER BY p.pinned DESC, p.created_at DESC LIMIT ? OFFSET ?`, params.concat([pageSize, offset]))
     ])
     success(res, { list, total: Number(count[0].total), page, hasMore: offset + list.length < Number(count[0].total) })
   } catch (e) { fail(res, safeMessage(e), 500) }

@@ -38,7 +38,7 @@ function check(fn, message) {
 
 // 首页宫格第一行（服务端教务 / 生活服务）——完整 12 列
 const ROW1 = [
-  '课程表', '教务系统', '成绩查询', '考试安排', '校历', '校园地图',
+  '一周CP', '教务系统', '成绩查询', '考试安排', '校历', '校园地图',
   '自助购电', '订水系统', '校车时刻', '乘车码', '轻友指南', '教务文档'
 ]
 
@@ -64,7 +64,7 @@ const PAGE_ENTRIES = [
   ['考试安排', '/pkg-schedule/schedule-exam/index'],
   ['成绩查询', '/pkg-schedule/schedule-grade/index'],
   ['教务系统', '/pkg-schedule/schedule-home/index'],
-  ['课程表', '/pages/schedule/index'],
+  ['一周CP', '/pkg-feature/pages/couple/index'],
   ['校历', '/pkg-schedule/schedule-calendar/index'],
   ['教务文档', '/pkg-schedule/schedule-home/index'],
   // 校园服务六项：共用一个页面，靠 ?id= 区分内容

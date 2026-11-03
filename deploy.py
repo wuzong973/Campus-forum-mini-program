@@ -35,6 +35,12 @@ files = [
     ("server/routes/powerProxyRoutes.js", "routes/powerProxyRoutes.js"),
     ("server/controllers/postController.js", "controllers/postController.js"),
     ("server/routes/adminRoutes.js", "routes/adminRoutes.js"),
+    # 一周CP：新控制器/路由/服务/匹配脚本必须同批上传，缺一个会 MODULE_NOT_FOUND
+    ("server/controllers/coupleController.js", "controllers/coupleController.js"),
+    ("server/routes/coupleRoutes.js", "routes/coupleRoutes.js"),
+    ("server/services/coupleMatcher.js", "services/coupleMatcher.js"),
+    ("server/services/coupleService.js", "services/coupleService.js"),
+    ("server/scripts/couple-match.js", "scripts/couple-match.js"),
     # 维修预约：用户端 repairRoutes + 管理端「日志 → 维修信息」的 adminListOrders 都在 repairController，
     # 两者必须同批上传（只传路由会 MODULE_NOT_FOUND）
     ("server/controllers/repairController.js", "controllers/repairController.js"),

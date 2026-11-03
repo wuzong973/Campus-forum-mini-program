@@ -1,0 +1,113 @@
+<view class="page {{fxOff ? 'fx-off' : ''}}" wx:if="{{!loading}}">
+  <view class="empty-state card" wx:if="{{!match}}">
+    <view class="empty-orb">CP</view>
+    <text class="empty-title">暂时没有可查看的配对</text>
+    <text class="empty-sub">如果刚刚提交重新匹配，请等待下一批统一揭晓；也可以先看看历史配对。</text>
+    <button class="btn-secondary" hover-class="btn-press" hover-stay-time="90" bindtap="goHistory">查看历史匹配</button>
+  </view>
+
+  <block wx:else>
+    <view class="result-banner {{motionOn ? 'anim-banner' : ''}}">
+      <text class="result-kicker">MATCHED</text>
+      <text class="result-title">{{match.status === 'active' ? '你们被分到同一组' : '这段配对已结束'}}</text>
+      <text class="result-sub">{{match.status === 'active' ? '先从共同点开始，不必急着找话题' : '聊天记录仍然保留，可以随时回看'}}</text>
+    </view>
+
+    <view class="pair-card card {{motionOn ? 'anim-pair' : ''}}">
+      <view class="pair-row">
+        <view class="pair-person {{motionOn ? 'anim-from-left' : ''}}">
+          <view class="pair-avatar-wrap">
+            <image class="pair-avatar" src="{{match.me.photoUrl || match.me.avatarUrl || fallbackAvatar}}" mode="aspectFill" data-url="{{match.me.photoUrl}}" bindtap="previewPhoto"></image>
+            <text class="pair-badge">你</text>
+          </view>
+          <text class="pair-name">{{match.me.nickName}}</text>
+          <text class="pair-meta">{{match.me.campus}} · {{match.me.grade}}</text>
+        </view>
+
+        <view class="pair-link">
+          <view class="pair-line"></view>
+          <view class="pair-heart {{motionOn ? 'anim-heart-pop' : ''}}"><text class="pair-heart-icon">♥</text></view>
+          <view class="pair-line"></view>
+        </view>
+
+        <view class="pair-person {{motionOn ? 'anim-from-right' : ''}}">
+          <view class="pair-avatar-wrap">
+            <image class="pair-avatar" src="{{match.partner.photoUrl || match.partner.avatarUrl || fallbackAvatar}}" mode="aspectFill" data-url="{{match.partner.photoUrl}}" bindtap="previewPhoto"></image>
+            <text class="pair-badge">TA</text>
+          </view>
+          <text class="pair-name">{{match.partner.nickName}}</text>
+          <text class="pair-meta">{{match.partner.campus}} · {{match.partner.grade}}</text>
+        </view>
+      </view>
+
+      <view class="score-row">
+        <view class="score-ring {{motionOn ? 'anim-score-pop' : ''}}">
+          <text class="score-num">{{scoreShown}}</text>
+        </view>
+        <view class="score-text {{motionOn ? 'anim-score-text' : ''}}">
+          <text class="score-label">匹配度 {{scoreShown}}%</text>
+          <text class="score-sub">{{scoreText}} · {{match.partner.campus === match.me.campus ? '同校区' : '跨校区'}}</text>
+        </view>
+      </view>
+
+      <text class="common-title">你们的共同点</text>
+      <view class="common-tags">
+        <text class="common-tag {{motionOn ? 'anim-tag' : ''}}" style="animation-delay: {{index * 50 + 620}}ms" wx:for="{{match.commonTags}}" wx:key="*this">{{item}}</text>
+        <text class="common-tag {{motionOn ? 'anim-tag' : ''}}" style="animation-delay: 620ms" wx:if="{{!match.commonTags.length}}">{{match.partner.campus === match.me.campus ? '同校区' : '本轮新匹配'}}</text>
+      </view>
+    </view>
+
+    <view class="limit-card card {{motionOn ? 'anim-stagger' : ''}}" style="--i: 6;">
+      <view class="limit-main">
+        <text class="limit-title">本轮已匹配 <text class="limit-strong">{{match.window.used}}</text>/10 位</text>
+        <text class="limit-sub">48 小时窗口剩余 <text class="limit-strong">{{windowRemain}}</text></text>
+      </view>
+      <view class="limit-actions">
+        <view class="link-btn" hover-class="link-press" hover-stay-time="80" bindtap="goHistory">历史匹配</view>
+        <button class="btn-ghost" hover-class="btn-press" hover-stay-time="90" disabled="{{!match.canRematch}}" bindtap="openRematch">{{rematchLabel}}</button>
+      </view>
+    </view>
+
+    <view class="card prompt-card {{motionOn ? 'anim-stagger' : ''}}" style="--i: 7;">
+      <view class="prompt-head"><text class="prompt-icon">?</text><text>不知道聊什么，从这三句开始</text></view>
+      <view class="prompt-item"><text class="prompt-no">01</text><text>你最近单曲循环的一首歌是什么？</text></view>
+      <view class="prompt-item"><text class="prompt-no">02</text><text>学校附近你最喜欢的一家店是哪家？</text></view>
+      <view class="prompt-item"><text class="prompt-no">03</text><text>如果周末有一天完全空闲，你会怎么过？</text></view>
+    </view>
+
+    <view class="safety-note {{motionOn ? 'anim-stagger' : ''}}" style="--i: 8;">
+      <text class="safety-bold">安全提示：</text>前 7 天建议只在站内聊天，不要提前交换住址、身份证或转账。见面请选择校内公共场所，并告知同学。
+    </view>
+
+    <view class="bottom-space"></view>
+
+    <view class="result-footer {{motionOn ? 'anim-footer' : ''}}">
+      <button class="btn-primary" hover-class="btn-press" hover-stay-time="90" bindtap="goChat">{{match.status === 'active' ? '去和 TA 打个招呼' : '查看聊天记录'}}</button>
+      <text class="footer-note">{{match.status === 'active' ? '对方也已看到匹配结果 · 双方确认后开启 7 天任务' : '本轮匹配已结束 · 历史聊天记录只读'}}</text>
+    </view>
+  </block>
+</view>
+
+<view class="loading-page" wx:else>
+  <view class="loading-dot"></view>
+  <text>正在加载配对...</text>
+</view>
+
+<!-- 重新匹配弹窗 -->
+<view class="modal-mask {{fxOff ? '' : (modalClosing ? 'is-leaving' : 'is-entering')}}" wx:if="{{showRematch}}" bindtap="closeRematch">
+  <view class="modal-sheet {{fxOff ? '' : (modalClosing ? 'is-leaving' : 'is-entering')}}" catchtap="noop">
+    <view class="modal-head">
+      <text class="modal-title">重新匹配</text>
+      <text class="modal-close" bindtap="closeRematch">关闭</text>
+    </view>
+    <text class="modal-intro">当前与 <text class="modal-strong">{{match.partner.nickName}}</text> 的配对将结束，聊天记录会保留在「历史匹配」。</text>
+    <view class="modal-rule">· 你和对方都会回到匹配池，对方会收到中性通知</view>
+    <view class="modal-rule">· 不会再匹配到同一个人</view>
+    <view class="modal-rule">· 本轮还剩 <text class="modal-strong">{{match.window.remaining}}</text> 次重新匹配机会</view>
+    <view class="modal-rule">· 达到 10 位后只能查看历史，不能再匹配新同学</view>
+    <view class="modal-actions">
+      <button class="btn-secondary" hover-class="btn-press" hover-stay-time="90" disabled="{{rematching}}" bindtap="closeRematch">再想想</button>
+      <button class="btn-primary" hover-class="btn-press" hover-stay-time="90" loading="{{rematching}}" disabled="{{rematching}}" bindtap="confirmRematch">{{rematching ? '正在重新匹配…' : '确认重新匹配'}}</button>
+    </view>
+  </view>
+</view>

@@ -1,0 +1,61 @@
+<view class="page" wx:if="{{!loading}}">
+  <view class="history-head card">
+    <view class="history-head-top">
+      <text class="history-title">历史匹配</text>
+      <text class="history-link" bindtap="goIndex">本周CP ›</text>
+    </view>
+    <text class="history-sub">本轮已匹配 <text class="history-strong">{{windowUsed}}</text>/10 位 · 48 小时窗口</text>
+    <text class="history-note">{{current ? '只有当前配对可以发消息；历史对象仅可查看资料和聊天记录。' : '本轮匹配已结束；所有聊天记录已转为只读。'}}</text>
+  </view>
+
+  <block wx:if="{{current}}">
+    <view class="section-head">
+      <text class="section-title">当前配对</text>
+      <text class="section-note">进行中</text>
+    </view>
+    <view class="history-card current" bindtap="openCurrent">
+      <image class="history-avatar" src="{{current.partner.photoUrl || current.partner.avatarUrl || fallbackAvatar}}" mode="aspectFill"></image>
+      <view class="history-main">
+        <view class="history-name-row">
+          <text class="history-name">{{current.partner.nickName}}</text>
+          <text class="history-badge badge-active">进行中</text>
+        </view>
+        <text class="history-meta">{{current.partner.campus}} · {{current.partner.grade}} · 匹配度 {{current.score}}%</text>
+        <text class="history-last">最近：点击进入聊天</text>
+      </view>
+      <text class="history-time">{{current.createdAt}}</text>
+    </view>
+  </block>
+
+  <view class="section-head">
+    <text class="section-title">历史对象</text>
+    <text class="section-note">{{history.length}} 位</text>
+  </view>
+
+  <view class="history-card" wx:for="{{history}}" wx:key="id" data-id="{{item.id}}" data-status="{{item.status}}" bindtap="openItem">
+    <image class="history-avatar" src="{{item.partner.photoUrl || item.partner.avatarUrl || fallbackAvatar}}" mode="aspectFill"></image>
+    <view class="history-main">
+      <view class="history-name-row">
+        <text class="history-name">{{item.partner.nickName}}</text>
+        <text class="history-badge">已结束</text>
+      </view>
+      <text class="history-meta">{{item.partner.campus}} · {{item.partner.grade}} · 匹配度 {{item.score}}%</text>
+      <text class="history-last">已结束 · 点击查看历史聊天</text>
+    </view>
+    <text class="history-time">{{item.createdAt}}</text>
+  </view>
+
+  <view class="empty-state card" wx:if="{{!current && !history.length}}">
+    <view class="empty-orb">CP</view>
+    <text class="empty-title">还没有历史匹配</text>
+    <text class="empty-sub">完成第一次匹配后，这里会保留你之前看过和聊过的对象。</text>
+    <button class="btn-secondary" bindtap="goIndex">去参与</button>
+  </view>
+
+  <view class="history-foot">达到 10 位后将无法继续匹配新同学 · 历史对象只读</view>
+</view>
+
+<view class="loading-page" wx:else>
+  <view class="loading-dot"></view>
+  <text>正在加载历史匹配...</text>
+</view>

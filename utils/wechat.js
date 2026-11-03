@@ -117,6 +117,35 @@ function uploadVideo(filePath) {
   });
 }
 
+// 聊天语音上传：录音文件通常不大，超时介于图片和视频之间
+function uploadAudio(filePath) {
+  const inst = getApp();
+  const base = request.BASE_URL.replace("/api/v1", "");
+  return new Promise((resolve, reject) => {
+    wx.uploadFile({
+      url: base + "/api/v1/user/upload/audio",
+      filePath,
+      name: "file",
+      header: { Authorization: "Bearer " + inst.globalData.token },
+      timeout: 60000,
+      success(res) {
+        try {
+          const data = JSON.parse(res.data);
+          if (res.statusCode < 200 || res.statusCode >= 300 || !data.data || !data.data.url) {
+            reject(new Error((data && data.message) || "语音上传失败"));
+            return;
+          }
+          const url = data.data.url;
+          resolve(url.indexOf("/") === 0 ? base + url : url);
+        } catch (e) {
+          reject(new Error("语音上传响应无效"));
+        }
+      },
+      fail: (error) => reject(new Error(error.errMsg || "语音上传失败")),
+    });
+  });
+}
+
 // 隐私授权预检（符合微信开放平台规范）：
 // 1. wx.getPrivacySetting 查询用户是否已同意《用户隐私保护指引》；
 // 2. 未同意时通过 wx.requirePrivacyAuthorize 拉起官方隐私授权弹窗；
@@ -145,4 +174,4 @@ function ensurePrivacyAuthorize() {
   });
 }
 
-module.exports = { phoneLogin, checkContent, updatePhone, savePhone, uploadImages, uploadVideo, previewImages, ensurePrivacyAuthorize };
+module.exports = { phoneLogin, checkContent, updatePhone, savePhone, uploadImages, uploadVideo, uploadAudio, previewImages, ensurePrivacyAuthorize };

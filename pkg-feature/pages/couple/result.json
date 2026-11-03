@@ -1,0 +1,8 @@
+{
+  "navigationBarTitleText": "配对结果",
+  "navigationBarBackgroundColor": "#F7F7F7",
+  "navigationBarTextStyle": "black",
+  "backgroundColor": "#F7F7F7",
+  "enablePullDownRefresh": true,
+  "backgroundTextStyle": "dark"
+}

@@ -15,6 +15,7 @@ const SERVICE_CACHE_KEY = "service_list_cache";
 const SERVICE_ICON_MAP = {
   '代拿跑腿': '/assets/icons/svc-errand.png',
   '课程表': '/assets/icons/svc-schedule.png',
+  '一周CP': '/assets/icons/svc-couple.png',
   '社区论坛': '/assets/icons/svc-community.png',
   '二手闲置': '/assets/icons/svc-idle.png',
   '南校订水': '/assets/icons/svc-water.png',
@@ -769,6 +770,27 @@ function signupActivity(id) {
   return request.post("/activity/signup/" + id, {}, true);
 }
 
+// ===== 一周CP =====
+function getCoupleCurrent() {
+  return request.get("/couple/current", {}, true, { silent: true });
+}
+
+function submitCoupleSignup(data) {
+  return request.post("/couple/signup", data, true);
+}
+
+function getCoupleMatch(id) {
+  return request.get("/couple/match/" + id, {}, true);
+}
+
+function rematchCouple(matchId) {
+  return request.post("/couple/rematch", { matchId }, true);
+}
+
+function getCoupleHistory() {
+  return request.get("/couple/history", {}, true);
+}
+
 // ===== 校园评价（课程 / 食堂 / 商圈评分） =====
 // query: { category, campus, floor, grade, level, parentId, keyword, sort, page }
 function getReviewTargets(query) {
@@ -858,6 +880,11 @@ module.exports = {
   getActivityDetail,
   createActivity,
   signupActivity,
+  getCoupleCurrent,
+  submitCoupleSignup,
+  getCoupleMatch,
+  rematchCouple,
+  getCoupleHistory,
   getReviewTargets,
   getReviewTargetDetail,
   createReviewTarget,

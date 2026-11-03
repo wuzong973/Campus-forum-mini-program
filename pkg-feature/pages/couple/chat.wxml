@@ -1,0 +1,90 @@
+<view class="chat-page" wx:if="{{!loading}}">
+  <view class="empty-state card" wx:if="{{!match}}">
+    <view class="empty-orb">CP</view>
+    <text class="empty-title">暂时没有可查看的聊天</text>
+    <text class="empty-sub">配对成功后才能进入聊天；历史配对仅可查看记录。</text>
+  </view>
+
+  <block wx:else>
+    <scroll-view class="chat-scroll" scroll-y scroll-into-view="{{scrollIntoView}}" scroll-with-animation enhanced show-scrollbar="{{false}}">
+      <view class="cp-strip card">
+        <view class="cp-people">
+          <view class="cp-person">
+            <image class="cp-photo" src="{{mePhoto || meAvatar}}" mode="aspectFill"></image>
+            <text class="cp-name">你</text>
+          </view>
+          <text class="cp-heart">♥</text>
+          <view class="cp-person">
+            <image class="cp-photo" src="{{partnerPhoto || partnerAvatar}}" mode="aspectFill"></image>
+            <text class="cp-name">{{partnerName}}</text>
+          </view>
+        </view>
+        <text class="cp-note">{{readonly ? '该配对已结束 · 仅可查看历史消息' : '照片仅在匹配成功后可见 · 长按自己的消息可撤回'}}</text>
+      </view>
+
+      <view class="readonly-banner" wx:if="{{readonly}}">该配对已结束，仅可查看历史消息</view>
+
+      <view class="chat-list">
+        <view class="msg {{item.mine ? 'msg-right' : 'msg-left'}}" wx:for="{{messages}}" wx:key="id">
+          <image wx:if="{{!item.mine}}" class="msg-avatar" src="{{item.avatar}}" mode="aspectFill"></image>
+          <view class="msg-main">
+            <view class="bubble {{item.mine ? 'mine' : ''}} {{item.type === 'image' || item.type === 'video' ? 'media-bubble' : ''}} {{item.type === 'voice' ? 'voice-bubble' : ''}}" data-id="{{item.id}}" bindlongpress="onRecallMessage">
+              <image wx:if="{{item.type === 'image'}}" class="msg-image" src="{{item.content}}" mode="widthFix" data-src="{{item.content}}" catchtap="previewImage" lazy-load></image>
+              <video wx:elif="{{item.type === 'video'}}" class="msg-video" src="{{item.content}}" controls object-fit="contain"></video>
+              <view wx:elif="{{item.type === 'voice'}}" class="voice-msg" data-id="{{item.id}}" data-url="{{item.voiceUrl}}" catchtap="playVoice">
+                <text class="voice-play">{{playingId === item.id ? '❚❚' : '▶'}}</text>
+                <text class="voice-duration">{{item.voiceDuration}}″</text>
+              </view>
+              <text wx:elif="{{item.type === 'emoji'}}" class="msg-emoji">{{item.content}}</text>
+              <text wx:else>{{item.text}}</text>
+            </view>
+            <text class="msg-time">{{item.time}}</text>
+          </view>
+          <image wx:if="{{item.mine}}" class="msg-avatar" src="{{item.avatar}}" mode="aspectFill"></image>
+        </view>
+        <view class="chat-empty" wx:if="{{!messages.length}}">你们已互相确认，发一句招呼开始聊天吧</view>
+        <view id="chat-bottom" class="chat-bottom"></view>
+      </view>
+    </scroll-view>
+
+    <view class="emoji-panel" wx:if="{{!readonly && activePanel === 'emoji'}}">
+      <view class="emoji-grid">
+        <text class="emoji-item" wx:for="{{emojiList}}" wx:key="*this" data-emoji="{{item}}" bindtap="onEmojiTap">{{item}}</text>
+      </view>
+    </view>
+
+    <view class="tool-panel" wx:if="{{!readonly && activePanel === 'tools'}}">
+      <view class="tool-panel-item" hover-class="tool-item-hover" hover-stay-time="80" bindtap="onChooseImage">
+        <view class="tool-tile"><view class="tool-icon-photo"></view></view>
+        <text class="tool-panel-label">照片</text>
+      </view>
+      <view class="tool-panel-item" hover-class="tool-item-hover" hover-stay-time="80" bindtap="onChooseVideo">
+        <view class="tool-tile"><view class="tool-icon-video"></view></view>
+        <text class="tool-panel-label">视频</text>
+      </view>
+    </view>
+
+    <view class="composer" wx:if="{{!readonly}}">
+      <view class="tool-btn" hover-class="tool-btn-hover" hover-stay-time="80" bindtap="onToggleVoice">
+        <view class="icon-voice {{voiceMode ? 'is-keyboard' : ''}}"></view>
+      </view>
+      <input wx:if="{{!voiceMode}}" class="chat-input" value="{{inputValue}}" maxlength="200" placeholder="说点什么..." confirm-type="send" bindinput="onInput" bindfocus="onInputFocus" bindconfirm="send" adjust-position cursor-spacing="20" />
+      <view wx:else class="voice-input {{recording ? 'is-recording' : ''}}" bindtouchstart="onVoiceStart" bindtouchend="onVoiceEnd" bindtouchcancel="onVoiceCancel" catchtouchmove="noop">{{recording ? '松开发送' : '按住 说话'}}</view>
+      <view class="tool-btn" hover-class="tool-btn-hover" hover-stay-time="80" bindtap="onToggleEmoji">
+        <view class="icon-emoji"></view>
+      </view>
+      <view class="tool-btn" wx:if="{{!voiceMode && !inputValue}}" hover-class="tool-btn-hover" hover-stay-time="80" bindtap="onToggleTools">
+        <view class="icon-plus"></view>
+      </view>
+      <button class="send-btn" wx:elif="{{!voiceMode}}" loading="{{sending}}" disabled="{{sending || imageSending || videoSending || recording}}" bindtap="send">发送</button>
+    </view>
+    <view class="composer composer-readonly" wx:else>
+      <text>该配对已结束，无法发送消息</text>
+    </view>
+  </block>
+</view>
+
+<view class="loading-page" wx:else>
+  <view class="loading-dot"></view>
+  <text>正在加载聊天...</text>
+</view>

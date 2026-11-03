@@ -1607,6 +1607,103 @@ async function repairUserAvatars() {
       INDEX idx_broadcast_created (created_at)
     ) ENGINE=InnoDB
   `)
+
+  // ===== 一周CP（情侣匹配）=====
+  // 规则：总匹配 10 位（含首次），单用户 48 小时窗口从首次匹配成功开始；
+  // 同一用户同时只有一条有效配对，历史配对只读。
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS couple_activity (
+      id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+      title VARCHAR(64) NOT NULL DEFAULT '校园一周CP',
+      intro VARCHAR(500) NOT NULL DEFAULT '',
+      rules TEXT,
+      signup_start DATETIME DEFAULT NULL,
+      signup_end DATETIME DEFAULT NULL,
+      match_at DATETIME DEFAULT NULL,
+      activity_end DATETIME DEFAULT NULL,
+      capacity INT UNSIGNED NOT NULL DEFAULT 2000,
+      status TINYINT NOT NULL DEFAULT 0 COMMENT '0草稿 1报名 2匹配 3结束',
+      created_by INT UNSIGNED DEFAULT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    ) ENGINE=InnoDB
+  `)
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS couple_signup (
+      id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+      activity_id INT UNSIGNED NOT NULL,
+      user_id INT UNSIGNED NOT NULL,
+      gender TINYINT NOT NULL DEFAULT 0 COMMENT '1男 2女',
+      campus VARCHAR(64) NOT NULL DEFAULT '',
+      grade VARCHAR(16) NOT NULL DEFAULT '',
+      height SMALLINT UNSIGNED NOT NULL DEFAULT 0,
+      mbti VARCHAR(8) NOT NULL DEFAULT '',
+      photo_url VARCHAR(512) NOT NULL DEFAULT '',
+      intro VARCHAR(300) NOT NULL DEFAULT '',
+      tags JSON DEFAULT NULL,
+      expect_gender TINYINT NOT NULL DEFAULT 0 COMMENT '0不限',
+      expect_campus VARCHAR(64) NOT NULL DEFAULT '' COMMENT '空=不限',
+      expect_height_min SMALLINT UNSIGNED NOT NULL DEFAULT 0,
+      expect_height_max SMALLINT UNSIGNED NOT NULL DEFAULT 0,
+      expect_mbti JSON DEFAULT NULL,
+      consent TINYINT(1) NOT NULL DEFAULT 0 COMMENT '已同意活动规则与隐私说明',
+      status TINYINT NOT NULL DEFAULT 1 COMMENT '1可匹配 2已匹配 3取消 4驳回',
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      UNIQUE KEY uk_couple_activity_user (activity_id, user_id),
+      KEY idx_couple_activity_status (activity_id, status, gender)
+    ) ENGINE=InnoDB
+  `)
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS couple_match (
+      id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+      activity_id INT UNSIGNED NOT NULL,
+      user_a INT UNSIGNED NOT NULL,
+      user_b INT UNSIGNED NOT NULL,
+      score TINYINT UNSIGNED NOT NULL DEFAULT 0,
+      common_tags JSON DEFAULT NULL,
+      status TINYINT NOT NULL DEFAULT 1 COMMENT '1进行中 2已结束',
+      closed_reason VARCHAR(32) NOT NULL DEFAULT '',
+      window_start DATETIME NOT NULL,
+      window_end DATETIME NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      closed_at DATETIME DEFAULT NULL,
+      UNIQUE KEY uk_couple_pair (activity_id, user_a, user_b),
+      KEY idx_couple_match_a (user_a, status),
+      KEY idx_couple_match_b (user_b, status),
+      KEY idx_couple_match_expire (activity_id, status, window_end)
+    ) ENGINE=InnoDB
+  `)
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS couple_window (
+      id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+      user_id INT UNSIGNED NOT NULL,
+      activity_id INT UNSIGNED NOT NULL,
+      window_start DATETIME NOT NULL,
+      window_end DATETIME NOT NULL,
+      match_count TINYINT UNSIGNED NOT NULL DEFAULT 0,
+      current_match_id INT UNSIGNED NOT NULL DEFAULT 0,
+      status TINYINT NOT NULL DEFAULT 1 COMMENT '1进行中 2已结束',
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      UNIQUE KEY uk_couple_window_user_activity (user_id, activity_id),
+      KEY idx_couple_window_activity (activity_id, status, window_end)
+    ) ENGINE=InnoDB
+  `)
+  await pool.query(`
+    INSERT IGNORE INTO feature_config (config_key, label, config_value, status)
+    VALUES ('couple.enabled', 'Couple', '', 1)
+  `)
+  await pool.query(`
+    INSERT INTO couple_activity
+      (title, intro, rules, capacity, status)
+    SELECT
+      '一周CP',
+      '不急着一见钟情，先认真认识一个人。系统按批次匹配，随时可以加入。',
+      '1. 仅限在校学生参加；2. 每轮 48 小时最多匹配 10 位同学；3. 匹配成功后仅通过站内私信联系；4. 历史配对只读，请尊重对方隐私。',
+      0, 1
+    WHERE NOT EXISTS (SELECT 1 FROM couple_activity)
+  `)
 }
 
 module.exports = {
