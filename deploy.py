@@ -8,14 +8,15 @@ if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
-SERVER = "193.112.187.95"
-USER = "root"
-PASS = "Wzl@88888"
-REMOTE_BASE = "/home/springboot/server"
+SERVER = os.getenv("DEPLOY_HOST", "")
+USER = os.getenv("DEPLOY_USER", "")
+PASS = os.getenv("DEPLOY_PASSWORD", "")
+# Configure DEPLOY_* values in the local shell or a secret manager; do not commit them.
+REMOTE_BASE = os.getenv("DEPLOY_REMOTE_BASE", "")
 APP_VERSION = os.getenv("DEPLOY_APP_VERSION", "")
 # nginx 直接托管的静态站点目录（小程序 web-view 用的 H5 页面、微信业务域名校验文件放这里）
-STATIC_REMOTE_BASE = "/www/wwwroot/payun01.cn"
-LOCAL_BASE = r"d:\校园论坛小程序"
+STATIC_REMOTE_BASE = os.getenv("DEPLOY_STATIC_REMOTE_BASE", "")
+LOCAL_BASE = os.path.dirname(os.path.abspath(__file__))
 
 files = [
     ("server/app.js", "app.js"),
@@ -83,12 +84,19 @@ static_files = [
 # 非 server 目录的远端文件（绝对远端路径）：教务爬虫被 jwScheduleSyncService 引用，
 # 改动 crawler.js 后必须同步上传，否则线上仍是旧逻辑
 extra_files = [
-    ("jw-crawler/crawler.js", "/home/springboot/jw-crawler/crawler.js"),
+    ("jw-crawler/crawler.js", os.getenv("DEPLOY_JW_CRAWLER_REMOTE_PATH", "")),
 ]
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--static-only", action="store_true", help="只上传静态网页文件，不动 node 服务")
 args = parser.parse_args()
+
+required_env = ["DEPLOY_HOST", "DEPLOY_USER", "DEPLOY_PASSWORD", "DEPLOY_STATIC_REMOTE_BASE"]
+if not args.static_only:
+    required_env.extend(["DEPLOY_REMOTE_BASE", "DEPLOY_JW_CRAWLER_REMOTE_PATH"])
+missing_env = [key for key in required_env if not os.getenv(key)]
+if missing_env:
+    raise SystemExit("Please set deployment environment variables: " + ", ".join(missing_env))
 
 ssh = paramiko.SSHClient()
 ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())

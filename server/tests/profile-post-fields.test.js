@@ -50,7 +50,7 @@ const DB_POST = {
   isLiked: 0,
   created_at: '2026-09-12 09:11:00',
   anonymous_identity: null,
-  nick_name: '广轻观察',
+  nick_name: '[WECOM_ACCOUNT]',
   avatar_url: '/assets/avatar2/avatar_01.jpg',
   campus: '南海北校区',
   is_verified: 1,
@@ -141,7 +141,7 @@ async function main() {
   check(() => {
     assert.strictEqual(post.likeCount, 3, 'likeCount 应来自 DB')
     assert.strictEqual(post.commentCount, 9, 'commentCount 应来自 DB')
-    assert.strictEqual(post.nickName, '广轻观察', '昵称应来自 DB')
+    assert.strictEqual(post.nickName, '[WECOM_ACCOUNT]', '昵称应来自 DB')
     assert.strictEqual(post.certLabel, '官方', '认证标签应来自 DB')
   }, '字段值来自数据库')
 
@@ -191,7 +191,7 @@ async function main() {
       const ap = anonRes.body.data.list[0]
       assert.strictEqual(ap.nickName, '深幽的洞穴', '匿名帖应显示分身昵称')
       assert.ok(String(ap.avatarUrl).indexOf('avatar1') > -1, '匿名帖应显示分身头像')
-      assert.ok(String(ap.nickName).indexOf('广轻观察') === -1, '不得泄露真实昵称')
+      assert.ok(String(ap.nickName).indexOf('[WECOM_ACCOUNT]') === -1, '不得泄露真实昵称')
       // 匿名帖同样要带上浏览量，别因为走匿名分支又丢一次
       assert.strictEqual(ap.viewCount, 280, '匿名帖也必须下发浏览量')
     }, '匿名帖不泄露且字段齐备')

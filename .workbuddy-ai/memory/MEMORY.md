@@ -22,7 +22,7 @@
 - **⚠ 用户报「改了但页面没变」时，先怀疑「没部署/没重传」，不要先改代码。**
 
 ## 部署与排障
-- 生产 `https://payun01.cn`，前缀 `/api/v1`；pm2 cluster 2 实例、端口 3000。`BASE_URL` 硬编码在 `utils/request.js`。Nginx 静态根 `/www/wwwroot/payun01.cn`（宝塔），站点配置 `vhost/nginx/payun01.cn.conf`（改后 `nginx -t && nginx -s reload`）。静态 H5 源 `web-static/`（`embed.html` 必须部署）。服务器 `root@193.112.187.95`（凭据见 `deploy.py`），OpenCloudOS 9.6 / nginx 1.30.4 / 宝塔面板 v11.8.1（`http://193.112.187.95:8888/tencentcloud`）。
+- 生产 `https://payun01.cn`，前缀 `/api/v1`；pm2 cluster 2 实例、端口 3000。`BASE_URL` 硬编码在 `utils/request.js`。Nginx 静态根 `/www/wwwroot/payun01.cn`（宝塔），站点配置 `vhost/nginx/payun01.cn.conf`（改后 `nginx -t && nginx -s reload`）。静态 H5 源 `web-static/`（`embed.html` 必须部署）。服务器 `root@[REDACTED_IP]`（凭据见 `deploy.py`），OpenCloudOS 9.6 / nginx 1.30.4 / 宝塔面板 v11.8.1（`http://[REDACTED_IP]:8888/tencentcloud`）。
 - **改少量文件不要跑 `deploy*.py` 全量脚本**（清单 30~50 文件、线上有漂移）。定向单文件：备份 `.bak-<ts>` → 上传 → `node --check` → 比 sha256 → `pm2 restart GQG-campus` → curl health 200。模板 `.workbuddy/tmp_deploy_*.py`。
 - **⚠ 双向漂移都可能**：① 线上有未回流仓库的热修；② 本地也有整块未部署的功能。判据：本地是线上严格超集 → 可安全覆盖，否则逐文件核对；判据要**语义化**（naive 逐行 diff 会把「单行表达式重构成变量」当热修 → 去空白规范化 + 对已知重构豁免）。
 - **⚠ 小程序代码不随服务端部署上线**，必须用微信开发者工具重传；未部署的改动端上一定显示旧行为。

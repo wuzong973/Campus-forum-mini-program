@@ -12,8 +12,11 @@ import paramiko
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
-LOCAL_BASE = r"D:\校园论坛小程序\server"
-REMOTE_BASE = "/home/springboot/server/"
+LOCAL_BASE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "server")
+REMOTE_BASE = os.getenv("DEPLOY_REMOTE_BASE", "")
+DEPLOY_HOST = os.getenv("DEPLOY_HOST", "")
+DEPLOY_USER = os.getenv("DEPLOY_USER", "")
+DEPLOY_PASSWORD = os.getenv("DEPLOY_PASSWORD", "")
 
 FILES = [
     "app.js",
@@ -41,6 +44,12 @@ BROADCAST_ENV_KEYS = [
 
 
 def main():
+    required = ["DEPLOY_HOST", "DEPLOY_USER", "DEPLOY_PASSWORD", "DEPLOY_REMOTE_BASE"]
+    missing = [key for key in required if not os.getenv(key)]
+    if missing:
+        print("Missing deployment environment variables: " + ", ".join(missing))
+        sys.exit(1)
+
     values = {}
     missing = [k for k in ["BROADCAST_WECOM_CORP_ID", "BROADCAST_WECOM_SECRET", "BROADCAST_WECOM_AGENT_ID"]
                if not os.environ.get(k)]
@@ -54,7 +63,7 @@ def main():
 
     client = paramiko.SSHClient()
     client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-    client.connect("193.112.187.95", username="root", password="Wzl@88888", timeout=15)
+    client.connect(DEPLOY_HOST, username=DEPLOY_USER, password=DEPLOY_PASSWORD, timeout=15)
 
     # 服务器 SFTP 在同一连接上连续 put 会偶发远端 ENOENT，失败就整连接重建重试一次
     def upload(sftp, local, remote):
@@ -76,7 +85,7 @@ def main():
             client.close()
             client = paramiko.SSHClient()
             client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-            client.connect("193.112.187.95", username="root", password="Wzl@88888", timeout=15)
+            client.connect(DEPLOY_HOST, username=DEPLOY_USER, password=DEPLOY_PASSWORD, timeout=15)
             sftp = client.open_sftp()
             upload(sftp, local, remote)
     sftp.close()

@@ -31,7 +31,7 @@ function check(fn, message) {
 }
 
 const ANON_NICK = '深幽的洞穴'
-const REAL_NICK = '广轻观察'
+const REAL_NICK = '[WECOM_ACCOUNT]'
 const PEER_NICK = '凋零的花瓣'
 const ANON_AVATAR = '/assets/avatar1/熊猫.jpg'
 

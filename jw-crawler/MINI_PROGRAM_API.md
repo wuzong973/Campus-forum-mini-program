@@ -17,10 +17,12 @@ npm run server
 
 ```dotenv
 # API 密钥，用于验证请求合法性（请替换为随机字符串）
-API_KEY=c0281bb37d1651392b35d2d3f725eafdaaf10d54520a93ff6df24ec12e43c541
+API_KEY=replace-with-a-random-api-key
 # 应用密钥，用于生成 userId 和加密用户密码（至少 16 位随机字符）
-APP_SECRET=01e7989815447ff03d3050039bcd535d7f6928d26a3912e69f2bb211a039645d06148adc38c5636788513af706891a4d3a86f03c65442b37065263c7f0263bca
+APP_SECRET=replace-with-a-long-random-secret-at-least-16-chars
 ```
+
+> 上述值是示例占位符。真实密钥仅放在未提交的服务器 `.env` 或密钥管理系统中；若曾公开使用，请及时轮换 `API_KEY`。轮换 `APP_SECRET` 前需制定数据迁移方案，否则已有加密凭证可能无法解密。
 
 > ⚠️ **重要**：真实用户登录后请勿修改 `APP_SECRET`，它用于生成 userId 和加密密码，修改后所有旧用户数据将无法使用。
 
@@ -171,9 +173,9 @@ x-api-key: 你的 API_KEY
 ```js
 // API 基础地址（替换为你的服务器域名）
 const API_BASE = "https://your-domain.example.com";
-// 与后端相同的 API 密钥
+// 示例占位符；不要把服务器 API_KEY 填入小程序客户端代码
 const API_KEY =
-  "c0281bb37d1651392b35d2d3f725eafdaaf10d54520a93ff6df24ec12e43c541";
+  "REPLACE_WITH_SERVER_API_KEY";
 
 /**
  * 通用 API 请求函数

@@ -65,7 +65,7 @@ const CONVERSATION_ROWS = [
     // 匿名会话但没存分身档案 → 兜底用对方真实头像，且必须是纠正后的路径
     id: 53, peer_id: 66, persona_key: '', unread_count: 2, last_message_text: 'hi',
     last_message_time: '2026-09-11 20:00:00', is_anonymous: 1, anon_peer_identity: null,
-    peer_is_anonymous: 0, peer_nick: 'A.Twelve', peer_avatar: '/assets/avatar2/1%20(9).jpg',
+    peer_is_anonymous: 0, peer_nick: '[OPERATOR_ACCOUNT]', peer_avatar: '/assets/avatar2/1%20(9).jpg',
   },
   {
     // 存了旧名分身档案 → 昵称头像都取分身，头像纠正为池内新名

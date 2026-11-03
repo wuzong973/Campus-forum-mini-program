@@ -65,7 +65,7 @@ GET  /jsxsd/framework/xsMain.jsp
 | 版本      | 1.0.0                                    |
 | 目标系统  | 广轻工职业学院教务系统（强智教务系统）   |
 | 技术栈    | Node.js + axios + cheerio + tough-cookie |
-| 服务器 IP | `47.115.158.249`（阿里云）               |
+| 服务器 IP | `YOUR_SERVER_HOST`（阿里云）               |
 
 ### 1.2 目标系统域名与协议
 
@@ -327,7 +327,7 @@ GET   https://jw.gdipu.edu.cn/jsxsd/framework/xsMain.jsp  [200] ← 最终首页
 - **xsMain.jsp 中的隐藏表单**（用于教务子系统回跳统一认证）：
   ```html
   <form
-    action="http://47.115.158.249/Logon.do?method=logonFromJsxsd"
+    action="http://YOUR_SERVER_HOST/Logon.do?method=logonFromJsxsd"
     method="post"
     id="loginForm1"
   >

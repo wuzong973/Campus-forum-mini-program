@@ -2,7 +2,11 @@ const mysql = require('mysql2/promise');
 require('dotenv').config();
 
 async function setAdmin() {
-  const phone = process.argv[2] || '19867363523';
+  const phone = process.argv[2];
+  if (!phone) {
+    console.error("Usage: node set-admin.js <phone> [role]");
+    process.exit(1);
+  }
   const role = process.argv[3] || 'super_admin';
 
   console.log(`正在查找手机号: ${phone}`);
