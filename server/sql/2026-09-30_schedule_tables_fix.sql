@@ -3,7 +3,7 @@
 -- 日期：2026-09-30
 -- 原因：远程库缺少课表模块的表（safeMessage 把 ER_NO_SUCH_TABLE /
 --       ER_BAD_FIELD_ERROR 统一吞成"数据库操作失败"）
--- 用法：SSH 到 payun01.cn（193.112.187.95）后：
+-- 用法：SSH 到 payun01.cn（[REDACTED_IP]）后：
 --       mysql -u<用户名> -p <远程库名> < 2026-09-30_schedule_tables_fix.sql
 --       （远程库名以服务器上的 server/.env 里 DB_NAME 为准；
 --        全部 CREATE TABLE IF NOT EXISTS，可安全重复执行）
