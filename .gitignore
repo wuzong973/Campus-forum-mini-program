@@ -40,6 +40,9 @@ __pycache__/
 *.temp
 .workbuddy/
 .mimosa/
+.workbuddy-ai/
+.video_agent/
+.v2c/
 
 # Crawler captures and local test artifacts
 jw-crawler/.logs/
